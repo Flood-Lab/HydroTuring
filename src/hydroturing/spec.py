@@ -35,6 +35,18 @@ UNITS = {
 
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0}
 
+# These repository-owned baselines are the only code allowed to bypass the
+# container boundary. A submitted manifest cannot opt itself into host access.
+TRUSTED_SUBPROCESS_MODELS = {
+    "reference_bucket",
+    "reference_calendar",
+    "reference_cheater",
+    "reference_degenerate",
+    "reference_in_sample",
+    "reference_leaky",
+    "reference_streamflow_only",
+}
+
 
 class SpecError(ValueError):
     """A probe or model manifest is malformed."""
@@ -174,6 +186,17 @@ def load_probe(path: str | Path) -> ProbeSpec:
     if len(names) != len(set(names)):
         raise SpecError(f"{spec_file}: duplicate criterion names in `criteria`")
 
+    # JSON Schema can validate the shape of a criterion declaration, but the
+    # executable registry is the authority on which criterion names exist.
+    from hydroturing import criteria as criteria_mod  # noqa: PLC0415
+
+    unknown = [name for name in names if name not in criteria_mod.CRITERIA]
+    if unknown:
+        raise SpecError(
+            f"{spec_file}: unknown criteria {unknown}; known criteria are "
+            f"{sorted(criteria_mod.CRITERIA)}"
+        )
+
     for model, criterion in raw["baselines"]["must_fail"].items():
         if criterion not in names:
             raise SpecError(
@@ -254,6 +277,13 @@ def load_model(path: str | Path) -> ModelManifest:
             f"'{directory.name}'"
         )
 
+    runner = raw.get("runner", "docker")
+    if runner == "subprocess" and raw["name"] not in TRUSTED_SUBPROCESS_MODELS:
+        raise SpecError(
+            f"{spec_file}: runner 'subprocess' is reserved for trusted reference "
+            "models; submitted models must use runner 'docker'"
+        )
+
     unknown = [v for v in raw["emits"]["fluxes"] if v not in FLUX_VARS]
     unknown += [v for v in raw["emits"]["states"] if v not in STATE_VARS]
     if unknown:
@@ -266,7 +296,7 @@ def load_model(path: str | Path) -> ModelManifest:
         timestep=raw["timestep"],
         emits_fluxes=tuple(raw["emits"]["fluxes"]),
         emits_states=tuple(raw["emits"]["states"]),
-        runner=raw.get("runner", "docker"),
+        runner=runner,
         needs_forcing=tuple(raw.get("needs_forcing", [])),
         supports_perturbation=bool(raw.get("supports", {}).get("perturbation", False)),
         resources=raw.get("resources", {}),

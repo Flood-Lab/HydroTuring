@@ -87,6 +87,8 @@ def _probe_dict(probe: ProbeOutcome) -> dict[str, Any]:
     }
     if probe.missing:
         payload["missing"] = probe.missing
+    if probe.incompatible:
+        payload["incompatible"] = probe.incompatible
     if probe.error:
         payload["error"] = probe.error
     if probe.criteria:
@@ -144,6 +146,8 @@ def _detail(probe: ProbeOutcome) -> str:
         return probe.error.splitlines()[0][:160]
     if probe.missing:
         return "does not report " + ", ".join(f"`{v}`" for v in probe.missing)
+    if probe.incompatible:
+        return "; ".join(probe.incompatible)
     failing = [c for c in probe.criteria if not c.passed]
     if not failing:
         closure = next((c for c in probe.criteria if c.name == "closure"), None)
@@ -170,6 +174,8 @@ def to_text(report: ModelReport) -> str:
             lines.append(f"          error: {probe.error.splitlines()[0]}")
         if probe.missing:
             lines.append(f"          missing: {', '.join(probe.missing)}")
+        if probe.incompatible:
+            lines.append(f"          incompatible: {'; '.join(probe.incompatible)}")
         for c in probe.criteria:
             lines.append(f"        {mark(c.passed)}  {c.name:<18} {c.message}")
     return "\n".join(lines)

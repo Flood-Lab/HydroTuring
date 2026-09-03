@@ -45,8 +45,8 @@ def require_docker() -> str:
     return docker
 
 
-def build(model: ModelManifest, quiet: bool = True) -> str:
-    docker = require_docker()
+def build(model: ModelManifest, quiet: bool = True, docker: str | None = None) -> str:
+    docker = docker or require_docker()
     dockerfile = model.path / "Dockerfile"
     if not dockerfile.exists():
         raise RunnerError(f"{model.name}: no Dockerfile at {dockerfile}")
@@ -68,35 +68,49 @@ def build(model: ModelManifest, quiet: bool = True) -> str:
 class DockerRunner(Runner):
     name = "docker"
 
+    def __init__(self) -> None:
+        self._tag: str | None = None
+
     @staticmethod
     def command(docker: str, tag: str, model: ModelManifest, io_dir: Path) -> list[str]:
         """Build the run command.
 
         Isolation is part of the benchmark, not an operational detail, so this
-        is asserted by the test suite rather than trusted. No network means the
-        model cannot phone home; the single bind mount means it sees the case
-        and nothing else, so it cannot read the probe definition or the
-        tolerance it is judged against.
+        is asserted by the test suite rather than trusted. Inputs and the
+        request are mounted read-only; only the output directory is writable.
+        The image's own working directory is preserved so a relative entrypoint
+        resolves exactly as it did when the image was built.
         """
         resources = model.resources or {}
+        request_path = (io_dir / "request.json").resolve()
+        input_dir = (io_dir / "input").resolve()
+        output_dir = (io_dir / "output").resolve()
         return [
             docker, "run", "--rm",
             "--network", "none",
-            "--mount", f"type=bind,source={io_dir.resolve()},target=/io",
+            "--read-only",
+            "--cap-drop", "ALL",
+            "--security-opt", "no-new-privileges",
+            "--pids-limit", "256",
+            "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m",
+            "--mount", f"type=bind,source={request_path},target=/io/request.json,readonly",
+            "--mount", f"type=bind,source={input_dir},target=/io/input,readonly",
+            "--mount", f"type=bind,source={output_dir},target=/io/output",
             "--memory", f"{resources.get('memory_gb', 4)}g",
             "--cpus", str(resources.get("cpu", 2)),
-            "--workdir", "/io",
             tag,
             *model.entrypoint, "--request", "/io/request.json",
         ]
 
     def invoke(self, model: ModelManifest, probe: ProbeSpec, io_dir: Path, request_path: Path) -> None:
         docker = require_docker()
-        tag = build(model)
+        if self._tag is None:
+            self._tag = build(model, docker=docker)
+        tag = self._tag
         argv = self.command(docker, tag, model, io_dir)
         try:
             proc = subprocess.run(
-                argv, capture_output=True, text=True, timeout=probe.max_runtime_s + 60
+                argv, capture_output=True, text=True, timeout=probe.max_runtime_s
             )
         except subprocess.TimeoutExpired:
             raise RunnerError(

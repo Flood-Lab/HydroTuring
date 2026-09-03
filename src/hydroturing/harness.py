@@ -5,15 +5,15 @@ from __future__ import annotations
 import importlib.util
 import inspect
 import tempfile
+from dataclasses import replace
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 
 from hydroturing import SUITE_VERSION, criteria as criteria_mod
 from hydroturing.criteria.base import CriterionResult
 from hydroturing.protocol import Case, ProtocolError, RunResult
-from hydroturing.runner import RunnerError, get_runner
+from hydroturing.runner import get_runner
 from hydroturing.scoring import (
     FAIL,
     PASS,
@@ -96,6 +96,60 @@ def evaluate_criteria(runs: dict[str, RunResult], probe: ProbeSpec) -> list[Crit
     return results
 
 
+def compatibility_issues(
+    model: ModelManifest,
+    probe: ProbeSpec,
+    case: Case | None = None,
+    *,
+    check_perturbation: bool = True,
+) -> list[str]:
+    """Explain why a model cannot be meaningfully run on a probe."""
+    issues: list[str] = []
+    if model.timestep != probe.timestep:
+        issues.append(
+            f"model timestep {model.timestep} does not match probe timestep {probe.timestep}"
+        )
+    if check_perturbation and probe.variants and not model.supports_perturbation:
+        issues.append("model does not declare support for paired perturbation cases")
+    if case is not None:
+        visible = {c for c in case.forcing.columns if not c.startswith("_")}
+        missing = [v for v in model.needs_forcing if v not in visible]
+        if missing:
+            issues.append("forcing does not provide " + ", ".join(missing))
+    return issues
+
+
+def verify_adapter_contract(
+    model: ModelManifest,
+    probe: ProbeSpec,
+    seed: int,
+    workdir: Path | None = None,
+) -> RunResult:
+    """Invoke an adapter once and validate only the outputs it declares.
+
+    Contract verification must not short-circuit merely because a scientific
+    probe needs variables the model does not produce. That limitation belongs
+    to the later INCOMPLETE verdict, not to this smoke test.
+    """
+    case = build_case(probe, seed)
+    issues = compatibility_issues(model, probe, case, check_perturbation=False)
+    if issues:
+        raise ProtocolError("; ".join(issues))
+
+    smoke_probe = replace(
+        probe,
+        requires_fluxes=model.emits_fluxes,
+        requires_states=model.emits_states,
+        variants=(),
+        criteria=(),
+    )
+    if workdir is None:
+        io_dir = Path(tempfile.mkdtemp(prefix=f"hydroturing-verify-{model.name}-"))
+    else:
+        io_dir = Path(workdir) / f"{model.name}__adapter_verification"
+    return get_runner(model).run(model, smoke_probe, case, io_dir)
+
+
 def run_probe(
     model: ModelManifest,
     probe: ProbeSpec,
@@ -104,13 +158,15 @@ def run_probe(
 ) -> ProbeOutcome:
     """Run one probe across its seeds. Every seed must pass."""
     missing = model.missing_for(probe)
-    if missing:
+    incompatible = compatibility_issues(model, probe)
+    if missing or incompatible:
         return ProbeOutcome(
             probe_id=probe.id,
             law=probe.law,
             verdict=FAIL,
-            reason=reason_for([], missing, None),
+            reason=reason_for([], missing, None, incompatible),
             missing=missing,
+            incompatible=incompatible,
             authors=list(probe.authors),
         )
 
@@ -136,17 +192,28 @@ def run_probe(
                 suffix = f"__{variant}" if variant else ""
                 io_dir = tmp_root / f"{model.name}__{probe.slug}__{seed}{suffix}"
                 case = build_case(probe, seed, variant)
+                issues = compatibility_issues(model, probe, case)
+                if issues:
+                    return ProbeOutcome(
+                        probe_id=probe.id,
+                        law=probe.law,
+                        verdict=FAIL,
+                        reason=reason_for([], [], None, issues),
+                        incompatible=issues,
+                        seeds=seeds,
+                        authors=list(probe.authors),
+                    )
                 runs[variant or "_"] = runner.run(model, probe, case, io_dir)
-        except (RunnerError, ProtocolError) as exc:
+            for result in evaluate_criteria(runs, probe):
+                per_criterion[result.name].append((seed, result))
+                if result.diagnostics.get("suspicious_exact"):
+                    flags.append(f"suspicious_exact:{probe.id}")
+        except Exception as exc:  # generator, runner, protocol, or criterion failure
             return ProbeOutcome(
                 probe_id=probe.id, law=probe.law, verdict=FAIL,
                 reason=reason_for([], [], str(exc)),
                 seeds=seeds, error=str(exc), authors=list(probe.authors),
             )
-        for result in evaluate_criteria(runs, probe):
-            per_criterion[result.name].append((seed, result))
-            if result.diagnostics.get("suspicious_exact"):
-                flags.append(f"suspicious_exact:{probe.id}")
 
     outcomes = []
     for name, pairs in per_criterion.items():

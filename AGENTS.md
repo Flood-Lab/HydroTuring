@@ -15,7 +15,7 @@ models/<model-name>/
 
 ## The contract
 
-The harness mounts a directory at `/io` and runs your entrypoint once:
+The harness exposes a small `/io` filesystem and runs your entrypoint once:
 
 ```
 <entrypoint> --request /io/request.json
@@ -24,15 +24,17 @@ The harness mounts a directory at `/io` and runs your entrypoint once:
 Paths inside `request.json` are relative to the request file's directory.
 
 ```
-/io/request.json          read: case id, seed, timestep, n_steps, requested variables
-/io/input/forcing.csv     read: columns time, pr, tas, pet (mm/day, degC, mm/day)
-/io/input/static.json     read: catchment attributes
+/io/request.json          read-only: opaque case id, model seed, timestep, n_steps, outputs
+/io/input/forcing.csv     read-only: columns time, pr, tas, pet (mm/day, degC, mm/day)
+/io/input/static.json     read-only: catchment attributes
 /io/output/result.csv     write: one row per forcing row, spinup included
 /io/output/run.json       write: {"status": "ok"}
 ```
 
-Exit 0 on success. There is no network. Do not attempt to download weights or
-data at run time; bake them into the image.
+The model seed is deterministic for reproducible stochastic inference, but it
+is not the generator seed recorded in the host-side report. Exit 0 on success.
+There is no network. Do not attempt to download weights or data at run time;
+bake them into the image.
 
 ## Variable names and units
 

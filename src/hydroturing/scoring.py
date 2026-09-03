@@ -8,7 +8,9 @@ The reason a model failed is recorded separately from the verdict, because
 VIOLATION and INCOMPLETE mean completely different things scientifically.
 VIOLATION says the model reported its budget and the budget did not close.
 INCOMPLETE says the model never reported enough to be checked at all, which
-is where every streamflow-only model lands today.
+is where every streamflow-only model lands today. INCOMPATIBLE says the model
+cannot consume the probe as declared. ERROR is reserved for adapter or harness
+failures rather than scientific outcomes.
 """
 
 from __future__ import annotations
@@ -22,10 +24,11 @@ FAIL = "FAIL"
 OK = "OK"
 VIOLATION = "VIOLATION"
 INCOMPLETE = "INCOMPLETE"
+INCOMPATIBLE = "INCOMPATIBLE"
 ERROR = "ERROR"
 
 # Worst reason wins when rolling up.
-_REASON_RANK = {OK: 0, VIOLATION: 1, INCOMPLETE: 2, ERROR: 3}
+_REASON_RANK = {OK: 0, VIOLATION: 1, INCOMPATIBLE: 2, INCOMPLETE: 3, ERROR: 4}
 
 
 @dataclass
@@ -53,6 +56,7 @@ class ProbeOutcome:
     seeds: list[int] = field(default_factory=list)
     criteria: list[CriterionOutcome] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
+    incompatible: list[str] = field(default_factory=list)
     error: str | None = None
     flags: list[str] = field(default_factory=list)
     authors: list[dict[str, str]] = field(default_factory=list)
@@ -86,11 +90,18 @@ class ModelReport:
         return f"{passed}/{len(self.probes)} probes passed"
 
 
-def reason_for(failing: list[str], missing: list[str], error: str | None) -> str:
+def reason_for(
+    failing: list[str],
+    missing: list[str],
+    error: str | None,
+    incompatible: list[str] | None = None,
+) -> str:
     if error:
         return ERROR
     if missing:
         return INCOMPLETE
+    if incompatible:
+        return INCOMPATIBLE
     if failing:
         return VIOLATION
     return OK

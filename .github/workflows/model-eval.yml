@@ -47,6 +47,10 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.model }}" ]; then
             echo "models=${{ github.event.inputs.model }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            models=$(find models -mindepth 2 -maxdepth 2 -name model.yaml \
+              | cut -d/ -f2 | grep -v '^_' | tr '\n' ' ')
+            echo "models=${models}" >> "$GITHUB_OUTPUT"
           else
             changed=$(git diff --name-only HEAD^ HEAD -- models/ \
               | cut -d/ -f2 | sort -u | grep -v '^_' | tr '\n' ' ')
@@ -68,24 +72,33 @@ jobs:
           status=0
           : > scorecard.md
           for model in ${{ steps.select.outputs.models }}; do
-            ht run --model "$model" \
-                   --json "results/$model/report.json" \
-                   --markdown >> scorecard.md || status=1
+            if ht run --model "$model" \
+                      --json "results/$model/report.json" \
+                      --markdown >> scorecard.md; then
+              code=0
+            else
+              code=$?
+            fi
+            # Exit 1 is a scientific FAIL and belongs in the scorecard. Exit 2
+            # is a harness/adapter ERROR and must make the workflow fail.
+            if [ "$code" -ne 0 ] && [ "$code" -ne 1 ]; then
+              status=1
+            fi
             echo >> scorecard.md
           done
           cat scorecard.md
           # A FAIL verdict is information, not a broken build. Only a harness
           # error should turn the job red.
-          exit 0
+          exit "$status"
 
       - uses: actions/upload-artifact@v4
-        if: steps.select.outputs.models != ''
+        if: always() && steps.select.outputs.models != ''
         with:
           name: hydroturing-results
           path: results/
 
       - name: Comment the scorecard
-        if: github.event_name == 'pull_request' && steps.select.outputs.models != ''
+        if: always() && github.event_name == 'pull_request' && steps.select.outputs.models != ''
         uses: actions/github-script@v7
         with:
           script: |

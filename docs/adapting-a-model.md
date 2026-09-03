@@ -64,9 +64,32 @@ The entrypoint stays empty; `model.yaml` supplies the argv.
 ht verify-adapter --model my-model
 ```
 
-This runs one seed and checks the shape of the result: right number of rows,
-requested columns present, no non-finite values. Get it green first. A
-residual computed from a malformed table tells you nothing.
+This always invokes the adapter, even when the model cannot emit enough
+variables for the selected scientific probe. It asks for every output declared
+in `model.yaml` and checks the row count, exact time axis, declared columns,
+finite values and output-size limit. Get it green first. A residual computed
+from a malformed table tells you nothing.
+
+## Private evaluation suites
+
+The probes committed to this repository are public development tests. They
+generate fresh cases, so exact rows cannot be memorised, but their generating
+distribution is intentionally reviewable and is not secret.
+
+A trusted evaluator can add an uncommitted probe tree at run time:
+
+```bash
+ht validate --probe-root /secure/hidden-probes
+ht run --model my-model --probe-root /secure/hidden-probes --json report.json
+```
+
+The external tree uses the same `probes/<law>/<id>/` layout. Its generator and
+criteria execute only on the host. A submitted container receives read-only
+forcing and static inputs, an opaque case identifier, a model-specific random
+seed, and a writable output directory; it never receives the probe path,
+generator seed, annotations, criterion names or tolerances. Freeze the model
+image before running this private suite if the result is meant to demonstrate
+generalisation beyond training.
 
 ## 5. Run it
 

@@ -18,7 +18,9 @@ would exclude exactly the language diversity this contract exists to allow.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -39,6 +41,20 @@ TIME_COL = "time"
 
 class ProtocolError(RuntimeError):
     """The adapter did not honour the contract."""
+
+
+def _opaque_case_metadata(case: Case) -> tuple[str, int]:
+    """Identifiers reproducible by the harness but useless for probe detection.
+
+    The generator seed remains in the host-side report. The model gets a stable,
+    derived seed for any stochastic inference it performs, without being handed
+    the seed that selects the evaluation case.
+    """
+    material = f"{case.probe_id}\0{case.seed}".encode()
+    digest = hashlib.sha256(material).digest()
+    case_id = f"case-{digest[:12].hex()}"
+    model_seed = int.from_bytes(digest[12:16], "big") & 0x7FFFFFFF
+    return case_id, model_seed
 
 
 @dataclass
@@ -84,19 +100,21 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
     with open(io_dir / STATIC_FILE, "w") as fh:
         json.dump(case.static, fh, indent=2)
 
+    case_id, model_seed = _opaque_case_metadata(case)
     request = {
-        "case_id": f"{case.probe_id}#seed={case.seed}",
-        "seed": case.seed,
+        "case_id": case_id,
+        "seed": model_seed,
         "timestep": probe.timestep,
         "n_steps": case.n_steps,
-        "spinup_steps": case.spinup_days,
         "request": {
-            "fluxes": list(probe.requires_fluxes),
-            "states": list(probe.requires_states),
+            # Asking for every declared output keeps this part of the request
+            # invariant across probes and prevents it identifying the criterion.
+            "fluxes": list(model.emits_fluxes),
+            "states": list(model.emits_states),
         },
         "input": {"forcing": FORCING_FILE, "static": STATIC_FILE},
         "output": {"table": RESULT_CSV, "run": RUN_FILE},
-        "units": {v: UNITS[v] for v in probe.required_vars if v in UNITS},
+        "units": {v: UNITS[v] for v in model.emitted if v in UNITS},
         "notes": (
             "States are absolute storages, not tendencies. The harness "
             "differences them itself."
@@ -108,8 +126,59 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
     return request_path
 
 
+def _validate_output_files(io_dir: Path, probe: ProbeSpec) -> None:
+    """Reject unsafe or oversized adapter output before parsing any of it."""
+    output_dir = io_dir / "output"
+    if not output_dir.exists():
+        return
+
+    allowed = {RESULT_CSV, RESULT_NC, RUN_FILE}
+    total = 0
+    for path in output_dir.iterdir():
+        relative = f"output/{path.name}"
+        if relative not in allowed:
+            raise ProtocolError(f"adapter wrote unexpected output '{relative}'")
+        info = path.lstat()
+        if not stat.S_ISREG(info.st_mode):
+            raise ProtocolError(f"adapter output '{relative}' is not a regular file")
+        total += info.st_size
+
+    limit = int(probe.max_output_mb * 1024 * 1024)
+    if total > limit:
+        raise ProtocolError(
+            f"adapter output is {total / (1024 * 1024):.2f} MB, exceeding the "
+            f"{probe.max_output_mb:g} MB limit"
+        )
+
+
+def _validate_time_axis(table: pd.DataFrame, case: Case) -> None:
+    expected = case.forcing[TIME_COL].reset_index(drop=True)
+    actual = table[TIME_COL].reset_index(drop=True)
+
+    # Datetime-capable formats are compared as instants; otherwise the contract
+    # falls back to exact textual equality.
+    expected_dt = pd.to_datetime(expected, errors="coerce", utc=True)
+    actual_dt = pd.to_datetime(actual, errors="coerce", utc=True)
+    if not expected_dt.isna().any() and not actual_dt.isna().any():
+        equal = expected_dt.equals(actual_dt)
+        mismatch = expected_dt != actual_dt
+    else:
+        expected_text = expected.astype(str)
+        actual_text = actual.astype(str)
+        equal = expected_text.equals(actual_text)
+        mismatch = expected_text != actual_text
+
+    if not equal:
+        first = int(mismatch.to_numpy().nonzero()[0][0])
+        raise ProtocolError(
+            f"result time axis differs from the forcing at row {first}: "
+            f"got {actual.iloc[first]!r}, expected {expected.iloc[first]!r}"
+        )
+
+
 def read_result(io_dir: Path, case: Case, probe: ProbeSpec, wall_seconds: float) -> RunResult:
     """Read and validate what the adapter produced."""
+    _validate_output_files(io_dir, probe)
     csv_path = io_dir / RESULT_CSV
     nc_path = io_dir / RESULT_NC
 
@@ -136,6 +205,8 @@ def read_result(io_dir: Path, case: Case, probe: ProbeSpec, wall_seconds: float)
             "(one row per forcing step, spinup included)"
         )
 
+    _validate_time_axis(table, case)
+
     missing = [v for v in probe.required_vars if v not in table.columns]
     if missing:
         raise ProtocolError(f"result is missing requested variables: {missing}")
@@ -149,13 +220,20 @@ def read_result(io_dir: Path, case: Case, probe: ProbeSpec, wall_seconds: float)
 
     meta: dict[str, Any] = {}
     run_path = io_dir / RUN_FILE
-    if run_path.exists():
-        try:
-            with open(run_path) as fh:
-                meta = json.load(fh)
-        except json.JSONDecodeError:
-            raise ProtocolError("run.json is not valid JSON") from None
-        if meta.get("status") not in (None, "ok"):
-            raise ProtocolError(f"adapter reported status={meta.get('status')!r}")
+    if not run_path.exists():
+        raise ProtocolError(f"adapter did not write required {RUN_FILE}")
+    try:
+        with open(run_path) as fh:
+            meta = json.load(fh)
+    except json.JSONDecodeError:
+        raise ProtocolError("run.json is not valid JSON") from None
+    if not isinstance(meta, dict):
+        raise ProtocolError("run.json must contain a JSON object")
+    if meta.get("status") != "ok":
+        raise ProtocolError(f"adapter reported status={meta.get('status')!r}, expected 'ok'")
+    if "n_steps" in meta and meta["n_steps"] != case.n_steps:
+        raise ProtocolError(
+            f"run.json reports n_steps={meta['n_steps']!r}, expected {case.n_steps}"
+        )
 
     return RunResult(case=case, table=table, meta=meta, wall_seconds=wall_seconds)

@@ -7,13 +7,21 @@ arithmetic is not off by one, and the contract is enforced.
 
 from __future__ import annotations
 
+import json
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
 from hydroturing import registry
-from hydroturing.harness import build_case, run_model, run_probe
-from hydroturing.protocol import ProtocolError, read_result
-from hydroturing.scoring import FAIL, INCOMPLETE, PASS, VIOLATION
+from hydroturing.harness import (
+    build_case,
+    run_model,
+    run_probe,
+    verify_adapter_contract,
+)
+from hydroturing.protocol import ProtocolError, read_result, stage
+from hydroturing.scoring import FAIL, INCOMPATIBLE, INCOMPLETE, PASS, VIOLATION
 from hydroturing.spec import SpecError
 from hydroturing.seeds import gate_seeds
 
@@ -102,6 +110,40 @@ def test_missing_variables_report_incomplete_not_violation(probe):
     assert "evspsbl" in outcome.missing
 
 
+def test_incompatible_timestep_is_reported_before_execution(probe):
+    model = replace(registry.find_model("reference_bucket"), timestep="PT1H")
+    outcome = run_probe(model, probe, [11])
+    assert outcome.verdict == FAIL
+    assert outcome.reason == INCOMPATIBLE
+    assert "timestep" in outcome.incompatible[0]
+
+
+def test_missing_forcing_is_reported_as_incompatible(probe):
+    model = replace(
+        registry.find_model("reference_bucket"),
+        needs_forcing=("pr", "unavailable_driver"),
+    )
+    outcome = run_probe(model, probe, [11])
+    assert outcome.reason == INCOMPATIBLE
+    assert "unavailable_driver" in outcome.incompatible[0]
+
+
+def test_paired_probe_requires_declared_perturbation_support(probe):
+    paired = replace(probe, variants=("control", "perturbed"))
+    model = replace(registry.find_model("reference_bucket"), supports_perturbation=False)
+    outcome = run_probe(model, paired, [11])
+    assert outcome.reason == INCOMPATIBLE
+    assert "perturbation" in outcome.incompatible[0]
+
+
+def test_adapter_verification_runs_an_incomplete_model(probe):
+    """A scientific INCOMPLETE verdict must not skip the contract smoke test."""
+    model = registry.find_model("reference_streamflow_only")
+    result = verify_adapter_contract(model, probe, gate_seeds(probe.id, 1)[0])
+    assert len(result.table) == result.case.n_steps
+    assert {"time", "mrro", "dis"} <= set(result.table.columns)
+
+
 def test_all_seeds_must_pass(probe):
     """A model cannot get through on a lucky draw."""
     outcome = run_probe(registry.find_model("reference_leaky"), probe, gate_seeds(probe.id, 5))
@@ -124,6 +166,62 @@ def test_short_result_is_rejected(probe, tmp_path):
         read_result(tmp_path, case, probe, 0.0)
 
 
+def _write_valid_result(path, case):
+    frame = pd.DataFrame({
+        "time": case.forcing["time"],
+        "pr": case.forcing["pr"],
+        "evspsbl": 0.0,
+        "mrro": 0.0,
+        "mrso": 0.0,
+        "snw": 0.0,
+        "canopy": 0.0,
+    })
+    (path / "output").mkdir(parents=True)
+    frame.to_csv(path / "output" / "result.csv", index=False)
+    (path / "output" / "run.json").write_text(
+        json.dumps({"status": "ok", "n_steps": case.n_steps})
+    )
+
+
+def test_run_metadata_is_required(probe, tmp_path):
+    case = build_case(probe, 5)
+    _write_valid_result(tmp_path, case)
+    (tmp_path / "output" / "run.json").unlink()
+    with pytest.raises(ProtocolError, match="required output/run.json"):
+        read_result(tmp_path, case, probe, 0.0)
+
+
+def test_shifted_time_axis_is_rejected(probe, tmp_path):
+    case = build_case(probe, 5)
+    _write_valid_result(tmp_path, case)
+    frame = pd.read_csv(tmp_path / "output" / "result.csv")
+    frame.loc[20, "time"] = "2099-01-01"
+    frame.to_csv(tmp_path / "output" / "result.csv", index=False)
+    with pytest.raises(ProtocolError, match="time axis"):
+        read_result(tmp_path, case, probe, 0.0)
+
+
+def test_output_size_limit_is_enforced(probe, tmp_path):
+    case = build_case(probe, 5)
+    _write_valid_result(tmp_path, case)
+    tiny_limit = replace(probe, max_output_mb=0.001)
+    with pytest.raises(ProtocolError, match="exceeding"):
+        read_result(tmp_path, case, tiny_limit, 0.0)
+
+
+def test_request_hides_probe_identity_and_generator_seed(probe, tmp_path):
+    case = build_case(probe, 123456)
+    model = registry.find_model("reference_bucket")
+    request_path = stage(tmp_path, case, probe, model)
+    request = json.loads(request_path.read_text())
+
+    assert probe.id not in request["case_id"]
+    assert request["seed"] != case.seed
+    assert "spinup_steps" not in request
+    assert request["request"]["fluxes"] == list(model.emits_fluxes)
+    assert request["request"]["states"] == list(model.emits_states)
+
+
 # --- container isolation ----------------------------------------------------
 # The daemon is not available in every dev environment, so the isolation flags
 # are asserted structurally here and the real build-and-run happens in CI,
@@ -131,7 +229,7 @@ def test_short_result_is_rejected(probe, tmp_path):
 # read the probe definition could read the tolerance it is judged against.
 
 
-def test_container_runs_with_no_network_and_one_mount(tmp_path):
+def test_container_runs_with_hardened_read_only_inputs(tmp_path):
     from hydroturing.runner.docker_runner import DockerRunner
 
     model = registry.find_model("reference_bucket")
@@ -139,10 +237,17 @@ def test_container_runs_with_no_network_and_one_mount(tmp_path):
 
     assert argv[:3] == ["docker", "run", "--rm"]
     assert "--network" in argv and argv[argv.index("--network") + 1] == "none"
+    assert "--read-only" in argv
+    assert argv[argv.index("--cap-drop") + 1] == "ALL"
+    assert argv[argv.index("--security-opt") + 1] == "no-new-privileges"
+    assert "--pids-limit" in argv
+    assert "--workdir" not in argv
 
     mounts = [argv[i + 1] for i, a in enumerate(argv) if a == "--mount"]
-    assert len(mounts) == 1, "the container must see the case and nothing else"
-    assert mounts[0] == f"type=bind,source={tmp_path.resolve()},target=/io"
+    assert len(mounts) == 3
+    assert any("target=/io/request.json,readonly" in mount for mount in mounts)
+    assert any("target=/io/input,readonly" in mount for mount in mounts)
+    assert any("target=/io/output" in mount and "readonly" not in mount for mount in mounts)
 
     assert "--memory" in argv and "--cpus" in argv
     assert argv[-2:] == ["--request", "/io/request.json"]
@@ -166,6 +271,24 @@ def test_missing_daemon_is_reported_as_such(monkeypatch):
     )
     with pytest.raises(RunnerError, match="daemon is not reachable"):
         docker_runner.require_docker()
+
+
+def test_submitted_model_cannot_request_host_subprocess_access(tmp_path):
+    import shutil
+
+    from hydroturing.spec import load_model
+
+    target = tmp_path / "submitted_model"
+    shutil.copytree(registry.MODELS_DIR / "_template", target)
+    manifest = target / "model.yaml"
+    manifest.write_text(
+        manifest.read_text()
+        .replace("name: _template", "name: submitted_model")
+        .replace("runner: docker", "runner: subprocess")
+    )
+
+    with pytest.raises(SpecError, match="reserved for trusted reference"):
+        load_model(target)
 
 
 # --- scaffolding ------------------------------------------------------------
@@ -267,6 +390,43 @@ def _template_kinds():
     from hydroturing.scaffold import available_templates
 
     return sorted(available_templates())
+
+
+def test_external_probe_root_is_discovered(tmp_path, monkeypatch):
+    from hydroturing import scaffold
+
+    private_root = tmp_path / "private-probes"
+    monkeypatch.setattr(scaffold, "PROBES_DIR", private_root)
+    target, _ = _scaffold_template(
+        scaffold, tmp_path, "default", "private-evaluation-case"
+    )
+
+    probes = registry.all_probes([registry.PROBES_DIR, private_root])
+    assert target in [probe.path for probe in probes]
+    assert registry.find_probe(
+        "mass/private-evaluation-case", [registry.PROBES_DIR, private_root]
+    ).path == target
+
+
+def test_unknown_criterion_is_rejected(tmp_path, monkeypatch):
+    import yaml
+
+    from hydroturing import scaffold
+    from hydroturing.spec import load_probe
+
+    monkeypatch.setattr(scaffold, "PROBES_DIR", tmp_path / "probes")
+    target, _ = _scaffold_template(scaffold, tmp_path, "default", "unknown-criterion")
+    spec_file = target / "probe.yaml"
+    raw = yaml.safe_load(spec_file.read_text())
+    original = next(iter(raw["criteria"][0]))
+    raw["criteria"][0] = {"not_registered": {}}
+    for model, criterion in raw["baselines"]["must_fail"].items():
+        if criterion == original:
+            raw["baselines"]["must_fail"][model] = "not_registered"
+    spec_file.write_text(yaml.safe_dump(raw, sort_keys=False))
+
+    with pytest.raises(SpecError, match="unknown criteria"):
+        load_probe(target)
 
 
 @pytest.mark.parametrize("kind", _template_kinds())

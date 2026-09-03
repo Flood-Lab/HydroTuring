@@ -62,6 +62,14 @@ short deterministic script instead of a binary blob. Each probe runs several
 seeds and all of them must pass, so no model gets through on a lucky draw.
 Any run reproduces exactly with `ht run --seed <n>`.
 
+This is an **unseen-sample** guarantee, not a claim that the public generator's
+distribution is secret. For evaluation against generators or data unavailable
+during training, keep a second probe tree outside the repository and add it
+with `--probe-root /secure/hidden-probes`. The model container receives only
+opaque case metadata and the inputs needed for inference; the host retains the
+probe identity, generator seed, annotations and scoring code. See
+[docs/adapting-a-model.md](docs/adapting-a-model.md#private-evaluation-suites).
+
 ## Verdicts
 
 Binary, with the reason recorded separately, because these mean different
@@ -71,6 +79,10 @@ things:
 - `INCOMPLETE` the model never reported enough to be checked. Every
   streamflow-only model lands here today. It has not violated conservation;
   it has declined to be falsifiable.
+- `INCOMPATIBLE` the model and probe disagree on timestep, required forcing or
+  paired-perturbation support, so running them would not be meaningful.
+- `ERROR` the adapter or benchmark machinery failed. This is operational, not
+  a scientific verdict, and makes model-evaluation CI fail.
 
 The verdict is one bit. Everything under it stays quantitative, so a paper can
 show that one model leaks 6% and another 40% long before anyone crosses the

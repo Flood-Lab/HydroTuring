@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from hydroturing.spec import REPO_ROOT, ModelManifest, ProbeSpec, load_model, load_probe
+from hydroturing.spec import (
+    REPO_ROOT,
+    ModelManifest,
+    ProbeSpec,
+    SpecError,
+    load_model,
+    load_probe,
+)
 
 PROBES_DIR = REPO_ROOT / "probes"
 MODELS_DIR = REPO_ROOT / "models"
@@ -22,19 +29,32 @@ def model_paths(root: Path | None = None) -> list[Path]:
     )
 
 
-def all_probes() -> list[ProbeSpec]:
-    return [load_probe(p) for p in probe_paths()]
+def all_probes(roots: list[Path] | tuple[Path, ...] | None = None) -> list[ProbeSpec]:
+    paths = probe_paths() if roots is None else [p for root in roots for p in probe_paths(root)]
+    probes = [load_probe(p) for p in paths]
+    seen: dict[str, Path] = {}
+    for probe in probes:
+        if probe.id in seen:
+            raise SpecError(
+                f"duplicate probe id '{probe.id}' in {seen[probe.id]} and {probe.path}"
+            )
+        seen[probe.id] = probe.path
+    return probes
 
 
 def all_models() -> list[ModelManifest]:
     return [load_model(p) for p in model_paths()]
 
 
-def find_probe(identifier: str) -> ProbeSpec:
-    for probe in all_probes():
+def find_probe(
+    identifier: str,
+    roots: list[Path] | tuple[Path, ...] | None = None,
+) -> ProbeSpec:
+    probes = all_probes(roots)
+    for probe in probes:
         if identifier in (probe.id, probe.slug, probe.path.name):
             return probe
-    known = ", ".join(p.id for p in all_probes()) or "none"
+    known = ", ".join(p.id for p in probes) or "none"
     raise KeyError(f"no probe matching '{identifier}'. Known probes: {known}")
 
 

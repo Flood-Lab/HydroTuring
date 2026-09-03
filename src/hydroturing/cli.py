@@ -19,7 +19,7 @@ from pathlib import Path
 
 from hydroturing import SUITE_VERSION, __version__
 from hydroturing import registry
-from hydroturing.harness import run_model, run_probe
+from hydroturing.harness import run_model, run_probe, verify_adapter_contract
 from hydroturing.report import mark, prefix, to_markdown, to_text, write_json
 from hydroturing.scaffold import (
     available_templates,
@@ -27,9 +27,9 @@ from hydroturing.scaffold import (
     scaffold_probe,
     write_draft,
 )
-from hydroturing.scoring import FAIL, PASS
+from hydroturing.scoring import ERROR, FAIL, PASS
 from hydroturing.seeds import gate_seeds
-from hydroturing.spec import SpecError, load_model, load_probe
+from hydroturing.spec import TRUSTED_SUBPROCESS_MODELS, SpecError, load_model, load_probe
 
 
 # One line each, shown by `ht init-probe --list-templates`. A template with no
@@ -43,8 +43,31 @@ TEMPLATE_BLURB = {
 }
 
 
+def _probe_roots(args) -> list[Path] | None:
+    extra = getattr(args, "probe_root", None) or []
+    if not extra:
+        return None
+    paths = [Path(p).resolve() for p in extra]
+    missing = [str(path) for path in paths if not path.is_dir()]
+    if missing:
+        raise SpecError("probe roots do not exist: " + ", ".join(missing))
+    return [registry.PROBES_DIR, *paths]
+
+
+def _probe_paths(args) -> list[Path]:
+    roots = _probe_roots(args)
+    return registry.probe_paths() if roots is None else [
+        path for root in roots for path in registry.probe_paths(root)
+    ]
+
+
+def _all_probes(args):
+    return registry.all_probes(_probe_roots(args))
+
+
 def _probes(args):
-    return [registry.find_probe(args.probe)] if args.probe else registry.all_probes()
+    roots = _probe_roots(args)
+    return [registry.find_probe(args.probe, roots)] if args.probe else registry.all_probes(roots)
 
 
 def cmd_init_probe(args) -> int:
@@ -101,7 +124,7 @@ def cmd_init_model(args) -> int:
 
 
 def cmd_list(args) -> int:
-    probes = registry.all_probes()
+    probes = _all_probes(args)
     models = registry.all_models()
     print(f"probes ({len(probes)}):")
     for p in probes:
@@ -115,7 +138,8 @@ def cmd_list(args) -> int:
 
 def cmd_validate(args) -> int:
     problems = []
-    for path in registry.probe_paths():
+    probe_paths = _probe_paths(args)
+    for path in probe_paths:
         try:
             load_probe(path)
         except Exception as exc:  # noqa: BLE001 - collect every problem, do not stop at the first
@@ -126,12 +150,18 @@ def cmd_validate(args) -> int:
         except Exception as exc:  # noqa: BLE001
             problems.append(f"model {path.name}: {exc}")
 
+    if not problems:
+        try:
+            _all_probes(args)  # also checks duplicate ids across public/private roots
+        except Exception as exc:  # noqa: BLE001
+            problems.append(str(exc))
+
     if problems:
         print(f"{prefix(False)}validation failed:")
         for problem in problems:
             print(f"  - {problem}")
         return 1
-    n_p, n_m = len(registry.probe_paths()), len(registry.model_paths())
+    n_p, n_m = len(probe_paths), len(registry.model_paths())
     print(f"{prefix(True)}validation passed: {n_p} probe(s), {n_m} model(s), "
           f"suite {SUITE_VERSION}")
     return 0
@@ -140,19 +170,21 @@ def cmd_validate(args) -> int:
 def cmd_verify_adapter(args) -> int:
     """Smoke test before any physics: does the adapter obey the contract?"""
     model = registry.find_model(args.model)
-    probes = registry.all_probes()
+    probes = _all_probes(args)
     if not probes:
         print("no probes available to smoke test against")
         return 1
-    probe = registry.find_probe(args.probe) if args.probe else probes[0]
+    roots = _probe_roots(args)
+    if args.probe:
+        probe = registry.find_probe(args.probe, roots)
+    else:
+        probe = next((p for p in probes if p.timestep == model.timestep), probes[0])
 
-    missing = model.missing_for(probe)
-    if missing:
-        print(f"{model.name} does not emit {', '.join(missing)}; using it anyway to test the contract")
-
-    outcome = run_probe(model, probe, seeds=[gate_seeds(probe.id, 1)[0]])
-    if outcome.error:
-        print(f"{prefix(False)}adapter contract FAILED for {model.name}:\n  {outcome.error}")
+    seed = gate_seeds(probe.id, 1)[0]
+    try:
+        verify_adapter_contract(model, probe, seed)
+    except Exception as exc:  # report a clean smoke-test failure, never a traceback
+        print(f"{prefix(False)}adapter contract FAILED for {model.name}:\n  {exc}")
         return 1
     print(f"{prefix(True)}adapter contract OK for {model.name} on {probe.id}")
     return 0
@@ -161,6 +193,11 @@ def cmd_verify_adapter(args) -> int:
 def cmd_run(args) -> int:
     model = registry.find_model(args.model)
     if args.runner:
+        if args.runner == "subprocess" and model.name not in TRUSTED_SUBPROCESS_MODELS:
+            raise SpecError(
+                "runner 'subprocess' is reserved for trusted reference models; "
+                "submitted models must run in Docker"
+            )
         model = replace(model, runner=args.runner)
     probes = _probes(args)
     seeds = [args.seed] if args.seed is not None else None
@@ -171,6 +208,8 @@ def cmd_run(args) -> int:
     if args.json:
         path = write_json(report, args.json)
         print(f"\nwrote {path}")
+    if report.reason == ERROR:
+        return 2
     return 0 if report.verdict == PASS else 1
 
 
@@ -253,12 +292,29 @@ def build_parser() -> argparse.ArgumentParser:
     init_model.add_argument("--force", action="store_true")
     init_model.set_defaults(fn=cmd_init_model)
 
-    sub.add_parser("list", help="show probes and models").set_defaults(fn=cmd_list)
-    sub.add_parser("validate", help="schema-check probes and models").set_defaults(fn=cmd_validate)
+    def add_probe_roots(command) -> None:
+        command.add_argument(
+            "--probe-root",
+            action="append",
+            metavar="PATH",
+            help=(
+                "add a probe tree outside the repository (repeatable; useful for "
+                "private evaluation suites)"
+            ),
+        )
+
+    list_cmd = sub.add_parser("list", help="show probes and models")
+    add_probe_roots(list_cmd)
+    list_cmd.set_defaults(fn=cmd_list)
+
+    validate = sub.add_parser("validate", help="schema-check probes and models")
+    add_probe_roots(validate)
+    validate.set_defaults(fn=cmd_validate)
 
     verify = sub.add_parser("verify-adapter", help="check a model honours the /io contract")
     verify.add_argument("--model", required=True)
     verify.add_argument("--probe")
+    add_probe_roots(verify)
     verify.set_defaults(fn=cmd_verify_adapter)
 
     run = sub.add_parser("run", help="evaluate a model against the suite")
@@ -271,10 +327,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--workdir", help="keep the /io directories here instead of a temp dir")
     run.add_argument("--runner", choices=["subprocess", "docker"],
                      help="override the runner declared in model.yaml (used by CI to exercise the container path)")
+    add_probe_roots(run)
     run.set_defaults(fn=cmd_run)
 
     gate = sub.add_parser("gate", help="run the probe acceptance gate")
     gate.add_argument("--probe", help="restrict to one probe")
+    add_probe_roots(gate)
     gate.set_defaults(fn=cmd_gate)
     return parser
 
