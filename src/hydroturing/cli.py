@@ -20,7 +20,7 @@ from pathlib import Path
 from hydroturing import SUITE_VERSION, __version__
 from hydroturing import registry
 from hydroturing.harness import run_model, run_probe
-from hydroturing.report import to_markdown, to_text, write_json
+from hydroturing.report import mark, prefix, to_markdown, to_text, write_json
 from hydroturing.scaffold import (
     available_templates,
     scaffold_model,
@@ -127,12 +127,13 @@ def cmd_validate(args) -> int:
             problems.append(f"model {path.name}: {exc}")
 
     if problems:
-        print("validation failed:")
+        print(f"{prefix(False)}validation failed:")
         for problem in problems:
             print(f"  - {problem}")
         return 1
     n_p, n_m = len(registry.probe_paths()), len(registry.model_paths())
-    print(f"validation passed: {n_p} probe(s), {n_m} model(s), suite {SUITE_VERSION}")
+    print(f"{prefix(True)}validation passed: {n_p} probe(s), {n_m} model(s), "
+          f"suite {SUITE_VERSION}")
     return 0
 
 
@@ -151,9 +152,9 @@ def cmd_verify_adapter(args) -> int:
 
     outcome = run_probe(model, probe, seeds=[gate_seeds(probe.id, 1)[0]])
     if outcome.error:
-        print(f"adapter contract FAILED for {model.name}:\n  {outcome.error}")
+        print(f"{prefix(False)}adapter contract FAILED for {model.name}:\n  {outcome.error}")
         return 1
-    print(f"adapter contract OK for {model.name} on {probe.id}")
+    print(f"{prefix(True)}adapter contract OK for {model.name} on {probe.id}")
     return 0
 
 
@@ -190,7 +191,8 @@ def cmd_gate(args) -> int:
         for name in probe.must_pass:
             outcome = run_probe(registry.find_model(name), probe, seeds)
             ok = outcome.verdict == PASS
-            print(f"  must_pass  {name:<24} {'ok' if ok else 'BROKEN'}  {_why(outcome)}")
+            note = "" if ok else "BROKEN: "
+            print(f"  {mark(ok)}  must_pass  {name:<24} {note}{_why(outcome)}")
             if not ok:
                 failures.append(f"{probe.id}: {name} was expected to PASS")
 
@@ -198,8 +200,9 @@ def cmd_gate(args) -> int:
             outcome = run_probe(registry.find_model(name), probe, seeds)
             tripped = outcome.failing
             ok = outcome.verdict == FAIL and expected in tripped
+            note = "" if ok else "BROKEN: "
             print(
-                f"  must_fail  {name:<24} {'ok' if ok else 'BROKEN'}  "
+                f"  {mark(ok)}  must_fail  {name:<24} {note}"
                 f"expected `{expected}`, tripped {tripped or 'nothing'}"
             )
             if not ok:
@@ -210,11 +213,12 @@ def cmd_gate(args) -> int:
 
     print()
     if failures:
-        print(f"GATE FAILED ({len(failures)} problem(s)):")
+        print(f"{prefix(False)}GATE FAILED ({len(failures)} problem(s)):")
         for failure in failures:
             print(f"  - {failure}")
         return 1
-    print("GATE PASSED: every probe separates the reference models as declared.")
+    print(f"{prefix(True)}GATE PASSED: every probe separates the reference models "
+          "as declared.")
     return 0
 
 

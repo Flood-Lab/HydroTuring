@@ -23,13 +23,13 @@ only when every criterion of every probe passes.
 
 ```
 $ ht run --model reference_bucket
-reference_bucket v1.0.0  ->  PASS (OK)  [1/1 probes passed]
-  PASS  mass/catchment-closure
-        ok   closure            cumulative residual 0.0000% of sum_pr (limit 5.0%)
-        ok   state_bounds       all storages stay physical
-        ok   et_plausible       cumulative ET is 0.690 of potential ET (limit 1)
-        ok   non_degenerate     partition and variability are non-trivial
-        ok   forcing_fidelity   reported forcing matches the input
+reference_bucket v1.0.0  ->  ✅ PASS (OK)  [1/1 probes passed]
+  ✅ PASS  mass/catchment-closure
+        ✅  closure            cumulative residual 0.0000% of sum_pr (limit 5.0%)
+        ✅  state_bounds       all storages stay physical
+        ✅  et_plausible       cumulative ET is 0.664 of potential ET (limit 1)
+        ✅  non_degenerate     partition and variability are non-trivial
+        ✅  forcing_fidelity   reported forcing matches the input
 ```
 
 ## The idea
@@ -90,7 +90,9 @@ ht run --model reference_bucket          # evaluate one model
 ht run --model my-model --json out.json  # machine-readable report
 ```
 
-Without installing, `./ht` runs the CLI straight from `src/`.
+Without installing, `./ht` runs the CLI straight from `src/`. Set `HT_ASCII=1`
+for reports with the words and no marks, which is also what you get
+automatically wherever the output stream cannot carry them.
 
 ## Submitting a model
 

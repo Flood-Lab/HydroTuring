@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 
 from hydroturing import registry
-from hydroturing.harness import build_case, run_probe
+from hydroturing.harness import build_case, run_model, run_probe
 from hydroturing.protocol import ProtocolError, read_result
 from hydroturing.scoring import FAIL, INCOMPLETE, PASS, VIOLATION
 from hydroturing.spec import SpecError
@@ -409,3 +409,80 @@ def test_every_template_discriminates_out_of_the_box(kind, tmp_path, monkeypatch
             f"{kind}: {name} was expected to trip '{expected}', "
             f"tripped {outcome.failing or 'nothing'}"
         )
+
+
+# --- report marks -----------------------------------------------------------
+# The verdict is a bit, so the report should read as one at a glance. The
+# marks are decoration over the words, never a replacement for them: a log
+# someone greps for FAIL has to keep finding it.
+
+
+def _report(model_name):
+    return run_model(registry.find_model(model_name), [registry.find_probe("mass/catchment-closure")], [11])
+
+
+def test_text_report_marks_pass_and_fail(monkeypatch):
+    from hydroturing import report
+
+    monkeypatch.delenv("HT_ASCII", raising=False)
+    monkeypatch.setattr(report, "use_emoji", lambda: True)
+
+    good = report.to_text(_report("reference_bucket"))
+    bad = report.to_text(_report("reference_leaky"))
+
+    assert good.count(report.PASS_MARK) >= 6  # model, probe, five criteria
+    assert report.FAIL_MARK not in good
+    assert report.FAIL_MARK in bad and report.PASS_MARK in bad
+
+    # The words survive alongside the marks, in both directions.
+    assert "PASS" in good and "FAIL" in bad
+    assert "VIOLATION" in bad
+
+
+def test_ht_ascii_drops_the_marks_without_doubling_the_word(monkeypatch):
+    """`FAIL FAIL` helps nobody. Where the marker would only repeat the word
+    already on the line, it is dropped rather than printed twice."""
+    from hydroturing import report
+
+    monkeypatch.setenv("HT_ASCII", "1")
+    text = report.to_text(_report("reference_leaky"))
+
+    assert report.FAIL_MARK not in text and report.PASS_MARK not in text
+    assert "FAIL FAIL" not in text
+    assert text.startswith("reference_leaky v1.0.0  ->  FAIL (VIOLATION)")
+    assert "  FAIL  mass/catchment-closure" in text
+
+
+def test_marks_are_dropped_when_the_stream_cannot_carry_them(monkeypatch):
+    """An ASCII stdout must produce a plain report, not a UnicodeEncodeError
+    halfway through one."""
+    import io
+
+    from hydroturing import report
+
+    monkeypatch.delenv("HT_ASCII", raising=False)
+    monkeypatch.setattr(report.sys, "stdout", io.TextIOWrapper(io.BytesIO(), encoding="ascii"))
+    assert report.use_emoji() is False
+
+    text = report.to_text(_report("reference_bucket"))
+    text.encode("ascii")  # raises if a mark slipped through
+
+
+def test_marked_columns_stay_aligned(monkeypatch):
+    """PASS and FAIL are the same length and both marks are the same width, so
+    a mixed report must not leave the criterion names in a ragged column."""
+    from hydroturing import report
+
+    monkeypatch.setattr(report, "use_emoji", lambda: True)
+    text = report.to_text(_report("reference_leaky"))
+
+    names = {c.name for c in _report("reference_leaky").probes[0].criteria}
+    criterion_lines = [l for l in text.splitlines() if l.startswith(" " * 8)]
+    assert len(criterion_lines) == len(names)
+    columns = {
+        line.index(name)
+        for line in criterion_lines
+        for name in names
+        if name in line
+    }
+    assert len(columns) == 1, f"criterion names start at differing columns: {columns}"
