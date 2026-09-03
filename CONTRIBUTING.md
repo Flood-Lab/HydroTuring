@@ -3,7 +3,43 @@
 Two very different kinds of contribution live in this repository. A **probe**
 is a test of a conservation law. A **model** is something to be tested.
 
+## Credit
+
+Contributing to a benchmark is real scientific work, and this project treats
+it that way.
+
+**At the probe level.** Every probe carries its authors in `probe.yaml`. They
+are named in every report that runs the probe and in each Zenodo release.
+Nobody's contribution disappears into a commit log.
+
+**On the benchmark paper.** Contributors of at least one merged probe are
+invited to be co-authors on the HydroTuring paper. This follows how model
+intercomparison projects have always worked in this field: you contribute an
+experiment, you are an author on the paper that reports it.
+
+The threshold is one probe that is merged and passes the acceptance gate.
+Documentation improvements, bug fixes and model adaptations are genuinely
+valuable and are credited in `CONTRIBUTORS.md`, but do not by themselves earn
+authorship, because the paper is about the benchmark's design and findings.
+
+Author order will be settled before submission and circulated to every
+contributor for agreement. Anyone may decline authorship, and no manuscript
+is submitted before all listed authors have seen and approved it.
+
+If you are unsure whether what you have in mind clears the bar, ask in your
+proposal issue. We would rather tell you up front than have you guess.
+
 ## Contributing a probe
+
+### 0. Pick something from the roadmap
+
+[ROADMAP.md](ROADMAP.md) lists the probes we want, with difficulty labels and
+a note on what each one discriminates. Claiming one is easier than inventing
+one, and it means two people do not build the same thing.
+
+The two we most want are the cross-budget consistency probes, because a model
+can close its water budget and its energy budget while being incoherent
+between them, and nothing in the suite currently notices.
 
 ### 1. Propose it first
 
@@ -18,16 +54,31 @@ is better to find that out before you build it.
 
 A maintainer labels the issue `accepted`. Then build.
 
-### 2. Build it
+### 2. Scaffold it
+
+Do not start from a blank page. Get the template, fill in the fields, and let
+the tool build the directory:
+
+```bash
+ht init-probe                            # writes probe-draft.yaml
+#   ... fill it in ...
+ht init-probe --from probe-draft.yaml    # creates probes/<law>/<slug>/
+```
+
+You get a `probe.yaml` that already validates, a `generate.py` skeleton that
+already honours the length contract, and a `README.md` with the sections a
+reviewer will look for. What is left is the physics, which is the part only
+you can write.
 
 ```
 probes/<law>/<slug>/
-  probe.yaml      the spec: what is required, how it is generated, the criteria
+  probe.yaml      the spec: authors, what is required, the criteria
   generate.py     deterministic given a seed, returns (DataFrame, static dict)
   README.md       the physics, in prose
 ```
 
-`probes/mass/catchment-closure/` is the worked example.
+`probes/mass/catchment-closure/` is the worked example. Read it before you
+start.
 
 Two things to hold onto:
 

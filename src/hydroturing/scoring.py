@@ -55,6 +55,7 @@ class ProbeOutcome:
     missing: list[str] = field(default_factory=list)
     error: str | None = None
     flags: list[str] = field(default_factory=list)
+    authors: list[dict[str, str]] = field(default_factory=list)
 
     @property
     def failing(self) -> list[str]:

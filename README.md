@@ -65,6 +65,7 @@ line.
 ```bash
 pip install -e '.[dev]'
 
+ht init-probe                            # start a new probe
 ht list                                  # probes and models
 ht validate                              # schema-check everything
 ht gate                                  # the probe acceptance gate
@@ -86,8 +87,24 @@ cannot read the tolerance it is being judged against.
 
 ## Contributing a probe
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: propose it first,
-then build it so that `ht gate` can prove it separates the reference models.
+**[ROADMAP.md](ROADMAP.md) lists the probes we want.** Claim one rather than
+inventing one. The two we most want are the cross-budget consistency probes:
+a model can close its water budget and its energy budget while being
+incoherent between them, and nothing in the suite currently notices.
+
+Do not start from a blank page:
+
+```bash
+ht init-probe                            # writes probe-draft.yaml
+#   ... fill in the fields ...
+ht init-probe --from probe-draft.yaml    # creates probes/<law>/<slug>/
+ht gate --probe <law>/<slug>             # prove it discriminates
+```
+
+**Contributors of merged probes are authors on the benchmark paper.** See
+[CONTRIBUTING.md](CONTRIBUTING.md#credit) for the threshold and the process,
+and [GOVERNANCE.md](GOVERNANCE.md) for how disagreements about tolerances get
+settled.
 
 ## Status
 

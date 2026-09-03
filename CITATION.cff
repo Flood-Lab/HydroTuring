@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: "HydroTuring: a conservation-law benchmark for AI hydrologic models"
+message: "If you use HydroTuring, please cite it and record the suite version. Scores are only comparable within a suite version."
+type: software
+authors:
+  - given-names: Zhi
+    family-names: Li
+    affiliation: University of Colorado Boulder
+    email: chrimerss@gmail.com
+repository-code: "https://github.com/chrimerss/HydroTuring"
+license: MIT
+version: 0.1.0
+abstract: >-
+  HydroTuring tests whether an AI-based hydrologic model conserves mass,
+  energy and momentum, rather than whether it fits a hydrograph. Forcing is
+  generated at run time from a recorded seed, so there is nothing to
+  memorise. Every probe must demonstrably separate a physically exact
+  reference model from models that close the budget by construction, that
+  hide a silent sink, or that reach closure through a degenerate partition.
+keywords:
+  - hydrology
+  - benchmark
+  - machine learning
+  - conservation laws
+  - water balance
+  - physics-informed

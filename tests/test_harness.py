@@ -14,6 +14,7 @@ from hydroturing import registry
 from hydroturing.harness import build_case, run_probe
 from hydroturing.protocol import ProtocolError, read_result
 from hydroturing.scoring import FAIL, INCOMPLETE, PASS, VIOLATION
+from hydroturing.spec import SpecError
 from hydroturing.seeds import gate_seeds
 
 
@@ -165,3 +166,76 @@ def test_missing_daemon_is_reported_as_such(monkeypatch):
     )
     with pytest.raises(RunnerError, match="daemon is not reachable"):
         docker_runner.require_docker()
+
+
+# --- scaffolding ------------------------------------------------------------
+# Contributing must not begin with a blank page, and the directory a
+# contributor gets must already validate. If the scaffold produces something
+# that fails `ht validate`, the first thing a newcomer sees is an error they
+# did not cause.
+
+
+def test_draft_template_is_not_scaffoldable_unfilled(tmp_path):
+    from hydroturing.scaffold import scaffold_probe, write_draft
+
+    draft = write_draft(tmp_path / "draft.yaml")
+    with pytest.raises(SpecError, match="still 'mass/my-probe'"):
+        scaffold_probe(draft)
+
+
+def test_scaffolded_probe_validates(tmp_path, monkeypatch):
+    import yaml
+
+    from hydroturing import scaffold
+    from hydroturing.spec import load_probe
+
+    probes_root = tmp_path / "probes"
+    monkeypatch.setattr(scaffold, "PROBES_DIR", probes_root)
+
+    draft = scaffold.write_draft(tmp_path / "draft.yaml")
+    text = draft.read_text().replace("id: mass/my-probe", "id: mass/worked-example")
+    text = text.replace("name: Your Name", "name: A Contributor")
+    draft.write_text(text)
+
+    target = scaffold.scaffold_probe(draft)
+    assert target == probes_root / "mass" / "worked-example"
+    assert {p.name for p in target.iterdir()} == {"probe.yaml", "generate.py", "README.md"}
+
+    spec = load_probe(target)
+    assert spec.id == "mass/worked-example"
+    assert spec.must_pass and spec.must_fail
+
+    # Guidance is for the contributor, not for the finished probe.
+    body = (target / "probe.yaml").read_text()
+    assert "#!" not in body
+    assert "\n\n\n" not in body, "stripping guidance left a gap"
+
+    # The generator skeleton must import and honour the length contract, so a
+    # contributor's first `ht gate` fails on their physics rather than on the
+    # scaffold's own arithmetic.
+    from hydroturing.harness import load_generator
+
+    frame, _static = load_generator(spec).generate(1)
+    assert len(frame) == int(spec.period_years * 365) + spec.spinup_days
+    assert "time" in frame.columns
+
+
+def test_id_and_law_must_agree(tmp_path, monkeypatch):
+    from hydroturing import scaffold
+
+    monkeypatch.setattr(scaffold, "PROBES_DIR", tmp_path / "probes")
+    draft = scaffold.write_draft(tmp_path / "draft.yaml")
+    draft.write_text(
+        draft.read_text()
+        .replace("id: mass/my-probe", "id: energy/mismatch")
+        .replace("name: Your Name", "name: A Contributor")
+    )
+    with pytest.raises(SpecError, match="they must agree"):
+        scaffold.scaffold_probe(draft)
+
+
+def test_every_probe_credits_its_authors():
+    """Credit lands at the unit of contribution, which is the probe."""
+    for spec in registry.all_probes():
+        assert spec.authors, f"{spec.id} lists no authors"
+        assert all(a.get("name") for a in spec.authors)

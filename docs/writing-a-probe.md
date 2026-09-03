@@ -3,16 +3,29 @@
 A probe is a conservation law made executable. It defines a generated case, a
 set of binary criteria, and the reference models it must be able to separate.
 
-## Anatomy
+## Start from the template
+
+```bash
+ht init-probe                            # writes probe-draft.yaml
+#   ... fill in the fields ...
+ht init-probe --from probe-draft.yaml    # creates probes/<law>/<slug>/
+```
+
+The draft is heavily commented. Lines beginning `#!` are guidance and are
+stripped from the generated `probe.yaml`; your own `#` comments are kept.
+
+What you get already validates and already honours the length contract, so
+your first `ht gate` fails on your physics rather than on scaffolding.
 
 ```
 probes/<law>/<slug>/
-  probe.yaml     spec, schema-validated
+  probe.yaml     spec, schema-validated, carries your authorship
   generate.py    generate(seed) -> (DataFrame, dict)
   README.md      the physics in prose
 ```
 
-`probes/mass/catchment-closure/` is the reference implementation.
+`probes/mass/catchment-closure/` is the reference implementation. Read it
+before you start.
 
 ## The generator
 

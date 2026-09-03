@@ -91,6 +91,7 @@ def run_probe(
             verdict=FAIL,
             reason=reason_for([], missing, None),
             missing=missing,
+            authors=list(probe.authors),
         )
 
     seeds = seeds if seeds is not None else eval_seeds(probe.n_seeds)
@@ -111,7 +112,7 @@ def run_probe(
             return ProbeOutcome(
                 probe_id=probe.id, law=probe.law, verdict=FAIL,
                 reason=reason_for([], [], str(exc)),
-                seeds=seeds, error=str(exc),
+                seeds=seeds, error=str(exc), authors=list(probe.authors),
             )
         for result in evaluate_criteria(run, probe):
             per_criterion[result.name].append((seed, result))
@@ -147,6 +148,7 @@ def run_probe(
         seeds=seeds,
         criteria=outcomes,
         flags=sorted(set(flags)),
+        authors=list(probe.authors),
     )
 
 

@@ -32,6 +32,8 @@ def _probe_dict(probe: ProbeOutcome) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "id": probe.probe_id,
         "law": probe.law,
+        # Credit travels with the result, not just with the source file.
+        "authors": probe.authors,
         "verdict": probe.verdict,
         "reason": probe.reason,
         "seeds": probe.seeds,

@@ -1,5 +1,7 @@
 """Command line interface.
 
+    ht init-probe                        start a new probe from the template
+    ht init-model --name NAME            start a new model from the template
     ht list                              what probes and models exist
     ht validate                          schema-check every probe and model
     ht verify-adapter --model NAME       does the adapter honour the contract
@@ -19,6 +21,7 @@ from hydroturing import SUITE_VERSION, __version__
 from hydroturing import registry
 from hydroturing.harness import run_model, run_probe
 from hydroturing.report import to_markdown, to_text, write_json
+from hydroturing.scaffold import scaffold_model, scaffold_probe, write_draft
 from hydroturing.scoring import FAIL, PASS
 from hydroturing.seeds import gate_seeds
 from hydroturing.spec import SpecError, load_model, load_probe
@@ -26,6 +29,53 @@ from hydroturing.spec import SpecError, load_model, load_probe
 
 def _probes(args):
     return [registry.find_probe(args.probe)] if args.probe else registry.all_probes()
+
+
+def cmd_init_probe(args) -> int:
+    """Two steps, so the contributor never faces a blank page.
+
+    Without --from, hand them a template to fill in. With it, turn the filled
+    template into a directory that already validates, leaving only the part
+    they alone can write.
+    """
+    if not args.from_file:
+        dest = write_draft(args.output)
+        print(f"wrote {dest}\n")
+        print("Fill it in, then run:")
+        print(f"    ht init-probe --from {dest}\n")
+        print("Read docs/writing-a-probe.md first. The question to answer before")
+        print("you write anything: how would a model pass your probe while")
+        print("understanding no physics?")
+        return 0
+
+    target = scaffold_probe(args.from_file, force=args.force)
+    rel = target.relative_to(Path.cwd()) if target.is_relative_to(Path.cwd()) else target
+    probe = load_probe(target)
+    print(f"created {rel}/\n")
+    for name in sorted(p.name for p in target.iterdir()):
+        print(f"    {name}")
+    print(f"\nNext:")
+    print(f"  1. write the forcing in {rel}/{probe.generator}")
+    print(f"  2. complete {rel}/README.md")
+    print(f"  3. ht gate --probe {probe.id}")
+    print("\nThe gate is what proves your probe discriminates. It is not a")
+    print("formality: a probe that cannot separate the reference models is")
+    print("measuring nothing.")
+    return 0
+
+
+def cmd_init_model(args) -> int:
+    target = scaffold_model(args.name, force=args.force)
+    rel = target.relative_to(Path.cwd()) if target.is_relative_to(Path.cwd()) else target
+    print(f"created {rel}/\n")
+    print("Next:")
+    print(f"  1. declare what the model honestly emits in {rel}/model.yaml")
+    print(f"  2. implement simulate() in {rel}/ht_adapter.py")
+    print(f"  3. install the model in {rel}/Dockerfile")
+    print(f"  4. ht verify-adapter --model {args.name}")
+    print("\nSee AGENTS.md for the contract, including the three rules that are")
+    print("easy to get wrong.")
+    return 0
 
 
 def cmd_list(args) -> int:
@@ -160,6 +210,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version",
                         version=f"hydroturing {__version__} (suite {SUITE_VERSION})")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    init_probe = sub.add_parser("init-probe", help="start a new probe from the template")
+    init_probe.add_argument("--from", dest="from_file",
+                            help="a filled-in draft; creates probes/<law>/<slug>/")
+    init_probe.add_argument("-o", "--output", help="where to write the blank draft")
+    init_probe.add_argument("--force", action="store_true", help="overwrite an existing probe")
+    init_probe.set_defaults(fn=cmd_init_probe)
+
+    init_model = sub.add_parser("init-model", help="start a new model from the template")
+    init_model.add_argument("--name", required=True)
+    init_model.add_argument("--force", action="store_true")
+    init_model.set_defaults(fn=cmd_init_model)
 
     sub.add_parser("list", help="show probes and models").set_defaults(fn=cmd_list)
     sub.add_parser("validate", help="schema-check probes and models").set_defaults(fn=cmd_validate)

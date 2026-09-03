@@ -1,0 +1,113 @@
+#! ---------------------------------------------------------------------------
+#! HydroTuring probe draft
+#!
+#! Fill this in, then run:
+#!
+#!     ht init-probe --from <this file>
+#!
+#! That creates probes/<law>/<slug>/ with your probe.yaml, a generator
+#! skeleton and a README to complete. Lines starting with #! are guidance and
+#! are stripped from the generated file. Plain # comments are kept.
+#!
+#! Read docs/writing-a-probe.md first if you have not. The one question worth
+#! answering before you write any of this: how would a model pass your probe
+#! while understanding no physics? If you cannot construct one, the probe
+#! probably does not discriminate.
+#! ---------------------------------------------------------------------------
+
+#! law/slug. Lower case, hyphens. Becomes the directory path.
+id: mass/my-probe
+
+#! One line, specific. This appears in every report.
+title: Short description of what this probe asserts
+
+#! mass | energy | momentum
+law: mass
+
+#! synthetic  forcing generated at run time from a seed (preferred)
+#! real       fixed observed data, pinned by DOI and checksum
+track: synthetic
+
+version: 1
+
+#! Everyone listed here is credited in every report that runs this probe, and
+#! is eligible for authorship on the benchmark paper. Add your collaborators.
+authors:
+  - name: Your Name
+    affiliation: Your Institution
+    orcid: 0000-0000-0000-0000
+    github: your-handle
+
+description: >
+  Two or three sentences. What budget is being checked, over what system,
+  and what a failure would mean physically.
+
+#! Optional: DOI or reference for the physics this encodes.
+# citation: "https://doi.org/..."
+
+#! What the model must report for this probe to be applicable. A model that
+#! cannot emit all of these is scored FAIL with reason INCOMPLETE rather than
+#! VIOLATION. Ask for what you need and nothing more: every extra variable
+#! excludes more models from being testable at all.
+#!
+#! fluxes: pr, evspsbl, mrro, dis        (rates)
+#! states: mrso, snw, canopy             (absolute storages, never tendencies)
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  #! Must define generate(seed) -> (DataFrame, dict) and be deterministic.
+  generator: generate.py
+  #! Every seed must pass. Five is the default; raise it only if the physics
+  #! is genuinely stochastic enough to need more.
+  n_seeds: 5
+  timestep: PT1D
+  period_years: 10
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+#! Each entry is one binary check. Available criteria and their parameters
+#! are documented in docs/writing-a-probe.md.
+#!
+#! closure denominators:
+#!   sum_pr        water budgets, no floor needed
+#!   sum_abs_rn    energy budgets, ALWAYS set a floor, Rn crosses zero nightly
+#!   sum_inflow    routing
+criteria:
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05        # the 5 percent engineering rule
+      sinks: [evspsbl, mrro]
+
+  #! Closure alone is trivially satisfiable. Keep at least one criterion that
+  #! catches a model which closes the budget by construction.
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+
+#! The acceptance gate. Your probe is merged only if it separates these.
+#! must_fail maps a reference model to the criterion that must catch it, so a
+#! probe cannot appear to work while catching things for the wrong reason.
+#!
+#! Available: reference_bucket (exact), reference_leaky (silent 15% sink),
+#! reference_cheater (solves for storage as the residual),
+#! reference_degenerate (evaporates everything, no runoff).
+#!
+#! If your probe needs a broken model that does not exist yet, add it under
+#! models/ in the same pull request.
+baselines:
+  must_pass: [reference_bucket]
+  must_fail:
+    reference_leaky: closure
+    reference_cheater: state_bounds
+    reference_degenerate: non_degenerate
+
+provenance: >
+  Synthetic. Generated at run time by generate.py from a recorded seed.

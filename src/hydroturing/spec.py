@@ -68,6 +68,8 @@ class ProbeSpec:
     law: str
     track: str
     version: int
+    authors: tuple[dict[str, str], ...]
+    citation: str
     requires_fluxes: tuple[str, ...]
     requires_states: tuple[str, ...]
     generator: str
@@ -175,6 +177,8 @@ def load_probe(path: str | Path) -> ProbeSpec:
         law=raw["law"],
         track=raw["track"],
         version=raw["version"],
+        authors=tuple(raw["authors"]),
+        citation=raw.get("citation", ""),
         requires_fluxes=tuple(requires.get("fluxes", [])),
         requires_states=tuple(requires.get("states", [])),
         generator=case["generator"],

@@ -4,6 +4,11 @@ law: mass
 track: synthetic
 version: 1
 
+authors:
+  - name: Zhi Li
+    affiliation: University of Colorado Boulder
+    github: chrimerss
+
 description: >
   Force a lumped catchment with ten years of generated daily weather and ask
   whether the model's own water budget closes. Precipitation in, evaporation
