@@ -37,6 +37,7 @@ The site goes live at https://flood-lab.github.io/HydroTuring/ once the
 
     gh label create accepted        -c 2C7A57 -d "Proposal approved, the probe is yours" -R Flood-Lab/HydroTuring
     gh label create probe-proposal  -c 0E6C78 -d "A proposed new probe"                  -R Flood-Lab/HydroTuring
+    gh label create model-submission -c 3B82F6 -d "A model submitted for evaluation"     -R Flood-Lab/HydroTuring
     gh label create good-first-probe -c 7BC4A4 -d "A good place to start"                -R Flood-Lab/HydroTuring
     gh label create help-wanted     -c A8501C -d "Unclaimed, we want this"               -R Flood-Lab/HydroTuring
 

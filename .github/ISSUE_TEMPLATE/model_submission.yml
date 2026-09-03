@@ -1,0 +1,131 @@
+name: Model submission
+description: Submit a hydrologic model to be packaged and evaluated by HydroTuring
+title: "[MODEL] "
+labels: ["model-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Submit a model you would like HydroTuring to probe. A passing result is
+        not required: incomplete and failing models are scientifically useful
+        outcomes. Please point to immutable releases or commits where possible.
+
+  - type: input
+    id: model_name
+    attributes:
+      label: Model name
+      placeholder: "ExampleHydroNet"
+    validations: {required: true}
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Model category
+      description: Choose the category that best describes how the model produces its predictions.
+      options:
+        - AI-based
+        - AI+physics
+        - physics
+    validations: {required: true}
+
+  - type: input
+    id: code_repository
+    attributes:
+      label: Model code repository
+      description: Link to the source-code repository HydroTuring should package.
+      placeholder: "https://github.com/organisation/model"
+    validations: {required: true}
+
+  - type: input
+    id: code_revision
+    attributes:
+      label: Version, release, or commit
+      description: Identify the exact code revision to evaluate so the result is reproducible.
+      placeholder: "v1.2.0 or commit SHA"
+    validations: {required: true}
+
+  - type: input
+    id: weights_repository
+    attributes:
+      label: Weights repository (optional)
+      description: Link to pretrained weights or a model registry. Leave blank if no weights are required or they are stored with the code.
+      placeholder: "https://huggingface.co/organisation/model"
+
+  - type: input
+    id: reference
+    attributes:
+      label: Paper or model reference (optional)
+      description: DOI, preprint, technical report, or project page describing the model.
+      placeholder: "https://doi.org/..."
+
+  - type: input
+    id: license
+    attributes:
+      label: Code and weights licenses
+      description: State the code license and, when applicable, the weights license.
+      placeholder: "Code: MIT; weights: CC-BY-4.0"
+    validations: {required: true}
+
+  - type: dropdown
+    id: timestep
+    attributes:
+      label: Supported timestep
+      options:
+        - PT1D (daily)
+        - PT1H (hourly)
+    validations: {required: true}
+
+  - type: textarea
+    id: inputs
+    attributes:
+      label: Required inputs
+      description: List forcing variables, static attributes, units, and any required history or initialization.
+      placeholder: |
+        Forcing: precipitation (mm/day), temperature (degC), PET (mm/day)
+        Static: catchment area, soil attributes
+        Initialization: 365 daily steps
+    validations: {required: true}
+
+  - type: dropdown
+    id: outputs
+    attributes:
+      label: Outputs produced by the model
+      description: Select only quantities the model genuinely produces. Select all that apply.
+      multiple: true
+      options:
+        - pr — precipitation echoed from the forcing
+        - evspsbl — evapotranspiration
+        - mrro — total runoff
+        - dis — river discharge
+        - mrso — soil water storage
+        - snw — snow water equivalent
+        - canopy — canopy interception storage
+    validations: {required: true}
+
+  - type: dropdown
+    id: packaging
+    attributes:
+      label: Packaging status
+      options:
+        - Dockerfile and HydroTuring adapter are ready
+        - Dockerfile is ready; adapter help is needed
+        - Help is needed with both Docker packaging and the adapter
+    validations: {required: true}
+
+  - type: textarea
+    id: run_instructions
+    attributes:
+      label: Installation and inference notes
+      description: Describe how to install dependencies, obtain weights, initialize the model, and run inference without network access.
+      placeholder: "Commands, environment requirements, weight filenames, and expected resource needs"
+    validations: {required: true}
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Submission confirmation
+      options:
+        - label: I have identified a reproducible code revision and have permission to use the linked code and weights for this evaluation.
+          required: true
+        - label: I understand that HydroTuring may report PASS, VIOLATION, INCOMPLETE, INCOMPATIBLE, or ERROR.
+          required: true

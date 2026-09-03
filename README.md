@@ -113,6 +113,11 @@ thin adapter that reads `/io/request.json` and writes `/io/output/result.csv`.
 The adapter is usually thirty lines. See [docs/adapting-a-model.md](docs/adapting-a-model.md),
 and `AGENTS.md` if you are having a coding agent build the sandbox for you.
 
+To ask the maintainers to package and evaluate a model, open a
+[model submission](../../issues/new?template=model_submission.yml). The form
+accepts AI-based, AI+physics and physics models, with separate links for the
+model code and optional pretrained weights.
+
 The container runs with no network and never sees the probe code, so a model
 cannot read the tolerance it is being judged against.
 

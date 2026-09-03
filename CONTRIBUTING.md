@@ -116,6 +116,11 @@ See [AGENTS.md](AGENTS.md) for the contract and
 model can be written in any language. It ships as a container with a small
 adapter.
 
+If you want the maintainers to package or evaluate an existing model, open a
+[model submission](../../issues/new?template=model_submission.yml). Include
+the model's code repository, exact version or commit, optional weights
+repository, and whether it is AI-based, AI+physics or physics.
+
 Submitting a model that fails is welcome and useful. `FAIL` with reason
 `INCOMPLETE` is the current state of nearly every published rainfall-runoff
 model, and recording that honestly is part of what the benchmark is for.
