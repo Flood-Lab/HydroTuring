@@ -1,6 +1,6 @@
 # HydroTuring
 
-**[hydroturing.github.io/HydroTuring](https://hydroturing.github.io/HydroTuring/)** &middot; English, Español, 中文
+**[flood-lab.github.io/HydroTuring](https://flood-lab.github.io/HydroTuring/)** &middot; English, Español, 中文
 
 A benchmark that asks one question of any AI hydrologic model: **does it
 conserve what physics says it must conserve?**

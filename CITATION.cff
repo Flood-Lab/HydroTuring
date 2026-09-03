@@ -7,8 +7,8 @@ authors:
     family-names: Li
     affiliation: University of Colorado Boulder
     email: chrimerss@gmail.com
-repository-code: "https://github.com/HydroTuring/HydroTuring"
-url: "https://hydroturing.github.io/HydroTuring/"
+repository-code: "https://github.com/Flood-Lab/HydroTuring"
+url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT
 version: 0.1.0
 abstract: >-

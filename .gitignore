@@ -9,3 +9,5 @@ build/
 dist/
 /runs/
 /results/**/diagnostics/
+.omc/
+Claude outputs/
