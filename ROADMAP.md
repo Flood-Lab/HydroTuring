@@ -7,9 +7,14 @@ To claim: open a [probe proposal](../../issues/new?template=probe_proposal.yml)
 naming the id below. We will label it `accepted` and it is yours. Then:
 
 ```bash
-ht init-probe                            # get a template
+ht init-probe --list-templates           # the shapes available
+ht init-probe --template <kind>          # get a template
 ht init-probe --from probe-draft.yaml    # scaffold the directory
 ```
+
+Each entry below names the template to start from. A templated probe scaffolds
+into something that already passes `ht gate` against a placeholder case, so
+you can watch it separate the reference models before you write any physics.
 
 Contributors of merged probes are authors on the benchmark paper. See
 [CONTRIBUTING.md](CONTRIBUTING.md#credit).
@@ -68,16 +73,66 @@ A branching network. Mass must close reach by reach, not only basin-wide.
 *Discriminates:* models that conserve globally while moving water between
 reaches non-physically.
 
+### `mass/human-abstraction` &middot; standard &middot; **unclaimed**
+Irrigation withdrawal and return flow, which must both appear in the budget.
+*Discriminates:* models that treat abstraction as an unaccounted sink.
+
+---
+
+## Generalisation
+
+Conservation that holds only where a model was fitted is not conservation, it
+is a coincidence of the training distribution. These four probes ask whether
+the property survives a move — to another place, to another time, to a
+different question. Each has a template, so the harness work is done and what
+is left is the case.
+
 ### `mass/extreme-event-closure` &middot; hard &middot; **unclaimed**
-A record-breaking event well outside anything in the generated record so far.
+`ht init-probe --template extrapolation-time`
+
+Ordinary years, then conditions outside anything earlier in the record. The
+budget must close over the anomalous stretch on its own terms, scored
+separately so nine ordinary years cannot dilute it.
+
 *Discriminates:* models that learned closure as a statistical regularity of
 their training distribution rather than as a structural property. This is the
 probe most likely to separate architecturally-constrained models from ones
 that merely look conservative in-sample.
 
-### `mass/human-abstraction` &middot; standard &middot; **unclaimed**
-Irrigation withdrawal and return flow, which must both appear in the budget.
-*Discriminates:* models that treat abstraction as an unaccounted sink.
+### `mass/ungauged-basin-closure` &middot; standard &middot; **unclaimed**
+`ht init-probe --template extrapolation-space`
+
+Every seed draws a catchment, and some draws sit outside the range models are
+normally fitted over. Every seed must pass, so the verdict turns on the
+corners.
+
+*Discriminates:* models fitted to a gauged sample and deployed on an ungauged
+one, which is the deployment case the field actually cares about. The work is
+in defending where the hull boundary sits; push one attribute out at a time,
+or you generate catchments no real place resembles and fail honest models.
+
+### `mass/precipitation-counterfactual` &middot; standard &middot; **unclaimed**
+`ht init-probe --template counterfactual`
+
+The same seed twice, once wetter. The added water must appear in the
+difference between the reported budgets, split across evaporation, runoff and
+storage.
+
+*Discriminates:* closure by construction, structurally rather than
+circumstantially. A model that solves for a budget term as the residual closes
+perfectly on every seed forever, and today only its storage bounds catch it. A
+counterfactual asks where the extra water went, which construction cannot
+answer.
+
+### `mass/time-origin-invariance` &middot; starter &middot; **unclaimed**
+`ht init-probe --template invariance`
+
+The same weather under different dates. Nothing may move.
+
+*Discriminates:* date features and trend terms that survived from training. The
+cheapest probe in the suite and the hardest to tune towards, because there is
+no tolerance worth arguing about: the two runs agree to floating point or they
+do not. A good first contribution.
 
 ---
 
@@ -131,19 +186,20 @@ is not solving anything resembling momentum.
 
 ## Beyond conservation
 
-Out of scope for suite 0.1, listed so nobody builds them twice. The model
-contract already declares `supports.perturbation`, so these are unblocked
-whenever we decide to open the category.
+Counterfactual response and invariance have moved up into
+[Generalisation](#generalisation): the harness runs paired cases now, and both
+have templates. What remains out of scope for suite 0.1, listed so nobody
+builds it twice:
 
-- **Counterfactual response.** Double the precipitation and check that every
-  budget term responds, rather than one term absorbing the whole change. This
-  is the clean structural answer to closure-by-construction.
-- **Symmetry and invariance.** Unit rescaling, time shift, spatial
-  permutation. A model that changes its answer when you express rainfall in
-  metres has not learned the physics.
 - **Real-data track.** Internal closure under observed forcing. Note this
   tests something different from the synthetic track: observed budgets do not
   close, so observations can never be the reference.
+- **Spatial permutation.** Reorder the reaches of a network, or the years of a
+  record, and require the long-run totals to be unchanged. Weaker than it
+  looks, because storage carries across the boundary: only the totals are
+  invariant, not the series. Worth doing once the routing probes exist.
+- **Cross-model agreement.** Not a conservation test at all, and a different
+  kind of claim. Noted here only so it is clear it is deliberately absent.
 
 ---
 

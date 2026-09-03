@@ -79,6 +79,7 @@ class ProbeSpec:
     spinup_days: int
     max_output_mb: float
     max_runtime_s: float
+    variants: tuple[str, ...]
     criteria: tuple[Criterion, ...]
     must_pass: tuple[str, ...]
     must_fail: dict[str, str]
@@ -100,6 +101,16 @@ class ProbeSpec:
     @property
     def dt_days(self) -> float:
         return TIMESTEP_DAYS[self.timestep]
+
+    @property
+    def control(self) -> str | None:
+        """The variant every single-run criterion is scored against.
+
+        None for an ordinary probe, which has one case per seed. For a paired
+        probe the first declared variant is the control, and the others are
+        the counterfactuals it is compared with.
+        """
+        return self.variants[0] if self.variants else None
 
 
 @dataclass(frozen=True)
@@ -170,6 +181,9 @@ def load_probe(path: str | Path) -> ProbeSpec:
                 f"'{criterion}', which this probe does not define"
             )
 
+    variants = tuple(case.get("variants", []))
+    _check_variants(spec_file, criteria, variants)
+
     requires = raw.get("requires", {})
     return ProbeSpec(
         id=raw["id"],
@@ -188,12 +202,40 @@ def load_probe(path: str | Path) -> ProbeSpec:
         spinup_days=case["spinup_days"],
         max_output_mb=case.get("max_output_mb", 5.0),
         max_runtime_s=case.get("max_runtime_s", 120.0),
+        variants=tuple(case.get("variants", [])),
         criteria=tuple(criteria),
         must_pass=tuple(raw["baselines"]["must_pass"]),
         must_fail=dict(raw["baselines"]["must_fail"]),
         provenance=raw.get("provenance", ""),
         path=directory,
     )
+
+
+def _check_variants(spec_file: Path, criteria: list[Criterion], variants: tuple[str, ...]) -> None:
+    """Paired criteria and `case.variants` have to agree.
+
+    A paired criterion compares the model's answer across two runs of the same
+    seed. Declaring one without variants asks for a comparison with nothing to
+    compare against; declaring variants without one runs the model twice and
+    then ignores the second answer. Both are silent no-ops at run time, which
+    is why they are errors here.
+
+    Imported inside the function: the criteria package imports this module, so
+    the registry is only populated once this one has finished loading.
+    """
+    from hydroturing.criteria.base import is_paired  # noqa: PLC0415
+
+    paired = [c.name for c in criteria if is_paired(c.name)]
+    if paired and not variants:
+        raise SpecError(
+            f"{spec_file}: criteria {paired} compare runs of the same seed, "
+            "so `case.variants` must name the cases to compare"
+        )
+    if variants and not paired:
+        raise SpecError(
+            f"{spec_file}: `case.variants` runs the model {len(variants)} times "
+            "per seed, but no criterion compares the results"
+        )
 
 
 def load_model(path: str | Path) -> ModelManifest:

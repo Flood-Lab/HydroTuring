@@ -1,0 +1,113 @@
+#! template: extrapolation-space
+#! ---------------------------------------------------------------------------
+#! HydroTuring probe draft: extrapolation in space
+#!
+#!     ht init-probe --template extrapolation-space
+#!     ht init-probe --from probe-draft.yaml
+#!
+#! Lines starting with #! are guidance and are stripped from the generated
+#! file. Plain # comments are kept.
+#!
+#! WHAT THIS TEMPLATE IS FOR
+#!
+#! A model calibrated on gauged catchments is deployed on ungauged ones. The
+#! question is whether its conservation survives the move, or whether it was
+#! a property of the places it was fitted to.
+#!
+#! The spatial dimension here is the seed. Every seed draws a catchment from
+#! attribute space, and the harness requires every seed to pass, so a model
+#! that closes its budget in the temperate midlatitudes and leaks in a karst
+#! headwater fails on the seed that draws the karst headwater. You do not need
+#! a new criterion for this. You need a generator whose attribute sampling
+#! actually reaches the corners.
+#!
+#! The design work is entirely in generate.py, and it is one decision:
+#! **which region of attribute space is inside the hull models are fitted to,
+#! and which is outside.** Write that down in the README before you write the
+#! sampler, because a reviewer will ask, and because a probe that samples a
+#! narrow range is a probe about nothing.
+#! ---------------------------------------------------------------------------
+
+id: mass/ungauged-basin-closure
+
+title: Water balance closure on catchments outside the calibration hull
+
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Your Name
+    affiliation: Your Institution
+    orcid: 0000-0000-0000-0000
+    github: your-handle
+
+description: >
+  Draw a catchment at random from a deliberately wide attribute space, force
+  it with weather consistent with that catchment, and ask whether the model's
+  water budget closes. Most draws are ordinary. Some are arid, some are deep,
+  some are snow-dominated, and those are the ones the verdict turns on,
+  because every seed must pass.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+
+  #! Spatial coverage comes from seeds, so this is higher than a probe whose
+  #! seeds only reshuffle weather. Below about ten the corners of attribute
+  #! space go unsampled and the probe quietly becomes an in-hull test.
+  n_seeds: 12
+
+  timestep: PT1D
+  period_years: 10
+  spinup_days: 730          # deep stores need longer than one year to settle
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+criteria:
+  # The ordinary budget check. It is the case that is unusual here, not the
+  # arithmetic, and the worst seed decides the verdict.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  # Bounds are resolved per seed against that seed's attributes, so a model
+  # cannot satisfy them by assuming a soil depth it was never given.
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+
+  # The escape this closes off is specific to a wide attribute range: a model
+  # can look conservative everywhere by collapsing to the same partition
+  # everywhere, which is wrong in the corners and unfalsifiable in the middle.
+  - non_degenerate:
+      runoff_ratio: [0.01, 0.99]     # wider than the default; arid draws are legitimately low
+      min_flux_cv: 0.1
+      cv_variables: [mrro, evspsbl]
+      # Off, deliberately. The response check correlates runoff against recent
+      # precipitation, which assumes a rain-driven catchment. A snow-dominated
+      # draw releases water on melt timing instead and shows almost no
+      # correlation while being perfectly well behaved, so leaving this on
+      # would fail an exact model on a legitimate corner of attribute space.
+      # If your hull contains no snow, turn it back on.
+      min_response: null
+
+  - forcing_fidelity:
+      variables: [pr]
+      rtol: 1.0e-6
+
+baselines:
+  must_pass: [reference_bucket]
+  must_fail:
+    reference_leaky: closure
+    reference_cheater: state_bounds
+    reference_degenerate: non_degenerate
+
+provenance: >
+  Synthetic. Catchment attributes and the weather consistent with them are
+  drawn together at run time from a recorded seed.

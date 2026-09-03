@@ -24,7 +24,13 @@ def non_degenerate(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionR
     """Partition, variability, and response to forcing must all be non-trivial."""
     ratio_lo, ratio_hi = params.get("runoff_ratio", [0.02, 0.98])
     min_cv = float(params.get("min_flux_cv", 0.1))
-    min_response = float(params.get("min_response", 0.05))
+    # `null` turns the response check off. It assumes runoff is driven by
+    # recent rainfall, which is not true of a snow-dominated catchment, where
+    # runoff follows melt timing instead. A probe spanning that range has to be
+    # able to say the test does not apply rather than fail honest models with
+    # it.
+    min_response = params.get("min_response", 0.05)
+    min_response = None if min_response is None else float(min_response)
     cv_vars = params.get("cv_variables", ["mrro", "evspsbl"])
 
     w = make_window(run, probe)
@@ -55,7 +61,7 @@ def non_degenerate(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionR
     # A model that ignores its forcing entirely is degenerate even if its
     # fluxes happen to vary. Correlate runoff against precipitation smoothed
     # over a short window, so that legitimate baseflow lag is not punished.
-    if "mrro" in w.table.columns and len(pr) > 30:
+    if min_response is not None and "mrro" in w.table.columns and len(pr) > 30:
         import pandas as pd
 
         smooth_pr = pd.Series(pr).rolling(7, min_periods=1).mean().to_numpy()

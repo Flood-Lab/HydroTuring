@@ -6,7 +6,14 @@ validates. What is left is the part only the contributor can do, which is the
 physics.
 
     ht init-probe                       writes probe-draft.yaml to fill in
+    ht init-probe --template <kind>     the same, for a probe of that shape
     ht init-probe --from probe-draft.yaml   creates probes/<law>/<slug>/
+
+A template is a pair: `probe.<kind>.template.yaml` and, where the shape needs
+one, `generate.<kind>.template.py`. Which pair a draft came from is recorded
+in a `#!` guidance line at the top of the draft, so the generator skeleton
+matches the criteria without the contributor having to say so twice. Guidance
+lines are stripped from the finished probe, so the marker leaves no trace.
 """
 
 from __future__ import annotations
@@ -23,6 +30,26 @@ PROBES_DIR = REPO_ROOT / "probes"
 MODELS_DIR = REPO_ROOT / "models"
 
 GUIDANCE_PREFIX = "#!"
+TEMPLATE_MARKER = "#! template:"
+DEFAULT_TEMPLATE = "default"
+
+
+def available_templates() -> dict[str, Path]:
+    """Every probe template in templates/, keyed by the name the CLI takes."""
+    found = {DEFAULT_TEMPLATE: TEMPLATE_DIR / "probe.template.yaml"}
+    for path in sorted(TEMPLATE_DIR.glob("probe.*.template.yaml")):
+        found[path.name[len("probe."):-len(".template.yaml")]] = path
+    return found
+
+
+def template_kind(draft_text: str) -> str:
+    """Which template a draft came from, read from its guidance marker."""
+    for line in draft_text.splitlines():
+        if line.startswith(TEMPLATE_MARKER):
+            return line[len(TEMPLATE_MARKER):].strip()
+        if line.strip() and not line.lstrip().startswith(GUIDANCE_PREFIX):
+            break
+    return DEFAULT_TEMPLATE
 
 
 def strip_guidance(text: str) -> str:
@@ -44,12 +71,37 @@ def strip_guidance(text: str) -> str:
     return "\n".join(kept).strip("\n") + "\n"
 
 
-def write_draft(dest: Path | None = None) -> Path:
+def write_draft(dest: Path | None = None, kind: str = DEFAULT_TEMPLATE) -> Path:
+    templates = available_templates()
+    if kind not in templates:
+        raise SpecError(
+            f"no template '{kind}'. Available: {', '.join(sorted(templates))}"
+        )
     dest = Path(dest) if dest else Path("probe-draft.yaml")
     if dest.exists():
         raise SpecError(f"{dest} already exists; pass -o to choose another path")
-    shutil.copyfile(TEMPLATE_DIR / "probe.template.yaml", dest)
+    shutil.copyfile(templates[kind], dest)
     return dest
+
+
+def _template_ids() -> set[str]:
+    """The example ids the templates ship with.
+
+    Scaffolding one of these unedited would create a probe named after the
+    template rather than after the physics, and would collide with the next
+    contributor to do the same.
+    """
+    import yaml as _yaml
+
+    ids = set()
+    for path in available_templates().values():
+        try:
+            draft = _yaml.safe_load(strip_guidance(path.read_text()))
+        except _yaml.YAMLError:  # pragma: no cover - a broken template is caught by tests
+            continue
+        if isinstance(draft, dict) and "id" in draft:
+            ids.add(str(draft["id"]))
+    return ids
 
 
 def _render(template_name: str, **fields: object) -> str:
@@ -77,10 +129,10 @@ def scaffold_probe(draft_path: Path, force: bool = False) -> Path:
         raise SpecError(
             f"id says '{law}' but law says '{draft['law']}'; they must agree"
         )
-    if probe_id == "mass/my-probe":
+    if probe_id in _template_ids():
         raise SpecError(
-            "the template id is still 'mass/my-probe'. Fill in the draft before "
-            "scaffolding, starting with id, title and authors."
+            f"the id is still the template's example, '{probe_id}'. Fill in the "
+            "draft before scaffolding, starting with id, title and authors."
         )
 
     target = PROBES_DIR / law / slug
@@ -92,9 +144,17 @@ def scaffold_probe(draft_path: Path, force: bool = False) -> Path:
 
     case = draft["case"]
     generator = case.get("generator", "generate.py")
+
+    # A shaped template gets its matching generator skeleton, so that a probe
+    # whose criteria read a `_regime` column or compare variants starts from a
+    # generator that produces them. Anything else gets the plain one.
+    kind = template_kind(raw)
+    shaped = TEMPLATE_DIR / f"generate.{kind}.template.py"
+    generator_template = shaped.name if shaped.exists() else "generate.template.py"
+
     (target / generator).write_text(
         _render(
-            "generate.template.py",
+            generator_template,
             id=probe_id,
             period_years=case.get("period_years", 10),
             spinup_days=case.get("spinup_days", 365),

@@ -1,0 +1,123 @@
+#! template: counterfactual
+#! ---------------------------------------------------------------------------
+#! HydroTuring probe draft: counterfactual response
+#!
+#!     ht init-probe --template counterfactual
+#!     ht init-probe --from probe-draft.yaml
+#!
+#! Lines starting with #! are guidance and are stripped from the generated
+#! file. Plain # comments are kept.
+#!
+#! WHAT THIS TEMPLATE IS FOR
+#!
+#! Closure has a trivial solution and a clever one. The trivial one is caught
+#! by `non_degenerate`. The clever one is a model that solves for a budget
+#! term as whatever balances the equation: it closes exactly, on every seed,
+#! forever, and only its storage bounds give it away.
+#!
+#! A counterfactual asks a question that construction cannot answer. Run the
+#! same seed twice, once with more rain, and the question is no longer "does
+#! the budget close" but "where did the extra water go". Answering that
+#! requires an actual partition.
+#!
+#! HOW PAIRED RUNS WORK
+#!
+#! `case.variants` names the cases the generator builds for one seed. The
+#! model is run once per variant, and paired criteria are handed all of them.
+#! The first variant is the control; every non-paired criterion is scored
+#! against it alone, so adding a variant never silently changes what an
+#! existing criterion measures.
+#!
+#! generate.py takes `variant` as well as `seed`:
+#!
+#!     def generate(seed, variant="control"):
+#!
+#! The two variants must be identical except for the perturbation. Draw the
+#! weather once from the seed, then apply the perturbation. Re-drawing under a
+#! different seed changes the weather as well as the rainfall and the
+#! comparison means nothing.
+#!
+#! COST
+#!
+#! Two variants doubles the model invocations for this probe. Keep `n_seeds`
+#! modest; the discrimination here comes from the contrast, not from volume.
+#! ---------------------------------------------------------------------------
+
+id: mass/precipitation-counterfactual
+
+title: Added precipitation must be partitioned among the budget terms
+
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Your Name
+    affiliation: Your Institution
+    orcid: 0000-0000-0000-0000
+    github: your-handle
+
+description: >
+  The same seed twice: once as generated, once with every wet day made
+  wetter. The water added between the two runs must appear in the difference
+  between the reported budgets, split across evaporation, runoff and storage.
+  No single term may absorb it, and the shares must add up to what was added.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 10
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+  # The first name is the control. The generator must produce identical
+  # weather for both and differ only in the perturbation.
+  variants: [control, wetter]
+
+criteria:
+  # Each run has to close on its own before the comparison means anything.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  # The probe's actual assertion. Three failure modes, one criterion:
+  #   nothing responds       the model ignored the perturbation
+  #   one term takes it all  the degenerate partition, dressed up
+  #   shares do not sum      water invented or destroyed between the runs,
+  #                          even though each run closes on its own
+  #
+  # `storage` is added automatically from the probe's declared states and
+  # counts towards `max_share` and the sum, but is not held to `min_share`:
+  # a catchment can legitimately route an increment straight through.
+  - counterfactual_response:
+      control: control
+      perturbed: wetter
+      driver: pr
+      terms: [evspsbl, mrro]
+      min_share: 0.03
+      max_share: 0.90
+      sum_tolerance: 0.10
+
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+
+baselines:
+  must_pass: [reference_bucket]
+  must_fail:
+    # Evaporates everything it receives, so the added water never reaches
+    # runoff and `mrro` fails `min_share`.
+    reference_degenerate: counterfactual_response
+    reference_cheater: state_bounds
+
+provenance: >
+  Synthetic. Both variants are generated at run time from one recorded seed,
+  so the pair differs only in the perturbation under test.

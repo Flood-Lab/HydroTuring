@@ -74,7 +74,13 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
     (io_dir / "input").mkdir(parents=True, exist_ok=True)
     (io_dir / "output").mkdir(parents=True, exist_ok=True)
 
-    case.forcing.to_csv(io_dir / FORCING_FILE, index=False)
+    # Columns beginning with an underscore are the probe's own annotations —
+    # which steps are the extrapolation, which site a block belongs to — and
+    # they are stripped here. The criteria need them; the model must not have
+    # them, or a regime probe would hand the model a label saying "this is the
+    # part you are being tested on".
+    visible = [c for c in case.forcing.columns if not c.startswith("_")]
+    case.forcing[visible].to_csv(io_dir / FORCING_FILE, index=False)
     with open(io_dir / STATIC_FILE, "w") as fh:
         json.dump(case.static, fh, indent=2)
 

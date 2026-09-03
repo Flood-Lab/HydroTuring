@@ -1,0 +1,21 @@
+name: reference_calendar
+version: "1.0.0"
+description: >
+  The bucket model with a recession that drifts with the calendar year. It
+  conserves water exactly, keeps every storage physical and partitions
+  sensibly, so no single-run criterion has anything to object to. What it does
+  not have is the symmetry the physics has: run the same weather under
+  different dates and its answer moves. It exists so that an invariance probe
+  has something to catch.
+authors: ["HydroTuring maintainers"]
+license: MIT
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

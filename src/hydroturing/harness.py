@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -43,9 +44,18 @@ def load_generator(probe: ProbeSpec):
     return module
 
 
-def build_case(probe: ProbeSpec, seed: int) -> Case:
+def build_case(probe: ProbeSpec, seed: int, variant: str | None = None) -> Case:
     module = load_generator(probe)
-    forcing, static = module.generate(seed)
+
+    if variant is None:
+        forcing, static = module.generate(seed)
+    else:
+        if "variant" not in inspect.signature(module.generate).parameters:
+            raise TypeError(
+                f"{probe.generator} must define generate(seed, variant) for a "
+                f"probe that declares case.variants {list(probe.variants)}"
+            )
+        forcing, static = module.generate(seed, variant=variant)
 
     if not isinstance(forcing, pd.DataFrame):
         raise TypeError(f"{probe.generator} returned {type(forcing)}, expected a DataFrame")
@@ -60,7 +70,7 @@ def build_case(probe: ProbeSpec, seed: int) -> Case:
         )
 
     return Case(
-        probe_id=probe.id,
+        probe_id=probe.id if variant is None else f"{probe.id}@{variant}",
         seed=seed,
         forcing=forcing,
         static=dict(static),
@@ -68,11 +78,21 @@ def build_case(probe: ProbeSpec, seed: int) -> Case:
     )
 
 
-def evaluate_criteria(run: RunResult, probe: ProbeSpec) -> list[CriterionResult]:
+def evaluate_criteria(runs: dict[str, RunResult], probe: ProbeSpec) -> list[CriterionResult]:
+    """Score one seed.
+
+    `runs` is keyed by variant, with a single entry under the control name for
+    an ordinary probe. Paired criteria are handed the whole mapping because
+    what they assert is a relationship between the runs; every other criterion
+    sees the control run alone, so that adding a variant to a probe never
+    silently changes what its existing criteria measure.
+    """
+    control = runs[probe.control] if probe.control else next(iter(runs.values()))
     results = []
     for criterion in probe.criteria:
         fn = criteria_mod.get(criterion.name)
-        results.append(fn(run, probe, dict(criterion.params)))
+        subject = runs if criteria_mod.is_paired(criterion.name) else control
+        results.append(fn(subject, probe, dict(criterion.params)))
     return results
 
 
@@ -104,17 +124,26 @@ def run_probe(
     tmp_root = Path(workdir) if workdir else Path(tempfile.mkdtemp(prefix="hydroturing-"))
     tmp_root.mkdir(parents=True, exist_ok=True)
 
+    # An ordinary probe has one unnamed case per seed. A paired probe runs the
+    # model once per variant on the same seed, which is what makes a
+    # counterfactual askable at all.
+    variants: tuple[str | None, ...] = probe.variants or (None,)
+
     for seed in seeds:
-        io_dir = tmp_root / f"{model.name}__{probe.slug}__{seed}"
+        runs: dict[str, RunResult] = {}
         try:
-            run = runner.run(model, probe, build_case(probe, seed), io_dir)
+            for variant in variants:
+                suffix = f"__{variant}" if variant else ""
+                io_dir = tmp_root / f"{model.name}__{probe.slug}__{seed}{suffix}"
+                case = build_case(probe, seed, variant)
+                runs[variant or "_"] = runner.run(model, probe, case, io_dir)
         except (RunnerError, ProtocolError) as exc:
             return ProbeOutcome(
                 probe_id=probe.id, law=probe.law, verdict=FAIL,
                 reason=reason_for([], [], str(exc)),
                 seeds=seeds, error=str(exc), authors=list(probe.authors),
             )
-        for result in evaluate_criteria(run, probe):
+        for result in evaluate_criteria(runs, probe):
             per_criterion[result.name].append((seed, result))
             if result.diagnostics.get("suspicious_exact"):
                 flags.append(f"suspicious_exact:{probe.id}")

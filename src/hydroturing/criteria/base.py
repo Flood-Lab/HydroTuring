@@ -36,23 +36,41 @@ class CriterionResult:
 
 
 CriterionFn = Callable[[RunResult, ProbeSpec, dict], CriterionResult]
-CRITERIA: dict[str, CriterionFn] = {}
+# A paired criterion is handed every variant of one seed instead of one run,
+# because what it asserts is a relationship between them: that doubling the
+# rain moves the budget, or that renaming the units does not.
+PairedFn = Callable[[dict[str, RunResult], ProbeSpec, dict], CriterionResult]
+
+CRITERIA: dict[str, CriterionFn | PairedFn] = {}
+PAIRED: set[str] = set()
 
 
-def criterion(name: str) -> Callable[[CriterionFn], CriterionFn]:
-    def decorate(fn: CriterionFn) -> CriterionFn:
+def criterion(name: str, paired: bool = False) -> Callable[[CriterionFn], CriterionFn]:
+    def decorate(fn):
         CRITERIA[name] = fn
+        if paired:
+            PAIRED.add(name)
         return fn
 
     return decorate
 
 
-def get(name: str) -> CriterionFn:
+def get(name: str):
     if name not in CRITERIA:
         raise KeyError(
             f"unknown criterion '{name}'. Known: {sorted(CRITERIA)}"
         )
     return CRITERIA[name]
+
+
+def is_paired(name: str) -> bool:
+    """Whether this criterion is scored across variants rather than one run.
+
+    Unknown names answer False rather than raising, so that a probe naming a
+    criterion that does not exist fails where that is actually diagnosed
+    instead of here, in a consistency check about something else.
+    """
+    return name in PAIRED
 
 
 @dataclass
@@ -98,3 +116,47 @@ def make_window(run: RunResult, probe: ProbeSpec) -> Window:
         state0=run.table.iloc[prior],
         dt_days=probe.dt_days,
     )
+
+
+def segments(window: Window, column: str = "_regime") -> list[tuple[str, int, int]]:
+    """Contiguous blocks of the scored window that share a forcing label.
+
+    Returns (label, start, stop) with stop exclusive, in the order they occur.
+    A regime that appears twice yields two blocks rather than one merged one,
+    because storage carries across the record and a budget can only be closed
+    over an interval that is actually continuous in time.
+    """
+    if column not in window.forcing.columns:
+        raise ValueError(
+            f"expected a '{column}' column in the forcing; the generator for a "
+            "regime-aware probe has to label which steps are in range and "
+            "which are the extrapolation"
+        )
+
+    labels = window.forcing[column].astype(str).to_numpy()
+    if len(labels) == 0:
+        return []
+
+    blocks: list[tuple[str, int, int]] = []
+    start = 0
+    for i in range(1, len(labels)):
+        if labels[i] != labels[start]:
+            blocks.append((str(labels[start]), start, i))
+            start = i
+    blocks.append((str(labels[start]), start, len(labels)))
+    return blocks
+
+
+def storage_at(window: Window, states: tuple[str, ...], index: int) -> float:
+    """Total reported storage one step before `index`, as closure measures it.
+
+    Index 0 means the state carried in from spinup, which lives outside the
+    window. Anywhere else it is the previous row. Same off-by-one that Window
+    exists to centralise, applied to a block boundary instead of the start.
+    """
+    if index <= 0:
+        return window.storage_initial(states)
+    present = [v for v in states if v in window.table.columns]
+    if not present:
+        return 0.0
+    return float(window.table.iloc[index - 1][present].sum())

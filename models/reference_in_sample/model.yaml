@@ -1,0 +1,21 @@
+name: reference_in_sample
+version: "1.0.0"
+description: >
+  The bucket model with a leak that only opens outside the range it was built
+  for. Below a daily rainfall it treats as familiar it conserves water
+  exactly; above that it loses a share of the excess and never reports where
+  it went. Ten years of ordinary weather hide this: the residual is a fraction
+  of a percent of total precipitation. It exists so that a probe claiming to
+  test extrapolation has something that is only wrong out of range.
+authors: ["HydroTuring maintainers"]
+license: MIT
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

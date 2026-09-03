@@ -1,6 +1,6 @@
 """Command line interface.
 
-    ht init-probe                        start a new probe from the template
+    ht init-probe [--template KIND]      start a new probe from a template
     ht init-model --name NAME            start a new model from the template
     ht list                              what probes and models exist
     ht validate                          schema-check every probe and model
@@ -21,10 +21,26 @@ from hydroturing import SUITE_VERSION, __version__
 from hydroturing import registry
 from hydroturing.harness import run_model, run_probe
 from hydroturing.report import to_markdown, to_text, write_json
-from hydroturing.scaffold import scaffold_model, scaffold_probe, write_draft
+from hydroturing.scaffold import (
+    available_templates,
+    scaffold_model,
+    scaffold_probe,
+    write_draft,
+)
 from hydroturing.scoring import FAIL, PASS
 from hydroturing.seeds import gate_seeds
 from hydroturing.spec import SpecError, load_model, load_probe
+
+
+# One line each, shown by `ht init-probe --list-templates`. A template with no
+# entry still works; it just goes undescribed.
+TEMPLATE_BLURB = {
+    "default": "a conservation budget over one generated case",
+    "extrapolation-space": "catchments outside the hull models are fitted to",
+    "extrapolation-time": "conditions outside anything earlier in the record",
+    "counterfactual": "same seed twice, perturbed: where did the extra water go",
+    "invariance": "a transform the physics does not depend on must change nothing",
+}
 
 
 def _probes(args):
@@ -38,9 +54,15 @@ def cmd_init_probe(args) -> int:
     template into a directory that already validates, leaving only the part
     they alone can write.
     """
+    if args.list_templates:
+        print("templates (ht init-probe --template <name>):\n")
+        for name in sorted(available_templates()):
+            print(f"    {name:<22} {TEMPLATE_BLURB.get(name, '')}")
+        return 0
+
     if not args.from_file:
-        dest = write_draft(args.output)
-        print(f"wrote {dest}\n")
+        dest = write_draft(args.output, kind=args.template)
+        print(f"wrote {dest}  (template: {args.template})\n")
         print("Fill it in, then run:")
         print(f"    ht init-probe --from {dest}\n")
         print("Read docs/writing-a-probe.md first. The question to answer before")
@@ -215,6 +237,10 @@ def build_parser() -> argparse.ArgumentParser:
     init_probe.add_argument("--from", dest="from_file",
                             help="a filled-in draft; creates probes/<law>/<slug>/")
     init_probe.add_argument("-o", "--output", help="where to write the blank draft")
+    init_probe.add_argument("--template", default="default",
+                            help="which template to start from (see --list-templates)")
+    init_probe.add_argument("--list-templates", action="store_true",
+                            help="show the available probe templates and exit")
     init_probe.add_argument("--force", action="store_true", help="overwrite an existing probe")
     init_probe.set_defaults(fn=cmd_init_probe)
 

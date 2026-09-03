@@ -179,7 +179,7 @@ def test_draft_template_is_not_scaffoldable_unfilled(tmp_path):
     from hydroturing.scaffold import scaffold_probe, write_draft
 
     draft = write_draft(tmp_path / "draft.yaml")
-    with pytest.raises(SpecError, match="still 'mass/my-probe'"):
+    with pytest.raises(SpecError, match="still the template's example"):
         scaffold_probe(draft)
 
 
@@ -239,3 +239,173 @@ def test_every_probe_credits_its_authors():
     for spec in registry.all_probes():
         assert spec.authors, f"{spec.id} lists no authors"
         assert all(a.get("name") for a in spec.authors)
+
+
+# --- templates --------------------------------------------------------------
+# Each template is a promise that `ht init-probe --template <kind>` produces
+# something a contributor can run. Nothing in CI exercises the templates
+# otherwise, so a template that no longer scaffolds would be discovered by the
+# first person to try it, which is the worst place to discover it.
+
+
+def _scaffold_template(scaffold, tmp_path, kind, slug):
+    draft = scaffold.write_draft(tmp_path / f"{kind}.yaml", kind=kind)
+    text = draft.read_text()
+    example = next(
+        line.split(": ", 1)[1].strip()
+        for line in text.splitlines()
+        if line.startswith("id: ")
+    )
+    draft.write_text(
+        text.replace(f"id: {example}", f"id: mass/{slug}")
+        .replace("name: Your Name", "name: A Contributor")
+    )
+    return scaffold.scaffold_probe(draft), example
+
+
+def _template_kinds():
+    from hydroturing.scaffold import available_templates
+
+    return sorted(available_templates())
+
+
+@pytest.mark.parametrize("kind", _template_kinds())
+def test_every_template_scaffolds_into_a_valid_probe(kind, tmp_path, monkeypatch):
+    from hydroturing import scaffold
+    from hydroturing.harness import build_case
+    from hydroturing.spec import load_probe
+
+    monkeypatch.setattr(scaffold, "PROBES_DIR", tmp_path / "probes")
+    target, _ = _scaffold_template(scaffold, tmp_path, kind, f"template-{kind}")
+
+    spec = load_probe(target)
+    assert "#!" not in (target / "probe.yaml").read_text()
+    assert spec.must_pass and spec.must_fail
+
+    # Every model the template names in its baselines has to exist, or the
+    # contributor's first `ht gate` fails on a missing reference rather than on
+    # their own physics.
+    for name in (*spec.must_pass, *spec.must_fail):
+        registry.find_model(name)
+
+    # The generator that comes with the template has to honour the length
+    # contract for every variant the probe declares.
+    for variant in spec.variants or (None,):
+        case = build_case(spec, 1, variant)
+        assert len(case.forcing) == int(spec.period_years * 365) + spec.spinup_days
+
+
+@pytest.mark.parametrize("kind", [k for k in _template_kinds() if k != "default"])
+def test_shaped_templates_get_a_matching_generator(kind, tmp_path, monkeypatch):
+    """A template whose criteria need labelled regimes or paired variants must
+    scaffold a generator that produces them, not the plain skeleton."""
+    from hydroturing import scaffold
+    from hydroturing.harness import build_case
+    from hydroturing.spec import load_probe
+
+    monkeypatch.setattr(scaffold, "PROBES_DIR", tmp_path / "probes")
+    target, _ = _scaffold_template(scaffold, tmp_path, kind, f"shaped-{kind}")
+    spec = load_probe(target)
+
+    names = {c.name for c in spec.criteria}
+    if "regime_transfer" in names:
+        case = build_case(spec, 1)
+        labels = set(case.forcing["_regime"].unique())
+        params = next(c.params for c in spec.criteria if c.name == "regime_transfer")
+        assert {params["reference"], params["extrapolation"]} <= labels
+
+    if spec.variants:
+        cases = {v: build_case(spec, 1, v) for v in spec.variants}
+        first, second = (cases[v].forcing for v in spec.variants[:2])
+        assert not first.equals(second), (
+            "the variants are identical, so the paired criterion compares "
+            "a case with itself and passes for any model at all"
+        )
+
+
+def test_annotations_are_not_staged_for_the_model(tmp_path):
+    """A `_regime` column tells the criteria which steps are the extrapolation.
+    Handing it to the model would tell it which part it is being judged on."""
+    import pandas as pd
+
+    from hydroturing.protocol import Case, stage
+
+    probe = registry.find_probe("mass/catchment-closure")
+    model = registry.find_model("reference_bucket")
+    case = build_case(probe, 5)
+    case = Case(
+        probe_id=case.probe_id,
+        seed=case.seed,
+        forcing=case.forcing.assign(_regime="anomaly"),
+        static=case.static,
+        spinup_days=case.spinup_days,
+    )
+
+    stage(tmp_path, case, probe, model)
+    staged = pd.read_csv(tmp_path / "input" / "forcing.csv")
+    assert "_regime" not in staged.columns
+    assert "pr" in staged.columns
+
+
+def test_paired_criteria_and_variants_must_agree(tmp_path, monkeypatch):
+    """Declaring one without the other is a silent no-op at run time."""
+    import yaml
+
+    from hydroturing import scaffold
+    from hydroturing.spec import load_probe
+
+    monkeypatch.setattr(scaffold, "PROBES_DIR", tmp_path / "probes")
+    target, _ = _scaffold_template(scaffold, tmp_path, "counterfactual", "pairing")
+
+    spec_file = target / "probe.yaml"
+    raw = yaml.safe_load(spec_file.read_text())
+    del raw["case"]["variants"]
+    spec_file.write_text(yaml.safe_dump(raw, sort_keys=False))
+    with pytest.raises(SpecError, match="case.variants"):
+        load_probe(target)
+
+
+def test_regime_transfer_separates_the_stretches():
+    """The point of the criterion: a leak confined to one stretch of the record
+    is invisible to a whole-window budget and must not be invisible here."""
+    import numpy as np
+    import pandas as pd
+
+    from hydroturing.criteria.base import Window, segments
+
+    n = 400
+    forcing = pd.DataFrame({
+        "pr": np.full(n, 10.0),
+        "_regime": ["ordinary"] * 300 + ["anomaly"] * 100,
+    })
+    blocks = segments(Window(forcing, forcing, forcing.iloc[0], 1.0))
+    assert blocks == [("ordinary", 0, 300), ("anomaly", 300, 400)]
+
+
+@pytest.mark.parametrize("kind", [k for k in _template_kinds() if k != "default"])
+def test_every_template_discriminates_out_of_the_box(kind, tmp_path, monkeypatch):
+    """The templates ship filled-in baselines, so they make a claim: scaffold
+    this and the acceptance gate already separates the reference models. One
+    seed rather than the full set, because this is checking that the template
+    is coherent, not running the gate."""
+    from hydroturing import scaffold
+    from hydroturing.spec import load_probe
+
+    monkeypatch.setattr(scaffold, "PROBES_DIR", tmp_path / "probes")
+    target, _ = _scaffold_template(scaffold, tmp_path, kind, f"gate-{kind}")
+    spec = load_probe(target)
+    seeds = gate_seeds(spec.id, 1)
+
+    for name in spec.must_pass:
+        outcome = run_probe(registry.find_model(name), spec, seeds)
+        assert outcome.verdict == PASS, (
+            f"{kind}: {name} is an exact model and the template fails it on "
+            f"{outcome.failing}; the template is wrong, not the model"
+        )
+
+    for name, expected in spec.must_fail.items():
+        outcome = run_probe(registry.find_model(name), spec, seeds)
+        assert expected in outcome.failing, (
+            f"{kind}: {name} was expected to trip '{expected}', "
+            f"tripped {outcome.failing or 'nothing'}"
+        )

@@ -1,0 +1,121 @@
+#! template: extrapolation-time
+#! ---------------------------------------------------------------------------
+#! HydroTuring probe draft: extrapolation in time
+#!
+#!     ht init-probe --template extrapolation-time
+#!     ht init-probe --from probe-draft.yaml
+#!
+#! Lines starting with #! are guidance and are stripped from the generated
+#! file. Plain # comments are kept.
+#!
+#! WHAT THIS TEMPLATE IS FOR
+#!
+#! A model that has only ever seen ordinary years can learn closure as a
+#! statistical regularity of those years rather than as a structural property.
+#! The record here contains both: a long stretch of ordinary weather, and a
+#! stretch outside anything that came before it. A record storm, a multi-year
+#! drought, a shifted climate.
+#!
+#! Why a whole-window `closure` is not enough on its own: nine ordinary years
+#! dilute one anomalous one. A model can leak forty percent of the water in
+#! the event and still come in under five percent overall. `regime_transfer`
+#! scores the stretches separately and compares them.
+#!
+#! HOW THE LABELLING WORKS
+#!
+#! generate.py adds a `_regime` column naming each step. The leading
+#! underscore matters: the harness strips underscore-prefixed columns before
+#! staging, so the model never receives a label telling it which part of the
+#! record it is being judged on. It has to tell the regimes apart from the
+#! forcing itself, which is the whole point.
+#!
+#! THE ORDER OF THE STRETCHES
+#!
+#! Put the ordinary stretch first and the extrapolation last. A model that
+#! carries state has then seen only ordinary conditions when the anomaly
+#! arrives, which is the situation being tested. Reversing them tests
+#! something else and the probe will be quietly weaker.
+#! ---------------------------------------------------------------------------
+
+id: mass/extreme-event-closure
+
+title: Water balance closure through conditions outside the prior record
+
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Your Name
+    affiliation: Your Institution
+    orcid: 0000-0000-0000-0000
+    github: your-handle
+
+description: >
+  Nine years of ordinary generated weather followed by a year that leaves the
+  range of everything before it. The budget must close over the anomalous
+  stretch on its own terms, and it must not close conspicuously worse there
+  than it did over the ordinary years.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_years: 10
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+criteria:
+  # Whole-window closure still has to hold. It is necessary, not sufficient.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  # The probe's actual assertion. Two conditions, both necessary:
+  #   - the extrapolation stretch closes to better than `threshold`
+  #   - it is no more than `max_degradation` times worse than the reference
+  #     stretch, or `degradation_floor`, whichever is larger
+  # The floor exists because an exact model's reference residual is floating
+  # point noise, and three times nothing is nothing.
+  - regime_transfer:
+      reference: ordinary
+      extrapolation: anomaly
+      denominator: sum_pr
+      threshold: 0.05
+      max_degradation: 3.0
+      degradation_floor: 0.005
+      sinks: [evspsbl, mrro]
+
+  # Storages must stay physical through the anomaly too. This is where a model
+  # that closes by construction usually gives itself away: the invented
+  # storage has to absorb an excursion it was never fitted to.
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro, evspsbl]
+
+baselines:
+  must_pass: [reference_bucket]
+  must_fail:
+    # Conserves water exactly in ordinary conditions and leaks once the
+    # forcing leaves the range it was built for. Whole-window closure does not
+    # catch it; the separated one does.
+    reference_in_sample: regime_transfer
+    reference_leaky: closure
+    reference_cheater: state_bounds
+
+provenance: >
+  Synthetic. Both regimes are generated at run time from a recorded seed, so
+  the anomaly is not a fixed event any model could have memorised.

@@ -1,0 +1,123 @@
+#! template: invariance
+#! ---------------------------------------------------------------------------
+#! HydroTuring probe draft: symmetry and invariance
+#!
+#!     ht init-probe --template invariance
+#!     ht init-probe --from probe-draft.yaml
+#!
+#! Lines starting with #! are guidance and are stripped from the generated
+#! file. Plain # comments are kept.
+#!
+#! WHAT THIS TEMPLATE IS FOR
+#!
+#! Physics has symmetries, and a model that has learned the physics inherits
+#! them for free. A catchment does not care what year the calendar says it is.
+#! Doubling its area doubles the discharge in cubic metres per second and
+#! leaves every depth in millimetres exactly where it was.
+#!
+#! A model that has learned its training set does not inherit these, and
+#! breaks them in ways that are obvious the moment you run the same case
+#! twice and invisible if you never do.
+#!
+#! This is the cheapest discriminating probe in the suite and the hardest to
+#! tune towards, because there is no tolerance worth arguing about: the two
+#! runs either agree to floating point or they do not.
+#!
+#! CHOOSING A TRANSFORM
+#!
+#! The transform must be one the physics is genuinely invariant under. Getting
+#! this wrong produces a probe that fails correct models, which is worse than
+#! no probe. Three that hold:
+#!
+#!   time origin    shift every date by a whole number of years, keeping the
+#!                  weather sequence identical. Nothing may change.
+#!                  (this template)
+#!   area           scale area_km2. Depths in mm are unchanged; `dis` in
+#!                  m3 s-1 scales by the same factor. Requires a model that
+#!                  emits `dis`, so `reference_bucket` cannot be the
+#!                  must_pass baseline for it.
+#!   permutation    reorder whole years of forcing. Weaker than it looks:
+#!                  storage carries across the boundary, so only long-run
+#!                  totals are invariant, not the series.
+#!
+#! One that does NOT hold, and is the usual mistake: scaling precipitation.
+#! Soil capacity is fixed, so doubling the rain does not double the runoff.
+#! That is a counterfactual, not a symmetry — see the `counterfactual`
+#! template.
+#! ---------------------------------------------------------------------------
+
+id: mass/time-origin-invariance
+
+title: The answer must not depend on what year the calendar says it is
+
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Your Name
+    affiliation: Your Institution
+    orcid: 0000-0000-0000-0000
+    github: your-handle
+
+description: >
+  The same weather twice, once dated from 2000 and once from 1960. Every
+  reported flux and storage must be identical step for step. A model whose
+  answer moves has keyed on the calendar rather than on the water, which
+  usually means a trend term or a date feature that survived from training.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 10
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+  # The first name is the control. Both variants carry byte-identical weather
+  # and differ only in the dates on the rows.
+  variants: [control, shifted]
+
+criteria:
+  # Invariance without closure is satisfiable by a model that reports zeros
+  # in both runs. Keep a budget check alongside it.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  # The probe's actual assertion. `unchanged` variables must match the control
+  # exactly; `scaled` ones, if you use a transform that has them, must match
+  # the control times the declared factor. Departures are measured relative to
+  # the mean magnitude of the control, so a variable that sits near zero for
+  # most of the record is not judged against its own noise.
+  - invariance:
+      control: control
+      transformed: shifted
+      unchanged: [evspsbl, mrro, mrso, snw, canopy]
+      rtol: 1.0e-9
+      # scaled:
+      #   dis: 2.0
+
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro, evspsbl]
+
+baselines:
+  must_pass: [reference_bucket]
+  must_fail:
+    # Carries a calendar-keyed trend correction, so its answer moves when the
+    # dates move and nothing else does.
+    reference_calendar: invariance
+    reference_degenerate: non_degenerate
+
+provenance: >
+  Synthetic. One weather sequence per seed, dated two ways, generated at run
+  time.

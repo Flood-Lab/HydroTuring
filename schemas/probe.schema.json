@@ -141,6 +141,17 @@
           "type": "number",
           "minimum": 1,
           "maximum": 600
+        },
+        "variants": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "description": "Paired-run probes only. Names of the cases the generator produces for one seed; the model is run once per variant and paired criteria compare the results. The first name is the control."
         }
       }
     },
