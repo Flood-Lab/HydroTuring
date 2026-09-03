@@ -38,10 +38,16 @@ and evaporation volumes differ between the minute and hourly runs by 20 to
 87 percent of the month's precipitation; the reference bucket, which turns
 rates into depths with the step it is given, agrees to within 0.1 percent.
 
-A model that only runs at one step is not run at all. It is scored
-INCOMPATIBLE, with the steps it lacks named, because the honest statement
-about such a model is that it cannot take the transform, not that it failed
-it.
+A model that only runs at one step is not run at all, and it fails. Its
+`resolution_invariance` criterion is marked failed with the steps it lacks
+named, and the verdict is FAIL with reason VIOLATION. This is deliberate. A
+physical model with its units consistent with the forcing takes any step;
+an AI model that claims to be a hydrological model is held to the same
+standard, and an answer that exists at one step only is dependence on the
+step by construction. The INCOMPATIBLE reason is reserved for the opposite
+situation, a probe that cannot feed a model, such as a daily closure probe
+given an hourly-only model: that probe measures closure, not the step, and
+cannot say anything about it.
 
 ## How the case is generated
 

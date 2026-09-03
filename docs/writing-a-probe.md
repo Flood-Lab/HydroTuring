@@ -151,8 +151,10 @@ integrate each run with its own step, so a paired criterion can compare a
 minute record with its hourly aggregate. Aggregate, do not redraw: the coarse
 variant must carry exactly the water of the fine one, and
 `resolution_invariance` refuses a pair that does not. A model has to declare
-every step the probe uses; one that runs at a single step is INCOMPATIBLE
-with the probe, which is the honest verdict for it. See
+every step the probe uses. One that runs at a single step fails every paired
+criterion of the probe without being run, because an answer that exists at
+one step only is not invariant to the step; it is not excused as
+incompatible, which is reserved for a probe that cannot feed a model. See
 `probes/mass/resolution-invariance` for the worked example.
 
 ## Baselines

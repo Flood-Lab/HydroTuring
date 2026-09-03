@@ -178,17 +178,20 @@ def _detail(probe: ProbeOutcome, plain: bool = False) -> str:
     bold = (lambda s: s) if plain else (lambda s: f"**{s}**")
     if probe.error:
         return probe.error.splitlines()[0][:160]
+    parts = []
     if probe.missing:
-        return "does not report " + ", ".join(code(v) for v in probe.missing)
+        parts.append("does not report " + ", ".join(code(v) for v in probe.missing))
     if probe.incompatible:
-        return "; ".join(probe.incompatible)
+        parts.append("; ".join(probe.incompatible))
     failing = [c for c in probe.criteria if not c.passed]
-    if not failing:
-        closure = next((c for c in probe.criteria if c.name == "closure"), None)
-        if closure and closure.value is not None:
-            return f"residual {closure.value:.3%} of driver"
-        return "all criteria pass"
-    return "; ".join(f"{bold(c.name)}: {c.message}" for c in failing)[:400]
+    if failing:
+        parts.append("; ".join(f"{bold(c.name)}: {c.message}" for c in failing))
+    if parts:
+        return "; ".join(parts)[:400]
+    closure = next((c for c in probe.criteria if c.name == "closure"), None)
+    if closure and closure.value is not None:
+        return f"residual {closure.value:.3%} of driver"
+    return "all criteria pass"
 
 
 CSV_COLUMNS = [

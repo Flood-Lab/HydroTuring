@@ -82,17 +82,42 @@ def test_manifest_timestep_may_be_a_list(tmp_path):
         load_model(target)
 
 
-def test_single_step_model_is_incompatible_not_wrong(probe):
-    """A model that only runs at one resolution says so and is not run."""
+def test_single_step_model_fails_the_transform(probe):
+    """A model that only runs at one step is not invariant to the step. On a
+    probe about the step that is the failure, scored without a run, not an
+    exemption dressed up as incompatibility."""
     daily = registry.find_model("reference_leaky")
     assert daily.timesteps == ("PT1D",)
     outcome = run_probe(daily, probe, [11])
-    assert outcome.reason == INCOMPATIBLE
-    assert "PT1M" in outcome.incompatible[0]
+    assert outcome.verdict == FAIL
+    assert outcome.reason == "VIOLATION"
+    assert outcome.failing == ["resolution_invariance"]
+    assert not outcome.incompatible
+    assert "PT1M/PT1H" in outcome.criteria[0].message
 
+    # Lacking one of the two steps is enough.
     hourly_only = replace(registry.find_model("reference_bucket"), timesteps=("PT1H",))
-    issues = compatibility_issues(hourly_only, probe)
-    assert issues and "PT1M" in issues[0] and "PT1H" not in issues[0].split("cover")[1]
+    outcome = run_probe(hourly_only, probe, [11])
+    assert outcome.failing == ["resolution_invariance"]
+    assert "PT1M record" in outcome.criteria[0].message
+    assert not compatibility_issues(hourly_only, probe), "the step is a verdict here, not a mismatch"
+
+    # A model that reports too little is both INCOMPLETE and rigid, and the
+    # report carries both.
+    streamflow = registry.find_model("reference_streamflow_only")
+    outcome = run_probe(streamflow, probe, [11])
+    assert outcome.reason == "INCOMPLETE"
+    assert outcome.failing == ["resolution_invariance"]
+
+
+def test_step_mismatch_on_a_single_step_probe_is_still_incompatible():
+    """Closure at a daily step measures closure. A model that cannot be fed
+    daily rows has not violated closure; the probe cannot say."""
+    closure = registry.find_probe("mass/catchment-closure")
+    hourly_only = replace(registry.find_model("reference_bucket"), timesteps=("PT1H",))
+    outcome = run_probe(hourly_only, closure, [11])
+    assert outcome.reason == INCOMPATIBLE
+    assert not outcome.criteria
 
 
 def test_reference_bucket_is_the_same_model_at_every_step(probe):

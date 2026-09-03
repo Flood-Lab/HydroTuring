@@ -68,8 +68,13 @@ timestep: [PT1H, PT1M]     # or a single step: PT1D
 ```
 
 A probe that runs the same weather at two steps needs both. A model that
-only works at one is INCOMPATIBLE with that probe, which is reported as
-such; it is never run at a step it did not declare.
+only works at one **fails** that probe without being run: an answer that
+exists at one step only is not invariant to the step, and physics has no
+such restriction. Declaring a single step is honest about the model, not a
+way around the probe. A model is never run at a step it did not declare;
+on a single-step probe a mismatch is reported as INCOMPATIBLE, because that
+probe measures something else and cannot measure it on a model it cannot
+feed.
 
 ## Variable names and units
 

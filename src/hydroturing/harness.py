@@ -283,14 +283,16 @@ def compatibility_issues(
     """Explain why a model cannot be meaningfully run on a probe.
 
     With a case in hand only that case's step is checked; without one, every
-    step the probe runs at. A model that works at one resolution and is asked
-    for another is incompatible, which is a finding about the model, not an
-    error.
+    step the probe runs at. On a single-step probe a step the model lacks is
+    an incompatibility: the probe measures something else, closure say, and
+    cannot measure it on a model it cannot feed. On a probe that runs the
+    same weather at two steps the missing step is the finding itself and is
+    scored by `step_rigidity` instead, so it is not listed here.
     """
     issues: list[str] = []
     needed = [case.timestep] if case is not None else list(probe.timesteps)
     unsupported = [t for t in needed if not model.supports_timestep(t)]
-    if unsupported:
+    if unsupported and not (case is None and len(probe.timesteps) > 1):
         issues.append(
             f"model timestep {'/'.join(model.timesteps)} does not cover the probe's "
             f"{'/'.join(unsupported)}"
@@ -303,6 +305,29 @@ def compatibility_issues(
         if missing:
             issues.append("forcing does not provide " + ", ".join(missing))
     return issues
+
+
+def step_rigidity(model: ModelManifest, probe: ProbeSpec) -> str | None:
+    """Why a model fails a multi-step probe without being run.
+
+    A probe that hands the model the same weather at two steps is asking
+    whether the answer depends on the step. A model that can only be run at
+    one of them has answered: its response exists at that step and nowhere
+    else, which is dependence on the step by construction. Physics has no
+    such restriction; a physical model with its units straight takes any
+    step, and an AI model that claims to be a hydrological model is held to
+    the same standard. So this is a failed criterion, not an exemption.
+    """
+    if len(probe.timesteps) < 2:
+        return None
+    lacking = [t for t in probe.timesteps if not model.supports_timestep(t)]
+    if not lacking:
+        return None
+    return (
+        f"the model runs at {'/'.join(model.timesteps)} only and cannot be given the "
+        f"{'/'.join(lacking)} record; an answer that exists at one step is not "
+        "invariant to the step"
+    )
 
 
 def verify_adapter_contract(
@@ -359,14 +384,24 @@ def run_probe(
     """
     missing = model.missing_for(probe)
     incompatible = compatibility_issues(model, probe)
-    if missing or incompatible:
+    rigid = step_rigidity(model, probe)
+    if missing or incompatible or rigid:
+        # A model that cannot take a resolution transform has failed every
+        # criterion that compares the two steps. Nothing else can be scored,
+        # so nothing else is listed.
+        failed = [
+            CriterionOutcome(name=c.name, status="fail", message=rigid)
+            for c in probe.criteria
+            if rigid and criteria_mod.is_paired(c.name)
+        ]
         return ProbeOutcome(
             probe_id=probe.id,
             law=probe.law,
             verdict=FAIL,
-            reason=reason_for([], missing, None, incompatible),
+            reason=reason_for([c.name for c in failed], missing, None, incompatible),
             missing=missing,
             incompatible=incompatible,
+            criteria=failed,
             authors=list(probe.authors),
         )
 
