@@ -23,14 +23,17 @@ reason next to the verdict.
 The model was trained on four weather products (HRES, GraphCast, IMERG, CPC)
 and 84 Caravan/HydroATLAS attributes. A probe hands it daily precipitation,
 temperature and potential ET for one lumped catchment. The adapter maps one
-onto the other without inventing inputs:
+onto the other; where the probe has nothing to give, the input is mocked
+from the forcing and labelled as such, which is acceptable for the
+synthetic mass-balance test:
 
 | Model input | Given |
 | --- | --- |
 | GraphCast, IMERG, CPC precipitation; GraphCast temperature | the forcing's `pr` and `tas`, standardised with each product's own training statistics |
-| HRES (precipitation, temperature, net solar and thermal radiation, surface pressure) | marked missing as a whole product, because the probe cannot supply radiation or pressure. This is the model's own documented path for an absent product: product embeddings are combined with a NaN-aware mean |
+| HRES precipitation and temperature | the forcing's `pr` and `tas`, as above |
+| HRES net solar radiation, net thermal radiation, surface pressure | **mock inputs**, allowed for the synthetic mass-balance test: FAO-56 extraterrestrial radiation at the probe's latitude, attenuated on wet days, with albedo 0.23; net longwave from air temperature at 70 percent humidity; pressure from the elevation the static attributes assume. Their means land inside the training distribution (156 vs 147 W/m2, -59 vs -63 W/m2, 92.5 vs 93.0 kPa). `run.json` lists them under `mock_inputs`. `GFF_MOCK_HRES=0` marks the product missing instead, through the model's own NaN-aware mean over products |
 | 14 climate attributes (`p_mean`, `pet_mean`, `aridity`, `frac_snow`, `moisture_index`, `seasonality`, high/low precipitation frequency and duration, annual P, PET, aridity index, mean temperature) | derived from the forcing the model is given, using Caravan's definitions |
-| the other 70 attributes (land cover, terrain, soils, human footprint, ...) | the training mean, i.e. zero after standardisation, because a synthetic lumped catchment has no such properties |
+| the other 70 attributes (land cover, terrain, soils, human footprint, ...) | the training mean, i.e. zero after standardisation: the mock catchment is an average Caravan basin at the probe's latitude |
 
 Each day is its own forecast issue with a 365-day hindcast window, run from a
 fresh state exactly as the operational model does. The reported value is the
@@ -53,38 +56,46 @@ budget.
 
 | Check | Outcome |
 | --- | --- |
-| `ht verify-adapter` on `mass/catchment-closure`, gate seed 598896396 | contract OK: 395 rows in 21 s, columns `mrro`, `dis` |
+| `ht verify-adapter` on `mass/catchment-closure`, gate seed 598896396 | contract OK: 395 rows in 20 s, columns `mrro`, `dis`, no missing products |
 | `ht run` on `mass/catchment-closure` | FAIL (INCOMPLETE): does not report `pr`, `evspsbl`, `mrso`, `snw`, `canopy` |
 
 Archived in [`models/result.csv`](../result.csv).
 
 What the model did on the event it was handed (seed 598896396, 2006-03-18 to
 2006-04-16, the reference bucket's largest 30-day flood), from
-[`event_window_seed598896396.csv`](event_window_seed598896396.csv):
+[`event_window_seed598896396.csv`](event_window_seed598896396.csv). The
+second model column is the same adapter with the HRES product marked missing
+instead of mocked, kept as a sensitivity check:
 
-| | precipitation | reference_bucket runoff | google_flood_forecast runoff |
-| --- | --- | --- | --- |
-| window total (mm) | 189 | 212 | 184 |
-| peak (mm/day) | 55 | 49 | 29 |
+| | precipitation | reference_bucket | google_flood_forecast, all products | google_flood_forecast, HRES missing |
+| --- | --- | --- | --- | --- |
+| window total (mm) | 189 | 212 | 100 | 184 |
+| peak (mm/day) | 55 | 49 | 12 | 29 |
+| daily correlation with reference_bucket | | | 0.74 | 0.65 |
 
-Daily correlation with the exact model over the window is 0.65. The model
-picks up every rain-driven peak with a realistic recession, under-predicts
-the two largest, and produces runoff from winter precipitation that the
-exact bucket stores as snow, then misses that snowpack's melt pulse in late
-March. Whether the last two come from the missing HRES product, from the
-attributes held at their training mean, or from the model itself is not
-something this benchmark can say; it is the behaviour of the released model
-under the inputs it was given.
+With every product present the model reproduces the timing of each
+rain-driven peak and recession, but returns about half the rain that fell as
+runoff and a quarter of the exact model's peaks, and it does not see the
+late-March melt pulse that the bucket's snowpack produces. Dropping the HRES
+product roughly doubles its runoff and makes it flash on winter
+precipitation the bucket stores as snow. The model is that sensitive to a
+product the probe cannot supply, which is the main caveat on any number
+here: what is measured is the released weights under mock radiation and
+pressure and average-catchment attributes, not the operational system.
 
 ![forcing, reference snowpack and runoff around the scored event](event_window_seed598896396.png)
 
 ## Reproduce
 
 ```bash
-ht verify-adapter --model google_flood_forecast          # builds the image, ~20 s per case
-ht run --model google_flood_forecast --gate-seeds        # INCOMPLETE, without starting the container
-ht verify-adapter --model google_flood_forecast --window full   # full record; exceeds the 60 s budget
+ht verify-adapter --model google_flood_forecast --csv models/result.csv   # builds the image, ~20 s per case
+ht run --model google_flood_forecast --gate-seeds --csv models/result.csv # INCOMPLETE, without starting the container
+ht verify-adapter --model google_flood_forecast --window full             # full record; exceeds the 60 s budget
 ```
+
+To reproduce the HRES-missing column, rebuild with `ENV GFF_MOCK_HRES=0` in
+the Dockerfile (or edit `MOCK_HRES` in the adapter) and run the contract
+check again.
 
 The image pins the source revision and the weight files; nothing is fetched
 at run time.

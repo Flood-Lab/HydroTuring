@@ -20,15 +20,21 @@ precipitation, air temperature and potential ET for one lumped catchment.
   them, each standardised with that product's own training statistics. All
   products are in mm/day and degC, as the forcing is.
 * HRES also needs net solar and thermal radiation and surface pressure,
-  which the probe cannot supply. The whole HRES product is marked missing
-  (NaN), which is the model's own documented path for an unavailable input
-  product: product embeddings are combined with a NaN-aware mean. Nothing
-  is invented to fill the gap.
+  which the probe does not generate. For the synthetic mass-balance test
+  these are mocked from the forcing with textbook (FAO-56) relations:
+  extraterrestrial radiation at the catchment's latitude, attenuated on wet
+  days, an albedo of 0.23, net longwave from air temperature at 70 percent
+  humidity, and surface pressure from the elevation the static attributes
+  assume. They are labelled as mock inputs in run.json. Set
+  GFF_MOCK_HRES=0 to mark the HRES product missing instead, which is the
+  model's own path for an unavailable product (a NaN-aware mean over
+  product embeddings).
 * The climate attributes that Caravan derives from forcing are derived here
   from the forcing the model is given, using Caravan's definitions. Every
   other attribute (land cover, terrain, soils, human footprint, ...) has no
   counterpart in a synthetic lumped catchment and is set to its training
-  mean, i.e. zero after standardisation.
+  mean, i.e. zero after standardisation: the mock catchment is an average
+  Caravan basin at the probe's latitude.
 
 How the record is simulated
 ---------------------------
@@ -49,6 +55,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import datetime as dt
 import json
 import os
 import sys
@@ -64,16 +71,18 @@ COLUMNS = ["time", "mrro", "dis"]
 RUN_DIR = Path(os.environ.get("GFF_RUN_DIR", "/model/run"))
 WEIGHTS = "model_epoch055.pt"
 THREADS = int(os.environ.get("GFF_THREADS", "8"))
+MOCK_HRES = os.environ.get("GFF_MOCK_HRES", "1") != "0"
 BATCH = 64
 
-# Model input feature -> forcing column. None means the probe cannot supply
-# it, and the product it belongs to is then treated as missing in full.
+# Model input feature -> forcing column, or a mock series built from the
+# forcing. A product with any input that is neither is treated as missing
+# in full.
 FEATURE_SOURCE = {
     "hres_total_precipitation": "pr",
     "hres_temperature_2m": "tas",
-    "hres_surface_net_solar_radiation": None,
-    "hres_surface_net_thermal_radiation": None,
-    "hres_surface_pressure": None,
+    "hres_surface_net_solar_radiation": "mock_net_solar_radiation",
+    "hres_surface_net_thermal_radiation": "mock_net_thermal_radiation",
+    "hres_surface_pressure": "mock_surface_pressure",
     "graphcast_total_precipitation": "pr",
     "graphcast_temperature_2m": "tas",
     "imerg_precipitation": "pr",
@@ -82,6 +91,67 @@ FEATURE_SOURCE = {
 
 TARGET = "streamflow"  # Caravan streamflow, mm/day
 DAYS_PER_YEAR = 365.25
+
+# Mock HRES fields (units as in the Caravan-MultiMet training data: W/m2
+# for radiation, kPa for pressure). Textbook FAO-56 daily relations.
+ALBEDO = 0.23
+CLOUD_FACTOR_DRY, CLOUD_FACTOR_WET = 0.70, 0.45  # fraction of extraterrestrial radiation
+WET_DAY_MM = 1.0
+RELATIVE_HUMIDITY = 0.70
+SOLAR_CONSTANT = 0.0820  # MJ m-2 min-1
+STEFAN_BOLTZMANN = 4.903e-9  # MJ K-4 m-2 day-1
+MJ_PER_DAY_TO_W = 1.0e6 / 86400.0
+MOCK_INPUT_NOTES = {
+    "mock_net_solar_radiation": (
+        "FAO-56 extraterrestrial radiation at the catchment latitude, times "
+        f"{CLOUD_FACTOR_DRY} on dry and {CLOUD_FACTOR_WET} on wet days, "
+        f"times (1 - albedo {ALBEDO}); W/m2"
+    ),
+    "mock_net_thermal_radiation": (
+        "FAO-56 net longwave from air temperature at "
+        f"{int(RELATIVE_HUMIDITY * 100)} percent relative humidity and the "
+        "same cloudiness, reported as a negative (outgoing) flux; W/m2"
+    ),
+    "mock_surface_pressure": (
+        "FAO-56 standard atmosphere at the elevation the static attributes "
+        "assume (the training-mean ele_mt_sav); kPa, constant"
+    ),
+}
+
+
+def mock_hres_fields(pr: np.ndarray, tas: np.ndarray, doy: np.ndarray,
+                     latitude_deg: float, elevation_m: float) -> dict[str, np.ndarray]:
+    """Plausible daily radiation and pressure for a catchment the probe only
+    describes by its weather, latitude and an assumed elevation."""
+    phi = np.radians(latitude_deg)
+    j = doy.astype(float)
+    dr = 1.0 + 0.033 * np.cos(2.0 * np.pi * j / 365.0)
+    delta = 0.409 * np.sin(2.0 * np.pi * j / 365.0 - 1.39)
+    omega = np.arccos(np.clip(-np.tan(phi) * np.tan(delta), -1.0, 1.0))
+    ra = (24.0 * 60.0 / np.pi) * SOLAR_CONSTANT * dr * (
+        omega * np.sin(phi) * np.sin(delta) + np.cos(phi) * np.cos(delta) * np.sin(omega)
+    )  # MJ m-2 day-1
+
+    cloud = np.where(pr >= WET_DAY_MM, CLOUD_FACTOR_WET, CLOUD_FACTOR_DRY)
+    rs = cloud * ra
+    rso = (0.75 + 2.0e-5 * elevation_m) * ra
+    clearness = np.clip(rs / np.maximum(rso, 1e-6), 0.3, 1.0)
+
+    net_solar = (1.0 - ALBEDO) * rs
+    saturation_kpa = 0.6108 * np.exp(17.27 * tas / (tas + 237.3))
+    ea = RELATIVE_HUMIDITY * saturation_kpa
+    net_longwave = (
+        STEFAN_BOLTZMANN * (tas + 273.16) ** 4
+        * (0.34 - 0.14 * np.sqrt(ea))
+        * (1.35 * clearness - 0.35)
+    )
+    pressure = 101.3 * ((293.0 - 0.0065 * elevation_m) / 293.0) ** 5.26
+
+    return {
+        "mock_net_solar_radiation": net_solar * MJ_PER_DAY_TO_W,
+        "mock_net_thermal_radiation": -net_longwave * MJ_PER_DAY_TO_W,
+        "mock_surface_pressure": np.full(len(pr), pressure),
+    }
 
 
 # --- catchment attributes ---------------------------------------------------
@@ -198,7 +268,7 @@ def dynamic_inputs(cfg, forcing: dict[str, np.ndarray], center, scale) -> tuple[
     series: dict[str, np.ndarray] = {}
     missing: list[str] = []
     for product, features in products.items():
-        available = all(FEATURE_SOURCE.get(f) is not None for f in features)
+        available = all(FEATURE_SOURCE.get(f) in forcing for f in features)
         if not available:
             missing.append(product)
         for f in features:
@@ -273,7 +343,9 @@ def simulate(forcing: list[dict], static: dict, seed: int) -> tuple[list[dict], 
     pr = np.array([r["pr"] for r in forcing])
     tas = np.array([r["tas"] for r in forcing])
     pet = np.array([r["pet"] for r in forcing])
-    months = np.array([int(str(r["time"])[5:7]) for r in forcing])
+    dates = [dt.date.fromisoformat(str(r["time"])[:10]) for r in forcing]
+    months = np.array([d.month for d in dates])
+    doy = np.array([d.timetuple().tm_yday for d in dates])
 
     names = list(cfg.static_attributes) + list(FEATURE_SOURCE) + [TARGET]
     center, scale = scaler_stats(model, names)
@@ -283,7 +355,21 @@ def simulate(forcing: list[dict], static: dict, seed: int) -> tuple[list[dict], 
         [[(derived.get(a, center[a]) - center[a]) / scale[a] for a in cfg.static_attributes]],
         dtype=torch.float32,
     )
-    series, missing_products = dynamic_inputs(cfg, {"pr": pr, "tas": tas}, center, scale)
+
+    inputs = {"pr": pr, "tas": tas}
+    mocked: dict[str, str] = {}
+    if MOCK_HRES:
+        inputs.update(mock_hres_fields(
+            pr, tas, doy,
+            latitude_deg=float(static.get("latitude_deg", 40.0)),
+            elevation_m=float(center.get("ele_mt_sav", 0.0)),
+        ))
+        mocked = {
+            feature: MOCK_INPUT_NOTES[source]
+            for feature, source in FEATURE_SOURCE.items()
+            if source in MOCK_INPUT_NOTES
+        }
+    series, missing_products = dynamic_inputs(cfg, inputs, center, scale)
 
     scaled = nowcast(model, cfg, x_s, series, seed, int(cfg.seq_length))
     depth = np.maximum(scaled * scale[TARGET] + center[TARGET], 0.0)  # mm/day
@@ -299,6 +385,7 @@ def simulate(forcing: list[dict], static: dict, seed: int) -> tuple[list[dict], 
         "prediction": "day-0 member of each day's forecast, median of CMAL samples",
         "n_samples": int(cfg.n_samples),
         "hindcast_days": int(cfg.seq_length),
+        "mock_inputs": mocked,
         "missing_products": missing_products,
         "derived_static_attributes": sorted(a for a in derived if a in cfg.static_attributes),
         "static_attributes_at_training_mean": [
