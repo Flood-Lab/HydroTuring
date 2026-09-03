@@ -35,6 +35,15 @@ UNITS = {
 
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0}
 
+# How much of the scored record a submitted model is evaluated on when its
+# manifest does not say. A heavy model is tested on the largest flood event
+# of the generated record, spinup included, rather than the full period: a
+# month of daily output or a week of hourly output is enough to see the
+# event and short enough to fit the container's time budget. Reference
+# models always see the full record, because the acceptance gate runs on it.
+DEFAULT_WINDOW_DAYS = {"PT1D": 30, "PT1H": 7}
+FULL_WINDOW = "full"
+
 # These repository-owned baselines are the only code allowed to bypass the
 # container boundary. A submitted manifest cannot opt itself into host access.
 TRUSTED_SUBPROCESS_MODELS = {
@@ -141,6 +150,10 @@ class ModelManifest:
     license: str
     description: str
     path: Path
+    # Days of the scored record the model is evaluated on: a positive integer,
+    # FULL_WINDOW for the whole record, or None to take the default for the
+    # kind of model (see DEFAULT_WINDOW_DAYS).
+    window_days: int | str | None = None
 
     @property
     def emitted(self) -> tuple[str, ...]:
@@ -304,4 +317,5 @@ def load_model(path: str | Path) -> ModelManifest:
         license=raw.get("license", ""),
         description=raw.get("description", ""),
         path=directory,
+        window_days=raw.get("window_days"),
     )

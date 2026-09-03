@@ -36,6 +36,24 @@ is not the generator seed recorded in the host-side report. Exit 0 on success.
 There is no network. Do not attempt to download weights or data at run time;
 bake them into the image.
 
+## The evaluation window
+
+A submitted model is not run over the full generated record. The harness
+cuts the record down to the largest flood event, located by the probe's own
+reference model, with the full spinup in front of it: by default 30 days for
+a daily model and 7 days for an hourly one, so a heavy model fits the probe's
+time budget. `n_steps` in `request.json` is the length the adapter must
+emit, spinup included; it is 395 rows for a daily model on the default
+window, not the 4015 of the full record. Ask for a different window, or the
+whole record, in `model.yaml`:
+
+```yaml
+window_days: 30      # or any positive number of days, or "full"
+```
+
+Reference models always see the full record, because the acceptance gate is
+defined on it.
+
 ## Variable names and units
 
 | Name | Meaning | Units |
@@ -84,8 +102,11 @@ ht verify-adapter --model <model-name>   # contract only, no physics
 ht run --model <model-name>              # the actual evaluation
 ```
 
-`verify-adapter` runs a single seed and checks the shape of what came back.
-Get that green before looking at any residual.
+`verify-adapter` runs a single seed, on the same window the evaluation will
+use, and checks the shape of what came back. Get that green before looking
+at any residual. Both commands take `--csv models/result.csv` to append what
+they found to the archive, and `--window DAYS|full` to override the
+manifest.
 
 ## A minimal adapter
 

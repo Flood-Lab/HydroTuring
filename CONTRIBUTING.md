@@ -121,6 +121,11 @@ If you want the maintainers to package or evaluate an existing model, open a
 the model's code repository, exact version or commit, optional weights
 repository, and whether it is AI-based, AI+physics or physics.
 
+The form also asks whether there is a time window you want the test to run
+over. Submitted models are scored on the largest flood event of the record,
+a month for a daily model and a week for an hourly one unless you say
+otherwise, so that a heavy model fits its time budget.
+
 Submitting a model that fails is welcome and useful. `FAIL` with reason
 `INCOMPLETE` is the current state of nearly every published rainfall-runoff
 model, and recording that honestly is part of what the benchmark is for.

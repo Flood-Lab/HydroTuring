@@ -7,9 +7,11 @@ line, and so a failing model's author can see where the budget went.
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +69,7 @@ def to_dict(report: ModelReport) -> dict[str, Any]:
     return {
         "model": {"name": report.model_name, "version": report.model_version},
         "suite_version": report.suite_version,
+        "runner": report.runner,
         "verdict": report.verdict,
         "reason": report.reason,
         "summary": report.summary,
@@ -84,6 +87,12 @@ def _probe_dict(probe: ProbeOutcome) -> dict[str, Any]:
         "verdict": probe.verdict,
         "reason": probe.reason,
         "seeds": probe.seeds,
+        # Which stretch of the record was scored. Null is the full record.
+        "window": (
+            {"days": probe.window_days, "cases": probe.windows}
+            if probe.window_days is not None
+            else None
+        ),
     }
     if probe.missing:
         payload["missing"] = probe.missing
@@ -123,14 +132,14 @@ def to_markdown(report: ModelReport) -> str:
         f"{prefix(report.verdict == 'PASS')}**{report.verdict}** ({report.reason}) "
         f"&middot; {report.summary} &middot; suite {report.suite_version}",
         "",
-        "| Probe | Verdict | Reason | Detail |",
-        "| --- | --- | --- | --- |",
+        "| Probe | Verdict | Reason | Window | Detail |",
+        "| --- | --- | --- | --- | --- |",
     ]
     for probe in report.probes:
         detail = _detail(probe)
         lines.append(
             f"| `{probe.probe_id}` | {verdict_label(probe.verdict)} | "
-            f"{probe.reason} | {detail} |"
+            f"{probe.reason} | {window_label(probe)} | {detail} |"
         )
     if report.flags:
         lines += ["", "Flags: " + ", ".join(f"`{f}`" for f in report.flags)]
@@ -141,11 +150,36 @@ def to_markdown(report: ModelReport) -> str:
     return "\n".join(lines)
 
 
-def _detail(probe: ProbeOutcome) -> str:
+def window_label(probe: ProbeOutcome) -> str:
+    """`full record`, or the N-day flood event the model was scored on.
+
+    A model that never ran, because it cannot report what the probe needs or
+    cannot consume the probe at all, was scored on nothing, and the label
+    says so rather than implying a record it never saw.
+    """
+    if probe.missing or probe.incompatible:
+        return "not run"
+    if probe.window_days is None:
+        return "full record"
+    return f"{probe.window_days}-day flood event"
+
+
+def _window_line(probe: ProbeOutcome) -> str:
+    """The scored stretch of each seed, for the terminal report."""
+    stretches = "; ".join(
+        f"seed {w['seed']}: {w['start']} to {w['end']}" for w in probe.windows
+    )
+    return f"{window_label(probe)} after spinup" + (f" ({stretches})" if stretches else "")
+
+
+def _detail(probe: ProbeOutcome, plain: bool = False) -> str:
+    """One line on where the verdict came from. `plain` drops the markdown."""
+    code = (lambda s: s) if plain else (lambda s: f"`{s}`")
+    bold = (lambda s: s) if plain else (lambda s: f"**{s}**")
     if probe.error:
         return probe.error.splitlines()[0][:160]
     if probe.missing:
-        return "does not report " + ", ".join(f"`{v}`" for v in probe.missing)
+        return "does not report " + ", ".join(code(v) for v in probe.missing)
     if probe.incompatible:
         return "; ".join(probe.incompatible)
     failing = [c for c in probe.criteria if not c.passed]
@@ -154,7 +188,112 @@ def _detail(probe: ProbeOutcome) -> str:
         if closure and closure.value is not None:
             return f"residual {closure.value:.3%} of driver"
         return "all criteria pass"
-    return "; ".join(f"**{c.name}**: {c.message}" for c in failing)[:400]
+    return "; ".join(f"{bold(c.name)}: {c.message}" for c in failing)[:400]
+
+
+CSV_COLUMNS = [
+    "run_date",
+    "model",
+    "version",
+    "suite_version",
+    "runner",
+    "probe",
+    "verdict",
+    "reason",
+    "window",
+    "seeds",
+    "detail",
+]
+
+
+def to_csv_rows(report: ModelReport, run_date: str | None = None) -> list[dict[str, str]]:
+    """One row per probe, flat enough to live in a spreadsheet for years.
+
+    The archive is a log rather than a leaderboard: every evaluation appends
+    its rows, dated, so the same model can be seen before and after a fix and
+    the suite can be seen growing around it.
+    """
+    run_date = run_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    rows = []
+    for probe in report.probes:
+        rows.append({
+            "run_date": run_date,
+            "model": report.model_name,
+            "version": report.model_version,
+            "suite_version": report.suite_version,
+            "runner": report.runner,
+            "probe": probe.probe_id,
+            "verdict": probe.verdict,
+            "reason": probe.reason,
+            "window": window_label(probe),
+            "seeds": " ".join(str(s) for s in probe.seeds),
+            "detail": _detail(probe, plain=True),
+        })
+    return rows
+
+
+def contract_row(
+    model_name: str,
+    model_version: str,
+    suite_version: str,
+    runner: str,
+    probe_id: str,
+    seed: int,
+    *,
+    result=None,
+    error: str | None = None,
+    run_date: str | None = None,
+) -> dict[str, str]:
+    """The adapter contract check as one archive row.
+
+    For a model that reports only discharge this is the only line saying
+    that it was actually built and run: its scientific verdict is INCOMPLETE
+    before the container is ever started.
+    """
+    run_date = run_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if error is not None:
+        verdict, reason, window, detail = "FAIL", "ERROR", "not run", error.splitlines()[0][:160]
+    else:
+        case = result.case
+        window = (
+            f"{case.window['days']}-day flood event" if case.window else "full record"
+        )
+        verdict, reason = "PASS", "OK"
+        detail = (
+            f"adapter contract OK: {len(result.table)} rows in {result.wall_seconds:.1f}s, "
+            f"columns {', '.join(c for c in result.table.columns if c != 'time')}"
+        )
+    return {
+        "run_date": run_date,
+        "model": model_name,
+        "version": model_version,
+        "suite_version": suite_version,
+        "runner": runner,
+        "probe": f"{probe_id} (adapter contract)",
+        "verdict": verdict,
+        "reason": reason,
+        "window": window,
+        "seeds": str(seed),
+        "detail": detail,
+    }
+
+
+def append_csv_rows(rows: list[dict[str, str]], path: str | Path) -> Path:
+    """Append rows to a CSV archive, writing the header if it is new."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    is_new = not path.exists() or path.stat().st_size == 0
+    with open(path, "a", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=CSV_COLUMNS)
+        if is_new:
+            writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
+def append_csv(report: ModelReport, path: str | Path, run_date: str | None = None) -> Path:
+    """Append the report to a CSV archive, one row per probe."""
+    return append_csv_rows(to_csv_rows(report, run_date), path)
 
 
 def to_text(report: ModelReport) -> str:
@@ -176,6 +315,8 @@ def to_text(report: ModelReport) -> str:
             lines.append(f"          missing: {', '.join(probe.missing)}")
         if probe.incompatible:
             lines.append(f"          incompatible: {'; '.join(probe.incompatible)}")
+        if probe.window_days is not None:
+            lines.append(f"          window: {_window_line(probe)}")
         for c in probe.criteria:
             lines.append(f"        {mark(c.passed)}  {c.name:<18} {c.message}")
     return "\n".join(lines)

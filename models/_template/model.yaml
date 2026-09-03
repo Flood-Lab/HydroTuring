@@ -23,3 +23,8 @@ needs_forcing: [pr, tas, pet]
 supports:
   perturbation: true
 resources: {cpu: 2, memory_gb: 4, gpu: false}
+
+# How much of the record the model is scored on: the largest flood event of
+# this many days, with the full spinup in front of it. Omit for the default
+# (30 days for PT1D, 7 for PT1H) or say "full" for the whole record.
+# window_days: 30

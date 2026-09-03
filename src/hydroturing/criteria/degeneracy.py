@@ -40,10 +40,22 @@ def non_degenerate(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionR
     pr = np.asarray(w.forcing["pr"], dtype=float)
     total_pr = float(pr.sum())
 
+    # The runoff ratio is a climatological statistic. It says something about
+    # the partition only once storage has cycled, which takes a year; over a
+    # shorter scored window it measures the storage change instead. A melt
+    # flood returns several times the rain that fell in that month and a
+    # dry-down returns almost none, and neither is degenerate. So the bounds
+    # are applied to a window of at least a year and reported, not judged,
+    # on a flood-event window.
+    scored_days = len(w.table) * w.dt_days
     if "mrro" in w.table.columns and total_pr > 0:
         runoff_ratio = float(np.asarray(w.table["mrro"], dtype=float).sum() / total_pr)
         diagnostics["runoff_ratio"] = runoff_ratio
-        if not (ratio_lo <= runoff_ratio <= ratio_hi):
+        if scored_days < 365:
+            diagnostics["runoff_ratio_check"] = (
+                f"not applied: scored window is {scored_days:g} days, under a year"
+            )
+        elif not (ratio_lo <= runoff_ratio <= ratio_hi):
             failures.append(
                 f"runoff ratio {runoff_ratio:.4f} outside [{ratio_lo:g}, {ratio_hi:g}]"
             )

@@ -116,10 +116,19 @@ and `AGENTS.md` if you are having a coding agent build the sandbox for you.
 To ask the maintainers to package and evaluate a model, open a
 [model submission](../../issues/new?template=model_submission.yml). The form
 accepts AI-based, AI+physics and physics models, with separate links for the
-model code and optional pretrained weights.
+model code and optional pretrained weights, and asks whether there is a time
+window you want the test to run over.
+
+A submitted model is scored on the largest flood event of the generated
+record rather than on all ten years of it: by default a month for a daily
+model and a week for an hourly one, with the full spinup in front, located
+by the probe's own reference model. That is what keeps a model that takes
+seconds per forecast inside the probe's time budget. `window_days` in
+`model.yaml` changes it; `full` asks for the whole record.
 
 The container runs with no network and never sees the probe code, so a model
-cannot read the tolerance it is being judged against.
+cannot read the tolerance it is being judged against. Every evaluation is
+appended to [models/result.csv](models/result.csv).
 
 ## Contributing a probe
 

@@ -60,6 +60,10 @@ class ProbeOutcome:
     error: str | None = None
     flags: list[str] = field(default_factory=list)
     authors: list[dict[str, str]] = field(default_factory=list)
+    # None when the full record was scored. Otherwise the days asked for and,
+    # per seed, the stretch that was actually scored.
+    window_days: int | None = None
+    windows: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def failing(self) -> list[str]:
@@ -73,6 +77,7 @@ class ModelReport:
     suite_version: str
     probes: list[ProbeOutcome] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
+    runner: str = ""
 
     @property
     def verdict(self) -> str:

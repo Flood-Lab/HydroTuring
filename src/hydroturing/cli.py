@@ -19,8 +19,22 @@ from pathlib import Path
 
 from hydroturing import SUITE_VERSION, __version__
 from hydroturing import registry
-from hydroturing.harness import run_model, run_probe, verify_adapter_contract
-from hydroturing.report import mark, prefix, to_markdown, to_text, write_json
+from hydroturing.harness import (
+    resolve_window_days,
+    run_model,
+    run_probe,
+    verify_adapter_contract,
+)
+from hydroturing.report import (
+    append_csv,
+    append_csv_rows,
+    contract_row,
+    mark,
+    prefix,
+    to_markdown,
+    to_text,
+    write_json,
+)
 from hydroturing.scaffold import (
     available_templates,
     scaffold_model,
@@ -29,7 +43,28 @@ from hydroturing.scaffold import (
 )
 from hydroturing.scoring import ERROR, FAIL, PASS
 from hydroturing.seeds import gate_seeds
-from hydroturing.spec import TRUSTED_SUBPROCESS_MODELS, SpecError, load_model, load_probe
+from hydroturing.spec import (
+    FULL_WINDOW,
+    TRUSTED_SUBPROCESS_MODELS,
+    SpecError,
+    load_model,
+    load_probe,
+)
+
+
+def _window_arg(text: str) -> int | str:
+    """`--window 30` or `--window full`."""
+    if text.strip().lower() == FULL_WINDOW:
+        return FULL_WINDOW
+    try:
+        days = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"expected a number of days or '{FULL_WINDOW}', got {text!r}"
+        ) from None
+    if days < 1:
+        raise argparse.ArgumentTypeError("the window must be at least one day")
+    return days
 
 
 # One line each, shown by `ht init-probe --list-templates`. A template with no
@@ -132,7 +167,13 @@ def cmd_list(args) -> int:
         print(f"  {p.id:<34} {p.law:<9} {p.track:<10} seeds={p.n_seeds}  needs: {req}")
     print(f"\nmodels ({len(models)}):")
     for m in models:
-        print(f"  {m.name:<24} v{m.version:<8} runner={m.runner:<11} emits: {', '.join(m.emitted)}")
+        matching = next((p for p in probes if p.timestep == m.timestep), None)
+        days = resolve_window_days(m, matching) if matching else m.window_days
+        window = "full" if days is None else f"{days}d"
+        print(
+            f"  {m.name:<24} v{m.version:<8} runner={m.runner:<11} "
+            f"window={window:<5} emits: {', '.join(m.emitted)}"
+        )
     return 0
 
 
@@ -182,12 +223,35 @@ def cmd_verify_adapter(args) -> int:
 
     seed = gate_seeds(probe.id, 1)[0]
     try:
-        verify_adapter_contract(model, probe, seed)
+        result = verify_adapter_contract(model, probe, seed, window=args.window)
     except Exception as exc:  # report a clean smoke-test failure, never a traceback
         print(f"{prefix(False)}adapter contract FAILED for {model.name}:\n  {exc}")
+        if args.csv:
+            _archive_contract(args.csv, model, probe, seed, error=str(exc))
         return 1
-    print(f"{prefix(True)}adapter contract OK for {model.name} on {probe.id}")
+    if args.csv:
+        path = _archive_contract(args.csv, model, probe, seed, result=result)
+        print(f"appended 1 row to {path}")
+    window = result.case.window
+    stretch = (
+        f" ({window['days']}-day flood event, {window['start']} to {window['end']}, "
+        f"{result.case.n_steps} rows with spinup)"
+        if window
+        else f" (full record, {result.case.n_steps} rows)"
+    )
+    print(
+        f"{prefix(True)}adapter contract OK for {model.name} on {probe.id}{stretch}; "
+        f"{result.wall_seconds:.1f}s"
+    )
     return 0
+
+
+def _archive_contract(path, model, probe, seed, *, result=None, error=None) -> Path:
+    row = contract_row(
+        model.name, model.version, SUITE_VERSION, model.runner, probe.id, seed,
+        result=result, error=error,
+    )
+    return append_csv_rows([row], path)
 
 
 def cmd_run(args) -> int:
@@ -203,11 +267,17 @@ def cmd_run(args) -> int:
     seeds = [args.seed] if args.seed is not None else None
     workdir = Path(args.workdir) if args.workdir else None
 
-    report = run_model(model, probes, seeds=seeds, gate=args.gate_seeds, workdir=workdir)
+    report = run_model(
+        model, probes, seeds=seeds, gate=args.gate_seeds, workdir=workdir,
+        window=args.window,
+    )
     print(to_text(report) if not args.markdown else to_markdown(report))
     if args.json:
         path = write_json(report, args.json)
         print(f"\nwrote {path}")
+    if args.csv:
+        path = append_csv(report, args.csv)
+        print(f"appended {len(report.probes)} row(s) to {path}")
     if report.reason == ERROR:
         return 2
     return 0 if report.verdict == PASS else 1
@@ -311,9 +381,23 @@ def build_parser() -> argparse.ArgumentParser:
     add_probe_roots(validate)
     validate.set_defaults(fn=cmd_validate)
 
+    def add_window(command) -> None:
+        command.add_argument(
+            "--window",
+            type=_window_arg,
+            metavar="DAYS|full",
+            help=(
+                "days of the scored record to evaluate, taken at the largest flood "
+                "event, or 'full' for the whole record; overrides window_days in model.yaml"
+            ),
+        )
+
     verify = sub.add_parser("verify-adapter", help="check a model honours the /io contract")
     verify.add_argument("--model", required=True)
     verify.add_argument("--probe")
+    verify.add_argument("--csv", metavar="PATH",
+                        help="append the contract check as a row to this CSV archive")
+    add_window(verify)
     add_probe_roots(verify)
     verify.set_defaults(fn=cmd_verify_adapter)
 
@@ -323,10 +407,13 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--seed", type=int, help="run a single specific seed (for reproducing a failure)")
     run.add_argument("--gate-seeds", action="store_true", help="use the deterministic gate seeds")
     run.add_argument("--json", help="write the machine-readable report here")
+    run.add_argument("--csv", metavar="PATH",
+                     help="append one row per probe to this CSV archive (e.g. models/result.csv)")
     run.add_argument("--markdown", action="store_true", help="print the PR-comment table")
     run.add_argument("--workdir", help="keep the /io directories here instead of a temp dir")
     run.add_argument("--runner", choices=["subprocess", "docker"],
                      help="override the runner declared in model.yaml (used by CI to exercise the container path)")
+    add_window(run)
     add_probe_roots(run)
     run.set_defaults(fn=cmd_run)
 

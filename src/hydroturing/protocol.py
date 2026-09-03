@@ -66,6 +66,10 @@ class Case:
     forcing: pd.DataFrame
     static: dict[str, Any]
     spinup_days: int
+    # Set when the record was cut down to an evaluation window: the days
+    # asked for and the first and last scored timestamps. The model is never
+    # told; it sees a shorter forcing and nothing else.
+    window: dict[str, Any] | None = None
 
     @property
     def n_steps(self) -> int:

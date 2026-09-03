@@ -47,6 +47,13 @@
         "memory_gb": {"type": "number", "minimum": 0.5, "maximum": 32},
         "gpu": {"type": "boolean"}
       }
+    },
+    "window_days": {
+      "oneOf": [
+        {"type": "integer", "minimum": 1},
+        {"const": "full"}
+      ],
+      "description": "Days of the scored record the model is evaluated on. The harness picks the largest flood event of that length after spinup, located by the probe's reference model. Omit for the default (30 days for PT1D, 7 for PT1H; reference models always see the full record) or set \"full\" to evaluate the whole record."
     }
   }
 }

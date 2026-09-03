@@ -70,6 +70,43 @@ in `model.yaml` and checks the row count, exact time axis, declared columns,
 finite values and output-size limit. Get it green first. A residual computed
 from a malformed table tells you nothing.
 
+## The evaluation window
+
+A submitted model is scored on a flood event, not on the full generated
+record. The harness generates the whole record, asks the probe's reference
+model where the largest flood of the requested length is, and hands the
+submitted model that stretch with the full spinup in front of it. The
+default is 30 days for a daily model and 7 days for an hourly one, which is
+long enough to see the event and short enough that a model taking seconds
+per forecast fits the probe's time budget. Every criterion is scored on the
+window, and the report says which dates were scored for each seed.
+
+The submission form asks whether you want a particular window. Whatever was
+agreed goes in the manifest, and the command line can override it for a
+one-off:
+
+```yaml
+window_days: 30        # any positive number of days, or "full"
+```
+
+```bash
+ht run --model my-model --window 90
+ht run --model my-model --window full
+```
+
+Two consequences for an adapter. `n_steps` in the request is the length to
+emit, spinup included, and it is not the length of the full record. And a
+model that needs a long history behind every prediction, as a sequence model
+does, gets the probe's spinup for that purpose and nothing more: the first
+rows of the record have less history behind them than the last, and the
+adapter has to produce a finite value for them anyway.
+
+Reference models always see the full record, because the acceptance gate is
+defined on it. The one criterion that is climatological by construction, the
+runoff ratio inside `non_degenerate`, is reported but not judged on a window
+shorter than a year, since a melt flood returns more water than fell on it
+that month and that is physics rather than degeneracy.
+
 ## Private evaluation suites
 
 The probes committed to this repository are public development tests. They
@@ -96,7 +133,14 @@ generalisation beyond training.
 ```bash
 ht run --model my-model --markdown
 ht run --model my-model --json results/my-model/report.json
+ht run --model my-model --gate-seeds --csv models/result.csv
 ```
+
+`models/result.csv` is the archive of every evaluation: one dated row per
+probe, plus one for the adapter contract check when `verify-adapter` is
+given the same `--csv`. For a model that reports only discharge, the
+contract row is the only line saying it was actually built and run, because
+its scientific verdict is INCOMPLETE before the container is started.
 
 ## Common failures
 

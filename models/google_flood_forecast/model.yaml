@@ -1,0 +1,33 @@
+name: google_flood_forecast
+version: "0.1.0-828dfc5"
+description: >
+  Google's operational flood forecasting model: the mean-embedding forecast
+  LSTM behind Google Flood Hub, run through the open-source OpenHydroNet
+  package (google-research/flood-forecasting at commit 828dfc5) with the
+  published google-floodhub-settings-55-epochs weights. It predicts
+  streamflow and nothing else, reported here as the day-0 member of each
+  day's forecast, so it is scored INCOMPLETE on every budget probe. README.md
+  says how the probe's forcing is mapped onto the model's inputs.
+authors:
+  - "Google Research flood forecasting team (Nearing, Gauch, Kratzert, Markel, Shefi et al.)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1038/s41586-024-07145-1"
+license: Apache-2.0
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+
+# Declared honestly: the model predicts discharge and nothing else.
+emits:
+  fluxes: [mrro, dis]
+  states: []
+
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 8, memory_gb: 8, gpu: false}
+
+# The submission did not ask for a particular window, so this is the default
+# for a daily model, written out so the choice is visible in the manifest.
+window_days: 30

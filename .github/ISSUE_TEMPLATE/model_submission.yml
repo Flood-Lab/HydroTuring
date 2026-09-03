@@ -102,6 +102,18 @@ body:
         - canopy — canopy interception storage
     validations: {required: true}
 
+  - type: input
+    id: evaluation_window
+    attributes:
+      label: Evaluation window (optional)
+      description: >-
+        Is there a time window you want the test to run over? Submitted models
+        are evaluated on a window around a flood event rather than the full
+        generated record, so a heavy model fits its time budget. Leave blank
+        for the default: up to one month for daily models and seven days for
+        hourly models. Write "full" to be evaluated on the whole record.
+      placeholder: "30 days"
+
   - type: dropdown
     id: packaging
     attributes:

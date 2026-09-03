@@ -8,6 +8,7 @@ import tempfile
 from dataclasses import replace
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from hydroturing import SUITE_VERSION, criteria as criteria_mod
@@ -23,7 +24,146 @@ from hydroturing.scoring import (
     reason_for,
 )
 from hydroturing.seeds import eval_seeds, gate_seeds
-from hydroturing.spec import ModelManifest, ProbeSpec
+from hydroturing.spec import (
+    DEFAULT_WINDOW_DAYS,
+    FULL_WINDOW,
+    TRUSTED_SUBPROCESS_MODELS,
+    ModelManifest,
+    ProbeSpec,
+)
+
+# What locates a flood event when no reference model can say: the stretch
+# with the most precipitation. See `event_signal` for why that is the
+# fallback rather than the rule.
+WINDOW_DRIVER = "pr"
+
+
+class WindowError(ValueError):
+    """A window cannot be cut from this case without breaking the probe."""
+
+
+def resolve_window_days(
+    model: ModelManifest, probe: ProbeSpec, override: int | str | None = None
+) -> int | None:
+    """How many days of the scored record this model is evaluated on.
+
+    None means the whole record. The command line wins over the manifest,
+    the manifest over the default, and the default depends on what kind of
+    model it is: a submitted model gets a flood-event window unless it asks
+    for otherwise, a reference model always gets the full record because
+    the acceptance gate is defined on it.
+    """
+    choice = override if override is not None else model.window_days
+    if choice is None:
+        if model.name in TRUSTED_SUBPROCESS_MODELS:
+            return None
+        choice = DEFAULT_WINDOW_DAYS[probe.timestep]
+    if choice == FULL_WINDOW:
+        return None
+    days = int(choice)
+    if days < 1:
+        raise ValueError(f"an evaluation window must be at least one day, not {days}")
+    return days
+
+
+def event_signal(case: Case, probe: ProbeSpec) -> np.ndarray | None:
+    """A per-step series whose largest accumulation marks the flood event.
+
+    The probe's own physical baseline decides. Every probe must name a
+    reference model it passes, and that model's runoff is the probe's
+    definition of what this catchment does with its weather: where the
+    exact physics puts the flood is where the flood is. Precipitation alone
+    is a poor guide in a catchment with a snowpack, where the wettest month
+    is winter accumulation and the flood is the melt three months later.
+
+    Falls back to precipitation when no trusted reference model reports
+    runoff, and to None, meaning take the first stretch, when there is no
+    precipitation column either.
+    """
+    from hydroturing import registry  # noqa: PLC0415 - registry imports spec, not this module
+
+    for name in probe.must_pass:
+        try:
+            reference = registry.find_model(name)
+        except KeyError:
+            continue
+        if reference.runner != "subprocess" or "mrro" not in reference.emitted:
+            continue
+        io_dir = Path(tempfile.mkdtemp(prefix=f"hydroturing-window-{reference.name}-"))
+        result = get_runner(reference).run(reference, probe, case, io_dir)
+        return result.table["mrro"].to_numpy(dtype=float)
+
+    if WINDOW_DRIVER in case.forcing.columns:
+        return case.forcing[WINDOW_DRIVER].to_numpy(dtype=float)
+    return None
+
+
+def select_window(case: Case, probe: ProbeSpec, days: int) -> tuple[int, int]:
+    """Row bounds (stop exclusive) of the `days`-long flood event after spinup.
+
+    The event is the stretch over which `event_signal` accumulates the most,
+    so a window lands on the largest multi-day flood of the record rather
+    than on a single wet day. A window at least as long as the scored record
+    is the whole record.
+    """
+    rows = max(1, int(round(days / probe.dt_days)))
+    scored_start = case.spinup_days
+    if rows >= len(case.forcing) - scored_start:
+        return scored_start, len(case.forcing)
+
+    offset = 0
+    signal = event_signal(case, probe)
+    if signal is not None:
+        totals = np.convolve(signal[scored_start:], np.ones(rows), mode="valid")
+        offset = int(np.argmax(totals))
+    start = scored_start + offset
+    return start, start + rows
+
+
+def window_case(case: Case, start: int, stop: int, days: int) -> Case:
+    """Cut a case down to a window, keeping the spinup that leads into it.
+
+    The scored stretch is `forcing[start:stop]`; the model receives the
+    `spinup_days` rows before it as well, so its own spinup is the same
+    length as it would be on the full record.
+
+    A generator that labels the record (any `_`-prefixed column) has told the
+    criteria that particular stretches matter. If the window drops a label
+    that the full scored record carries, the probe cannot be scored on it and
+    that is reported as incompatible rather than quietly evaluated on the
+    wrong stretch.
+    """
+    lookback = start - case.spinup_days
+    forcing = case.forcing.iloc[lookback:stop].reset_index(drop=True)
+
+    for column in case.forcing.columns:
+        if not column.startswith("_"):
+            continue
+        full = set(case.forcing[column].iloc[case.spinup_days :].astype(str))
+        kept = set(forcing[column].iloc[case.spinup_days :].astype(str))
+        lost = sorted(full - kept)
+        if lost:
+            raise WindowError(
+                f"a {days}-day window drops the {lost} stretch of '{column}' that "
+                "this probe scores; evaluate the full record instead "
+                "(window_days: full)"
+            )
+
+    scored = forcing.iloc[case.spinup_days :]
+    window = {
+        "days": days,
+        "rows": stop - start,
+        "start": str(scored["time"].iloc[0]),
+        "end": str(scored["time"].iloc[-1]),
+    }
+    return Case(
+        probe_id=case.probe_id,
+        seed=case.seed,
+        forcing=forcing,
+        static=dict(case.static),
+        spinup_days=case.spinup_days,
+        window=window,
+    )
 
 
 def load_generator(probe: ProbeSpec):
@@ -124,17 +264,26 @@ def verify_adapter_contract(
     probe: ProbeSpec,
     seed: int,
     workdir: Path | None = None,
+    window: int | str | None = None,
 ) -> RunResult:
     """Invoke an adapter once and validate only the outputs it declares.
 
     Contract verification must not short-circuit merely because a scientific
     probe needs variables the model does not produce. That limitation belongs
     to the later INCOMPLETE verdict, not to this smoke test.
+
+    The case is cut to the model's evaluation window, as it will be in the
+    real run, so a model that only fits its time budget on the window is
+    smoke-tested under the same conditions it is scored under.
     """
     case = build_case(probe, seed)
     issues = compatibility_issues(model, probe, case, check_perturbation=False)
     if issues:
         raise ProtocolError("; ".join(issues))
+
+    days = resolve_window_days(model, probe, window)
+    if days is not None:
+        case = window_case(case, *select_window(case, probe, days), days)
 
     smoke_probe = replace(
         probe,
@@ -155,8 +304,13 @@ def run_probe(
     probe: ProbeSpec,
     seeds: list[int] | None = None,
     workdir: Path | None = None,
+    window: int | str | None = None,
 ) -> ProbeOutcome:
-    """Run one probe across its seeds. Every seed must pass."""
+    """Run one probe across its seeds. Every seed must pass.
+
+    `window` overrides the model's evaluation window: a number of days, or
+    "full" for the whole record. Left as None, the manifest decides.
+    """
     missing = model.missing_for(probe)
     incompatible = compatibility_issues(model, probe)
     if missing or incompatible:
@@ -171,11 +325,13 @@ def run_probe(
         )
 
     seeds = seeds if seeds is not None else eval_seeds(probe.n_seeds)
+    days = resolve_window_days(model, probe, window)
     runner = get_runner(model)
     per_criterion: dict[str, list[tuple[int, CriterionResult]]] = {
         c.name: [] for c in probe.criteria
     }
     flags: list[str] = []
+    windows: list[dict] = []
 
     tmp_root = Path(workdir) if workdir else Path(tempfile.mkdtemp(prefix="hydroturing-"))
     tmp_root.mkdir(parents=True, exist_ok=True)
@@ -185,8 +341,24 @@ def run_probe(
     # counterfactual askable at all.
     variants: tuple[str | None, ...] = probe.variants or (None,)
 
+    def incompatible_outcome(issues: list[str]) -> ProbeOutcome:
+        return ProbeOutcome(
+            probe_id=probe.id,
+            law=probe.law,
+            verdict=FAIL,
+            reason=reason_for([], [], None, issues),
+            incompatible=issues,
+            seeds=seeds,
+            authors=list(probe.authors),
+            window_days=days,
+        )
+
     for seed in seeds:
         runs: dict[str, RunResult] = {}
+        # One window per seed, chosen on the control variant and applied to
+        # every variant by position, so a paired probe still compares the
+        # same stretch of the same weather under its two treatments.
+        bounds: tuple[int, int] | None = None
         try:
             for variant in variants:
                 suffix = f"__{variant}" if variant else ""
@@ -194,15 +366,16 @@ def run_probe(
                 case = build_case(probe, seed, variant)
                 issues = compatibility_issues(model, probe, case)
                 if issues:
-                    return ProbeOutcome(
-                        probe_id=probe.id,
-                        law=probe.law,
-                        verdict=FAIL,
-                        reason=reason_for([], [], None, issues),
-                        incompatible=issues,
-                        seeds=seeds,
-                        authors=list(probe.authors),
-                    )
+                    return incompatible_outcome(issues)
+                if days is not None:
+                    if bounds is None:
+                        bounds = select_window(case, probe, days)
+                    try:
+                        case = window_case(case, *bounds, days)
+                    except WindowError as exc:
+                        return incompatible_outcome([str(exc)])
+                    if variant in (None, variants[0]):
+                        windows.append({"seed": seed, **case.window})
                 runs[variant or "_"] = runner.run(model, probe, case, io_dir)
             for result in evaluate_criteria(runs, probe):
                 per_criterion[result.name].append((seed, result))
@@ -213,6 +386,7 @@ def run_probe(
                 probe_id=probe.id, law=probe.law, verdict=FAIL,
                 reason=reason_for([], [], str(exc)),
                 seeds=seeds, error=str(exc), authors=list(probe.authors),
+                window_days=days, windows=windows,
             )
 
     outcomes = []
@@ -245,6 +419,8 @@ def run_probe(
         criteria=outcomes,
         flags=sorted(set(flags)),
         authors=list(probe.authors),
+        window_days=days,
+        windows=windows,
     )
 
 
@@ -254,17 +430,19 @@ def run_model(
     seeds: list[int] | None = None,
     gate: bool = False,
     workdir: Path | None = None,
+    window: int | str | None = None,
 ) -> ModelReport:
     report = ModelReport(
         model_name=model.name,
         model_version=model.version,
         suite_version=SUITE_VERSION,
+        runner=model.runner,
     )
     for probe in probes:
         probe_seeds = seeds
         if probe_seeds is None and gate:
             probe_seeds = gate_seeds(probe.id, probe.n_seeds)
-        outcome = run_probe(model, probe, probe_seeds, workdir=workdir)
+        outcome = run_probe(model, probe, probe_seeds, workdir=workdir, window=window)
         report.probes.append(outcome)
         report.flags.extend(outcome.flags)
     report.flags = sorted(set(report.flags))
