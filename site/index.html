@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HydroTuring</title>
+<meta name="description" content="A benchmark that tests whether AI hydrologic models conserve mass, energy and momentum.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%92%A7</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#F3F6F6; --surface:#FFFFFF; --surface-2:#EDF2F2;
+  --ink:#0F1B21; --ink-2:#33474F; --muted:#5B6E76;
+  --accent:#0E6C78; --accent-soft:#DCEDEF;
+  --pass:#2C7A57; --pass-soft:#DFF0E7;
+  --fail:#A8501C; --fail-soft:#F6E5D9;
+  --line:#D6E0E2; --line-strong:#B6C6C9;
+  --shadow:0 1px 2px rgba(15,27,33,.06), 0 10px 30px -20px rgba(15,27,33,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B1317; --surface:#111D22; --surface-2:#16242A;
+    --ink:#E3ECEE; --ink-2:#BACBD1; --muted:#8CA2AA;
+    --accent:#54C6D1; --accent-soft:#13343B;
+    --pass:#63C193; --pass-soft:#14301F;
+    --fail:#E28B57; --fail-soft:#33200F;
+    --line:#20313A; --line-strong:#2E444E;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -22px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B1317; --surface:#111D22; --surface-2:#16242A;
+  --ink:#E3ECEE; --ink-2:#BACBD1; --muted:#8CA2AA;
+  --accent:#54C6D1; --accent-soft:#13343B;
+  --pass:#63C193; --pass-soft:#14301F;
+  --fail:#E28B57; --fail-soft:#33200F;
+  --line:#20313A; --line-strong:#2E444E;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -22px rgba(0,0,0,.9);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC","Helvetica Neue",Arial,sans-serif;
+  font-size:16.5px; line-height:1.62; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.eyebrow,.navlink,.btn{font-family:"IBM Plex Sans Condensed","IBM Plex Sans","PingFang SC","Microsoft YaHei",Arial,sans-serif}
+code,pre,.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+/* CJK needs a little more air and no tracking on small caps labels */
+html[lang="zh"] body{line-height:1.78}
+html[lang="zh"] .eyebrow,html[lang="zh"] h2{letter-spacing:.04em}
+
+.wrap{max-width:900px; margin:0 auto; padding:0 24px}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky; top:0; z-index:20; background:var(--surface);
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:saturate(1.4) blur(10px); border-bottom:1px solid var(--line)}
+.topbar .inner{max-width:900px; margin:0 auto; padding:11px 24px; display:flex; align-items:center; gap:20px}
+.brand{font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:700; font-size:16px; letter-spacing:-.01em;
+  color:var(--ink); text-decoration:none; margin-right:auto; display:flex; align-items:center; gap:8px}
+.brand .drop{width:9px; height:9px; border-radius:50% 50% 50% 0; background:var(--accent); transform:rotate(-45deg)}
+nav.links{display:none; gap:18px}
+@media (min-width:820px){nav.links{display:flex}}
+.navlink{color:var(--muted); text-decoration:none; font-size:13.5px; font-weight:500}
+.navlink:hover{color:var(--accent)}
+
+.langs{display:flex; gap:0; border:1px solid var(--line); border-radius:6px; overflow:hidden; flex-shrink:0}
+.langs button{
+  appearance:none; border:0; background:transparent; color:var(--muted); cursor:pointer;
+  font:600 11.5px/1 "IBM Plex Sans Condensed",sans-serif; letter-spacing:.07em;
+  padding:7px 10px; border-right:1px solid var(--line);
+}
+.langs button:last-child{border-right:0}
+.langs button:hover{color:var(--ink); background:var(--surface-2)}
+.langs button[aria-pressed="true"]{background:var(--accent); color:var(--surface)}
+
+/* ---------- hero ---------- */
+header.hero{padding:72px 0 56px; border-bottom:1px solid var(--line); background:var(--surface)}
+.eyebrow{font-size:11.5px; font-weight:600; letter-spacing:.15em; text-transform:uppercase; color:var(--accent); margin:0 0 14px}
+h1{font-size:clamp(40px,7vw,64px); line-height:1; margin:0 0 20px; font-weight:700; letter-spacing:-.02em}
+.lead{font-size:clamp(18px,2.3vw,21px); line-height:1.5; color:var(--ink-2); max-width:34em; margin:0 0 14px; text-wrap:balance}
+.sub{color:var(--muted); max-width:36em; margin:0 0 28px; font-size:16px}
+.cta{display:flex; flex-wrap:wrap; gap:10px}
+.btn{display:inline-block; text-decoration:none; font-size:14px; font-weight:600; padding:10px 18px; border-radius:6px;
+  border:1px solid var(--accent); color:var(--accent); background:transparent}
+.btn:hover{background:var(--accent-soft)}
+.btn.solid{background:var(--accent); color:var(--surface); border-color:var(--accent)}
+.btn.solid:hover{filter:brightness(1.08)}
+
+/* ---------- sections ---------- */
+section{padding:56px 0; border-bottom:1px solid var(--line)}
+h2{font-size:12px; font-weight:600; letter-spacing:.15em; text-transform:uppercase; color:var(--muted);
+   margin:0 0 22px; display:flex; align-items:baseline; gap:11px}
+h2::before{content:""; width:18px; height:1px; background:var(--accent); flex-shrink:0}
+h3{font-size:19px; font-weight:600; margin:30px 0 8px; letter-spacing:-.005em}
+p{margin:0 0 15px; max-width:38em}
+.big p:first-of-type{font-size:18.5px; color:var(--ink-2); line-height:1.55}
+ul{max-width:38em; padding-left:20px; margin:0 0 15px}
+li{margin-bottom:8px}
+a{color:var(--accent)}
+strong{font-weight:600}
+code:not(pre code){font-size:.88em; background:var(--surface-2); padding:2px 6px; border-radius:4px; color:var(--ink-2); white-space:nowrap}
+
+pre{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:18px 20px;
+  overflow-x:auto; font-size:13.2px; line-height:1.7; margin:0 0 18px; color:var(--ink-2); box-shadow:var(--shadow)}
+pre .c{color:var(--muted)}
+pre .p{color:var(--accent)}
+
+figure{margin:24px 0 8px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:22px 20px 14px; box-shadow:var(--shadow)}
+figure svg{display:block; width:100%; height:auto}
+figcaption{margin-top:12px; font-size:13.5px; color:var(--muted); max-width:44em}
+
+.tablewrap{overflow-x:auto; border:1px solid var(--line); border-radius:10px; background:var(--surface); margin:0 0 18px; box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; min-width:600px; font-size:14.5px}
+th{text-align:left; font-family:"IBM Plex Sans Condensed",sans-serif; font-size:11px; letter-spacing:.11em;
+   text-transform:uppercase; color:var(--muted); font-weight:600; padding:13px 18px; border-bottom:1px solid var(--line); white-space:nowrap}
+td{padding:14px 18px; border-bottom:1px solid var(--line); vertical-align:top; color:var(--ink-2)}
+tr:last-child td{border-bottom:none}
+td.mono{font-size:12.8px; color:var(--ink); white-space:nowrap}
+.tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; padding:3px 8px; border-radius:4px;
+  background:var(--surface-2); color:var(--ink-2); white-space:nowrap}
+.tag.pass{background:var(--pass-soft); color:var(--pass)}
+.tag.fail{background:var(--fail-soft); color:var(--fail)}
+
+.callout{border-left:3px solid var(--accent); background:var(--accent-soft); padding:16px 20px; border-radius:0 8px 8px 0; margin:22px 0}
+.callout p{margin:0; max-width:42em; font-size:15.5px}
+
+.steps{counter-reset:s; list-style:none; padding:0; margin:0 0 20px; max-width:none}
+.steps li{counter-increment:s; display:grid; grid-template-columns:26px 1fr; gap:14px; margin-bottom:16px; max-width:40em}
+.steps li::before{content:counter(s); font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--accent);
+  border:1px solid var(--line-strong); border-radius:50%; width:24px; height:24px; display:grid; place-items:center; margin-top:1px}
+
+footer{padding:44px 0 64px; color:var(--muted); font-size:14px}
+footer a{color:var(--muted)}
+footer a:hover{color:var(--accent)}
+.footgrid{display:flex; flex-wrap:wrap; gap:26px 40px; margin-bottom:26px}
+.footgrid div{min-width:150px}
+.footgrid b{display:block; font-family:"IBM Plex Sans Condensed",sans-serif; font-size:11px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--ink-2); margin-bottom:9px; font-weight:600}
+.footgrid a{display:block; text-decoration:none; margin-bottom:5px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="inner">
+    <a class="brand" href="#top"><span class="drop"></span>HydroTuring</a>
+    <nav class="links">
+      <a class="navlink" href="#mission" data-i18n="nav.mission">Mission</a>
+      <a class="navlink" href="#how" data-i18n="nav.how">How it works</a>
+      <a class="navlink" href="#probe" data-i18n="nav.probe">Contribute a probe</a>
+      <a class="navlink" href="#model" data-i18n="nav.model">Submit a model</a>
+      <a class="navlink" href="#credit" data-i18n="nav.credit">Credit</a>
+    </nav>
+    <div class="langs" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="true">ENG</button>
+      <button type="button" data-lang="es" aria-pressed="false">ESP</button>
+      <button type="button" data-lang="zh" aria-pressed="false">中文</button>
+    </div>
+  </div>
+</div>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <p class="eyebrow" data-i18n="hero.eyebrow">A conservation-law benchmark</p>
+    <h1>HydroTuring</h1>
+    <p class="lead" data-i18n="hero.lead">A benchmark that asks one question of any AI hydrologic model: does it conserve what physics says it must conserve?</p>
+    <p class="sub" data-i18n="hero.sub">Not whether it fits a hydrograph. Whether its water budget closes, its energy budget closes, and its routing conserves momentum.</p>
+    <div class="cta">
+      <a class="btn solid" href="https://github.com/HydroTuring/HydroTuring" data-i18n="hero.cta1">View the repository</a>
+      <a class="btn" href="https://github.com/HydroTuring/HydroTuring/blob/main/ROADMAP.md" data-i18n="hero.cta2">Claim a probe</a>
+    </div>
+  </div>
+</header>
+
+<section id="mission" class="big">
+  <div class="wrap">
+    <h2 data-i18n="mission.h">Mission</h2>
+    <div data-i18n-html="mission.body"></div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2 data-i18n="how.h">How it works</h2>
+    <div data-i18n-html="how.intro"></div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th data-i18n="how.th1">Reference model</th>
+          <th data-i18n="how.th2">What it does</th>
+          <th data-i18n="how.th3">Caught by</th>
+        </tr></thead>
+        <tbody data-i18n-html="how.rows"></tbody>
+      </table>
+    </div>
+
+    <div class="callout"><p data-i18n-html="how.cheater"></p></div>
+
+    <figure>
+      <svg viewBox="0 0 720 168" role="img" aria-labelledby="figtitle">
+        <title id="figtitle" data-i18n="fig.alt">Residual number line showing the exact model inside tolerance and the leaky model outside it</title>
+        <rect x="60" y="86" width="150" height="26" fill="var(--pass-soft)"></rect>
+        <rect x="210" y="86" width="450" height="26" fill="var(--fail-soft)"></rect>
+        <line x1="60" y1="112" x2="660" y2="112" stroke="var(--line-strong)" stroke-width="1.5"></line>
+        <line x1="210" y1="70" x2="210" y2="126" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 3"></line>
+        <text x="216" y="66" fill="var(--accent)" font-family="IBM Plex Mono, monospace" font-size="11" data-i18n="fig.tol">tolerance = 5%</text>
+        <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--muted)">
+          <text x="60" y="134" text-anchor="middle">0%</text>
+          <text x="210" y="134" text-anchor="middle">5%</text>
+          <text x="360" y="134" text-anchor="middle">10%</text>
+          <text x="510" y="134" text-anchor="middle">15%</text>
+          <text x="660" y="134" text-anchor="middle">20%</text>
+        </g>
+        <text x="360" y="156" text-anchor="middle" font-size="11.5" fill="var(--muted)" data-i18n="fig.axis">cumulative budget residual</text>
+        <circle cx="66" cy="99" r="6" fill="var(--pass)"></circle>
+        <text x="66" y="46" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--pass)">reference_bucket</text>
+        <text x="66" y="60" font-size="10.5" fill="var(--muted)" data-i18n="fig.pass">0.1% &middot; must pass</text>
+        <circle cx="510" cy="99" r="6" fill="var(--fail)"></circle>
+        <text x="660" y="46" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--fail)">reference_leaky</text>
+        <text x="660" y="60" text-anchor="end" font-size="10.5" fill="var(--muted)" data-i18n="fig.fail">15% &middot; must fail</text>
+      </svg>
+      <figcaption data-i18n="fig.caption">The acceptance gate for a contributed probe.</figcaption>
+    </figure>
+
+    <h3 data-i18n="seeds.h">Cases are generated, never stored</h3>
+    <div data-i18n-html="seeds.body"></div>
+
+    <h3 data-i18n="verdict.h">Verdicts</h3>
+    <div data-i18n-html="verdict.body"></div>
+  </div>
+</section>
+
+<section id="probe">
+  <div class="wrap">
+    <h2 data-i18n="probe.h">Contribute a probe</h2>
+    <div data-i18n-html="probe.intro"></div>
+
+    <ol class="steps" data-i18n-html="probe.steps"></ol>
+
+<pre><span class="c"># <span data-i18n="probe.c1">get a template and fill it in</span></span>
+<span class="p">ht</span> init-probe
+
+<span class="c"># <span data-i18n="probe.c2">scaffold probes/&lt;law&gt;/&lt;slug&gt;/ from the filled draft</span></span>
+<span class="p">ht</span> init-probe --from probe-draft.yaml
+
+<span class="c"># <span data-i18n="probe.c3">prove it separates the reference models</span></span>
+<span class="p">ht</span> gate --probe mass/my-probe</pre>
+
+    <div class="callout"><p data-i18n-html="probe.question"></p></div>
+    <div data-i18n-html="probe.pr"></div>
+  </div>
+</section>
+
+<section id="model">
+  <div class="wrap">
+    <h2 data-i18n="model.h">Submit a model</h2>
+    <div data-i18n-html="model.body"></div>
+
+<pre><span class="c"># <span data-i18n="model.c1">the harness mounts /io and runs your entrypoint once</span></span>
+/io/request.json          <span class="c"><span data-i18n="model.c2">read: case, seed, requested variables</span></span>
+/io/input/forcing.csv     <span class="c"><span data-i18n="model.c3">read: time, pr, tas, pet</span></span>
+/io/output/result.csv     <span class="c"><span data-i18n="model.c4">write: one row per forcing row</span></span></pre>
+
+    <div data-i18n-html="model.rules"></div>
+  </div>
+</section>
+
+<section id="credit">
+  <div class="wrap">
+    <h2 data-i18n="credit.h">Credit</h2>
+    <div data-i18n-html="credit.body"></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="footgrid">
+      <div>
+        <b data-i18n="foot.start">Start here</b>
+        <a href="https://github.com/HydroTuring/HydroTuring">README</a>
+        <a href="https://github.com/HydroTuring/HydroTuring/blob/main/ROADMAP.md" data-i18n="foot.roadmap">Roadmap</a>
+        <a href="https://github.com/HydroTuring/HydroTuring/blob/main/CONTRIBUTING.md" data-i18n="foot.contributing">Contributing</a>
+      </div>
+      <div>
+        <b data-i18n="foot.docs">Documentation</b>
+        <a href="https://github.com/HydroTuring/HydroTuring/blob/main/docs/writing-a-probe.md" data-i18n="foot.d1">Writing a probe</a>
+        <a href="https://github.com/HydroTuring/HydroTuring/blob/main/docs/adapting-a-model.md" data-i18n="foot.d2">Adapting a model</a>
+        <a href="https://github.com/HydroTuring/HydroTuring/blob/main/AGENTS.md" data-i18n="foot.d3">Contract for coding agents</a>
+      </div>
+      <div>
+        <b data-i18n="foot.project">Project</b>
+        <a href="https://github.com/HydroTuring/HydroTuring/blob/main/GOVERNANCE.md" data-i18n="foot.g">Governance</a>
+        <a href="https://github.com/HydroTuring/HydroTuring/blob/main/CODE_OF_CONDUCT.md" data-i18n="foot.coc">Code of conduct</a>
+        <a href="https://github.com/HydroTuring/HydroTuring/issues" data-i18n="foot.issues">Issues</a>
+      </div>
+    </div>
+    <p data-i18n-html="foot.legal" style="max-width:44em"></p>
+  </div>
+</footer>
+
+<script>
+const I18N = {
+en: {
+  "nav.mission":"Mission", "nav.how":"How it works", "nav.probe":"Contribute a probe",
+  "nav.model":"Submit a model", "nav.credit":"Credit",
+  "hero.eyebrow":"A conservation-law benchmark",
+  "hero.lead":"A benchmark that asks one question of any AI hydrologic model: does it conserve what physics says it must conserve?",
+  "hero.sub":"Not whether it fits a hydrograph. Whether its water budget closes, its energy budget closes, and its routing conserves momentum.",
+  "hero.cta1":"View the repository", "hero.cta2":"Claim a probe",
+  "mission.h":"Mission",
+  "mission.body":`<p>Deep learning models now predict streamflow better than calibrated conceptual models. That is not in dispute. What is in dispute is whether they do it for reasons that hold outside the range they were trained on.</p>
+<p>A model can reproduce a hydrograph while quietly losing water. It can match observed discharge while implying an evaporation its energy budget could never supply. Skill metrics cannot see any of this, because a hydrograph is one number per timestep and a water balance is four.</p>
+<p>HydroTuring measures what skill metrics cannot: whether the model's own budgets close.</p>`,
+  "how.h":"How it works",
+  "how.intro":`<p>A benchmark that only checks closure is trivially gamed. So every probe must prove it can catch a model that cheats before it can be merged.</p>
+<p>Four reference models ship with the repository. A probe is accepted only if it passes the physically exact one and fails each broken one, on the specific criterion declared to do the catching.</p>`,
+  "how.th1":"Reference model", "how.th2":"What it does", "how.th3":"Caught by",
+  "how.rows":`<tr><td class="mono">reference_bucket</td><td>conserves water exactly by construction</td><td><span class="tag pass">nothing, it must pass</span></td></tr>
+<tr><td class="mono">reference_leaky</td><td>hides a silent 15% sink</td><td><span class="tag fail">closure</span></td></tr>
+<tr><td class="mono">reference_cheater</td><td>solves for storage as whatever balances the budget</td><td><span class="tag fail">state_bounds</span></td></tr>
+<tr><td class="mono">reference_degenerate</td><td>evaporates all precipitation, produces no runoff</td><td><span class="tag fail">non_degenerate</span></td></tr>`,
+  "how.cheater":`<code>reference_cheater</code> is the one worth dwelling on. Its closure residual is <strong>exactly zero on every seed, forever</strong>. Randomising the forcing cannot touch it, because the cheat is in its internal wiring rather than its memory. It is caught only because the model contract requires absolute storage states rather than tendencies, so the storage it invents has to stay physical, and it does not.`,
+  "fig.alt":"Residual number line: the exact model sits inside the tolerance, the leaky model far outside it",
+  "fig.tol":"tolerance = 5%", "fig.axis":"cumulative budget residual",
+  "fig.pass":"0.1% · must pass", "fig.fail":"15% · must fail",
+  "fig.caption":"The acceptance gate for a contributed probe. Continuous integration runs both reference models and checks that the probe places them on opposite sides of its own tolerance.",
+  "seeds.h":"Cases are generated, never stored",
+  "seeds.body":`<p>Forcing is generated at run time from a recorded seed. Nothing is committed as data, so there is nothing to memorise, and a reviewer reviews a short deterministic script instead of a binary file.</p>
+<p>Every probe runs five seeds and all of them must pass, so no model gets through on a lucky draw. Any run reproduces exactly, because the seed is written into the report.</p>`,
+  "verdict.h":"Verdicts",
+  "verdict.body":`<p>Binary, with the reason recorded separately, because these mean very different things.</p>
+<ul><li><strong>VIOLATION</strong> — the model reported its budget and the budget did not close.</li>
+<li><strong>INCOMPLETE</strong> — the model never reported enough to be checked. Every streamflow-only model lands here today. It has not violated conservation; it has declined to be falsifiable.</li></ul>
+<p>The verdict is one bit. Everything under it stays quantitative, so a paper can show that one model leaks 6% and another 40% long before anyone crosses the line.</p>`,
+  "probe.h":"Contribute a probe",
+  "probe.intro":`<p>The roadmap lists the probes we want, with difficulty labels and a note on what each one discriminates. Claim one rather than inventing one.</p>
+<p>The two we most want are the cross-budget consistency probes. A model can close its water budget and its energy budget while being incoherent between them, and nothing in the suite currently notices.</p>`,
+  "probe.steps":`<li>Open a proposal issue naming the probe you want from the roadmap. We label it accepted and it is yours.</li>
+<li>Scaffold it. You get a probe.yaml that already validates and a generator skeleton that already honours the length contract.</li>
+<li>Write the physics: the forcing generator, and a README explaining what your probe asserts.</li>
+<li>Run the acceptance gate. It proves your probe separates the reference models. This is not a formality.</li>
+<li>Open a pull request. Two reviews follow, one on the physics and one on the implementation.</li>`,
+  "probe.c1":"get a template and fill it in",
+  "probe.c2":"scaffold probes/&lt;law&gt;/&lt;slug&gt;/ from the filled draft",
+  "probe.c3":"prove it separates the reference models",
+  "probe.question":`The proposal form asks one question that matters more than the rest: <strong>how would a model pass your probe while understanding no physics?</strong> If you can answer that, you have a probe. If you cannot, you may have a diagnostic rather than a test.`,
+  "probe.pr":`<p>Nothing beyond numpy, pandas, PyYAML and jsonschema is needed, and no Docker. The reference models run in-process so the gate stays fast enough to sit on every pull request.</p>`,
+  "model.h":"Submit a model",
+  "model.body":`<p>Your model may be written in any language. It ships as a container plus a thin adapter, usually about thirty lines. The container runs with no network and never sees the probe code, so it cannot read the tolerance it is judged against.</p>`,
+  "model.c1":"the harness mounts /io and runs your entrypoint once",
+  "model.c2":"read: case, seed, requested variables",
+  "model.c3":"read: time, pr, tas, pet",
+  "model.c4":"write: one row per forcing row",
+  "model.rules":`<p>Three rules that are easy to get wrong:</p>
+<ul>
+<li><strong>States are absolute, never tendencies.</strong> Report the storage itself and the harness differences it. Reporting dS/dt removes the very quantity the benchmark checks.</li>
+<li><strong>Echo the forcing exactly as given.</strong> Rescaling precipitation, even for units, fails the fidelity check.</li>
+<li><strong>Emit one row per input row, spinup included.</strong> The harness slices the evaluation window itself.</li>
+</ul>
+<p>Declare only what your model honestly produces. A model that predicts discharge alone should say so and accept an INCOMPLETE verdict. Fabricating a column to escape it produces a VIOLATION instead, which is worse and is also dishonest. Submitting a model that fails is welcome and useful.</p>`,
+  "credit.h":"Credit",
+  "credit.body":`<p>Every probe carries its authors, with affiliation and ORCID. They are named in every report that runs the probe and in each release, rather than buried in a commit log.</p>
+<p><strong>Contributors of at least one merged probe are invited as co-authors on the HydroTuring paper.</strong> This is how model intercomparison projects in this field have always worked: you contribute an experiment, and you are an author on the paper that reports it.</p>
+<p>Author order is settled before submission and circulated to every contributor for agreement. Anyone may decline, and no manuscript is submitted before all listed authors have approved it. Disagreements about tolerances are settled by the scientific steering committee, which is being formed.</p>`,
+  "foot.start":"Start here", "foot.roadmap":"Roadmap", "foot.contributing":"Contributing",
+  "foot.docs":"Documentation", "foot.d1":"Writing a probe", "foot.d2":"Adapting a model",
+  "foot.d3":"Contract for coding agents", "foot.project":"Project", "foot.g":"Governance",
+  "foot.coc":"Code of conduct", "foot.issues":"Issues",
+  "foot.legal":`HydroTuring is released under the MIT licence. Suite 0.1.0, pre-release: scores are only comparable within a suite version. Maintained by Zhi Li at the University of Colorado Boulder.`
+},
+es: {
+  "nav.mission":"Misión", "nav.how":"Cómo funciona", "nav.probe":"Aportar una prueba",
+  "nav.model":"Enviar un modelo", "nav.credit":"Créditos",
+  "hero.eyebrow":"Un banco de pruebas de leyes de conservación",
+  "hero.lead":"Un banco de pruebas que hace una sola pregunta a cualquier modelo hidrológico basado en IA: ¿conserva lo que la física dice que debe conservar?",
+  "hero.sub":"No si se ajusta a un hidrograma. Si su balance hídrico cierra, si su balance de energía cierra y si su tránsito conserva la cantidad de movimiento.",
+  "hero.cta1":"Ver el repositorio", "hero.cta2":"Reclamar una prueba",
+  "mission.h":"Misión",
+  "mission.body":`<p>Los modelos de aprendizaje profundo ya predicen el caudal mejor que los modelos conceptuales calibrados. Eso no está en discusión. Lo que sí lo está es si lo hacen por razones que se sostengan fuera del rango en el que fueron entrenados.</p>
+<p>Un modelo puede reproducir un hidrograma mientras pierde agua en silencio. Puede ajustarse al caudal observado implicando una evaporación que su balance de energía nunca podría sustentar. Las métricas de desempeño no ven nada de esto, porque un hidrograma es un número por paso de tiempo y un balance hídrico son cuatro.</p>
+<p>HydroTuring mide lo que las métricas de desempeño no pueden ver: si los balances del propio modelo cierran.</p>`,
+  "how.h":"Cómo funciona",
+  "how.intro":`<p>Un banco de pruebas que solo verifica el cierre se burla con facilidad. Por eso, antes de incorporarse, cada prueba debe demostrar que es capaz de detectar a un modelo que hace trampa.</p>
+<p>El repositorio incluye cuatro modelos de referencia. Una prueba se acepta solo si el modelo físicamente exacto la supera y cada modelo defectuoso la falla, en el criterio específico que se declaró encargado de detectarlo.</p>`,
+  "how.th1":"Modelo de referencia", "how.th2":"Qué hace", "how.th3":"Detectado por",
+  "how.rows":`<tr><td class="mono">reference_bucket</td><td>conserva el agua de forma exacta por construcción</td><td><span class="tag pass">nada, debe aprobar</span></td></tr>
+<tr><td class="mono">reference_leaky</td><td>oculta un sumidero silencioso del 15%</td><td><span class="tag fail">closure</span></td></tr>
+<tr><td class="mono">reference_cheater</td><td>despeja el almacenamiento como aquello que hace cerrar el balance</td><td><span class="tag fail">state_bounds</span></td></tr>
+<tr><td class="mono">reference_degenerate</td><td>evapora toda la precipitación y no genera escorrentía</td><td><span class="tag fail">non_degenerate</span></td></tr>`,
+  "how.cheater":`<code>reference_cheater</code> merece detenerse. Su residuo de cierre es <strong>exactamente cero con cada semilla, siempre</strong>. Aleatorizar el forzamiento no lo alcanza, porque la trampa está en su cableado interno y no en su memoria. Se detecta únicamente porque el contrato del modelo exige almacenamientos absolutos en lugar de tendencias: el almacenamiento que inventa tiene que mantenerse físico, y no lo consigue.`,
+  "fig.alt":"Recta numérica del residuo: el modelo exacto queda dentro de la tolerancia y el modelo con fugas muy por fuera",
+  "fig.tol":"tolerancia = 5%", "fig.axis":"residuo acumulado del balance",
+  "fig.pass":"0,1% · debe aprobar", "fig.fail":"15% · debe fallar",
+  "fig.caption":"La compuerta de aceptación de una prueba aportada. La integración continua ejecuta ambos modelos de referencia y comprueba que la prueba los sitúe en lados opuestos de su propia tolerancia.",
+  "seeds.h":"Los casos se generan, nunca se almacenan",
+  "seeds.body":`<p>El forzamiento se genera en tiempo de ejecución a partir de una semilla registrada. No se versiona ningún dato, así que no hay nada que memorizar, y quien revisa lee un script corto y determinista en lugar de un archivo binario.</p>
+<p>Cada prueba se ejecuta con cinco semillas y todas deben aprobar, de modo que ningún modelo pasa por suerte. Cualquier ejecución se reproduce de forma exacta, porque la semilla queda escrita en el informe.</p>`,
+  "verdict.h":"Veredictos",
+  "verdict.body":`<p>Binarios, con el motivo registrado por separado, porque significan cosas muy distintas.</p>
+<ul><li><strong>VIOLATION</strong> — el modelo informó su balance y el balance no cerró.</li>
+<li><strong>INCOMPLETE</strong> — el modelo nunca informó lo suficiente para poder verificarse. Hoy, todo modelo que solo predice caudal termina aquí. No ha violado la conservación: ha renunciado a ser falsable.</li></ul>
+<p>El veredicto es un bit. Todo lo que hay debajo sigue siendo cuantitativo, de modo que un artículo puede mostrar que un modelo pierde un 6% y otro un 40% mucho antes de que alguien cruce el umbral.</p>`,
+  "probe.h":"Aportar una prueba",
+  "probe.intro":`<p>La hoja de ruta enumera las pruebas que buscamos, con etiquetas de dificultad y una nota sobre qué discrimina cada una. Reclama una en lugar de inventarla.</p>
+<p>Las dos que más buscamos son las de consistencia entre balances. Un modelo puede cerrar su balance hídrico y su balance de energía siendo incoherente entre ambos, y hoy nada en el conjunto lo detecta.</p>`,
+  "probe.steps":`<li>Abre una propuesta indicando qué prueba de la hoja de ruta quieres. La etiquetamos como aceptada y queda asignada a ti.</li>
+<li>Genera el andamiaje. Obtienes un probe.yaml que ya valida y un esqueleto de generador que ya respeta el contrato de longitud.</li>
+<li>Escribe la física: el generador del forzamiento y un README que explique qué afirma tu prueba.</li>
+<li>Ejecuta la compuerta de aceptación. Demuestra que tu prueba separa los modelos de referencia. No es un trámite.</li>
+<li>Abre un pull request. Siguen dos revisiones, una de la física y otra de la implementación.</li>`,
+  "probe.c1":"obtén una plantilla y complétala",
+  "probe.c2":"genera probes/&lt;ley&gt;/&lt;nombre&gt;/ a partir del borrador completado",
+  "probe.c3":"demuestra que separa los modelos de referencia",
+  "probe.question":`El formulario de propuesta hace una pregunta que importa más que las demás: <strong>¿cómo podría un modelo aprobar tu prueba sin entender nada de física?</strong> Si puedes responderla, tienes una prueba. Si no, quizá tengas un diagnóstico y no un test.`,
+  "probe.pr":`<p>No hace falta nada más que numpy, pandas, PyYAML y jsonschema, ni tampoco Docker. Los modelos de referencia se ejecutan en el mismo proceso para que la compuerta siga siendo lo bastante rápida como para correr en cada pull request.</p>`,
+  "model.h":"Enviar un modelo",
+  "model.body":`<p>Tu modelo puede estar escrito en cualquier lenguaje. Se entrega como un contenedor más un adaptador delgado, normalmente de unas treinta líneas. El contenedor se ejecuta sin red y nunca ve el código de las pruebas, así que no puede leer la tolerancia con la que se lo juzga.</p>`,
+  "model.c1":"el marco monta /io y ejecuta tu punto de entrada una vez",
+  "model.c2":"lectura: caso, semilla, variables solicitadas",
+  "model.c3":"lectura: time, pr, tas, pet",
+  "model.c4":"escritura: una fila por cada fila de forzamiento",
+  "model.rules":`<p>Tres reglas fáciles de incumplir:</p>
+<ul>
+<li><strong>Los estados son absolutos, nunca tendencias.</strong> Informa el almacenamiento en sí y el marco calcula la diferencia. Informar dS/dt elimina justamente la magnitud que el banco de pruebas verifica.</li>
+<li><strong>Devuelve el forzamiento tal como se te entregó.</strong> Reescalar la precipitación, aunque sea por unidades, falla la verificación de fidelidad.</li>
+<li><strong>Emite una fila por cada fila de entrada, incluido el calentamiento.</strong> El marco recorta por sí mismo la ventana de evaluación.</li>
+</ul>
+<p>Declara solo lo que tu modelo produce de verdad. Un modelo que predice únicamente el caudal debe decirlo y aceptar un veredicto INCOMPLETE. Fabricar una columna para evitarlo produce un VIOLATION, que es peor y además es deshonesto. Enviar un modelo que falla es bienvenido y útil.</p>`,
+  "credit.h":"Créditos",
+  "credit.body":`<p>Cada prueba lleva a sus autores, con afiliación y ORCID. Aparecen en cada informe que ejecuta la prueba y en cada publicación de versión, en lugar de quedar enterrados en un registro de commits.</p>
+<p><strong>Quienes aporten al menos una prueba incorporada son invitados como coautores del artículo de HydroTuring.</strong> Así han funcionado siempre los proyectos de intercomparación de modelos en este campo: aportas un experimento y firmas el artículo que lo reporta.</p>
+<p>El orden de autoría se decide antes del envío y se circula a cada persona contribuyente para su acuerdo. Cualquiera puede declinar, y ningún manuscrito se envía sin la aprobación de todas las personas firmantes. Las discrepancias sobre tolerancias las resuelve el comité científico de dirección, actualmente en formación.</p>`,
+  "foot.start":"Empieza aquí", "foot.roadmap":"Hoja de ruta", "foot.contributing":"Cómo contribuir",
+  "foot.docs":"Documentación", "foot.d1":"Escribir una prueba", "foot.d2":"Adaptar un modelo",
+  "foot.d3":"Contrato para agentes de código", "foot.project":"Proyecto", "foot.g":"Gobernanza",
+  "foot.coc":"Código de conducta", "foot.issues":"Incidencias",
+  "foot.legal":`HydroTuring se publica bajo la licencia MIT. Conjunto 0.1.0, versión preliminar: los resultados solo son comparables dentro de una misma versión del conjunto. Mantenido por Zhi Li en la Universidad de Colorado Boulder.`
+},
+zh: {
+  "nav.mission":"使命", "nav.how":"工作原理", "nav.probe":"贡献检验项",
+  "nav.model":"提交模型", "nav.credit":"署名",
+  "hero.eyebrow":"面向守恒律的基准测试",
+  "hero.lead":"HydroTuring 只向任何一个基于 AI 的水文模型提出一个问题：它是否守恒了物理要求它守恒的量？",
+  "hero.sub":"考察的不是它能否拟合流量过程线，而是它的水量平衡是否闭合、能量平衡是否闭合、汇流是否守恒动量。",
+  "hero.cta1":"查看代码仓库", "hero.cta2":"认领一个检验项",
+  "mission.h":"使命",
+  "mission.body":`<p>深度学习模型预测河川径流的精度已经超过率定后的概念性水文模型，这一点并无争议。有争议的是：它们给出正确答案所依赖的机制，能否在训练范围之外继续成立。</p>
+<p>一个模型可以复现出色的流量过程线，同时在暗中丢失水量；也可以拟合观测径流，却隐含着自身能量平衡根本无法支撑的蒸发量。精度指标看不到这些问题，因为流量过程线每个时间步只有一个数，而水量平衡有四个。</p>
+<p>HydroTuring 度量的正是精度指标看不到的东西：模型自身的各项收支是否闭合。</p>`,
+  "how.h":"工作原理",
+  "how.intro":`<p>只检查闭合的基准很容易被钻空子。因此，任何检验项在并入之前，都必须先证明它能够抓住作弊的模型。</p>
+<p>仓库自带四个参照模型。只有当一个检验项让物理上严格守恒的那个通过，并让每个有缺陷的模型在指定的判据上失败时，它才会被接受。</p>`,
+  "how.th1":"参照模型", "how.th2":"它做了什么", "how.th3":"被何判据抓住",
+  "how.rows":`<tr><td class="mono">reference_bucket</td><td>构造上严格守恒水量</td><td><span class="tag pass">无，它必须通过</span></td></tr>
+<tr><td class="mono">reference_leaky</td><td>隐藏一个 15% 的无声漏损</td><td><span class="tag fail">closure</span></td></tr>
+<tr><td class="mono">reference_cheater</td><td>把蓄量反解为使收支恰好成立的数值</td><td><span class="tag fail">state_bounds</span></td></tr>
+<tr><td class="mono">reference_degenerate</td><td>把降水全部蒸发掉，不产生任何径流</td><td><span class="tag fail">non_degenerate</span></td></tr>`,
+  "how.cheater":`<code>reference_cheater</code> 值得特别说明。它的闭合残差在每一个随机种子下都<strong>严格为零，且永远如此</strong>。随机化强迫数据对它毫无作用，因为作弊藏在它的内部结构里，而不在它的记忆里。它之所以会被抓住，只是因为模型契约要求上报绝对蓄量而非蓄量变化率：它凭空造出来的蓄量必须保持物理合理，而它做不到。`,
+  "fig.alt":"残差数轴：严格守恒的模型落在容差以内，存在漏损的模型远在容差之外",
+  "fig.tol":"容差 = 5%", "fig.axis":"累积收支残差",
+  "fig.pass":"0.1% · 必须通过", "fig.fail":"15% · 必须失败",
+  "fig.caption":"外部贡献检验项的验收闸门。持续集成会运行两个参照模型，检查该检验项是否把它们分置于自身容差的两侧。",
+  "seeds.h":"算例现场生成，从不存储",
+  "seeds.body":`<p>强迫数据在运行时由记录下来的随机种子现场生成。仓库中不提交任何数据，因此没有可供记忆的对象；评审人读到的是一段简短且确定性的脚本，而不是一个二进制文件。</p>
+<p>每个检验项运行五个种子，全部通过才算通过，所以没有模型能靠运气蒙混过关。由于种子会写入报告，任何一次运行都可以精确复现。</p>`,
+  "verdict.h":"判定结果",
+  "verdict.body":`<p>结论是二值的，但失败原因单独记录，因为两者的科学含义完全不同。</p>
+<ul><li><strong>VIOLATION</strong>（违反）——模型上报了自己的收支，而收支没有闭合。</li>
+<li><strong>INCOMPLETE</strong>（不完整）——模型上报的信息根本不足以接受检验。今天几乎所有只预测流量的模型都落在这一类。它并没有违反守恒，而是放弃了可证伪性。</li></ul>
+<p>结论只有一个比特，其下的全部诊断量仍然是连续的。这样，在还没有模型跨过阈值之前，论文就已经可以说明：某个模型漏损 6%，另一个漏损 40%。</p>`,
+  "probe.h":"贡献检验项",
+  "probe.intro":`<p>路线图列出了我们希望补充的检验项，标注了难度，并说明每一项能够甄别什么。请优先认领，而不是另起炉灶。</p>
+<p>我们最希望有人来做的，是两个跨收支一致性检验项。一个模型可以分别闭合水量平衡与能量平衡，却在两者之间自相矛盾，而目前整套检验对此毫无察觉。</p>`,
+  "probe.steps":`<li>提交一个提案 issue，写明你要认领路线图中的哪一项。我们会标记为 accepted，该项即归你负责。</li>
+<li>生成脚手架。你会得到一个已经通过校验的 probe.yaml，以及一个已经满足长度约定的生成器骨架。</li>
+<li>写物理：强迫数据生成器，以及说明这个检验项断言了什么的 README。</li>
+<li>运行验收闸门。它用来证明你的检验项确实能区分参照模型。这不是走过场。</li>
+<li>提交 pull request。随后是两轮评审，一轮看物理，一轮看实现。</li>`,
+  "probe.c1":"获取模板并填写",
+  "probe.c2":"根据填好的草稿生成 probes/&lt;守恒律&gt;/&lt;名称&gt;/",
+  "probe.c3":"证明它确实能区分参照模型",
+  "probe.question":`提案表单中有一个问题比其他都重要：<strong>一个完全不懂物理的模型，要怎样才能通过你的检验项？</strong>如果你答得上来，你就有了一个检验项；如果答不上来，你手上可能只是一个诊断量，而不是一个测试。`,
+  "probe.pr":`<p>除 numpy、pandas、PyYAML 和 jsonschema 之外不需要任何其他依赖，也不需要 Docker。参照模型在同一进程内运行，以保证验收闸门足够快，可以挂在每一个 pull request 上。</p>`,
+  "model.h":"提交模型",
+  "model.body":`<p>你的模型可以用任何语言编写。它以一个容器加一个很薄的适配器的形式提交，适配器通常只有三十行左右。容器在无网络的环境中运行，并且看不到检验项的代码，因此无法读取评判它的容差。</p>`,
+  "model.c1":"评估框架挂载 /io 并调用一次你的入口程序",
+  "model.c2":"读取：算例、随机种子、所需变量",
+  "model.c3":"读取：time, pr, tas, pet",
+  "model.c4":"写出：与强迫数据行数一一对应",
+  "model.rules":`<p>三条容易出错的规则：</p>
+<ul>
+<li><strong>状态量是绝对蓄量，不是变化率。</strong>请上报蓄量本身，差分由评估框架完成。上报 dS/dt 等于把本基准要检验的量本身抹掉了。</li>
+<li><strong>原样回传强迫数据。</strong>对降水做任何缩放（哪怕只是单位换算）都会导致保真度检验失败。</li>
+<li><strong>输入多少行就输出多少行，含预热期。</strong>评估窗口由框架自行截取。</li>
+</ul>
+<p>只声明你的模型真正产出的量。只预测流量的模型就该如实声明，并接受 INCOMPLETE 的结论。为了躲开它而编造一列数据，得到的会是 VIOLATION，那更糟，而且不诚实。提交一个会失败的模型是受欢迎的，也是有价值的。</p>`,
+  "credit.h":"署名与致谢",
+  "credit.body":`<p>每个检验项都记录其作者，含所在单位与 ORCID。他们会出现在每一份运行该检验项的报告以及每一次版本发布中，而不是被埋在提交记录里。</p>
+<p><strong>贡献至少一个被合并检验项的人，将受邀成为 HydroTuring 论文的共同作者。</strong>这正是本领域模型比对计划一贯的做法：你贡献一项实验，你就署名于报告该实验的论文。</p>
+<p>作者顺序在投稿前确定，并发给每一位贡献者征求同意。任何人都可以选择不署名；在全部署名作者认可之前不会投稿。关于容差的分歧由科学指导委员会裁定，该委员会正在组建中。</p>`,
+  "foot.start":"从这里开始", "foot.roadmap":"路线图", "foot.contributing":"贡献指南",
+  "foot.docs":"文档", "foot.d1":"编写检验项", "foot.d2":"适配模型",
+  "foot.d3":"编码智能体契约", "foot.project":"项目", "foot.g":"治理",
+  "foot.coc":"行为准则", "foot.issues":"问题追踪",
+  "foot.legal":`HydroTuring 以 MIT 许可证发布。检验套件 0.1.0，预发布版本：评分仅在同一套件版本内可比。由科罗拉多大学博尔德分校 Zhi Li 维护。`
+}
+};
+
+const SUPPORTED = ["en", "es", "zh"];
+
+function detectLang() {
+  const fromUrl = new URLSearchParams(location.search).get("lang");
+  if (SUPPORTED.includes(fromUrl)) return fromUrl;
+  try {
+    const saved = localStorage.getItem("hydroturing.lang");
+    if (SUPPORTED.includes(saved)) return saved;
+  } catch (e) { /* private mode, or site data blocked */ }
+  for (const tag of navigator.languages || [navigator.language || ""]) {
+    const base = String(tag).toLowerCase().split("-")[0];
+    if (SUPPORTED.includes(base)) return base;
+  }
+  return "en";
+}
+
+function applyLang(lang) {
+  const dict = I18N[lang] || I18N.en;
+  document.documentElement.lang = lang === "zh" ? "zh" : lang;
+
+  for (const node of document.querySelectorAll("[data-i18n]")) {
+    const value = dict[node.dataset.i18n];
+    if (value !== undefined) node.textContent = value;
+  }
+  for (const node of document.querySelectorAll("[data-i18n-html]")) {
+    const value = dict[node.dataset.i18nHtml];
+    if (value !== undefined) node.innerHTML = value;
+  }
+  for (const button of document.querySelectorAll(".langs button")) {
+    button.setAttribute("aria-pressed", String(button.dataset.lang === lang));
+  }
+  try { localStorage.setItem("hydroturing.lang", lang); } catch (e) { /* ignore */ }
+}
+
+document.querySelectorAll(".langs button").forEach((button) => {
+  button.addEventListener("click", () => applyLang(button.dataset.lang));
+});
+
+applyLang(detectLang());
+</script>
+</body>
+</html>
