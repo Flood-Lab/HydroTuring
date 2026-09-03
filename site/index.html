@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HydroTuring</title>
 <meta name="description" content="A benchmark that tests whether AI hydrologic models conserve mass, energy and momentum.">
+<meta property="og:title" content="HydroTuring">
+<meta property="og:description" content="Does your AI hydrologic model conserve mass, energy and momentum?">
+<meta property="og:image" content="https://flood-lab.github.io/HydroTuring/hydroturing.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%92%A7</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -82,6 +87,19 @@ nav.links{display:none; gap:18px}
 header.hero{padding:72px 0 56px; border-bottom:1px solid var(--line); background:var(--surface)}
 .eyebrow{font-size:11.5px; font-weight:600; letter-spacing:.15em; text-transform:uppercase; color:var(--accent); margin:0 0 14px}
 h1{font-size:clamp(40px,7vw,64px); line-height:1; margin:0 0 20px; font-weight:700; letter-spacing:-.02em}
+/* The wordmark carries its own colours, so it is set on a light plate rather
+   than recoloured: inverting a mark with a navy word, a blue word and teal
+   characters produces three wrong colours instead of one readable one. In the
+   light theme the plate is the page and disappears. */
+.wordmark{display:block; width:100%; max-width:430px; height:auto; margin:-6px 0 0}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .wordmark{
+    background:#F3F6F6; padding:14px 18px; border-radius:10px; max-width:462px;
+  }
+}
+:root[data-theme="dark"] .wordmark{
+  background:#F3F6F6; padding:14px 18px; border-radius:10px; max-width:462px;
+}
 .lead{font-size:clamp(18px,2.3vw,21px); line-height:1.5; color:var(--ink-2); max-width:34em; margin:0 0 14px; text-wrap:balance}
 .sub{color:var(--muted); max-width:36em; margin:0 0 28px; font-size:16px}
 .cta{display:flex; flex-wrap:wrap; gap:10px}
@@ -169,7 +187,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
 <header class="hero" id="top">
   <div class="wrap">
     <p class="eyebrow" data-i18n="hero.eyebrow">A conservation-law benchmark</p>
-    <h1>HydroTuring</h1>
+    <h1><img class="wordmark" src="hydroturing.png" width="1000" height="395" alt="HydroTuring Initiative"></h1>
     <p class="lead" data-i18n="hero.lead">A benchmark that asks one question of any AI hydrologic model: does it conserve what physics says it must conserve?</p>
     <p class="sub" data-i18n="hero.sub">Not whether it fits a hydrograph. Whether its water budget closes, its energy budget closes, and its routing conserves momentum.</p>
     <div class="cta">

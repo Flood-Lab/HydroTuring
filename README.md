@@ -1,6 +1,11 @@
-# HydroTuring
+<p align="center">
+  <img src="res/HydroTuring.png" alt="HydroTuring Initiative" width="540">
+</p>
 
-**[flood-lab.github.io/HydroTuring](https://flood-lab.github.io/HydroTuring/)** &middot; English, Español, 中文
+<p align="center">
+  <b><a href="https://flood-lab.github.io/HydroTuring/">flood-lab.github.io/HydroTuring</a></b>
+  &middot; English, Español, 中文
+</p>
 
 A benchmark that asks one question of any AI hydrologic model: **does it
 conserve what physics says it must conserve?**
@@ -8,6 +13,13 @@ conserve what physics says it must conserve?**
 Not whether it fits a hydrograph. Whether its water budget closes, its energy
 budget closes, and its routing conserves momentum. A model passes HydroTuring
 only when every criterion of every probe passes.
+
+> **Write a probe, join the paper.** The suite is only as good as the physics
+> people bring to it. Anyone may submit a probe — you do not need to be
+> invited, affiliated, or known to us. **If your probe is merged, you are a
+> co-author on the HydroTuring paper.** One merged probe is the whole
+> threshold. Start at [ROADMAP.md](ROADMAP.md#probes-we-want) or propose your
+> own.
 
 ```
 $ ht run --model reference_bucket
@@ -32,6 +44,8 @@ before it can be merged.
 | `reference_leaky` | hides a silent 15% sink | `closure` |
 | `reference_cheater` | solves for storage as whatever balances the budget | `state_bounds` |
 | `reference_degenerate` | evaporates all precipitation, produces no runoff | `non_degenerate` |
+| `reference_in_sample` | exact in range, leaks once the forcing leaves it | `regime_transfer` |
+| `reference_calendar` | recession that drifts with the calendar year | `invariance` |
 
 `reference_cheater` is the one worth dwelling on. Its closure residual is
 **exactly zero on every seed, forever**. Randomising the forcing cannot touch
@@ -67,7 +81,8 @@ line.
 ```bash
 pip install -e '.[dev]'
 
-ht init-probe                            # start a new probe
+ht init-probe --list-templates            # probe shapes to start from
+ht init-probe --template invariance      # start a new probe
 ht list                                  # probes and models
 ht validate                              # schema-check everything
 ht gate                                  # the probe acceptance gate
@@ -89,30 +104,54 @@ cannot read the tolerance it is being judged against.
 
 ## Contributing a probe
 
-**[ROADMAP.md](ROADMAP.md) lists the probes we want.** Claim one rather than
-inventing one. The two we most want are the cross-budget consistency probes:
-a model can close its water budget and its energy budget while being
-incoherent between them, and nothing in the suite currently notices.
+**Please submit one.** A benchmark with four probes tests four things; the
+reason this repository is open is that the physics worth testing is wider
+than any one group knows. If you have spent time with a conservation law that
+AI models get wrong, that law is a probe, and we would rather have it from you
+than approximate it ourselves.
+
+**Contributors of merged probes are co-authors on the benchmark paper.** The
+threshold is one probe, merged and passing the acceptance gate. This is how
+model intercomparison projects have always worked in this field: you
+contribute an experiment, you are an author on the paper that reports it.
+[CONTRIBUTING.md](CONTRIBUTING.md#credit) has the full terms — author order,
+the right to decline, and what happens before anything is submitted.
+
+**[ROADMAP.md](ROADMAP.md) lists the probes we want**, each with a difficulty
+and a note on what it discriminates. Claiming one is easier than inventing
+one, but inventing one is welcome too; propose it first so nobody builds it
+twice. The two we most want are the cross-budget consistency probes: a model
+can close its water budget and its energy budget while being incoherent
+between them, and nothing in the suite currently notices.
 
 Do not start from a blank page:
 
 ```bash
-ht init-probe                            # writes probe-draft.yaml
+ht init-probe --list-templates           # the shapes available
+ht init-probe --template <kind>          # writes probe-draft.yaml
 #   ... fill in the fields ...
 ht init-probe --from probe-draft.yaml    # creates probes/<law>/<slug>/
 ht gate --probe <law>/<slug>             # prove it discriminates
 ```
 
-**Contributors of merged probes are authors on the benchmark paper.** See
-[CONTRIBUTING.md](CONTRIBUTING.md#credit) for the threshold and the process,
-and [GOVERNANCE.md](GOVERNANCE.md) for how disagreements about tolerances get
+The templates cover conservation over one case, extrapolation in space and in
+time, counterfactual response, and invariance. Each scaffolds into a probe that
+already passes the gate against a placeholder case, so you can watch it
+separate the reference models before writing any physics, then replace the
+case with yours. `docs/writing-a-probe.md` has the details.
+
+The gate is the only bar that matters, and it is a technical one: your probe
+must pass an exact physical model and catch the deliberately broken ones. See
+[GOVERNANCE.md](GOVERNANCE.md) for how disagreements about tolerances get
 settled.
 
 ## Status
 
 Suite `0.1.0`, pre-release. One probe (mass), synthetic track only. Energy,
-momentum and the real-data track are next. Scores are only comparable within
-a suite version.
+momentum and the real-data track are next. The harness runs paired cases and
+scores labelled regimes, so the generalisation probes on the roadmap —
+extrapolation in space and time, counterfactual response, invariance — are
+unblocked and unclaimed. Scores are only comparable within a suite version.
 
 ## Layout
 
