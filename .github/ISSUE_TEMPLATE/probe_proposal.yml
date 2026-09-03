@@ -1,0 +1,56 @@
+name: Probe proposal
+description: Propose a new conservation probe before building it
+title: "[PROBE] "
+labels: ["probe-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Proposals come before pull requests. It costs you ten minutes and it
+        saves you from building a probe that duplicates one under review.
+
+  - type: dropdown
+    id: law
+    attributes:
+      label: Conservation law
+      options: [mass, energy, momentum]
+    validations: {required: true}
+
+  - type: textarea
+    id: residual
+    attributes:
+      label: Residual equation
+      description: Write the budget explicitly, with units.
+      placeholder: "R = pr - evspsbl - mrro - d(mrso + snw + canopy)/dt   [mm/day]"
+    validations: {required: true}
+
+  - type: textarea
+    id: tolerance
+    attributes:
+      label: Tolerance and its denominator
+      description: >
+        The suite uses the 5 percent engineering rule. Say what the residual is
+        5 percent of, and whether the denominator can approach zero. If it can,
+        propose an absolute floor as well.
+    validations: {required: true}
+
+  - type: textarea
+    id: discrimination
+    attributes:
+      label: How would an unphysical model fail this?
+      description: >
+        The most important question on this form. Describe a model that would
+        pass your probe while understanding no physics, and say which criterion
+        would catch it. If you cannot construct one, the probe may not
+        discriminate.
+    validations: {required: true}
+
+  - type: textarea
+    id: generator
+    attributes:
+      label: How is the case generated?
+      description: >
+        Synthetic track probes generate forcing from a seed at run time.
+        Sketch the generator. If you need real data instead, say which dataset
+        and why synthetic will not do.
+    validations: {required: true}

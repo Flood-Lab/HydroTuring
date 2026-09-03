@@ -1,0 +1,25 @@
+# Copy this directory to models/<your-model-name>/ and fill it in.
+# The directory name and `name` below must match.
+name: _template
+version: "0.1.0"
+description: >
+  One or two sentences: what the model is, and what it predicts.
+authors: ["Your Name <you@institution.edu>"]
+reference: "https://doi.org/..."
+license: MIT
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+
+# Declare only what the model genuinely produces. Padding this list to avoid
+# an INCOMPLETE verdict turns an honest limitation into a false claim, and the
+# budget will not close anyway.
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 2, memory_gb: 4, gpu: false}

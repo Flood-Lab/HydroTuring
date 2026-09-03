@@ -1,0 +1,19 @@
+name: reference_bucket
+version: "1.0.0"
+description: >
+  Conceptual bucket model that conserves water exactly by construction. It is
+  the physical baseline every mass probe must pass. If a probe ever fails this
+  model, the probe's tolerance has drifted past what exact physics achieves,
+  and the probe is wrong rather than the model.
+authors: ["HydroTuring maintainers"]
+license: MIT
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

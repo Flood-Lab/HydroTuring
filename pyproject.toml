@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hydroturing"
+version = "0.1.0.dev0"
+description = "A benchmark that tests whether AI hydrologic models conserve mass, energy and momentum."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Zhi Li"}]
+dependencies = [
+    "numpy>=1.23",
+    "pandas>=1.5",
+    "PyYAML>=6.0",
+    "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+netcdf = ["xarray>=2023.1", "netCDF4>=1.6"]
+
+[project.scripts]
+ht = "hydroturing.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

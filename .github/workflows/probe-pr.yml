@@ -1,0 +1,87 @@
+name: probe
+
+# Validates the benchmark itself. Runs on every change to a probe, to the
+# harness, or to a reference model, because any of the three can silently
+# break the acceptance gate.
+#
+# Read-only token and no secrets: a probe is arbitrary Python from a
+# contributor and must never see a credential.
+
+on:
+  pull_request:
+    paths:
+      - 'probes/**'
+      - 'src/**'
+      - 'schemas/**'
+      - 'models/reference_*/**'
+      - '.github/workflows/probe-pr.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install
+        run: pip install -e '.[dev]'
+
+      - name: Data budget
+        # Probes ship a seeded generator, not a dataset. Anything large that
+        # appears under probes/ is a mistake, and it is much cheaper to catch
+        # here than after it is in the history.
+        run: |
+          oversized=$(find probes -type f -size +1M -not -name '*.md' || true)
+          if [ -n "$oversized" ]; then
+            echo "::error::probes must ship a generator, not data. Oversized files:"
+            echo "$oversized"
+            exit 1
+          fi
+          echo "no committed probe data over 1 MB"
+
+      - name: Validate specs
+        run: ht validate
+
+      - name: Harness tests
+        run: pytest -q
+
+      - name: Acceptance gate
+        # The load-bearing step. Every probe must pass the physically exact
+        # reference model and must fail each deliberately broken one, on the
+        # specific criterion declared to do the catching.
+        run: ht gate
+
+  container:
+    # The reference models run via subprocess so the gate stays fast, which
+    # means the container path would otherwise go untested until a real
+    # submission arrived. GitHub runners have Docker, so exercise it here.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install
+        run: pip install -e '.[dev]'
+
+      - name: Run a known-good model through the container path
+        run: |
+          ht run --model reference_bucket \
+                 --probe mass/catchment-closure \
+                 --seed 4242 \
+                 --runner docker

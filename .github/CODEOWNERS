@@ -1,0 +1,7 @@
+# Physics review is routed by conservation law; technical review covers the rest.
+/probes/mass/       @chrimerss
+/probes/energy/     @chrimerss
+/probes/momentum/   @chrimerss
+/src/               @chrimerss
+/models/reference_* @chrimerss
+/.github/           @chrimerss

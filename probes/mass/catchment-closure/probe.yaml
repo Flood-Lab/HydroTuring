@@ -1,0 +1,68 @@
+id: mass/catchment-closure
+title: Catchment water balance closure under synthetic forcing
+law: mass
+track: synthetic
+version: 1
+
+description: >
+  Force a lumped catchment with ten years of generated daily weather and ask
+  whether the model's own water budget closes. Precipitation in, evaporation
+  and runoff out, and the change in every storage the model reports. The
+  model is judged against the forcing it was given, not against observations,
+  so the reference budget is exact by construction.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_years: 10
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+criteria:
+  # The 5 percent engineering rule. Residual is measured against total
+  # precipitation, which is strictly non-negative, so no floor is needed.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  # Catches closure by construction. A model that solves for storage as
+  # whatever balances the budget cannot keep that storage physical.
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+
+  # Catches the ET = P escape, which closes the budget with no runoff at all.
+  - et_plausible:
+      max_ratio_to_pet: 1.0
+      pet_variable: pet
+
+  # Catches every remaining trivial partition.
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro, evspsbl]
+
+  # Stops a model from closing a budget against its own rescaled driver.
+  - forcing_fidelity:
+      variables: [pr]
+      rtol: 1.0e-6
+
+baselines:
+  must_pass: [reference_bucket]
+  must_fail:
+    reference_leaky: closure
+    reference_cheater: state_bounds
+    reference_degenerate: non_degenerate
+
+provenance: >
+  Synthetic. Generated at run time by generate.py from a recorded seed.
+  Nothing is committed as data, so there is nothing to memorise.

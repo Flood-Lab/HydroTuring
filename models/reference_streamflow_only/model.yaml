@@ -1,0 +1,18 @@
+name: reference_streamflow_only
+version: "1.0.0"
+description: >
+  Predicts discharge and nothing else, like most published rainfall-runoff
+  models. Not broken, just unfalsifiable on conservation. Demonstrates the
+  INCOMPLETE reason path.
+authors: ["HydroTuring maintainers"]
+license: MIT
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [mrro, dis]
+  states: []
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

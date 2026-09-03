@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Dev shim: run the CLI without installing the package.
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHONPATH="$here/src${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m hydroturing "$@"

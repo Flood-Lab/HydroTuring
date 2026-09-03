@@ -1,0 +1,18 @@
+name: reference_leaky
+version: "1.0.0"
+description: >
+  The bucket model with a silent 15 percent sink. Every reported flux is
+  plausible and every storage stays physical. Only the budget gives it away,
+  so this model pins the closure criterion.
+authors: ["HydroTuring maintainers"]
+license: MIT
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
