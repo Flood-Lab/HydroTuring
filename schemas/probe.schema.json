@@ -175,6 +175,13 @@
             ]
           },
           "description": "Paired-run probes only. The step each named variant runs at, where it differs from case.timestep. The control keeps case.timestep. This is how a resolution transform is declared: the same weather at two steps."
+        },
+        "variant_selection": {
+          "enum": [
+            "all",
+            "native_and_finer"
+          ],
+          "description": "Which variants a model is run on. \"all\" (default) runs every variant. \"native_and_finer\" runs the variant at the model's own step and the one at the next finer step (the finest pairs with the next coarser), for probes whose variants are the same weather at different steps."
         }
       },
       "anyOf": [

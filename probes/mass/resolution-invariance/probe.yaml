@@ -11,18 +11,19 @@ authors:
 
 description: >
   One month of synthetic weather generated minute by minute, with storms
-  that have structure inside the hour, handed to the model twice: once at
-  the minute step and once aggregated to hourly means, so that every hour
-  carries the same water. Water is conserved under that aggregation, so the
-  runoff and evapotranspiration volumes over the month, and the storage the
-  model ends with, must agree between the two runs. A model built at one
-  resolution and run at another drains its stores as if each row were the
-  step it was trained on, and its volumes come out different at every step.
-  Peaks legitimately change with the step and are not judged here.
+  that have structure inside the hour, served at the minute, the hour and
+  the day so that every hour and every day carries exactly the water of its
+  minutes. Each model is run at its own step and at the next finer one, and
+  the runoff volume over the month is integrated from both. Water is
+  conserved under aggregation, so the two must agree; the number reported
+  is how far they do not, in percent of the rain that fell. A model built
+  at one step and run at another drains its stores as if each row were the
+  step it was trained on, and that number is large. Peaks legitimately
+  change with the step and are not judged here.
 
 requires:
-  fluxes: [pr, evspsbl, mrro]
-  states: [mrso, snw, canopy]
+  fluxes: [mrro]
+  states: []
 
 case:
   generator: generate.py
@@ -31,47 +32,43 @@ case:
   period_days: 30
   spinup_days: 10
   max_output_mb: 8.0
-  max_runtime_s: 120
+  max_runtime_s: 300
 
-  # The control is the minute record; `hourly` is the same weather averaged
-  # over each hour. A model has to declare both steps to be run on this
-  # probe. One that runs at a single step is INCOMPATIBLE, which is a
-  # finding about the model rather than a failure of the probe.
-  variants: [minute, hourly]
+  # The same weather at three steps. A model is run at the variant matching
+  # its own step and at the next finer one; the finest pairs with the next
+  # coarser. The manifest's step is where the model lives, not a way out.
+  variants: [minute, hourly, daily]
   timesteps:
     hourly: PT1H
+    daily: PT1D
+  variant_selection: native_and_finer
 
 criteria:
-  # Invariance without closure is satisfiable by reporting zeros twice.
-  - closure:
-      denominator: sum_pr
-      threshold: 0.05
-      sinks: [evspsbl, mrro]
-
-  - state_bounds:
-      mrso: [0.0, soil_capacity_mm]
-      snw: [0.0, null]
-      canopy: [0.0, canopy_capacity_mm]
-
-  - forcing_fidelity:
-      variables: [pr]
-      rtol: 1.0e-6
-
-  # The probe's own assertion: integrated volumes and end-of-window storage
-  # agree between the steps, to within the engineering rule's share of the
-  # precipitation that fell.
+  # The probe's assertion: integrated volumes agree between the steps, to
+  # within the engineering rule's share of the precipitation that fell.
+  # Evapotranspiration and storages are compared too when the model reports
+  # them; runoff is enough to be scored.
   - resolution_invariance:
-      fine: minute
-      coarse: hourly
       volumes: [mrro, evspsbl]
+      states: [mrso, snw, canopy]
       threshold: 0.05
+
+  # Invariance alone is satisfiable by reporting nothing twice. The record
+  # is a month, so the runoff ratio is reported rather than judged and the
+  # rainfall response is switched off; the variability of runoff has to be
+  # real.
+  - non_degenerate:
+      min_flux_cv: 0.1
+      min_response: null
+      cv_variables: [mrro]
 
 baselines:
   must_pass: [reference_bucket]
   must_fail:
     reference_fixed_step: resolution_invariance
+    reference_degenerate: non_degenerate
 
 provenance: >
   Synthetic. One minute-by-minute weather sequence per seed, generated at run
-  time and aggregated to hours for the second variant. Nothing is committed
-  as data.
+  time and aggregated to hours and days for the coarser variants. Nothing is
+  committed as data.

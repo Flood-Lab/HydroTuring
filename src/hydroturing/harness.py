@@ -58,7 +58,10 @@ def resolve_window_days(
     if choice is None:
         if model.name in TRUSTED_SUBPROCESS_MODELS:
             return None
-        choice = DEFAULT_WINDOW_DAYS[probe.timestep]
+        # The default follows the step the model is actually run at, which
+        # on a multi-step probe is its own step, not the probe's finest.
+        control = select_variants(model, probe)[0]
+        choice = DEFAULT_WINDOW_DAYS[probe.timestep_for(control)]
     if choice == FULL_WINDOW:
         return None
     days = int(choice)
@@ -255,16 +258,26 @@ def build_case(probe: ProbeSpec, seed: int, variant: str | None = None) -> Case:
     )
 
 
-def evaluate_criteria(runs: dict[str, RunResult], probe: ProbeSpec) -> list[CriterionResult]:
+def evaluate_criteria(
+    runs: dict[str, RunResult], probe: ProbeSpec, control: str | None = None
+) -> list[CriterionResult]:
     """Score one seed.
 
     `runs` is keyed by variant, with a single entry under the control name for
     an ordinary probe. Paired criteria are handed the whole mapping because
     what they assert is a relationship between the runs; every other criterion
     sees the control run alone, so that adding a variant to a probe never
-    silently changes what its existing criteria measure.
+    silently changes what its existing criteria measure. `control` names the
+    control run when it is not the probe's first variant, as on a probe that
+    selects variants per model.
     """
-    control = runs[probe.control] if probe.control else next(iter(runs.values()))
+    if control is not None:
+        control_run = runs[control]
+    elif probe.control in runs:
+        control_run = runs[probe.control]
+    else:
+        control_run = next(iter(runs.values()))
+    control = control_run
     results = []
     for criterion in probe.criteria:
         fn = criteria_mod.get(criterion.name)
@@ -282,21 +295,22 @@ def compatibility_issues(
 ) -> list[str]:
     """Explain why a model cannot be meaningfully run on a probe.
 
-    With a case in hand only that case's step is checked; without one, every
-    step the probe runs at. On a single-step probe a step the model lacks is
-    an incompatibility: the probe measures something else, closure say, and
-    cannot measure it on a model it cannot feed. On a probe that runs the
-    same weather at two steps the missing step is the finding itself and is
-    scored by `step_rigidity` instead, so it is not listed here.
+    On a single-step probe a step the model does not declare is an
+    incompatibility: the probe measures something else, closure say, and
+    cannot measure it on a model it cannot feed. A probe that runs the same
+    weather at several steps is asking how the model copes with the step,
+    so the manifest's declaration is not consulted: the model is run at the
+    steps the probe selects and what it does there is measured.
     """
     issues: list[str] = []
-    needed = [case.timestep] if case is not None else list(probe.timesteps)
-    unsupported = [t for t in needed if not model.supports_timestep(t)]
-    if unsupported and not (case is None and len(probe.timesteps) > 1):
-        issues.append(
-            f"model timestep {'/'.join(model.timesteps)} does not cover the probe's "
-            f"{'/'.join(unsupported)}"
-        )
+    if len(probe.timesteps) == 1:
+        needed = [case.timestep] if case is not None else [probe.timestep]
+        unsupported = [t for t in needed if not model.supports_timestep(t)]
+        if unsupported:
+            issues.append(
+                f"model timestep {'/'.join(model.timesteps)} does not cover the "
+                f"probe's {'/'.join(unsupported)}"
+            )
     if check_perturbation and probe.variants and not model.supports_perturbation:
         issues.append("model does not declare support for paired perturbation cases")
     if case is not None:
@@ -307,27 +321,36 @@ def compatibility_issues(
     return issues
 
 
-def step_rigidity(model: ModelManifest, probe: ProbeSpec) -> str | None:
-    """Why a model fails a multi-step probe without being run.
+def select_variants(model: ModelManifest, probe: ProbeSpec) -> list[str | None]:
+    """The variants a model is run on for one seed, the control first.
 
-    A probe that hands the model the same weather at two steps is asking
-    whether the answer depends on the step. A model that can only be run at
-    one of them has answered: its response exists at that step and nowhere
-    else, which is dependence on the step by construction. Physics has no
-    such restriction; a physical model with its units straight takes any
-    step, and an AI model that claims to be a hydrological model is held to
-    the same standard. So this is a failed criterion, not an exemption.
+    An ordinary probe runs every variant, control first. A probe declaring
+    `variant_selection: native_and_finer` serves the same weather at several
+    steps and runs each model at two of them: the one at the model's own
+    step, or the nearest coarser step when the probe has no variant at the
+    native step, and the next finer one. The finest step, having nothing
+    finer, pairs with the next coarser. The variant at the model's step is
+    the control, so single-run criteria judge the model where it lives and
+    the paired criterion measures what the step does to it.
+
+    The manifest's list of steps is not consulted here. How the model copes
+    with a step it did not declare is precisely what such a probe measures,
+    and a declaration is not a measurement.
     """
-    if len(probe.timesteps) < 2:
-        return None
-    lacking = [t for t in probe.timesteps if not model.supports_timestep(t)]
-    if not lacking:
-        return None
-    return (
-        f"the model runs at {'/'.join(model.timesteps)} only and cannot be given the "
-        f"{'/'.join(lacking)} record; an answer that exists at one step is not "
-        "invariant to the step"
+    if not probe.variants:
+        return [None]
+    if probe.variant_selection != "native_and_finer":
+        return list(probe.variants)
+
+    by_step = sorted(probe.variants, key=lambda v: TIMESTEP_DAYS[probe.timestep_for(v)])
+    native_dt = TIMESTEP_DAYS[model.timestep]
+    index = next(
+        (i for i, v in enumerate(by_step) if TIMESTEP_DAYS[probe.timestep_for(v)] >= native_dt),
+        len(by_step) - 1,
     )
+    if index == 0:
+        return [by_step[0], by_step[1]]
+    return [by_step[index], by_step[index - 1]]
 
 
 def verify_adapter_contract(
@@ -347,7 +370,9 @@ def verify_adapter_contract(
     real run, so a model that only fits its time budget on the window is
     smoke-tested under the same conditions it is scored under.
     """
-    case = build_case(probe, seed)
+    # The control variant is the one at the model's own step, so a daily
+    # model is smoke-tested on daily rows rather than on a month of minutes.
+    case = build_case(probe, seed, select_variants(model, probe)[0])
     issues = compatibility_issues(model, probe, case, check_perturbation=False)
     if issues:
         raise ProtocolError("; ".join(issues))
@@ -384,24 +409,14 @@ def run_probe(
     """
     missing = model.missing_for(probe)
     incompatible = compatibility_issues(model, probe)
-    rigid = step_rigidity(model, probe)
-    if missing or incompatible or rigid:
-        # A model that cannot take a resolution transform has failed every
-        # criterion that compares the two steps. Nothing else can be scored,
-        # so nothing else is listed.
-        failed = [
-            CriterionOutcome(name=c.name, status="fail", message=rigid)
-            for c in probe.criteria
-            if rigid and criteria_mod.is_paired(c.name)
-        ]
+    if missing or incompatible:
         return ProbeOutcome(
             probe_id=probe.id,
             law=probe.law,
             verdict=FAIL,
-            reason=reason_for([c.name for c in failed], missing, None, incompatible),
+            reason=reason_for([], missing, None, incompatible),
             missing=missing,
             incompatible=incompatible,
-            criteria=failed,
             authors=list(probe.authors),
         )
 
@@ -419,8 +434,8 @@ def run_probe(
 
     # An ordinary probe has one unnamed case per seed. A paired probe runs the
     # model once per variant on the same seed, which is what makes a
-    # counterfactual askable at all.
-    variants: tuple[str | None, ...] = probe.variants or (None,)
+    # counterfactual askable at all. The control comes first.
+    variants = select_variants(model, probe)
 
     def incompatible_outcome(issues: list[str]) -> ProbeOutcome:
         return ProbeOutcome(
@@ -459,7 +474,7 @@ def run_probe(
                     if variant in (None, variants[0]):
                         windows.append({"seed": seed, **case.window})
                 runs[variant or "_"] = runner.run(model, probe, case, io_dir)
-            for result in evaluate_criteria(runs, probe):
+            for result in evaluate_criteria(runs, probe, control=variants[0] or "_"):
                 per_criterion[result.name].append((seed, result))
                 if result.diagnostics.get("suspicious_exact"):
                     flags.append(f"suspicious_exact:{probe.id}")

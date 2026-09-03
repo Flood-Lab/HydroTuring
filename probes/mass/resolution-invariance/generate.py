@@ -1,10 +1,11 @@
 """Seeded minute-by-minute weather for the resolution-invariance probe.
 
-One sequence per seed, written at two steps. The `minute` variant is the
-record as drawn. The `hourly` variant is the same record averaged over each
-hour, so that every hour carries exactly the water its sixty minutes did.
-Draw once, then aggregate: a second draw at the coarse step would be a
-different month, and the comparison would no longer isolate the step.
+One sequence per seed, written at three steps. The `minute` variant is the
+record as drawn. The `hourly` and `daily` variants are the same record
+averaged over each hour and each day, so that every hour and every day
+carries exactly the water its minutes did. Draw once, then aggregate: a
+second draw at a coarser step would be a different month, and the
+comparison would no longer isolate the step.
 
 Storms have structure inside the hour on purpose. A storm that is uniform
 over its hour aggregates to itself and tests nothing; one delivered in
@@ -25,8 +26,11 @@ SPINUP_DAYS = 10
 MINUTES_PER_DAY = 1440
 N_MINUTES = (PERIOD_DAYS + SPINUP_DAYS) * MINUTES_PER_DAY
 N_HOURS = N_MINUTES // 60
+N_DAYS = PERIOD_DAYS + SPINUP_DAYS
 
-VARIANTS = ("minute", "hourly")
+VARIANTS = ("minute", "hourly", "daily")
+MINUTES_PER = {"minute": 1, "hourly": 60, "daily": MINUTES_PER_DAY}
+FREQ = {"minute": "min", "hourly": "h", "daily": "D"}
 START = "2000-04-01"
 
 STORMS_PER_DAY = 0.6
@@ -34,7 +38,7 @@ BURST_MINUTES = 5
 
 STATIC = {
     "area_km2": 250.0,
-    "soil_capacity_mm": 320.0,
+    "soil_capacity_mm": 120.0,  # shallow, so storms produce saturation excess
     "canopy_capacity_mm": 2.0,
     "degree_day_factor_mm_per_C_day": 3.2,
     "baseflow_coefficient": 0.006,
@@ -100,17 +104,16 @@ def generate(seed: int, variant: str = "minute") -> tuple[pd.DataFrame, dict]:
     rng = np.random.default_rng(seed)
     pr, tas, pet = _draw_minutes(rng)
 
-    if variant == "hourly":
-        pr = pr.reshape(N_HOURS, 60).mean(axis=1)
-        tas = tas.reshape(N_HOURS, 60).mean(axis=1)
-        pet = pet.reshape(N_HOURS, 60).mean(axis=1)
-        time = pd.date_range(START, periods=N_HOURS, freq="h")
-    else:
-        time = pd.date_range(START, periods=N_MINUTES, freq="min")
+    per_row = MINUTES_PER[variant]
+    if per_row > 1:
+        pr = pr.reshape(-1, per_row).mean(axis=1)
+        tas = tas.reshape(-1, per_row).mean(axis=1)
+        pet = pet.reshape(-1, per_row).mean(axis=1)
+    time = pd.date_range(START, periods=N_MINUTES // per_row, freq=FREQ[variant])
 
     forcing = pd.DataFrame(
         {
-            "time": time.strftime("%Y-%m-%d %H:%M"),
+            "time": time.strftime("%Y-%m-%d" if variant == "daily" else "%Y-%m-%d %H:%M"),
             "pr": np.round(pr, 6),
             "tas": np.round(tas, 6),
             "pet": np.round(pet, 6),
@@ -122,11 +125,14 @@ def generate(seed: int, variant: str = "minute") -> tuple[pd.DataFrame, dict]:
 if __name__ == "__main__":
     fine, _ = generate(20260903, "minute")
     coarse, _ = generate(20260903, "hourly")
+    daily, _ = generate(20260903, "daily")
     total_fine = fine["pr"].sum() / MINUTES_PER_DAY
     total_coarse = coarse["pr"].sum() / 24.0
+    total_daily = daily["pr"].sum()
     wet_minutes = int((fine["pr"] > 0).sum())
-    print(f"{len(fine)} minutes, {len(coarse)} hours, {PERIOD_DAYS + SPINUP_DAYS} days")
-    print(f"precipitation {total_fine:.2f} mm at the minute step, {total_coarse:.2f} mm hourly")
+    print(f"{len(fine)} minutes, {len(coarse)} hours, {len(daily)} days")
+    print(f"precipitation {total_fine:.2f} mm at the minute step, {total_coarse:.2f} mm hourly, "
+          f"{total_daily:.2f} mm daily")
     print(f"{wet_minutes} wet minutes, peak {fine['pr'].max():.0f} mm/day; "
-          f"hourly peak {coarse['pr'].max():.0f} mm/day")
+          f"hourly peak {coarse['pr'].max():.0f} mm/day; daily peak {daily['pr'].max():.0f} mm/day")
     print(f"temperature {fine['tas'].mean():.1f} degC mean, {int((fine['tas'] < 0).sum())} sub-zero minutes")

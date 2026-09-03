@@ -82,6 +82,7 @@ Every one is binary.
 | `regime_transfer` | closure holds out of range as well as in range | labelled stretches |
 | `counterfactual_response` | added water is partitioned, not absorbed | paired runs |
 | `invariance` | a transform the physics ignores changes nothing | paired runs |
+| `resolution_invariance` | integrated volumes agree between the same weather at two steps | paired runs at different steps |
 
 Picking a denominator for `closure` and `regime_transfer`:
 
@@ -132,30 +133,35 @@ isolate the perturbation, and the comparison means nothing.
 
 ### Variants at different steps
 
-A resolution transform is the same weather at two steps. Declare the step of
-any variant that does not run at `case.timestep`:
+A resolution transform is the same weather at two or more steps. Declare
+the step of any variant that does not run at `case.timestep`, and say how
+the variants are selected for a model:
 
 ```yaml
 case:
   timestep: PT1M
   period_days: 30
   spinup_days: 10
-  variants: [minute, hourly]
+  variants: [minute, hourly, daily]
   timesteps:
     hourly: PT1H
+    daily: PT1D
+  variant_selection: native_and_finer
 ```
 
 The control keeps `case.timestep`. Each variant's row count follows its own
 step, the harness hands the model the step in `request.json`, and criteria
-integrate each run with its own step, so a paired criterion can compare a
-minute record with its hourly aggregate. Aggregate, do not redraw: the coarse
-variant must carry exactly the water of the fine one, and
-`resolution_invariance` refuses a pair that does not. A model has to declare
-every step the probe uses. One that runs at a single step fails every paired
-criterion of the probe without being run, because an answer that exists at
-one step only is not invariant to the step; it is not excused as
-incompatible, which is reserved for a probe that cannot feed a model. See
-`probes/mass/resolution-invariance` for the worked example.
+integrate each run with its own step. With `native_and_finer` a model is
+run at the variant matching the step its manifest declares (or the nearest
+coarser one) and at the next finer variant; the finest pairs with the next
+coarser. The variant at the model's step is the control for single-run
+criteria. Without it, every variant runs, control first.
+
+Aggregate, do not redraw: a coarse variant must carry exactly the water of
+the fine one, and `resolution_invariance` refuses a pair that does not. The
+manifest's list of steps is not a gate on such a probe. How the model copes
+with the other step is what the probe measures, and it reports the answer
+as a share of the precipitation. See `probes/mass/resolution-invariance`.
 
 ## Baselines
 

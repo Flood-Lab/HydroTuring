@@ -60,21 +60,27 @@ defined on it.
 `PT1D`, `PT1H`, `PT15M`, `PT5M` or `PT1M`. Fluxes are rates in mm per day at
 every step, so the depth moved in one row is the rate times the step
 length, and a one-millimetre burst in one minute arrives as 1440 mm/day.
-Declare every step the model can honestly run at in `model.yaml`, native
-step first:
+`model.yaml` declares the step the model was built at, and may list others
+it also runs at, native step first:
 
 ```yaml
-timestep: [PT1H, PT1M]     # or a single step: PT1D
+timestep: PT1D             # or a list: [PT1H, PT1M]
 ```
 
-A probe that runs the same weather at two steps needs both. A model that
-only works at one **fails** that probe without being run: an answer that
-exists at one step only is not invariant to the step, and physics has no
-such restriction. Declaring a single step is honest about the model, not a
-way around the probe. A model is never run at a step it did not declare;
-on a single-step probe a mismatch is reported as INCOMPATIBLE, because that
-probe measures something else and cannot measure it on a model it cannot
-feed.
+A resolution probe serves the same weather at several steps and runs every
+model at its own step and at the next finer one, whatever the manifest
+lists. It then measures how far the integrated runoff moved, in percent of
+the rain. A model whose arithmetic assumes its native step moves a lot.
+
+**Feed the model the rows at the step you were given.** Do not aggregate
+hourly rows to days inside the adapter, or split days into hours, to reach
+the step the model prefers. The adapter is the model's units layer, not a
+resampler: it turns rates into the depths the model wants for the step it
+was handed, and resampling would hide exactly the dependence on the step
+that the probe exists to measure. On a single-step probe the manifest's
+step is respected: a daily closure probe given an hourly-only model reports
+INCOMPATIBLE, because closure is what it measures and it cannot measure it
+on a model it cannot feed.
 
 ## Variable names and units
 

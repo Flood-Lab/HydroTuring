@@ -5,11 +5,12 @@
 ## The physics
 
 Water is conserved under temporal aggregation. Take a month of weather
-recorded minute by minute and average it over each hour: every hour carries
-exactly the water its sixty minutes did. A model that has learned the
-physics returns the same volumes from either record, because the same water
-went in and the same catchment dealt with it. Runoff volume, evaporation
-volume and the storage left at the end of the month must agree.
+recorded minute by minute and average it over each hour, or each day: every
+hour and every day carries exactly the water its minutes did. A model that
+has learned the physics returns the same volumes from any of the records,
+because the same water went in and the same catchment dealt with it. Runoff
+volume, evaporation volume and the storage left at the end of the month
+must agree.
 
 What is *not* invariant matters as much, and is the reason this probe sits
 under mass rather than energy or momentum. A peak discharge, a stage, a
@@ -22,7 +23,7 @@ tracks, testable once a probe routes flow through a channel: **aggregation
 cannot increase a peak, an energy head, or a momentum flux.** This probe
 judges the volumes only.
 
-## What it catches
+## What it measures
 
 Models are built at a step. Train an LSTM on hourly forcing and it learns
 that one row is one hour; the rate of recession, the size of a wet-day
@@ -30,24 +31,35 @@ depth, the number of rows a storm occupies are all baked in. Run it at the
 minute step and each row is still an hour to it, so it drains its stores and
 consumes its evaporative demand sixty times too fast. Nothing in a
 single-resolution evaluation can see this. Running the same weather at two
-steps does, and the volumes disagree by tens of percent of the rainfall.
+steps does, and the size of the effect is a number: how far the month's
+runoff moved because the step moved, in percent of the rain that fell.
+
+Every model is measured, whatever its manifest says about the steps it
+supports. The harness serves the weather at the minute, the hour and the
+day, runs a model at its own step and at the next finer one (the finest
+pairs with the next coarser), and integrates both. A daily model is therefore
+compared daily against hourly; an hourly model hourly against minutes. The
+declaration in the manifest is where the model lives, not a way out, and an
+adapter must feed the rows at the step it is handed rather than resample
+them, or the probe cannot see the model at all.
 
 The deliberately broken baseline, `reference_fixed_step`, is the reference
-bucket with its step hard-wired to a day. On the three gate seeds its runoff
-and evaporation volumes differ between the minute and hourly runs by 20 to
-87 percent of the month's precipitation; the reference bucket, which turns
-rates into depths with the step it is given, agrees to within 0.1 percent.
+bucket with its step hard-wired to a day. Run on hourly rows it treats each
+hour as a day, and on the three gate seeds its runoff volume differs from
+its own daily run by 33 to 49 percent of the month's precipitation. The
+reference bucket, which turns rates into depths with the step it is given,
+agrees to about 1 percent between daily and hourly, which is the
+discretisation of its own equations at a daily step and the floor the 5
+percent rule sits on, and to 0.1 percent between hourly and minute. The
+five daily-only reference models that predate this probe are measured too,
+and fail the same way, because they are the old bucket. The catchment has a
+shallow soil (120 mm) so that storms actually produce saturation-excess
+floods within the month; on the closure probe's deeper soil this weather
+never leaves baseflow.
 
-A model that only runs at one step is not run at all, and it fails. Its
-`resolution_invariance` criterion is marked failed with the steps it lacks
-named, and the verdict is FAIL with reason VIOLATION. This is deliberate. A
-physical model with its units consistent with the forcing takes any step;
-an AI model that claims to be a hydrological model is held to the same
-standard, and an answer that exists at one step only is dependence on the
-step by construction. The INCOMPATIBLE reason is reserved for the opposite
-situation, a probe that cannot feed a model, such as a daily closure probe
-given an hourly-only model: that probe measures closure, not the step, and
-cannot say anything about it.
+Only runoff is required, so a model that reports streamflow and nothing else
+is measured here rather than stopped at INCOMPLETE. Closure is the closure
+probe's business; this one asks a question every runoff model can answer.
 
 ## How the case is generated
 
@@ -56,10 +68,10 @@ days of spinup in front: Poisson storm arrivals, lognormal durations, gamma
 depths spread over five-minute bursts with lognormal weights so the
 intensity varies inside the hour, a diurnal temperature cycle on a wandering
 daily anomaly, and potential evaporation confined to daylight. The `hourly`
-variant is the same draw averaged over each hour. The weather is drawn once
-and then aggregated, never drawn twice: a second draw at the coarse step
-would be a different month, and the comparison would no longer isolate the
-step.
+and `daily` variants are the same draw averaged over each hour and each
+day. The weather is drawn once and then aggregated, never drawn twice: a
+second draw at a coarser step would be a different month, and the
+comparison would no longer isolate the step.
 
 Forcing stays in the contract's units at every step. Precipitation and
 potential evaporation are rates in mm per day, so a one-millimetre burst in
@@ -70,13 +82,12 @@ rate times the step. A model reads the step from `timestep` in the request.
 
 | Criterion | What it asserts |
 | --- | --- |
-| `closure` | the budget closes on the minute record (invariance alone is satisfiable by reporting zeros twice) |
-| `state_bounds` | storages stay physical |
-| `forcing_fidelity` | the model echoes the precipitation it was given, at the minute step |
-| `resolution_invariance` | runoff and evaporation volumes, and the storage at the end of the month, agree between the minute and hourly runs to within 5 percent of the precipitation that fell |
+| `resolution_invariance` | runoff volume, and evaporation volume and end-of-month storage where the model reports them, agree between the model's step and the next finer one to within 5 percent of the precipitation that fell; the worst disagreement is the reported value |
+| `non_degenerate` | runoff actually varies, so the invariance cannot be satisfied by reporting nothing twice; the runoff ratio is reported rather than judged on a month and the rainfall-response check is off |
 
 ## Baselines
 
 - `must_pass: reference_bucket`, step-aware, identical at a daily step to
   the model every mass probe already passes.
-- `must_fail: reference_fixed_step` on `resolution_invariance`.
+- `must_fail: reference_fixed_step` on `resolution_invariance`, and
+  `reference_degenerate` on `non_degenerate`.

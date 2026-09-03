@@ -58,6 +58,7 @@ budget.
 | --- | --- |
 | `ht verify-adapter` on `mass/catchment-closure`, gate seed 598896396 | contract OK: 395 rows in 20 s, columns `mrro`, `dis`, no missing products |
 | `ht run` on `mass/catchment-closure` | FAIL (INCOMPLETE): does not report `pr`, `evspsbl`, `mrso`, `snw`, `canopy` |
+| `ht run` on `mass/resolution-invariance` | FAIL (VIOLATION): runoff volume differs by 58% of precipitation between hourly and daily runs of the same month (11%, 38%, 58% on the three gate seeds) |
 
 Archived in [`models/result.csv`](../result.csv).
 
@@ -84,6 +85,19 @@ here: what is measured is the released weights under mock radiation and
 pressure and average-catchment attributes, not the operational system.
 
 ![forcing, reference snowpack and runoff around the scored event](event_window_seed598896396.png)
+
+### Dependence on the step
+
+The resolution probe serves one month of the same weather at the day and
+at the hour and runs the model at both. The adapter feeds the rows as
+given, so at the hourly step the model's 365-row hindcast covers fifteen
+days and each hourly rate is read as a daily depth. Integrated over the
+month, its runoff comes to 259 mm from the daily record and 115 mm from
+the hourly one, on 248 mm of rain (seed 1760592044). That is the size of
+the model's dependence on the step it was trained at, as a number rather
+than a declaration: a model whose arithmetic assumed nothing about the
+step would return the same volume from either record, as the reference
+bucket does to within 1 percent.
 
 ## Reproduce
 

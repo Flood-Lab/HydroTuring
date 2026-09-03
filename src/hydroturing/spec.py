@@ -122,6 +122,11 @@ class ProbeSpec:
     # A paired probe may run its variants at different steps, which is how a
     # resolution transform is expressed. Absent variants use `timestep`.
     variant_timesteps: dict[str, str] = field(default_factory=dict)
+    # Which variants a model is run on: "all" of them, or "native_and_finer",
+    # the variant at the model's own step and the next finer one, so that a
+    # resolution probe measures every model against the step it was built
+    # at and never asks a daily model for a month of minutes.
+    variant_selection: str = "all"
 
     @property
     def required_vars(self) -> tuple[str, ...]:
@@ -289,6 +294,13 @@ def load_probe(path: str | Path) -> ProbeSpec:
             f"{spec_file}: the control variant '{variants[0]}' must run at "
             f"case.timestep ({case['timestep']})"
         )
+    if case.get("variant_selection", "all") == "native_and_finer":
+        steps = {variant_timesteps.get(v, case["timestep"]) for v in variants}
+        if len(steps) != len(variants):
+            raise SpecError(
+                f"{spec_file}: variant_selection native_and_finer needs every "
+                "variant at a distinct step"
+            )
 
     requires = raw.get("requires", {})
     return ProbeSpec(
@@ -308,6 +320,7 @@ def load_probe(path: str | Path) -> ProbeSpec:
         spinup_days=case["spinup_days"],
         period_days=period_days,
         variant_timesteps=variant_timesteps,
+        variant_selection=case.get("variant_selection", "all"),
         max_output_mb=case.get("max_output_mb", 5.0),
         max_runtime_s=case.get("max_runtime_s", 120.0),
         variants=tuple(case.get("variants", [])),

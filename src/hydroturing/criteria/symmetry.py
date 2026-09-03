@@ -113,12 +113,14 @@ def resolution_invariance(
 ) -> CriterionResult:
     """Integrated volumes must not depend on the step the weather was given at.
 
-    The same weather twice: once at a fine step, once aggregated to a coarse
-    one so that every hour or day carries the same water. Water is
-    conserved under that aggregation, so over the same stretch of time the
-    runoff volume, the evapotranspiration volume and the storage a model
-    ends with must agree between the two runs, to within a share of the
-    precipitation that fell.
+    The same weather at two or more steps, the coarser ones aggregated from
+    the finest so that every hour or day carries exactly the water of its
+    minutes. Water is conserved under that aggregation, so over the same
+    stretch of time the runoff volume, the evapotranspiration volume where
+    the model reports it, and the storage it ends with must agree between
+    the runs, to within a share of the precipitation that fell. The number
+    reported is that share: how much the model's answer moved because the
+    step moved, in percent of the rain.
 
     What is not asserted matters as much. Peaks, stages, velocity heads and
     momentum fluxes are nonlinear in the flow and legitimately change with
@@ -126,81 +128,103 @@ def resolution_invariance(
     never sharpen them, and that ordering is a separate test that needs a
     routed channel. This criterion is about mass alone.
 
-    The failure it exists to catch: a model whose arithmetic assumes a
-    particular step. Given minutes it drains its stores as if each minute
-    were an hour, and its volumes come out different at every resolution it
-    is run at.
+    The failure it exists to measure: a model whose arithmetic assumes a
+    particular step. Given hours it drains its stores as if each hour were
+    a day, and its volumes come out different at every step it is run at.
+    Runs are compared against the finest step present, whatever the probe
+    selected for this model, and the worst disagreement decides.
     """
     threshold = float(params.get("threshold", 0.05))
     volumes = list(params.get("volumes", ["mrro", "evspsbl"]))
-    states = list(params.get("states", probe.requires_states))
+    states = list(params.get("states", ["mrso", "snw", "canopy"]))
     driver = str(params.get("driver", "pr"))
 
-    fine = make_window(pick(runs, params, "fine", "fine"), probe)
-    coarse = make_window(pick(runs, params, "coarse", "coarse"), probe)
-
-    fine_days = len(fine.table) * fine.dt_days
-    coarse_days = len(coarse.table) * coarse.dt_days
-    if abs(fine_days - coarse_days) > max(fine.dt_days, coarse.dt_days):
-        raise ValueError(
-            f"the two variants cover different stretches of time ({fine_days:g} "
-            f"and {coarse_days:g} days); the coarse variant must be the fine one "
-            "aggregated, not a different record"
-        )
-    if driver not in fine.forcing.columns or driver not in coarse.forcing.columns:
+    if len(runs) < 2:
+        raise ValueError("resolution_invariance needs the model run at two steps or more")
+    ordered = sorted(runs.items(), key=lambda kv: kv[1].case.dt_days)
+    finest_name, finest_run = ordered[0]
+    fine = make_window(finest_run, probe)
+    if driver not in fine.forcing.columns:
         raise ValueError(f"resolution_invariance needs '{driver}' in the forcing")
-
     total_fine = float(fine.volume(fine.forcing[driver]).sum())
-    total_coarse = float(coarse.volume(coarse.forcing[driver]).sum())
     if total_fine <= 0:
         return CriterionResult(
             name="resolution_invariance", status=FAIL,
             message=f"no {driver} fell in the scored window; case is degenerate",
         )
-    if abs(total_fine - total_coarse) > 1e-4 * total_fine:
-        raise ValueError(
-            f"the variants do not carry the same water ({total_fine:.4f} and "
-            f"{total_coarse:.4f} mm of {driver}); aggregation must preserve totals"
-        )
+
+    def integrated(w, var):
+        return float(w.volume(w.table[var]).sum())
 
     deviations: dict[str, float] = {}
-    totals: dict[str, dict[str, float]] = {"fine": {}, "coarse": {}}
+    totals: dict[str, dict[str, float]] = {finest_run.case.timestep: {}}
     for var in volumes:
-        if var not in fine.table.columns or var not in coarse.table.columns:
-            raise ValueError(f"resolution_invariance needs '{var}' in the model result")
-        v_fine = float(fine.volume(fine.table[var]).sum())
-        v_coarse = float(coarse.volume(coarse.table[var]).sum())
-        totals["fine"][var], totals["coarse"][var] = v_fine, v_coarse
-        deviations[var] = abs(v_fine - v_coarse) / total_fine
+        if var in fine.table.columns:
+            totals[finest_run.case.timestep][var] = integrated(fine, var)
     for var in states:
-        if var not in fine.table.columns or var not in coarse.table.columns:
-            continue
-        s_fine = float(fine.table[var].iloc[-1])
-        s_coarse = float(coarse.table[var].iloc[-1])
-        totals["fine"][f"{var}_end"], totals["coarse"][f"{var}_end"] = s_fine, s_coarse
-        deviations[f"{var}_end"] = abs(s_fine - s_coarse) / total_fine
+        if var in fine.table.columns:
+            totals[finest_run.case.timestep][f"{var}_end"] = float(fine.table[var].iloc[-1])
 
-    worst_var, worst = max(deviations.items(), key=lambda kv: kv[1])
+    for name, run in ordered[1:]:
+        coarse = make_window(run, probe)
+        step = run.case.timestep
+        fine_days = len(fine.table) * fine.dt_days
+        coarse_days = len(coarse.table) * coarse.dt_days
+        if abs(fine_days - coarse_days) > max(fine.dt_days, coarse.dt_days):
+            raise ValueError(
+                f"the {finest_run.case.timestep} and {step} runs cover different "
+                f"stretches of time ({fine_days:g} and {coarse_days:g} days); the "
+                "coarse variant must be the fine one aggregated, not a different record"
+            )
+        total_coarse = float(coarse.volume(coarse.forcing[driver]).sum())
+        if abs(total_fine - total_coarse) > 1e-4 * total_fine:
+            raise ValueError(
+                f"the {finest_run.case.timestep} and {step} runs do not carry the same "
+                f"water ({total_fine:.4f} and {total_coarse:.4f} mm of {driver}); "
+                "aggregation must preserve totals"
+            )
+        totals[step] = {}
+        for var in volumes:
+            if var not in fine.table.columns or var not in coarse.table.columns:
+                continue
+            v_coarse = integrated(coarse, var)
+            totals[step][var] = v_coarse
+            deviations[f"{var} {step}"] = (
+                abs(totals[finest_run.case.timestep][var] - v_coarse) / total_fine
+            )
+        for var in states:
+            if var not in fine.table.columns or var not in coarse.table.columns:
+                continue
+            s_coarse = float(coarse.table[var].iloc[-1])
+            totals[step][f"{var}_end"] = s_coarse
+            deviations[f"{var}_end {step}"] = (
+                abs(totals[finest_run.case.timestep][f"{var}_end"] - s_coarse) / total_fine
+            )
+
+    if not deviations:
+        raise ValueError(
+            f"resolution_invariance found none of {volumes + states} in the model result"
+        )
+    worst_key, worst = max(deviations.items(), key=lambda kv: kv[1])
+    worst_var, worst_step = worst_key.split(" ")
     ok = worst <= threshold
-    fine_step = pick(runs, params, "fine", "fine").case.timestep
-    coarse_step = pick(runs, params, "coarse", "coarse").case.timestep
+    steps = " and ".join(run.case.timestep for _, run in ordered)
     return CriterionResult(
         name="resolution_invariance",
         status=PASS if ok else FAIL,
         value=worst,
         threshold=threshold,
         message=(
-            f"integrated volumes agree between {fine_step} and {coarse_step} "
+            f"integrated volumes agree between {steps} "
             f"(worst {worst_var} {worst:.3%} of {driver})"
             if ok
             else (
-                f"{worst_var} differs by {worst:.2%} of {driver} between "
-                f"{fine_step} and {coarse_step} (limit {threshold:.0%})"
+                f"{worst_var} differs by {worst:.1%} of {driver} between "
+                f"{finest_run.case.timestep} and {worst_step} (limit {threshold:.0%})"
             )
         ),
         diagnostics={
-            "fine_step": fine_step,
-            "coarse_step": coarse_step,
+            "steps": [run.case.timestep for _, run in ordered],
             "driver_total_mm": total_fine,
             "deviations": deviations,
             "totals": totals,
