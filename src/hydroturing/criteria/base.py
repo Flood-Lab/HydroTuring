@@ -104,8 +104,14 @@ class Window:
 
 
 def make_window(run: RunResult, probe: ProbeSpec) -> Window:
+    """The scored stretch of one run, at that run's own step.
+
+    The step comes from the case rather than the probe, because a paired
+    probe may run its variants at different steps and each run's per-step
+    depths have to be integrated with its own dt.
+    """
     case = run.case
-    start = case.spinup_days
+    start = case.spinup_steps
     if start >= len(run.table):
         raise ValueError("spinup consumes the entire record; nothing left to score")
 
@@ -114,7 +120,7 @@ def make_window(run: RunResult, probe: ProbeSpec) -> Window:
         forcing=case.forcing.iloc[start:].reset_index(drop=True),
         table=run.table.iloc[start:].reset_index(drop=True),
         state0=run.table.iloc[prior],
-        dt_days=probe.dt_days,
+        dt_days=case.dt_days,
     )
 
 

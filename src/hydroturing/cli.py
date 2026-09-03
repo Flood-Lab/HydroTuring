@@ -164,14 +164,16 @@ def cmd_list(args) -> int:
     print(f"probes ({len(probes)}):")
     for p in probes:
         req = ", ".join(p.required_vars)
-        print(f"  {p.id:<34} {p.law:<9} {p.track:<10} seeds={p.n_seeds}  needs: {req}")
+        steps = "/".join(p.timesteps)
+        print(f"  {p.id:<34} {p.law:<9} {p.track:<10} {steps:<10} seeds={p.n_seeds}  needs: {req}")
     print(f"\nmodels ({len(models)}):")
     for m in models:
         matching = next((p for p in probes if p.timestep == m.timestep), None)
         days = resolve_window_days(m, matching) if matching else m.window_days
         window = "full" if days is None else f"{days}d"
+        steps = "/".join(m.timesteps)
         print(
-            f"  {m.name:<24} v{m.version:<8} runner={m.runner:<11} "
+            f"  {m.name:<24} v{m.version:<8} runner={m.runner:<11} {steps:<22} "
             f"window={window:<5} emits: {', '.join(m.emitted)}"
         )
     return 0
@@ -219,7 +221,10 @@ def cmd_verify_adapter(args) -> int:
     if args.probe:
         probe = registry.find_probe(args.probe, roots)
     else:
-        probe = next((p for p in probes if p.timestep == model.timestep), probes[0])
+        probe = next(
+            (p for p in probes if all(model.supports_timestep(t) for t in p.timesteps)),
+            probes[0],
+        )
 
     seed = gate_seeds(probe.id, 1)[0]
     try:

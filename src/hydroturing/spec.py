@@ -33,7 +33,16 @@ UNITS = {
     "canopy": "mm",
 }
 
-TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0}
+# Supported timesteps as ISO 8601 durations, and their length in days. Fluxes
+# are always rates in mm per day whatever the step, so a per-step depth is
+# the rate times the step length.
+TIMESTEP_DAYS = {
+    "PT1D": 1.0,
+    "PT1H": 1.0 / 24.0,
+    "PT15M": 1.0 / 96.0,
+    "PT5M": 1.0 / 288.0,
+    "PT1M": 1.0 / 1440.0,
+}
 
 # How much of the scored record a submitted model is evaluated on when its
 # manifest does not say. A heavy model is tested on the largest flood event
@@ -41,7 +50,7 @@ TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0}
 # month of daily output or a week of hourly output is enough to see the
 # event and short enough to fit the container's time budget. Reference
 # models always see the full record, because the acceptance gate runs on it.
-DEFAULT_WINDOW_DAYS = {"PT1D": 30, "PT1H": 7}
+DEFAULT_WINDOW_DAYS = {"PT1D": 30, "PT1H": 7, "PT15M": 7, "PT5M": 7, "PT1M": 7}
 FULL_WINDOW = "full"
 
 # These repository-owned baselines are the only code allowed to bypass the
@@ -54,6 +63,7 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_in_sample",
     "reference_leaky",
     "reference_streamflow_only",
+    "reference_fixed_step",
 }
 
 
@@ -106,6 +116,12 @@ class ProbeSpec:
     must_fail: dict[str, str]
     provenance: str
     path: Path
+    # Length of the scored record in days. `period_years` is the usual way
+    # to say it; a short sub-daily probe says `period_days` instead.
+    period_days: float = 0.0
+    # A paired probe may run its variants at different steps, which is how a
+    # resolution transform is expressed. Absent variants use `timestep`.
+    variant_timesteps: dict[str, str] = field(default_factory=dict)
 
     @property
     def required_vars(self) -> tuple[str, ...]:
@@ -123,6 +139,30 @@ class ProbeSpec:
     def dt_days(self) -> float:
         return TIMESTEP_DAYS[self.timestep]
 
+    def timestep_for(self, variant: str | None) -> str:
+        """The step a variant runs at; the probe's own step unless declared."""
+        if variant is None:
+            return self.timestep
+        return self.variant_timesteps.get(variant, self.timestep)
+
+    @property
+    def timesteps(self) -> tuple[str, ...]:
+        """Every step this probe runs a model at, control first."""
+        steps = [self.timestep]
+        for variant in self.variants:
+            step = self.timestep_for(variant)
+            if step not in steps:
+                steps.append(step)
+        return tuple(steps)
+
+    def spinup_steps_for(self, variant: str | None = None) -> int:
+        return int(round(self.spinup_days / TIMESTEP_DAYS[self.timestep_for(variant)]))
+
+    def n_steps_for(self, variant: str | None = None) -> int:
+        """Rows a generator must produce for a variant: spinup plus the period."""
+        dt = TIMESTEP_DAYS[self.timestep_for(variant)]
+        return int(round(self.period_days / dt)) + self.spinup_steps_for(variant)
+
     @property
     def control(self) -> str | None:
         """The variant every single-run criterion is scored against.
@@ -139,7 +179,10 @@ class ModelManifest:
     name: str
     version: str
     entrypoint: tuple[str, ...]
-    timestep: str
+    # Every step the model can be run at, native step first. A model that
+    # only works at one resolution lists one, and is INCOMPATIBLE with any
+    # probe that needs another: that is a finding, not a failure to run.
+    timesteps: tuple[str, ...]
     emits_fluxes: tuple[str, ...]
     emits_states: tuple[str, ...]
     runner: str
@@ -154,6 +197,14 @@ class ModelManifest:
     # FULL_WINDOW for the whole record, or None to take the default for the
     # kind of model (see DEFAULT_WINDOW_DAYS).
     window_days: int | str | None = None
+
+    @property
+    def timestep(self) -> str:
+        """The native step, which is what a single-step probe is matched on."""
+        return self.timesteps[0]
+
+    def supports_timestep(self, timestep: str) -> bool:
+        return timestep in self.timesteps
 
     @property
     def emitted(self) -> tuple[str, ...]:
@@ -220,6 +271,25 @@ def load_probe(path: str | Path) -> ProbeSpec:
     variants = tuple(case.get("variants", []))
     _check_variants(spec_file, criteria, variants)
 
+    if "period_days" in case:
+        period_days = float(case["period_days"])
+    else:
+        period_days = float(case["period_years"]) * 365.0
+    period_years = float(case.get("period_years", period_days / 365.0))
+
+    variant_timesteps = dict(case.get("timesteps", {}))
+    unknown_variants = [v for v in variant_timesteps if v not in variants]
+    if unknown_variants:
+        raise SpecError(
+            f"{spec_file}: case.timesteps names {unknown_variants}, which are not "
+            f"in case.variants {list(variants)}"
+        )
+    if variants and variant_timesteps.get(variants[0], case["timestep"]) != case["timestep"]:
+        raise SpecError(
+            f"{spec_file}: the control variant '{variants[0]}' must run at "
+            f"case.timestep ({case['timestep']})"
+        )
+
     requires = raw.get("requires", {})
     return ProbeSpec(
         id=raw["id"],
@@ -234,8 +304,10 @@ def load_probe(path: str | Path) -> ProbeSpec:
         generator=case["generator"],
         n_seeds=case["n_seeds"],
         timestep=case["timestep"],
-        period_years=case["period_years"],
+        period_years=period_years,
         spinup_days=case["spinup_days"],
+        period_days=period_days,
+        variant_timesteps=variant_timesteps,
         max_output_mb=case.get("max_output_mb", 5.0),
         max_runtime_s=case.get("max_runtime_s", 120.0),
         variants=tuple(case.get("variants", [])),
@@ -302,11 +374,16 @@ def load_model(path: str | Path) -> ModelManifest:
     if unknown:
         raise SpecError(f"{spec_file}: unknown variables in emits: {unknown}")
 
+    declared = raw["timestep"]
+    timesteps = tuple(declared) if isinstance(declared, list) else (declared,)
+    if len(set(timesteps)) != len(timesteps):
+        raise SpecError(f"{spec_file}: timestep lists a step twice")
+
     return ModelManifest(
         name=raw["name"],
         version=str(raw["version"]),
         entrypoint=tuple(raw["entrypoint"]),
-        timestep=raw["timestep"],
+        timesteps=timesteps,
         emits_fluxes=tuple(raw["emits"]["fluxes"]),
         emits_states=tuple(raw["emits"]["states"]),
         runner=runner,

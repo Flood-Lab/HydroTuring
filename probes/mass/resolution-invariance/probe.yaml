@@ -1,0 +1,77 @@
+id: mass/resolution-invariance
+title: Integrated runoff must not depend on the step the weather was given at
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Zhi Li
+    affiliation: University of Colorado Boulder
+    github: chrimerss
+
+description: >
+  One month of synthetic weather generated minute by minute, with storms
+  that have structure inside the hour, handed to the model twice: once at
+  the minute step and once aggregated to hourly means, so that every hour
+  carries the same water. Water is conserved under that aggregation, so the
+  runoff and evapotranspiration volumes over the month, and the storage the
+  model ends with, must agree between the two runs. A model built at one
+  resolution and run at another drains its stores as if each row were the
+  step it was trained on, and its volumes come out different at every step.
+  Peaks legitimately change with the step and are not judged here.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1M
+  period_days: 30
+  spinup_days: 10
+  max_output_mb: 8.0
+  max_runtime_s: 120
+
+  # The control is the minute record; `hourly` is the same weather averaged
+  # over each hour. A model has to declare both steps to be run on this
+  # probe. One that runs at a single step is INCOMPATIBLE, which is a
+  # finding about the model rather than a failure of the probe.
+  variants: [minute, hourly]
+  timesteps:
+    hourly: PT1H
+
+criteria:
+  # Invariance without closure is satisfiable by reporting zeros twice.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+
+  - forcing_fidelity:
+      variables: [pr]
+      rtol: 1.0e-6
+
+  # The probe's own assertion: integrated volumes and end-of-window storage
+  # agree between the steps, to within the engineering rule's share of the
+  # precipitation that fell.
+  - resolution_invariance:
+      fine: minute
+      coarse: hourly
+      volumes: [mrro, evspsbl]
+      threshold: 0.05
+
+baselines:
+  must_pass: [reference_bucket]
+  must_fail:
+    reference_fixed_step: resolution_invariance
+
+provenance: >
+  Synthetic. One minute-by-minute weather sequence per seed, generated at run
+  time and aggregated to hours for the second variant. Nothing is committed
+  as data.

@@ -9,7 +9,7 @@ authors: ["HydroTuring maintainers"]
 license: MIT
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
-timestep: PT1D
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
 emits:
   fluxes: [pr, evspsbl, mrro]
   states: [mrso, snw, canopy]

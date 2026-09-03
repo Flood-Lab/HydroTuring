@@ -17,6 +17,7 @@ import pytest
 
 from hydroturing import registry
 from hydroturing.harness import (
+    WindowBounds,
     WindowError,
     build_case,
     resolve_window_days,
@@ -54,7 +55,7 @@ def test_reference_models_default_to_the_full_record(probe):
 def test_submitted_models_default_to_a_flood_event(probe):
     assert resolve_window_days(_submitted(), probe) == DEFAULT_WINDOW_DAYS["PT1D"]
     hourly = replace(probe, timestep="PT1H")
-    assert resolve_window_days(_submitted(timestep="PT1H"), hourly) == DEFAULT_WINDOW_DAYS["PT1H"]
+    assert resolve_window_days(_submitted(timesteps=("PT1H",)), hourly) == DEFAULT_WINDOW_DAYS["PT1H"]
 
 
 def test_manifest_and_command_line_decide_the_window(probe):
@@ -76,25 +77,29 @@ def test_window_lands_on_the_flood_the_reference_model_produces(probe):
     from hydroturing.runner import get_runner
 
     case = build_case(probe, gate_seeds(probe.id, 1)[0])
-    start, stop = select_window(case, probe, 30)
-    assert stop - start == 30
-    assert start >= case.spinup_days
+    bounds = select_window(case, probe, 30)
+    offset, rows = bounds.rows(case.dt_days)
+    start, stop = case.spinup_steps + offset, case.spinup_steps + offset + rows
+    assert rows == 30
 
     reference = registry.find_model("reference_bucket")
     run = get_runner(reference).run(reference, probe, case, Path(tempfile.mkdtemp()))
     runoff = run.table["mrro"].to_numpy()
-    peak = case.spinup_days + int(np.argmax(runoff[case.spinup_days :]))
+    peak = case.spinup_steps + int(np.argmax(runoff[case.spinup_steps :]))
     assert start <= peak < stop
 
 
 def test_window_keeps_its_spinup_and_records_what_was_scored(probe):
     case = build_case(probe, 5)
-    start, stop = select_window(case, probe, 30)
-    cut = window_case(case, start, stop, 30)
+    bounds = select_window(case, probe, 30)
+    offset, rows = bounds.rows(case.dt_days)
+    start, stop = case.spinup_steps + offset, case.spinup_steps + offset + rows
+    cut = window_case(case, bounds)
 
-    assert cut.n_steps == case.spinup_days + 30
-    assert cut.spinup_days == case.spinup_days
-    assert cut.forcing["time"].iloc[0] == case.forcing["time"].iloc[start - case.spinup_days]
+    assert cut.n_steps == case.spinup_steps + 30
+    assert cut.spinup_steps == case.spinup_steps
+    assert cut.timestep == case.timestep
+    assert cut.forcing["time"].iloc[0] == case.forcing["time"].iloc[start - case.spinup_steps]
     assert cut.window == {
         "days": 30,
         "rows": 30,
@@ -102,14 +107,16 @@ def test_window_keeps_its_spinup_and_records_what_was_scored(probe):
         "end": case.forcing["time"].iloc[stop - 1],
     }
     # The scored stretch is exactly the rows the selection named.
-    scored = cut.forcing.iloc[cut.spinup_days :].reset_index(drop=True)
+    scored = cut.forcing.iloc[cut.spinup_steps :].reset_index(drop=True)
     expected = case.forcing.iloc[start:stop].reset_index(drop=True)
     assert scored.equals(expected)
 
 
 def test_window_longer_than_the_record_is_the_record(probe):
     case = build_case(probe, 5)
-    assert select_window(case, probe, 10_000) == (case.spinup_days, case.n_steps)
+    cut = window_case(case, select_window(case, probe, 10_000))
+    assert cut.n_steps == case.n_steps
+    assert cut.window["rows"] == case.n_steps - case.spinup_steps
 
 
 def test_window_that_drops_a_labelled_stretch_is_incompatible(probe):
@@ -124,15 +131,16 @@ def test_window_that_drops_a_labelled_stretch_is_incompatible(probe):
         seed=case.seed,
         forcing=case.forcing.assign(_regime=labels),
         static=case.static,
-        spinup_days=case.spinup_days,
+        spinup_steps=case.spinup_steps,
+        timestep=case.timestep,
     )
-    start = labelled.spinup_days + 10
     with pytest.raises(WindowError, match="anomaly"):
-        window_case(labelled, start, start + 30, 30)
+        window_case(labelled, WindowBounds(offset_days=10.0, days=30))
 
     # A window that keeps every labelled stretch can be scored.
-    cut = window_case(labelled, labelled.n_steps - 200, labelled.n_steps, 200)
-    assert set(cut.forcing["_regime"].iloc[cut.spinup_days :]) == {"ordinary", "anomaly"}
+    scored_rows = labelled.n_steps - labelled.spinup_steps
+    cut = window_case(labelled, WindowBounds(offset_days=float(scored_rows - 200), days=200))
+    assert set(cut.forcing["_regime"].iloc[cut.spinup_steps :]) == {"ordinary", "anomaly"}
 
 
 def test_exact_model_passes_on_a_flood_window(probe):

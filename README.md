@@ -46,6 +46,7 @@ before it can be merged.
 | `reference_degenerate` | evaporates all precipitation, produces no runoff | `non_degenerate` |
 | `reference_in_sample` | exact in range, leaks once the forcing leaves it | `regime_transfer` |
 | `reference_calendar` | recession that drifts with the calendar year | `invariance` |
+| `reference_fixed_step` | treats every row as a day whatever the step is | `resolution_invariance` |
 
 `reference_cheater` is the one worth dwelling on. Its closure residual is
 **exactly zero on every seed, forever**. Randomising the forcing cannot touch

@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 import inspect
 import tempfile
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +27,7 @@ from hydroturing.seeds import eval_seeds, gate_seeds
 from hydroturing.spec import (
     DEFAULT_WINDOW_DAYS,
     FULL_WINDOW,
+    TIMESTEP_DAYS,
     TRUSTED_SUBPROCESS_MODELS,
     ModelManifest,
     ProbeSpec,
@@ -98,34 +99,58 @@ def event_signal(case: Case, probe: ProbeSpec) -> np.ndarray | None:
     return None
 
 
-def select_window(case: Case, probe: ProbeSpec, days: int) -> tuple[int, int]:
-    """Row bounds (stop exclusive) of the `days`-long flood event after spinup.
+@dataclass(frozen=True)
+class WindowBounds:
+    """Where the evaluation window sits, in time rather than rows.
+
+    Time, so that the same stretch of weather can be cut from variants that
+    run at different steps: an offset into the scored record and a length,
+    both in days.
+    """
+
+    offset_days: float
+    days: int
+
+    def rows(self, dt_days: float) -> tuple[int, int]:
+        """Start offset and length in rows at a given step."""
+        return int(round(self.offset_days / dt_days)), max(1, int(round(self.days / dt_days)))
+
+
+def select_window(case: Case, probe: ProbeSpec, days: int) -> WindowBounds:
+    """The `days`-long flood event after spinup.
 
     The event is the stretch over which `event_signal` accumulates the most,
     so a window lands on the largest multi-day flood of the record rather
     than on a single wet day. A window at least as long as the scored record
-    is the whole record.
+    starts at the record's start and covers all of it.
     """
-    rows = max(1, int(round(days / probe.dt_days)))
-    scored_start = case.spinup_days
-    if rows >= len(case.forcing) - scored_start:
-        return scored_start, len(case.forcing)
+    _, rows = WindowBounds(0.0, days).rows(case.dt_days)
+    scored_rows = case.n_steps - case.spinup_steps
+    if rows >= scored_rows:
+        return WindowBounds(0.0, days)
 
     offset = 0
     signal = event_signal(case, probe)
     if signal is not None:
-        totals = np.convolve(signal[scored_start:], np.ones(rows), mode="valid")
+        totals = np.convolve(signal[case.spinup_steps :], np.ones(rows), mode="valid")
         offset = int(np.argmax(totals))
-    start = scored_start + offset
-    return start, start + rows
+
+    # Snap the start to the coarsest step the probe runs at, so that every
+    # variant is cut at the same instant. A window that began in the middle
+    # of an hour would hand the hourly variant a different half hour of rain
+    # than the minute variant, and the comparison would be off by a storm.
+    grain = max(TIMESTEP_DAYS[step] for step in probe.timesteps)
+    offset_days = np.floor(offset * case.dt_days / grain + 1e-9) * grain
+    return WindowBounds(float(offset_days), days)
 
 
-def window_case(case: Case, start: int, stop: int, days: int) -> Case:
+def window_case(case: Case, bounds: WindowBounds) -> Case:
     """Cut a case down to a window, keeping the spinup that leads into it.
 
-    The scored stretch is `forcing[start:stop]`; the model receives the
-    `spinup_days` rows before it as well, so its own spinup is the same
-    length as it would be on the full record.
+    The scored stretch starts `bounds.offset_days` into the scored record
+    and runs for `bounds.days`, converted to rows at this case's own step.
+    The model receives the spinup rows before it as well, so its own spinup
+    is the same length as it would be on the full record.
 
     A generator that labels the record (any `_`-prefixed column) has told the
     criteria that particular stretches matter. If the window drops a label
@@ -133,25 +158,32 @@ def window_case(case: Case, start: int, stop: int, days: int) -> Case:
     that is reported as incompatible rather than quietly evaluated on the
     wrong stretch.
     """
-    lookback = start - case.spinup_days
-    forcing = case.forcing.iloc[lookback:stop].reset_index(drop=True)
+    offset, rows = bounds.rows(case.dt_days)
+    start = case.spinup_steps + offset
+    stop = min(start + rows, case.n_steps)
+    if start >= case.n_steps:
+        raise WindowError(
+            f"a window {bounds.offset_days:g} days into the scored record falls "
+            "outside a record that short"
+        )
+    forcing = case.forcing.iloc[start - case.spinup_steps : stop].reset_index(drop=True)
 
     for column in case.forcing.columns:
         if not column.startswith("_"):
             continue
-        full = set(case.forcing[column].iloc[case.spinup_days :].astype(str))
-        kept = set(forcing[column].iloc[case.spinup_days :].astype(str))
+        full = set(case.forcing[column].iloc[case.spinup_steps :].astype(str))
+        kept = set(forcing[column].iloc[case.spinup_steps :].astype(str))
         lost = sorted(full - kept)
         if lost:
             raise WindowError(
-                f"a {days}-day window drops the {lost} stretch of '{column}' that "
-                "this probe scores; evaluate the full record instead "
+                f"a {bounds.days}-day window drops the {lost} stretch of '{column}' "
+                "that this probe scores; evaluate the full record instead "
                 "(window_days: full)"
             )
 
-    scored = forcing.iloc[case.spinup_days :]
+    scored = forcing.iloc[case.spinup_steps :]
     window = {
-        "days": days,
+        "days": bounds.days,
         "rows": stop - start,
         "start": str(scored["time"].iloc[0]),
         "end": str(scored["time"].iloc[-1]),
@@ -161,7 +193,8 @@ def window_case(case: Case, start: int, stop: int, days: int) -> Case:
         seed=case.seed,
         forcing=forcing,
         static=dict(case.static),
-        spinup_days=case.spinup_days,
+        spinup_steps=case.spinup_steps,
+        timestep=case.timestep,
         window=window,
     )
 
@@ -202,11 +235,14 @@ def build_case(probe: ProbeSpec, seed: int, variant: str | None = None) -> Case:
     if "time" not in forcing.columns:
         raise ValueError(f"{probe.generator} must produce a 'time' column")
 
-    expected = int(round(probe.period_years * 365)) + probe.spinup_days
+    timestep = probe.timestep_for(variant)
+    expected = probe.n_steps_for(variant)
     if len(forcing) != expected:
+        which = "" if variant is None else f" for variant '{variant}'"
         raise ValueError(
-            f"{probe.generator} produced {len(forcing)} steps, expected {expected} "
-            f"({probe.period_years:g} years plus {probe.spinup_days} spinup days)"
+            f"{probe.generator} produced {len(forcing)} steps{which}, expected "
+            f"{expected} ({probe.period_days:g} days plus {probe.spinup_days} "
+            f"spinup days at {timestep})"
         )
 
     return Case(
@@ -214,7 +250,8 @@ def build_case(probe: ProbeSpec, seed: int, variant: str | None = None) -> Case:
         seed=seed,
         forcing=forcing,
         static=dict(static),
-        spinup_days=probe.spinup_days,
+        spinup_steps=probe.spinup_steps_for(variant),
+        timestep=timestep,
     )
 
 
@@ -243,11 +280,20 @@ def compatibility_issues(
     *,
     check_perturbation: bool = True,
 ) -> list[str]:
-    """Explain why a model cannot be meaningfully run on a probe."""
+    """Explain why a model cannot be meaningfully run on a probe.
+
+    With a case in hand only that case's step is checked; without one, every
+    step the probe runs at. A model that works at one resolution and is asked
+    for another is incompatible, which is a finding about the model, not an
+    error.
+    """
     issues: list[str] = []
-    if model.timestep != probe.timestep:
+    needed = [case.timestep] if case is not None else list(probe.timesteps)
+    unsupported = [t for t in needed if not model.supports_timestep(t)]
+    if unsupported:
         issues.append(
-            f"model timestep {model.timestep} does not match probe timestep {probe.timestep}"
+            f"model timestep {'/'.join(model.timesteps)} does not cover the probe's "
+            f"{'/'.join(unsupported)}"
         )
     if check_perturbation and probe.variants and not model.supports_perturbation:
         issues.append("model does not declare support for paired perturbation cases")
@@ -283,7 +329,7 @@ def verify_adapter_contract(
 
     days = resolve_window_days(model, probe, window)
     if days is not None:
-        case = window_case(case, *select_window(case, probe, days), days)
+        case = window_case(case, select_window(case, probe, days))
 
     smoke_probe = replace(
         probe,
@@ -356,9 +402,10 @@ def run_probe(
     for seed in seeds:
         runs: dict[str, RunResult] = {}
         # One window per seed, chosen on the control variant and applied to
-        # every variant by position, so a paired probe still compares the
-        # same stretch of the same weather under its two treatments.
-        bounds: tuple[int, int] | None = None
+        # every variant in time, so a paired probe still compares the same
+        # stretch of the same weather under its two treatments, even when
+        # the treatments run at different steps.
+        bounds: WindowBounds | None = None
         try:
             for variant in variants:
                 suffix = f"__{variant}" if variant else ""
@@ -371,7 +418,7 @@ def run_probe(
                     if bounds is None:
                         bounds = select_window(case, probe, days)
                     try:
-                        case = window_case(case, *bounds, days)
+                        case = window_case(case, bounds)
                     except WindowError as exc:
                         return incompatible_outcome([str(exc)])
                     if variant in (None, variants[0]):

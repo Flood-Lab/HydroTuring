@@ -1,0 +1,20 @@
+name: reference_fixed_step
+version: "1.0.0"
+description: >
+  The reference bucket with its step hard-wired: it claims to run at any
+  resolution and ignores the one it is given, treating every row as a day.
+  Exact at a daily step and wrong in proportion to how far the real step is
+  from a day, so its integrated volumes differ at every resolution it is
+  run at. Stands in for a model built at one resolution and run at another.
+authors: ["HydroTuring maintainers"]
+license: MIT
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

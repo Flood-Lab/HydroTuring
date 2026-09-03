@@ -56,7 +56,12 @@ Requirements:
 
 - deterministic given the seed, byte for byte
 - a `time` column
-- exactly `period_years * 365 + spinup_days` rows
+- exactly the period plus the spinup, counted in rows at the probe's step:
+  `period_years * 365 + spinup_days` rows for a daily probe, and for a
+  sub-daily one `(period_days + spinup_days) / step`, where `period_days`
+  may replace `period_years` in `case`
+- fluxes as rates in mm per day whatever the step, so a minute of rain at
+  one millimetre is a rate of 1440 mm/day
 - no committed data files; CI rejects anything over 1 MB under `probes/`
 
 Determinism is not a nicety. A benchmark whose failures cannot be reproduced
@@ -124,6 +129,31 @@ becoming a silent no-op.
 Draw everything that comes from the seed before you branch on the variant. Two
 variants that differ in the weather as well as in the perturbation cannot
 isolate the perturbation, and the comparison means nothing.
+
+### Variants at different steps
+
+A resolution transform is the same weather at two steps. Declare the step of
+any variant that does not run at `case.timestep`:
+
+```yaml
+case:
+  timestep: PT1M
+  period_days: 30
+  spinup_days: 10
+  variants: [minute, hourly]
+  timesteps:
+    hourly: PT1H
+```
+
+The control keeps `case.timestep`. Each variant's row count follows its own
+step, the harness hands the model the step in `request.json`, and criteria
+integrate each run with its own step, so a paired criterion can compare a
+minute record with its hourly aggregate. Aggregate, do not redraw: the coarse
+variant must carry exactly the water of the fine one, and
+`resolution_invariance` refuses a pair that does not. A model has to declare
+every step the probe uses; one that runs at a single step is INCOMPATIBLE
+with the probe, which is the honest verdict for it. See
+`probes/mass/resolution-invariance` for the worked example.
 
 ## Baselines
 

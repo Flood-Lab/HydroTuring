@@ -27,7 +27,7 @@ from typing import Any
 
 import pandas as pd
 
-from hydroturing.spec import ModelManifest, ProbeSpec, UNITS
+from hydroturing.spec import TIMESTEP_DAYS, ModelManifest, ProbeSpec, UNITS
 
 REQUEST_FILE = "request.json"
 FORCING_FILE = "input/forcing.csv"
@@ -65,7 +65,11 @@ class Case:
     seed: int
     forcing: pd.DataFrame
     static: dict[str, Any]
-    spinup_days: int
+    # Rows of spinup in front of the scored record, at this case's step.
+    spinup_steps: int
+    # The step this case runs at, as an ISO 8601 duration. A paired probe
+    # may run its variants at different steps.
+    timestep: str = "PT1D"
     # Set when the record was cut down to an evaluation window: the days
     # asked for and the first and last scored timestamps. The model is never
     # told; it sees a shorter forcing and nothing else.
@@ -75,8 +79,12 @@ class Case:
     def n_steps(self) -> int:
         return len(self.forcing)
 
+    @property
+    def dt_days(self) -> float:
+        return TIMESTEP_DAYS[self.timestep]
+
     def after_spinup(self, frame: pd.DataFrame) -> pd.DataFrame:
-        return frame.iloc[self.spinup_days :].reset_index(drop=True)
+        return frame.iloc[self.spinup_steps :].reset_index(drop=True)
 
 
 @dataclass
@@ -108,7 +116,7 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
     request = {
         "case_id": case_id,
         "seed": model_seed,
-        "timestep": probe.timestep,
+        "timestep": case.timestep,
         "n_steps": case.n_steps,
         "request": {
             # Asking for every declared output keeps this part of the request

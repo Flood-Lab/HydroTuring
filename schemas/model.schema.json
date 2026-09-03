@@ -20,7 +20,16 @@
       "type": "array", "minItems": 1, "items": {"type": "string"},
       "description": "argv prefix. The harness appends --request <path>."
     },
-    "timestep": {"type": "string", "enum": ["PT1H", "PT1D"]},
+    "timestep": {
+      "oneOf": [
+        {"type": "string", "enum": ["PT1D", "PT1H", "PT15M", "PT5M", "PT1M"]},
+        {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"type": "string", "enum": ["PT1D", "PT1H", "PT15M", "PT5M", "PT1M"]}
+        }
+      ],
+      "description": "The step(s) the model can be run at, native step first. A single-step model lists one and is INCOMPATIBLE with probes that need another."
+    },
     "emits": {
       "type": "object",
       "required": ["fluxes", "states"],

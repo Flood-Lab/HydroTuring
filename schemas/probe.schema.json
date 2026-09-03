@@ -103,7 +103,6 @@
         "generator",
         "n_seeds",
         "timestep",
-        "period_years",
         "spinup_days"
       ],
       "additionalProperties": false,
@@ -120,13 +119,18 @@
         "timestep": {
           "type": "string",
           "enum": [
+            "PT1D",
             "PT1H",
-            "PT1D"
-          ]
+            "PT15M",
+            "PT5M",
+            "PT1M"
+          ],
+          "description": "The step the control case runs at. Fluxes are rates in mm/day at every step."
         },
         "period_years": {
           "type": "number",
-          "minimum": 1
+          "exclusiveMinimum": 0,
+          "description": "Length of the scored record in years. Use period_days for a short sub-daily record."
         },
         "spinup_days": {
           "type": "integer",
@@ -152,8 +156,39 @@
             "pattern": "^[a-z][a-z0-9_]*$"
           },
           "description": "Paired-run probes only. Names of the cases the generator produces for one seed; the model is run once per variant and paired criteria compare the results. The first name is the control."
+        },
+        "period_days": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Length of the scored record in days; an alternative to period_years."
+        },
+        "timesteps": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "PT1D",
+              "PT1H",
+              "PT15M",
+              "PT5M",
+              "PT1M"
+            ]
+          },
+          "description": "Paired-run probes only. The step each named variant runs at, where it differs from case.timestep. The control keeps case.timestep. This is how a resolution transform is declared: the same weather at two steps."
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "period_years"
+          ]
+        },
+        {
+          "required": [
+            "period_days"
+          ]
+        }
+      ]
     },
     "criteria": {
       "type": "array",

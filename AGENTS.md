@@ -54,6 +54,23 @@ window_days: 30      # or any positive number of days, or "full"
 Reference models always see the full record, because the acceptance gate is
 defined on it.
 
+## The timestep
+
+`request.json` names the step the case runs at, as an ISO 8601 duration:
+`PT1D`, `PT1H`, `PT15M`, `PT5M` or `PT1M`. Fluxes are rates in mm per day at
+every step, so the depth moved in one row is the rate times the step
+length, and a one-millimetre burst in one minute arrives as 1440 mm/day.
+Declare every step the model can honestly run at in `model.yaml`, native
+step first:
+
+```yaml
+timestep: [PT1H, PT1M]     # or a single step: PT1D
+```
+
+A probe that runs the same weather at two steps needs both. A model that
+only works at one is INCOMPATIBLE with that probe, which is reported as
+such; it is never run at a step it did not declare.
+
 ## Variable names and units
 
 | Name | Meaning | Units |

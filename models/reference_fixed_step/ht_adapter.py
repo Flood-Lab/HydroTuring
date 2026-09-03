@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
-"""HydroTuring adapter. Standard library only, to show that the /io contract
-needs no scientific Python stack and could be written in any language."""
+"""HydroTuring adapter: the reference bucket with its step hard-wired.
+
+Identical physics to `reference_bucket`, with one omission that is the whole
+point: it never reads `timestep` from the request. Every row is treated as
+one day, whatever the row actually is. Handed hourly rows it drains its
+stores and consumes its potential evaporation twenty-four times too fast;
+handed minute rows, fourteen hundred times. That is the arithmetic of a
+model built and trained at one resolution and run at another, and the
+resolution-invariance probe exists to catch it."""
 
 from __future__ import annotations
 
@@ -12,35 +19,19 @@ from pathlib import Path
 
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso", "snw", "canopy"]
 
-MODEL = {"name": "reference_bucket", "version": "1.0.0"}
+MODEL = {"name": "reference_fixed_step", "version": "1.0.0"}
 
 
 EVAP_SHAPE = 0.5  # soil moisture at which evaporation reaches its potential rate
 
-# Steps the contract can name, as a fraction of a day. Forcing and reported
-# fluxes are rates in mm per day at every step; the depth moved in one step
-# is the rate times this.
-TIMESTEP_DAYS = {
-    "PT1D": 1.0,
-    "PT1H": 1.0 / 24.0,
-    "PT15M": 1.0 / 96.0,
-    "PT5M": 1.0 / 288.0,
-    "PT1M": 1.0 / 1440.0,
-}
 
+def simulate(forcing, static):
+    """The reference bucket, with every row taken to be one day.
 
-def simulate(forcing, static, dt_days=1.0):
-    """A conceptual bucket that conserves water exactly by construction.
-
-    Interception, degree-day snow, saturation-excess runoff, linear baseflow,
-    and soil-moisture-limited evaporation. Every flux is removed from the
-    store it actually came from, so the budget closes to floating point.
-
-    `dt_days` is the length of one forcing row. Rates are turned into depths
-    with it on the way in and back into rates on the way out, so the same
-    catchment integrates the same water whatever step the weather arrives
-    at. At a daily step every factor is exactly 1.0 and the arithmetic is
-    bit for bit what it was before the step was a parameter.
+    Rates arrive in mm per day and are applied as if a whole day had passed,
+    so the model is exact at a daily step and wrong in proportion to how far
+    the real step is from a day. The budget still closes in its own units;
+    what breaks is the answer's dependence on the step.
     """
     soil_cap = static["soil_capacity_mm"]
     canopy_cap = static["canopy_capacity_mm"]
@@ -54,15 +45,13 @@ def simulate(forcing, static, dt_days=1.0):
     rows = []
 
     for step in forcing:
-        pr_rate, tas, pet_rate = step["pr"], step["tas"], step["pet"]
-        pr = pr_rate * dt_days
-        pet = pet_rate * dt_days
+        pr, tas, pet = step["pr"], step["tas"], step["pet"]
 
         snowfall = pr if tas < t_snow else 0.0
         rain = 0.0 if tas < t_snow else pr
 
         swe += snowfall
-        melt = min(swe, ddf * max(tas - t_snow, 0.0) * dt_days)
+        melt = min(swe, ddf * max(tas - t_snow, 0.0))
         swe -= melt
 
         water_in = rain + melt
@@ -77,16 +66,16 @@ def simulate(forcing, static, dt_days=1.0):
         soil += throughfall
         surface = max(0.0, soil - soil_cap)
         soil -= surface
-        baseflow = k_base * soil * dt_days
+        baseflow = k_base * soil
         soil -= baseflow
         soil_evap = min(soil, pet_left * min(1.0, soil / (EVAP_SHAPE * soil_cap)))
         soil -= soil_evap
 
         rows.append({
             "time": step["time"],
-            "pr": pr_rate,
-            "evspsbl": (canopy_evap + soil_evap) / dt_days,
-            "mrro": (surface + baseflow) / dt_days,
+            "pr": pr,
+            "evspsbl": canopy_evap + soil_evap,
+            "mrro": surface + baseflow,
             "mrso": soil,
             "snw": swe,
             "canopy": canopy,
@@ -126,10 +115,7 @@ def main() -> int:
     forcing = read_forcing(io_dir / request["input"]["forcing"])
     static = json.loads((io_dir / request["input"]["static"]).read_text())
 
-    timestep = request.get("timestep", "PT1D")
-    if timestep not in TIMESTEP_DAYS:
-        raise SystemExit(f"unsupported timestep {timestep!r}")
-    rows = simulate(forcing, static, TIMESTEP_DAYS[timestep])
+    rows = simulate(forcing, static)
 
     write_result(io_dir / request["output"]["table"], rows)
     (io_dir / request["output"]["run"]).write_text(

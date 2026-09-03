@@ -111,7 +111,7 @@ def test_missing_variables_report_incomplete_not_violation(probe):
 
 
 def test_incompatible_timestep_is_reported_before_execution(probe):
-    model = replace(registry.find_model("reference_bucket"), timestep="PT1H")
+    model = replace(registry.find_model("reference_bucket"), timesteps=("PT1H",))
     outcome = run_probe(model, probe, [11])
     assert outcome.verdict == FAIL
     assert outcome.reason == INCOMPATIBLE
@@ -498,7 +498,7 @@ def test_annotations_are_not_staged_for_the_model(tmp_path):
         seed=case.seed,
         forcing=case.forcing.assign(_regime="anomaly"),
         static=case.static,
-        spinup_days=case.spinup_days,
+        spinup_steps=case.spinup_steps,
     )
 
     stage(tmp_path, case, probe, model)
