@@ -51,8 +51,10 @@ whole record, in `model.yaml`:
 window_days: 30      # or any positive number of days, or "full"
 ```
 
-Reference models always see the full record, because the acceptance gate is
-defined on it.
+A probe may set a minimum window when its expectation only holds over a
+longer stretch; the warming-response probe asks for a year. Reference
+models always see the full record, because the acceptance gate is defined
+on it.
 
 ## The timestep
 

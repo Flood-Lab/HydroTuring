@@ -83,6 +83,7 @@ Every one is binary.
 | `counterfactual_response` | added water is partitioned, not absorbed | paired runs |
 | `invariance` | a transform the physics ignores changes nothing | paired runs |
 | `resolution_invariance` | integrated volumes agree between the same weather at two steps | paired runs at different steps |
+| `response_sign` | perturb one driver, hold the rest: the response must point the way physics says, by a real share of the added demand | paired runs |
 
 Picking a denominator for `closure` and `regime_transfer`:
 
@@ -120,6 +121,10 @@ results. The generator takes the variant as well as the seed:
 ```python
 def generate(seed: int, variant: str = "control") -> tuple[pd.DataFrame, dict]:
 ```
+
+A probe whose expectation only holds over a long enough stretch, such as the
+sign of a response to warming, sets `case.min_window_days` and a submitted
+model's evaluation window is widened to at least that.
 
 The first variant is the control. Every non-paired criterion is scored against
 it alone, so adding a variant to a probe never silently changes what its
@@ -185,11 +190,12 @@ The reference models available today:
 | --- | --- | --- |
 | `reference_bucket` | conserves water exactly by construction | nothing, it must pass |
 | `reference_leaky` | hides a silent 15% sink | `closure` |
-| `reference_cheater` | solves for storage as whatever balances the budget | `state_bounds` |
-| `reference_degenerate` | evaporates all precipitation, produces no runoff | `non_degenerate`, `counterfactual_response` |
+| `reference_cheater` | solves for storage as whatever balances the budget; runoff is a fixed share of rain | `state_bounds`, `response_sign` |
+| `reference_degenerate` | evaporates all precipitation, produces no runoff | `non_degenerate`, `counterfactual_response`, `response_sign` |
 | `reference_in_sample` | exact in range, leaks outside it | `regime_transfer` |
 | `reference_calendar` | recession drifts with the calendar year | `invariance` |
-| `reference_streamflow_only` | reports too little to be checked | scored `INCOMPLETE` |
+| `reference_fixed_step` | treats every row as a day whatever the step is | `resolution_invariance` |
+| `reference_streamflow_only` | reports runoff only, from a store that never reads the temperature | scored `INCOMPLETE` on budget probes; `response_sign` |
 
 If your probe needs a broken model that does not exist yet, add it under
 `models/` alongside the probe. A criterion with nothing that trips it is

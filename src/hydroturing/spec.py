@@ -127,6 +127,11 @@ class ProbeSpec:
     # resolution probe measures every model against the step it was built
     # at and never asks a daily model for a month of minutes.
     variant_selection: str = "all"
+    # The shortest evaluation window a probe's expectation holds over. A
+    # sign of response to warming means nothing inside one month of a melt
+    # or a dry-down; such a probe asks for at least a year, and a submitted
+    # model's window is widened to it.
+    min_window_days: int = 0
 
     @property
     def required_vars(self) -> tuple[str, ...]:
@@ -321,6 +326,7 @@ def load_probe(path: str | Path) -> ProbeSpec:
         period_days=period_days,
         variant_timesteps=variant_timesteps,
         variant_selection=case.get("variant_selection", "all"),
+        min_window_days=int(case.get("min_window_days", 0)),
         max_output_mb=case.get("max_output_mb", 5.0),
         max_runtime_s=case.get("max_runtime_s", 120.0),
         variants=tuple(case.get("variants", [])),

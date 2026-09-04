@@ -43,6 +43,23 @@ that exists. The point prediction is the median of the model's own CMAL
 mixture samples, seeded from the request so a case reproduces exactly.
 `run.json` records all of this per run.
 
+## What each probe variable reaches inside the model
+
+A probe that perturbs one forcing variable and holds the others needs to
+know where each one goes. This is the complete map for this adapter:
+
+| Probe variable | Model inputs it reaches | Held fixed by |
+| --- | --- | --- |
+| `pr` | the four precipitation inputs (HRES, GraphCast, IMERG, CPC); the cloudiness factor in the mocked net solar and net thermal radiation; the precipitation attributes `p_mean`, `aridity`, `moisture_index`, `seasonality`, `frac_snow`, `high_prec_*`, `low_prec_*`, `pre_mm_syr`, `ari_ix_sav` | a perturbation of `tas` or `pet` |
+| `tas` | the two temperature inputs (HRES, GraphCast); the mocked net thermal radiation, through air temperature and vapour pressure; `frac_snow` and `tmp_dc_syr` | a perturbation of `pr` |
+| `pet` | the demand attributes `pet_mean`, `aridity`, `moisture_index`, `seasonality`, `pet_mm_syr`, `ari_ix_sav`; nothing dynamic, because none of the model's products carries potential evaporation | a perturbation of `pr` |
+| `static` | only `area_km2` (to convert depth to discharge) and `latitude_deg` (for the mocked radiation); every other attribute the model wants is derived from the forcing above or held at its training mean | everything |
+
+So the warming probe, which raises `tas` and `pet` together over identical
+rain, reaches the model through its two temperature products, its
+longwave radiation and its temperature and demand attributes, while every
+precipitation input and the cloud-driven radiation stay fixed.
+
 ## Evaluation window
 
 The submission asked for no particular window, so the manifest takes the
@@ -59,6 +76,7 @@ budget.
 | `ht verify-adapter` on `mass/catchment-closure`, gate seed 598896396 | contract OK: 395 rows in 20 s, columns `mrro`, `dis`, no missing products |
 | `ht run` on `mass/catchment-closure` | FAIL (INCOMPLETE): does not report `pr`, `evspsbl`, `mrso`, `snw`, `canopy` |
 | `ht run` on `mass/resolution-invariance` | FAIL (VIOLATION): runoff volume differs by 58% of precipitation between hourly and daily runs of the same month (11%, 38%, 58% on the three gate seeds) |
+| `ht run` on `mass/warming-response` | PASS: over a year of the same rain with the air 3 degC warmer, runoff falls by 14 to 48 percent of the added evaporative demand across the five gate seeds |
 
 Archived in [`models/result.csv`](../result.csv).
 
@@ -85,6 +103,18 @@ here: what is measured is the released weights under mock radiation and
 pressure and average-catchment attributes, not the operational system.
 
 ![forcing, reference snowpack and runoff around the scored event](event_window_seed598896396.png)
+
+### Response to warming
+
+The warming probe holds the rain and raises the air temperature by three
+degrees over a full year, with potential evaporation following it, and
+reaches this model through the two temperature products, the mocked net
+longwave radiation and the temperature and demand attributes (see the map
+above). The model's runoff falls, by 14 to 48 percent of the added demand
+depending on the seed, against 17 to 20 percent for the exact reference
+bucket on the same weather. The sign is the physical one and the size is
+plausible: an internal relationship between temperature and streamflow
+that a model fitting hydrographs did not have to carry, but does.
 
 ### Dependence on the step
 

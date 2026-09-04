@@ -67,7 +67,9 @@ def resolve_window_days(
     days = int(choice)
     if days < 1:
         raise ValueError(f"an evaluation window must be at least one day, not {days}")
-    return days
+    # A probe whose expectation only holds over a long enough stretch widens
+    # the window to it. The model's own preference is a floor, not a cap.
+    return max(days, probe.min_window_days)
 
 
 def event_signal(case: Case, probe: ProbeSpec) -> np.ndarray | None:

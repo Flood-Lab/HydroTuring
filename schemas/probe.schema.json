@@ -182,6 +182,11 @@
             "native_and_finer"
           ],
           "description": "Which variants a model is run on. \"all\" (default) runs every variant. \"native_and_finer\" runs the variant at the model's own step and the one at the next finer step (the finest pairs with the next coarser), for probes whose variants are the same weather at different steps."
+        },
+        "min_window_days": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The shortest evaluation window this probe's expectation holds over, in days. A submitted model's window is widened to at least this; reference models see the full record anyway."
         }
       },
       "anyOf": [
