@@ -1,15 +1,24 @@
 # mass/warming-response
 
-**Warmer air over the same rain must mean more evaporation and less runoff.**
+**Warmer air over the same rain must mean less runoff, and cooler air more.**
 
 ## The physics
 
 Hold the rain fixed and warm the air. The demand for water from the
 atmosphere rises with temperature, so more of the same water evaporates and
-less of it runs off. Integrated over a long enough stretch, where the
-change in storage is small next to the fluxes, the extra evaporation and
-the lost runoff are the same water: their shares of the added demand sum to
-about one, with the split set by how water-limited the catchment is.
+less of it runs off. Cool the air and the reverse happens. Integrated over
+a long enough stretch, where the change in storage is small next to the
+fluxes, the extra evaporation and the lost runoff are the same water: per
+unit of demand added or removed, the two responses sum to about one, with
+the split set by how water-limited the catchment is.
+
+The probe pushes the driver both ways and scores each direction against
+the control on its own. That is not redundancy. A model can carry the
+relationship as a one-way rule, learned from the hot dry years in its
+training record and never exercised the other way; it can saturate, so
+that more demand does nothing once the soil is dry while less demand still
+does; or it can clip an output at zero. Any of these gets one direction
+right and the other wrong, and only the pair shows it.
 
 This is not a closure statement. A model can close its budget exactly on
 both runs and still get the relationship backwards, or ignore the
@@ -28,17 +37,18 @@ Snow is avoided on purpose. In a snowy catchment warming also moves the
 melt, and the sign of the runoff response inside any one season depends on
 timing rather than on evaporation.
 
-The `warmer` variant is the same draw with the air three degrees warmer
-over the scored years and potential evaporation recomputed from the warmer
-air, which adds about 140 mm a year of demand. The spinup is untouched so
-both runs enter the window from the same state, and the precipitation is
-byte-identical, which the criterion checks.
+The `warmer` and `cooler` variants are the same draw with the air three
+degrees warmer and three degrees cooler over the scored years, potential
+evaporation recomputed from each, which adds and removes about 140 mm a
+year of demand. The spinup is untouched so every run enters the window
+from the same state, and the precipitation is byte-identical, which the
+criterion checks.
 
 ## Criteria
 
 | Criterion | What it asserts |
 | --- | --- |
-| `response_sign` | integrated runoff falls, and evaporation rises where the model reports it, by at least a tenth of the added demand and by no more than all of it; the reported value is the runoff change as a share of the added demand |
+| `response_sign` | per unit of demand added or removed, integrated runoff moves the opposite way and evaporation, where reported, the same way, by at least a tenth and by no more than all of it, under warming and under cooling separately; the reported value is the weakest runoff response per unit of demand |
 | `non_degenerate` | runoff varies with the weather, so a constant cannot pass |
 
 Only runoff is required, so a model that reports streamflow and nothing else
@@ -49,7 +59,10 @@ dominated by storage and can point either way.
 ## Baselines
 
 - `must_pass: reference_bucket`. Its evaporation is limited by soil moisture
-  and by demand, so warming raises it and lowers runoff by the same water.
+  and by demand, so warming raises it and lowers runoff by the same water,
+  and cooling does the reverse: on the gate seeds, 0.20 of the demand
+  change under warming and 0.24 under cooling, the asymmetry being the soil
+  running short of water to give when demand rises.
 - `must_fail: reference_degenerate`, which evaporates all precipitation
   whatever the temperature and so responds by exactly nothing, and
   `reference_streamflow_only`, which runs off a fixed share of a store that
@@ -57,8 +70,8 @@ dominated by storage and can point either way.
 
 ## Adapting a model to this probe
 
-The probe changes `tas` and `pet` together and holds `pr`. An adapter has
-to carry that into the model's own inputs consistently: every input derived
+The probe changes `tas` and `pet` together, in both directions, and holds
+`pr`. An adapter has to carry that into the model's own inputs consistently: every input derived
 from temperature or demand should move, and nothing derived from
 precipitation may. Say in the model's README which inputs the probe's
 temperature reaches. For the Google Flood Hub model, for instance, it

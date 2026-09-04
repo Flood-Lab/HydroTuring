@@ -1,8 +1,8 @@
 id: mass/warming-response
-title: Warmer air over the same rain must mean more evaporation and less runoff
+title: Warmer air over the same rain must mean less runoff, and cooler air more
 law: mass
 track: synthetic
-version: 1
+version: 2
 
 authors:
   - name: Zhi Li
@@ -10,16 +10,19 @@ authors:
     github: chrimerss
 
 description: >
-  The same ten years of rain twice, once as drawn and once with the air
-  three degrees warmer over the scored years, potential evaporation
-  following the temperature. Nothing else changes. Warmer air over the same
-  water means more of it evaporates and less of it runs off, so integrated
-  over the record the model's runoff must fall, and its evaporation must
-  rise where it reports one, by a real share of the extra demand and by no
-  more than all of it. This is an ablation of one driver, holding the
-  other fixed, to see whether the model's internal relationship between
-  temperature and streamflow points the way the physics says. A catchment
-  without snow, so that timing does not confound the sign.
+  The same ten years of rain three times: as drawn, with the air three
+  degrees warmer over the scored years, and with it three degrees cooler,
+  potential evaporation following the temperature each time. Nothing else
+  changes. Warmer air over the same water means more of it evaporates and
+  less runs off; cooler air the reverse. Integrated over the record the
+  model's runoff must fall under warming and rise under cooling, and its
+  evaporation the opposite where it reports one, each by a real share of
+  the change in demand and by no more than all of it, and each direction
+  on its own, because a model can carry the relationship as a one-way rule.
+  This is an ablation of one driver, holding the other fixed, to see whether
+  the model's internal relationship between temperature and streamflow
+  points the way the physics says. A catchment without snow, so that timing
+  does not confound the sign.
 
 requires:
   fluxes: [mrro]
@@ -38,20 +41,20 @@ case:
   # widened to a full year.
   min_window_days: 365
 
-  # The first name is the control. Both variants carry byte-identical rain;
-  # `warmer` differs only in temperature and the potential evaporation that
-  # follows from it, and only over the scored years, so both enter the
-  # window from the same state.
-  variants: [control, warmer]
+  # The first name is the control. Every variant carries byte-identical
+  # rain; `warmer` and `cooler` differ only in temperature and the potential
+  # evaporation that follows from it, and only over the scored years, so all
+  # enter the window from the same state.
+  variants: [control, warmer, cooler]
 
 criteria:
-  # Runoff must fall and evaporation must rise, each by at least a tenth of
-  # the added evaporative demand and by no more than all of it. Evaporation
-  # is checked only for models that report it; runoff is enough to be
-  # scored.
+  # Per unit of demand, runoff must fall and evaporation must rise, each by
+  # at least a tenth and by no more than all of it, under warming and under
+  # cooling separately. Evaporation is checked only for models that report
+  # it; runoff is enough to be scored.
   - response_sign:
       control: control
-      perturbed: warmer
+      perturbed: [warmer, cooler]
       driver: pet
       fixed: [pr]
       expect:
@@ -80,4 +83,5 @@ baselines:
 
 provenance: >
   Synthetic. One weather sequence per seed, generated at run time, warmed
-  three degrees for the second variant. Nothing is committed as data.
+  three degrees for one variant and cooled three for the other. Nothing is
+  committed as data.

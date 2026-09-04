@@ -76,7 +76,7 @@ budget.
 | `ht verify-adapter` on `mass/catchment-closure`, gate seed 598896396 | contract OK: 395 rows in 20 s, columns `mrro`, `dis`, no missing products |
 | `ht run` on `mass/catchment-closure` | FAIL (INCOMPLETE): does not report `pr`, `evspsbl`, `mrso`, `snw`, `canopy` |
 | `ht run` on `mass/resolution-invariance` | FAIL (VIOLATION): runoff volume differs by 58% of precipitation between hourly and daily runs of the same month (11%, 38%, 58% on the three gate seeds) |
-| `ht run` on `mass/warming-response` | PASS: over a year of the same rain with the air 3 degC warmer, runoff falls by 14 to 48 percent of the added evaporative demand across the five gate seeds |
+| `ht run` on `mass/warming-response` | PASS in both directions: over a year of the same rain, runoff per unit of demand change is -0.48 to -0.14 with the air 3 degC warmer and -0.75 to -0.20 with it 3 degC cooler, across the five gate seeds |
 
 Archived in [`models/result.csv`](../result.csv).
 
@@ -104,17 +104,23 @@ pressure and average-catchment attributes, not the operational system.
 
 ![forcing, reference snowpack and runoff around the scored event](event_window_seed598896396.png)
 
-### Response to warming
+### Response to warming and cooling
 
-The warming probe holds the rain and raises the air temperature by three
-degrees over a full year, with potential evaporation following it, and
-reaches this model through the two temperature products, the mocked net
-longwave radiation and the temperature and demand attributes (see the map
-above). The model's runoff falls, by 14 to 48 percent of the added demand
-depending on the seed, against 17 to 20 percent for the exact reference
-bucket on the same weather. The sign is the physical one and the size is
-plausible: an internal relationship between temperature and streamflow
-that a model fitting hydrographs did not have to carry, but does.
+The warming probe holds the rain and shifts the air temperature by three
+degrees over a full year, warmer in one variant and cooler in another,
+with potential evaporation following it, and reaches this model through
+the two temperature products, the mocked net longwave radiation and the
+temperature and demand attributes (see the map above). The model's runoff
+falls when demand rises and rises when it falls, in every seed and both
+directions: per unit of demand, -0.48 to -0.14 under
+warming and -0.75 to -0.20 under cooling, against
+0.20 and 0.24 for the exact reference bucket on the same weather. The sign
+is the physical one both ways and the size is plausible, if larger than
+the bucket's and less regular: the two directions differ by up to a factor
+of two within a seed, cooling answering more strongly on two seeds and
+warming on three. That is an internal relationship between temperature
+and streamflow which a model fitting hydrographs did not have to carry,
+and does, in both directions.
 
 ### Dependence on the step
 

@@ -83,7 +83,7 @@ Every one is binary.
 | `counterfactual_response` | added water is partitioned, not absorbed | paired runs |
 | `invariance` | a transform the physics ignores changes nothing | paired runs |
 | `resolution_invariance` | integrated volumes agree between the same weather at two steps | paired runs at different steps |
-| `response_sign` | perturb one driver, hold the rest: the response must point the way physics says, by a real share of the added demand | paired runs |
+| `response_sign` | perturb one driver both ways, hold the rest: each response must point the way physics says, by a real share of the change in demand | paired runs |
 
 Picking a denominator for `closure` and `regime_transfer`:
 

@@ -1,12 +1,14 @@
-"""Forcing generator for mass/warming-response: the same rain, warmer air.
+"""Forcing generator for mass/warming-response: the same rain, warmer or
+cooler air.
 
-Deterministic given a seed and a variant. Both variants carry the same
+Deterministic given a seed and a variant. All variants carry the same
 precipitation, drawn once from the seed before anything branches on the
-variant. The `warmer` variant adds a fixed increment to the air temperature
-over the scored years and recomputes potential evaporation from the warmer
-air, because that is how the demand for water changes when the air warms.
-The spinup is left alone, so both variants enter the window from the same
-state and the difference between the runs is the warming and nothing else.
+variant. The `warmer` variant adds three degrees to the air temperature
+over the scored years and the `cooler` variant removes three, each
+recomputing potential evaporation from its own air, because that is how
+the demand for water changes when the air warms or cools. The spinup is
+left alone, so every variant enters the window from the same state and the
+difference between the runs is the temperature shift and nothing else.
 
 The catchment is temperate and rain-dominated: mean air temperature around
 15 degC and rarely below freezing, so that snow timing cannot confound the
@@ -24,8 +26,8 @@ PERIOD_YEARS = 10
 SPINUP_DAYS = 365
 N_STEPS = PERIOD_YEARS * 365 + SPINUP_DAYS
 
-VARIANTS = ("control", "warmer")
-WARMING_DEGC = 3.0
+VARIANTS = ("control", "warmer", "cooler")
+SHIFT_DEGC = {"control": 0.0, "warmer": 3.0, "cooler": -3.0}
 
 STATIC = {
     "area_km2": 250.0,
@@ -65,9 +67,12 @@ def generate(seed: int, variant: str = "control") -> tuple[pd.DataFrame, dict]:
     tas = seasonal + noise
 
     # --- the perturbation ---------------------------------------------------
-    if variant == "warmer":
+    # Both ways. A model can carry "hotter means drier" as a one-way rule,
+    # saturate in one direction, or clip at zero; pushing the driver both
+    # ways and scoring each against the control is what tells.
+    if SHIFT_DEGC[variant]:
         tas = tas.copy()
-        tas[SPINUP_DAYS:] += WARMING_DEGC
+        tas[SPINUP_DAYS:] += SHIFT_DEGC[variant]
     pet = potential_evaporation(tas, doy)
 
     time = pd.date_range("2000-01-01", periods=N_STEPS, freq="D")
@@ -84,16 +89,18 @@ def generate(seed: int, variant: str = "control") -> tuple[pd.DataFrame, dict]:
 
 if __name__ == "__main__":
     control, _ = generate(20260903, "control")
-    warmer, _ = generate(20260903, "warmer")
     years = PERIOD_YEARS
     scored = slice(SPINUP_DAYS, None)
-    print(f"{N_STEPS} steps; precipitation {control['pr'][scored].sum() / years:.0f} mm/yr in both variants")
+    print(f"{N_STEPS} steps; precipitation {control['pr'][scored].sum() / years:.0f} mm/yr in every variant")
     print(f"control: tas {control['tas'][scored].mean():.1f} degC, "
           f"pet {control['pet'][scored].sum() / years:.0f} mm/yr, "
           f"{int((control['tas'] < 0).sum())} sub-zero days")
-    print(f"warmer:  tas {warmer['tas'][scored].mean():.1f} degC, "
-          f"pet {warmer['pet'][scored].sum() / years:.0f} mm/yr "
-          f"(+{(warmer['pet'][scored].sum() - control['pet'][scored].sum()) / years:.0f} mm/yr of demand)")
-    assert control["pr"].equals(warmer["pr"]), "the rain must be identical"
-    assert control["tas"][:SPINUP_DAYS].equals(warmer["tas"][:SPINUP_DAYS]), "spinup must be identical"
+    for name in ("warmer", "cooler"):
+        other, _ = generate(20260903, name)
+        delta = (other["pet"][scored].sum() - control["pet"][scored].sum()) / years
+        print(f"{name}:  tas {other['tas'][scored].mean():.1f} degC, "
+              f"pet {other['pet'][scored].sum() / years:.0f} mm/yr ({delta:+.0f} mm/yr of demand), "
+              f"{int((other['tas'] < 0).sum())} sub-zero days")
+        assert control["pr"].equals(other["pr"]), "the rain must be identical"
+        assert control["tas"][:SPINUP_DAYS].equals(other["tas"][:SPINUP_DAYS]), "spinup must be identical"
     print("rain identical, spinup identical, as they should be")
