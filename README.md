@@ -32,6 +32,10 @@ reference_bucket v1.0.0  ->  ✅ PASS (OK)  [1/1 probes passed]
         ✅  forcing_fidelity   reported forcing matches the input
 ```
 
+<p align="center">
+  <img src="res/hydroturing-infra.svg" alt="Any AI hydrologic model enters through the /io contract, HydroTuring probes it against mass, energy and momentum, and a verdict with its reason comes out" width="800">
+</p>
+
 ## The idea
 
 A benchmark that only checks closure is trivially gamed. Three models in this
