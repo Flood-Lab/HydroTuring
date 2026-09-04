@@ -38,23 +38,10 @@ reference_bucket v1.0.0  ->  ✅ PASS (OK)  [1/1 probes passed]
 
 ## The idea
 
-A benchmark that only checks closure is trivially gamed. Three models in this
-repository exist to prove it, and every probe must be able to catch all three
-before it can be merged.
-
-| Reference model | What it does | Caught by |
-| --- | --- | --- |
-| `reference_bucket` | conserves water exactly by construction | nothing, it must pass |
-| `reference_leaky` | hides a silent 15% sink | `closure` |
-| `reference_cheater` | solves for storage as whatever balances the budget | `state_bounds` |
-| `reference_degenerate` | evaporates all precipitation, produces no runoff | `non_degenerate` |
-| `reference_in_sample` | exact in range, leaks once the forcing leaves it | `regime_transfer` |
-| `reference_calendar` | recession that drifts with the calendar year | `invariance` |
-| `reference_fixed_step` | treats every row as a day whatever the step is | `resolution_invariance` |
-| `reference_anticipating` | reports runoff smoothed over a centred window, so it sees three days ahead | `causality` |
-| `reference_climatology` | emits the seasonal mean whatever falls, and keeps flowing without rain | `dry_down` |
-| `reference_saturating` | caps its daily runoff, so an extreme storm adds rain and no runoff | `monotone_response` |
-| `reference_restless` | recession on an internal thirty-day clock, never settles | `steady_state` |
+A benchmark that only checks closure is trivially gamed. A set of deliberately
+broken models lives in this repository to prove it, and no probe is merged
+until it passes an exactly conservative model and catches the broken ones it
+names.
 
 `reference_cheater` is the one worth dwelling on. Its closure residual is
 **exactly zero on every seed, forever**. Randomising the forcing cannot touch
@@ -62,6 +49,48 @@ it, because the cheat is in its internal wiring rather than its memory. It is
 caught only because the model contract requires absolute storage states rather
 than tendencies, so the storage it invents has to stay physical, and it does
 not.
+
+## The probes
+
+Seven, all of them mass so far. Each was merged only after the acceptance gate
+saw it pass a model that conserves water exactly and fail a purpose-built
+broken one on the named criterion. `ht list` prints them;
+[ROADMAP.md](ROADMAP.md#probes-we-want) has the seventeen more we want, all
+unclaimed.
+
+| Probe | Law | What it asks | The broken model it catches |
+| --- | --- | --- | --- |
+| [`mass/catchment-closure`](probes/mass/catchment-closure) | mass | Does the water budget close over ten generated years? | `reference_leaky`, `reference_cheater`, `reference_degenerate` |
+| [`mass/resolution-invariance`](probes/mass/resolution-invariance) | mass | The same month at the minute, the hour and the day: do the integrated volumes agree? | `reference_fixed_step`, `reference_degenerate` |
+| [`mass/warming-response`](probes/mass/warming-response) | mass | The same rain with the air 3 °C warmer and 3 °C cooler: does runoff move the way physics says, in both directions? | `reference_degenerate`, `reference_streamflow_only` |
+| [`mass/causality`](probes/mass/causality) | mass | One storm added mid-record: nothing may change before it, and runoff must answer after it. | `reference_anticipating` |
+| [`mass/dry-down`](probes/mass/dry-down) | mass | Two years without rain: runoff can only fall, and no more may drain than the catchment held. | `reference_climatology` |
+| [`mass/steady-state`](probes/mass/steady-state) | mass | Three years of the same day: does everything settle, and does the budget balance once it has? | `reference_restless` |
+| [`mass/extreme-rain`](probes/mass/extreme-rain) | mass | The largest storm scaled up to ten times: runoff may not fall, nor exceed the rain that was added. | `reference_saturating` |
+
+## Models
+
+`models/` holds two kinds. A submitted model is there to be evaluated, and
+every run of one is appended to [models/result.csv](models/result.csv). A
+reference model is there to test the probes rather than to be tested: one that
+is exactly conservative and must pass everything, and a set that is each broken
+in one specific way, so that no criterion goes untested.
+
+| Model | Kind | What it does | Standing |
+| --- | --- | --- | --- |
+| [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (INCOMPLETE)**, 2 of 7 probes passed |
+| `reference_bucket` | exact | conserves water exactly by construction | must pass every probe |
+| `reference_leaky` | broken | hides a silent 15% sink | caught by `closure` |
+| `reference_cheater` | broken | solves for storage as whatever balances the budget | caught by `state_bounds` |
+| `reference_degenerate` | broken | evaporates all precipitation, produces no runoff | caught by `non_degenerate`, `response_sign` |
+| `reference_fixed_step` | broken | treats every row as a day whatever the step is | caught by `resolution_invariance` |
+| `reference_anticipating` | broken | smooths runoff over a centred window, so three days of the future are in every value | caught by `causality` |
+| `reference_climatology` | broken | emits the seasonal mean whatever falls, and keeps flowing without rain | caught by `dry_down` |
+| `reference_saturating` | broken | caps its daily runoff, so an extreme storm adds rain and no runoff | caught by `monotone_response` |
+| `reference_restless` | broken | a recession on an internal thirty-day clock, so it never settles | caught by `steady_state` |
+| `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | scored INCOMPLETE on budget probes; caught by `response_sign` |
+| `reference_in_sample` | broken | exact in range, leaks once the forcing leaves it | waiting for a `regime_transfer` probe |
+| `reference_calendar` | broken | a recession that drifts with the calendar year | waiting for an `invariance` probe |
 
 ## How a case is generated
 
@@ -184,7 +213,7 @@ settled.
 
 ## Status
 
-Suite `0.1.0`, pre-release. One probe (mass), synthetic track only. Energy,
+Suite `0.1.0`, pre-release. Seven probes, all mass, synthetic track only. Energy,
 momentum and the real-data track are next. The harness runs paired cases and
 scores labelled regimes, so the generalisation probes on the roadmap —
 extrapolation in space and time, counterfactual response, invariance — are
