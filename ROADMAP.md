@@ -56,6 +56,24 @@ most consequential for runoff timing.
 ### `mass/catchment-closure` &middot; **merged**
 The reference implementation. Read it before writing your own.
 
+### `mass/resolution-invariance` &middot; **merged**
+The same month at the minute, the hour and the day: do the volumes agree?
+
+### `mass/warming-response` &middot; **merged**
+Same rain, air 3 °C warmer and cooler: does runoff move the right way, both ways?
+
+### `mass/causality` &middot; **merged**
+One storm added: nothing may change before it, something must after.
+
+### `mass/dry-down` &middot; **merged**
+Two years without rain: runoff can only fall, and only stored water can drain.
+
+### `mass/steady-state` &middot; **merged**
+Three years of the same day: everything settles and the budget balances.
+
+### `mass/extreme-rain` &middot; **merged**
+The largest storm scaled to ten times: runoff cannot fall, nor exceed the rain added.
+
 ### `mass/snowpack-mass-closure` &middot; starter &middot; **unclaimed**
 Snowfall minus melt minus sublimation minus the change in SWE.
 *Discriminates:* models that quietly lose water at the rain-snow transition,

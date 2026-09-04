@@ -144,6 +144,9 @@ td.mono{font-size:12.8px; color:var(--ink); white-space:nowrap}
   background:var(--surface-2); color:var(--ink-2); white-space:nowrap}
 .tag.pass{background:var(--pass-soft); color:var(--pass)}
 .tag.fail{background:var(--fail-soft); color:var(--fail)}
+.tag.merged{background:var(--pass-soft); color:var(--pass)}
+.tag.accepted,.tag.progress{background:var(--accent-soft); color:var(--accent)}
+.tag.wanted{background:var(--surface-2); color:var(--muted)}
 
 .callout{border-left:3px solid var(--accent); background:var(--accent-soft); padding:16px 20px; border-radius:0 8px 8px 0; margin:22px 0}
 .callout p{margin:0; max-width:42em; font-size:15.5px}
@@ -173,6 +176,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
     <nav class="links">
       <a class="navlink" href="#mission" data-i18n="nav.mission">Mission</a>
       <a class="navlink" href="#how" data-i18n="nav.how">How it works</a>
+      <a class="navlink" href="#probes" data-i18n="nav.probes">Probes</a>
       <a class="navlink" href="#probe" data-i18n="nav.probe">Contribute a probe</a>
       <a class="navlink" href="#model" data-i18n="nav.model">Submit a model</a>
       <a class="navlink" href="#credit" data-i18n="nav.credit">Credit</a>
@@ -378,6 +382,49 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
 
     <h3 data-i18n="verdict.h">Verdicts</h3>
     <div data-i18n-html="verdict.body"></div>
+    <h3 data-i18n="example.h">One model through the suite</h3>
+    <div data-i18n-html="example.intro"></div>
+<pre><span class="p">ht</span> run --model google_flood_forecast --gate-seeds
+google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (INCOMPLETE)  [2/7 probes passed]
+  ❌ FAIL  mass/catchment-closure
+          missing: pr, evspsbl, mrso, snw, canopy
+  ❌ FAIL  mass/resolution-invariance
+        ❌  resolution_invariance mrro differs by 65.9% of pr between PT1H and PT1D (limit 5%)
+        ✅  non_degenerate     partition and variability are non-trivial
+  ❌ FAIL  mass/warming-response
+        ❌  response_sign      warmer (more pet): mrro fell by 12.5 mm, -0.088 per unit of demand; a decrease of at least 0.1 per unit is expected
+        ✅  non_degenerate     partition and variability are non-trivial
+  ✅ PASS  mass/causality
+        ✅  causality          nothing moves before the storm of 2002-02-04 (worst 0.0e+00 relative) and mrro answers it afterwards (+0.318 of the added rain)
+        ✅  non_degenerate     partition and variability are non-trivial
+  ❌ FAIL  mass/dry-down
+        ✅  dry_down           drains without rain: 224 mm over 730 dry days against a 322 mm bound, and nothing rises
+        ❌  non_degenerate     mrro is nearly constant (cv 0.0192 &lt; 0.1)
+  ✅ PASS  mass/steady-state
+        ✅  steady_state       settles: runoff 0.630 mm/day under 2.500 mm/day of rain, nothing varies by more than 0.00% (mrro) in the last 365 days
+  ❌ FAIL  mass/extreme-rain
+        ❌  monotone_response  scaling the storm to 'x10' added 526 mm of rain and only 35 mm of mrro (0.07); a catchment cannot absorb that much
+        ✅  non_degenerate     partition and variability are non-trivial</pre>
+    <div data-i18n-html="example.reading"></div>
+  </div>
+</section>
+
+<section id="probes">
+  <div class="wrap">
+    <h2 data-i18n="probes.h">The probes</h2>
+    <div data-i18n-html="probes.intro"></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th data-i18n="probes.th1">Probe</th>
+          <th data-i18n="probes.th2">Law</th>
+          <th data-i18n="probes.th3">What it asks</th>
+          <th data-i18n="probes.th4">Status</th>
+        </tr></thead>
+        <tbody data-i18n-html="probes.rows"></tbody>
+      </table>
+    </div>
+    <div data-i18n-html="probes.legend"></div>
   </div>
 </section>
 
@@ -523,6 +570,48 @@ en: {
   "seeds.h":"Cases are generated, never stored",
   "seeds.body":`<p>Forcing is generated at run time from a recorded seed. Nothing is committed as data, so there is nothing to memorise, and a reviewer reviews a short deterministic script instead of a binary file.</p>
 <p>Every probe runs five seeds and all of them must pass, so no model gets through on a lucky draw. Any run reproduces exactly, because the seed is written into the report.</p>`,
+  "example.h":"One model through the suite",
+  "example.intro":`<p>This is the report for the Google Flood Hub model, run through the open-source OpenHydroNet package with its published weights, on the seven mass probes with the gate seeds. It is the output of one command, unedited.</p>`,
+  "example.reading":`<p>How to read it:</p>
+<ul>
+<li>The verdict is one bit, and it is <code>FAIL</code>. The reason beside it, <code>INCOMPLETE</code>, is the worst reason among the probes: the closure probe never ran, because the model reports runoff and nothing else.</li>
+<li>Two probes pass, and they pass exactly. Nothing the model reports changes before an added storm, and under constant weather it settles to a constant. A model can be causal and settle and still not conserve.</li>
+<li>Where it fails, the number says how. Runoff that differs by 66% of the rain between hourly and daily runs of the same month. A tenfold storm of which 0.07 runs off. A runoff floor that does not decay through two rainless years.</li>
+<li>The dry-down line deserves a second look. The model stays inside the storage bound and never rises, so that criterion passes; the variability criterion is what catches the flat floor. Two criteria, one probe, one bit.</li>
+<li>Every row is appended to <code>models/result.csv</code> with the date, the seeds and the detail, so the same model can be read before and after a fix.</li>
+</ul>`,
+  "nav.probes":"Probes",
+  "probes.h":"The probes",
+  "probes.intro":"<p>Every probe in the suite, and every one the roadmap is waiting for. A merged probe is in the repository and passes the acceptance gate against the reference models. A wanted probe is named, unclaimed, and yours to take.</p>",
+  "probes.th1":"Probe",
+  "probes.th2":"Law",
+  "probes.th3":"What it asks",
+  "probes.th4":"Status",
+  "probes.legend":"<p>Status, in the order a probe moves through it: <span class=\"tag wanted\">wanted</span> on the roadmap and unclaimed &middot; <span class=\"tag accepted\">accepted</span> once a <a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=probe_proposal.yml\">probe proposal</a> names it and a maintainer labels it &middot; <span class=\"tag progress\">in progress</span> once a pull request is open &middot; <span class=\"tag merged\">merged</span> once it passes the gate and is in the suite. The full list, with difficulty and the template to start from, is in <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/ROADMAP.md#probes-we-want\">ROADMAP.md</a>.</p>",
+  "probes.rows":`<tr><td class="mono">mass/catchment-closure</td><td>mass</td><td>Does the water budget close over ten generated years?</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/resolution-invariance</td><td>mass</td><td>The same month at the minute, the hour and the day: do the volumes agree?</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/warming-response</td><td>mass</td><td>Same rain, air 3 °C warmer and cooler: does runoff move the right way, both ways?</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/causality</td><td>mass</td><td>One storm added: nothing may change before it, something must after.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/dry-down</td><td>mass</td><td>Two years without rain: runoff can only fall, and only stored water can drain.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/steady-state</td><td>mass</td><td>Three years of the same day: everything settles and the budget balances.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/extreme-rain</td><td>mass</td><td>The largest storm scaled to ten times: runoff cannot fall, nor exceed the rain added.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">coupled/latent-heat-et-consistency</td><td>coupled</td><td>Latent heat must equal evapotranspiration times the latent heat of vaporisation.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">coupled/snowmelt-energy-water</td><td>coupled</td><td>Melt in the water budget must match the energy spent melting.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">mass/snowpack-mass-closure</td><td>mass</td><td>Snowfall minus melt minus sublimation minus the change in snow water.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">mass/multi-decadal-drift</td><td>mass</td><td>Fifty years with no trend in the forcing: storage must not drift.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">mass/routing-network-closure</td><td>mass</td><td>A branching network: mass must close reach by reach.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">mass/human-abstraction</td><td>mass</td><td>Irrigation withdrawal and return flow must both appear in the budget.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">mass/extreme-event-closure</td><td>mass</td><td>Closure through a storm outside anything earlier in the record.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">mass/ungauged-basin-closure</td><td>mass</td><td>Closure on catchments outside the range models are fitted to.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">mass/precipitation-counterfactual</td><td>mass</td><td>Add water to the same case and ask where it went.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">mass/time-origin-invariance</td><td>mass</td><td>The same weather dated from another year must change nothing.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">energy/surface-energy-closure</td><td>energy</td><td>Net radiation minus sensible, latent and ground heat flux, minus storage change.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">energy/snowpack-cold-content</td><td>energy</td><td>The full snowpack energy budget, cold content and phase change included.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">energy/radiation-consistency</td><td>energy</td><td>Outgoing longwave must be consistent with the reported surface temperature.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">momentum/channel-routing-mass</td><td>momentum</td><td>Inflow minus outflow minus the change in channel storage, per reach.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">momentum/stage-discharge-monotonic</td><td>momentum</td><td>A steady-flow rating must be monotonic.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">momentum/wave-celerity-bounds</td><td>momentum</td><td>Kinematic wave celerity must be positive and near the Manning expectation.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">momentum/froude-regime</td><td>momentum</td><td>Flow in a mild-sloped reach must stay subcritical.</td><td><span class="tag wanted">wanted</span></td></tr>`,
   "verdict.h":"Verdicts",
   "verdict.body":`<p>Binary, with the reason recorded separately, because these mean very different things.</p>
 <ul><li><strong>VIOLATION</strong> — the model reported its budget and the budget did not close.</li>
@@ -636,6 +725,48 @@ es: {
   "seeds.h":"Los casos se generan, nunca se almacenan",
   "seeds.body":`<p>El forzamiento se genera en tiempo de ejecución a partir de una semilla registrada. No se versiona ningún dato, así que no hay nada que memorizar, y quien revisa lee un script corto y determinista en lugar de un archivo binario.</p>
 <p>Cada prueba se ejecuta con cinco semillas y todas deben aprobar, de modo que ningún modelo pasa por suerte. Cualquier ejecución se reproduce de forma exacta, porque la semilla queda escrita en el informe.</p>`,
+  "example.h":"Un modelo a través de la batería",
+  "example.intro":`<p>Este es el informe del modelo de Google Flood Hub, ejecutado con el paquete de código abierto OpenHydroNet y sus pesos publicados, sobre las siete pruebas de masa con las semillas de la compuerta. Es la salida de un solo comando, sin editar.</p>`,
+  "example.reading":`<p>Cómo leerlo:</p>
+<ul>
+<li>El veredicto es un bit, y es <code>FAIL</code>. La razón que lo acompaña, <code>INCOMPLETE</code>, es la peor entre las pruebas: la prueba de cierre nunca se ejecutó, porque el modelo reporta escorrentía y nada más.</li>
+<li>Dos pruebas aprueban, y aprueban exactamente. Nada de lo que reporta el modelo cambia antes de una tormenta añadida, y bajo un clima constante se asienta en una constante. Un modelo puede ser causal y asentarse, y aun así no conservar.</li>
+<li>Donde falla, la cifra dice cómo. Una escorrentía que difiere en un 66% de la lluvia entre las ejecuciones horaria y diaria del mismo mes. Una tormenta diez veces mayor de la que escurre 0,07. Un piso de escorrentía que no decae en dos años sin lluvia.</li>
+<li>La línea del secado merece una segunda mirada. El modelo se mantiene dentro del límite de almacenamiento y nunca sube, así que ese criterio aprueba; el criterio de variabilidad es el que atrapa el piso plano. Dos criterios, una prueba, un bit.</li>
+<li>Cada fila se añade a <code>models/result.csv</code> con la fecha, las semillas y el detalle, para que el mismo modelo pueda leerse antes y después de una corrección.</li>
+</ul>`,
+  "nav.probes":"Pruebas",
+  "probes.h":"Las pruebas",
+  "probes.intro":"<p>Todas las pruebas de la batería, y todas las que la hoja de ruta espera. Una prueba integrada está en el repositorio y supera la compuerta de aceptación frente a los modelos de referencia. Una prueba que se busca tiene nombre, nadie la ha reclamado, y es tuya si la tomas.</p>",
+  "probes.th1":"Prueba",
+  "probes.th2":"Ley",
+  "probes.th3":"Qué pregunta",
+  "probes.th4":"Estado",
+  "probes.legend":"<p>Estados, en el orden en que una prueba los recorre: <span class=\"tag wanted\">se busca</span> en la hoja de ruta y sin reclamar &middot; <span class=\"tag accepted\">aceptada</span> cuando una <a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=probe_proposal.yml\">propuesta de prueba</a> la nombra y un mantenedor la etiqueta &middot; <span class=\"tag progress\">en curso</span> cuando hay un pull request abierto &middot; <span class=\"tag merged\">integrada</span> cuando supera la compuerta y forma parte de la batería. La lista completa, con dificultad y plantilla de partida, está en <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/ROADMAP.md#probes-we-want\">ROADMAP.md</a>.</p>",
+  "probes.rows":`<tr><td class="mono">mass/catchment-closure</td><td>masa</td><td>¿Cierra el balance hídrico a lo largo de diez años generados?</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/resolution-invariance</td><td>masa</td><td>El mismo mes al minuto, a la hora y al día: ¿coinciden los volúmenes?</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/warming-response</td><td>masa</td><td>Misma lluvia, aire 3 °C más cálido y más frío: ¿se mueve la escorrentía en el sentido correcto, en ambas direcciones?</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/causality</td><td>masa</td><td>Una tormenta añadida: nada puede cambiar antes, algo debe cambiar después.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/dry-down</td><td>masa</td><td>Dos años sin lluvia: la escorrentía solo puede bajar, y solo puede drenar el agua almacenada.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/steady-state</td><td>masa</td><td>Tres años del mismo día: todo se asienta y el balance cuadra.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/extreme-rain</td><td>masa</td><td>La mayor tormenta multiplicada por diez: la escorrentía no puede bajar ni superar la lluvia añadida.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">coupled/latent-heat-et-consistency</td><td>acoplada</td><td>El calor latente debe igualar la evapotranspiración por el calor latente de vaporización.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">coupled/snowmelt-energy-water</td><td>acoplada</td><td>El deshielo del balance hídrico debe coincidir con la energía gastada en fundir.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">mass/snowpack-mass-closure</td><td>masa</td><td>Nevada menos deshielo menos sublimación menos el cambio de agua en la nieve.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">mass/multi-decadal-drift</td><td>masa</td><td>Cincuenta años sin tendencia en el forzamiento: el almacenamiento no debe derivar.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">mass/routing-network-closure</td><td>masa</td><td>Una red ramificada: la masa debe cerrar tramo a tramo.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">mass/human-abstraction</td><td>masa</td><td>La extracción para riego y el retorno deben aparecer ambos en el balance.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">mass/extreme-event-closure</td><td>masa</td><td>Cierre durante una tormenta fuera de todo lo anterior en el registro.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">mass/ungauged-basin-closure</td><td>masa</td><td>Cierre en cuencas fuera del rango al que se ajustan los modelos.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">mass/precipitation-counterfactual</td><td>masa</td><td>Añadir agua al mismo caso y preguntar adónde fue.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">mass/time-origin-invariance</td><td>masa</td><td>El mismo clima fechado desde otro año no debe cambiar nada.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">energy/surface-energy-closure</td><td>energía</td><td>Radiación neta menos flujos sensible, latente y del suelo, menos el cambio de almacenamiento.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">energy/snowpack-cold-content</td><td>energía</td><td>El balance energético completo del manto de nieve, con contenido frío y cambio de fase.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">energy/radiation-consistency</td><td>energía</td><td>La onda larga saliente debe ser coherente con la temperatura superficial reportada.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">momentum/channel-routing-mass</td><td>momento</td><td>Entrada menos salida menos el cambio de almacenamiento en el cauce, por tramo.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">momentum/stage-discharge-monotonic</td><td>momento</td><td>Una curva de gasto en flujo estacionario debe ser monótona.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">momentum/wave-celerity-bounds</td><td>momento</td><td>La celeridad de la onda cinemática debe ser positiva y cercana a la esperada por Manning.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">momentum/froude-regime</td><td>momento</td><td>El flujo en un tramo de pendiente suave debe mantenerse subcrítico.</td><td><span class="tag wanted">se busca</span></td></tr>`,
   "verdict.h":"Veredictos",
   "verdict.body":`<p>Binarios, con el motivo registrado por separado, porque significan cosas muy distintas.</p>
 <ul><li><strong>VIOLATION</strong> — el modelo informó su balance y el balance no cerró.</li>
@@ -749,6 +880,48 @@ zh: {
   "seeds.h":"算例现场生成，从不存储",
   "seeds.body":`<p>强迫数据在运行时由记录下来的随机种子现场生成。仓库中不提交任何数据，因此没有可供记忆的对象；评审人读到的是一段简短且确定性的脚本，而不是一个二进制文件。</p>
 <p>每个检验项运行五个种子，全部通过才算通过，所以没有模型能靠运气蒙混过关。由于种子会写入报告，任何一次运行都可以精确复现。</p>`,
+  "example.h":"一个模型走完整套检验",
+  "example.intro":`<p>这是 Google Flood Hub 模型的报告：通过开源的 OpenHydroNet 及其公开权重运行，在七项质量检验项上使用闸门种子。它是一条命令的原始输出，未经编辑。</p>`,
+  "example.reading":`<p>如何解读：</p>
+<ul>
+<li>判定只有一位，结果是 <code>FAIL</code>。旁边的原因 <code>INCOMPLETE</code> 是各检验项中最严重的一个：闭合检验根本没有运行，因为模型只报告径流，别无其他。</li>
+<li>两项检验通过，而且是精确通过：在加入一场暴雨之前，模型报告的任何量都没有变化；在恒定天气下，它收敛到常数。一个模型可以满足因果性、可以收敛，却仍然不守恒。</li>
+<li>在失败之处，数字说明失败的方式：同一个月的逐小时与逐日运行，径流相差降雨的 66%；十倍暴雨只有 0.07 化为径流；两年无雨，径流底流却不衰减。</li>
+<li>无雨退水那一行值得再看一眼。模型始终处于蓄水上限之内、从不上升，所以该判据通过；抓住这条平坦底流的是变率判据。两条判据，一项检验，一位判定。</li>
+<li>每一行都连同日期、种子和细节追加到 <code>models/result.csv</code>，同一个模型在修正前后都能被读到。</li>
+</ul>`,
+  "nav.probes":"检验项",
+  "probes.h":"检验项一览",
+  "probes.intro":"<p>套件中的每一项检验，以及路线图正在等待的每一项。已合并的检验项已在仓库中，并在参照模型上通过验收闸门。征集中的检验项已有名字、尚无人认领，欢迎认领。</p>",
+  "probes.th1":"检验项",
+  "probes.th2":"守恒律",
+  "probes.th3":"它提出的问题",
+  "probes.th4":"状态",
+  "probes.legend":"<p>状态按检验项推进的顺序：<span class=\"tag wanted\">征集中</span> 已列入路线图、尚无人认领 &middot; <span class=\"tag accepted\">已接受</span> 有人通过<a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=probe_proposal.yml\">检验项提案</a>认领并由维护者加标签 &middot; <span class=\"tag progress\">进行中</span> 已开启拉取请求 &middot; <span class=\"tag merged\">已合并</span> 通过闸门并进入套件。完整清单（含难度与起始模板）见 <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/ROADMAP.md#probes-we-want\">ROADMAP.md</a>。</p>",
+  "probes.rows":`<tr><td class="mono">mass/catchment-closure</td><td>质量</td><td>十年生成气象之下，水量收支是否闭合？</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/resolution-invariance</td><td>质量</td><td>同一个月按分钟、小时和日运行：体积是否一致？</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/warming-response</td><td>质量</td><td>同样的降雨，气温升降 3 °C：径流是否双向都朝正确方向变化？</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/causality</td><td>质量</td><td>加入一场暴雨：之前不得有任何变化，之后必须有响应。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/dry-down</td><td>质量</td><td>两年无雨：径流只能下降，只有蓄存的水才能排出。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/steady-state</td><td>质量</td><td>连续三年同一天气：一切收敛，收支平衡。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/extreme-rain</td><td>质量</td><td>最大暴雨放大十倍：径流不得减少，也不得超过所加降雨。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">coupled/latent-heat-et-consistency</td><td>耦合</td><td>潜热通量必须等于蒸散乘以汽化潜热。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">coupled/snowmelt-energy-water</td><td>耦合</td><td>水量收支中的融雪量必须与融化耗能一致。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">mass/snowpack-mass-closure</td><td>质量</td><td>降雪减融雪减升华减雪水当量变化。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">mass/multi-decadal-drift</td><td>质量</td><td>五十年无趋势的驱动：蓄水不得漂移。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">mass/routing-network-closure</td><td>质量</td><td>分叉河网：质量须逐河段闭合。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">mass/human-abstraction</td><td>质量</td><td>灌溉取水与回归水都必须出现在收支中。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">mass/extreme-event-closure</td><td>质量</td><td>在超出历史记录的暴雨中保持闭合。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">mass/ungauged-basin-closure</td><td>质量</td><td>在模型拟合范围之外的流域上保持闭合。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">mass/precipitation-counterfactual</td><td>质量</td><td>向同一案例加水，追问水去了哪里。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">mass/time-origin-invariance</td><td>质量</td><td>同样的天气换个年份，结果不得改变。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">energy/surface-energy-closure</td><td>能量</td><td>净辐射减感热、潜热与土壤热通量，再减储热变化。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">energy/snowpack-cold-content</td><td>能量</td><td>完整的积雪能量收支，含冷储量与相变。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">energy/radiation-consistency</td><td>能量</td><td>出射长波辐射必须与所报告的地表温度一致。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">momentum/channel-routing-mass</td><td>动量</td><td>逐河段：入流减出流减河道蓄量变化。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">momentum/stage-discharge-monotonic</td><td>动量</td><td>恒定流的水位流量关系必须单调。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">momentum/wave-celerity-bounds</td><td>动量</td><td>运动波波速必须为正，且接近曼宁公式的预期。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">momentum/froude-regime</td><td>动量</td><td>缓坡河段的水流必须保持缓流。</td><td><span class="tag wanted">征集中</span></td></tr>`,
   "verdict.h":"判定结果",
   "verdict.body":`<p>结论是二值的，但失败原因单独记录，因为两者的科学含义完全不同。</p>
 <ul><li><strong>VIOLATION</strong>（违反）——模型上报了自己的收支，而收支没有闭合。</li>
