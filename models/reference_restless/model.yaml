@@ -1,0 +1,19 @@
+name: reference_restless
+version: "1.0.0"
+description: >
+  The reference bucket with a recession that keeps its own thirty-day
+  clock, whatever the weather. Conserves water and stays physical, but under
+  constant forcing it never settles. Stands in for a recurrent state with a
+  life of its own.
+authors: ["HydroTuring maintainers"]
+license: MIT
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

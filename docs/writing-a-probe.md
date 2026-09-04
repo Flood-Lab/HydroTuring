@@ -84,6 +84,10 @@ Every one is binary.
 | `invariance` | a transform the physics ignores changes nothing | paired runs |
 | `resolution_invariance` | integrated volumes agree between the same weather at two steps | paired runs at different steps |
 | `response_sign` | perturb one driver both ways, hold the rest: each response must point the way physics says, by a real share of the change in demand | paired runs |
+| `causality` | nothing may change before an added storm, and runoff must answer it after | paired runs |
+| `dry_down` | without rain, runoff and storages only fall, and no more drains than was held | one run, rainless record |
+| `steady_state` | under constant weather everything settles, runoff stays below the rain, and the budget balances | one run, constant record |
+| `monotone_response` | scaling a storm up a ladder cannot lower runoff, add more runoff than rain, or fail to run off most of an extreme | paired runs, a ladder |
 
 Picking a denominator for `closure` and `regime_transfer`:
 
@@ -196,6 +200,10 @@ The reference models available today:
 | `reference_calendar` | recession drifts with the calendar year | `invariance` |
 | `reference_fixed_step` | treats every row as a day whatever the step is | `resolution_invariance` |
 | `reference_streamflow_only` | reports runoff only, from a store that never reads the temperature | scored `INCOMPLETE` on budget probes; `response_sign` |
+| `reference_anticipating` | reports runoff smoothed over a centred window, three days of the future in every value | `causality` |
+| `reference_climatology` | the seasonal mean, whatever the weather; never reads the rain | `dry_down` |
+| `reference_saturating` | daily runoff capped at 25 mm; flat beyond its training range | `monotone_response` |
+| `reference_restless` | a recession with its own thirty-day clock; never settles | `steady_state` |
 
 If your probe needs a broken model that does not exist yet, add it under
 `models/` alongside the probe. A criterion with nothing that trips it is

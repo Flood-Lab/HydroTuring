@@ -1,0 +1,51 @@
+id: mass/steady-state
+title: Under constant weather the catchment settles and the budget balances
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Zhi Li
+    affiliation: University of Colorado Boulder
+    github: chrimerss
+
+description: >
+  A year of ordinary weather, then three years in which the same rain,
+  temperature and demand arrive every single day. Every store finds the
+  level at which what comes in equals what goes out, and from then on
+  nothing may vary: runoff and every storage hold still, runoff cannot
+  exceed the rain, and where evaporation is reported the two together must
+  equal the rain, because storage is no longer changing. A recurrent state
+  that drifts, oscillates or keeps its own clock shows here and nowhere
+  else. Scored on runoff alone.
+
+requires:
+  fluxes: [mrro]
+  states: []
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 3
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 300
+  # The last year is judged; the two before it are for settling.
+  min_window_days: 1095
+
+criteria:
+  - steady_state:
+      last_days: 365
+      tolerance: 0.01
+      floor: 0.05
+
+baselines:
+  must_pass: [reference_bucket]
+  must_fail:
+    # Its recession keeps an internal clock, so its runoff never holds still.
+    reference_restless: steady_state
+
+provenance: >
+  Synthetic. A year of weather then three years of the same day, generated
+  at run time. Nothing is committed as data.

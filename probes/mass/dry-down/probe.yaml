@@ -1,0 +1,62 @@
+id: mass/dry-down
+title: Without rain, runoff can only fall, and only stored water can drain
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Zhi Li
+    affiliation: University of Colorado Boulder
+    github: chrimerss
+
+description: >
+  A year of ordinary weather to fill the catchment, then two years in which
+  no rain falls at all while temperature and demand keep their seasons.
+  Nothing arrives to raise the flow, so runoff and every storage can only
+  decrease, and the total that runs off cannot exceed what the catchment
+  held when the rain stopped, which its storage capacities bound. A model
+  that keeps a climatological baseflow flowing, or lets a warm day make
+  runoff, breaks a limit no physical model can. Scored on runoff alone.
+
+requires:
+  fluxes: [mrro]
+  states: []
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 2
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 300
+  # The bound is on the whole dry stretch.
+  min_window_days: 730
+
+criteria:
+  - dry_down:
+      capacity: [soil_capacity_mm, canopy_capacity_mm]
+      lag_days: 7
+      aggregate_days: 7
+      # Weekly means may not rise by more than this share of the first
+      # week's level. The exact model never rises; a seasonal climatology
+      # rises by about 3.5 percent a week.
+      tolerance: 0.02
+
+  # A dry-down without variability is satisfiable by reporting zero. Runoff
+  # has to be there and drain. There is no rain to respond to.
+  - non_degenerate:
+      min_flux_cv: 0.1
+      min_response: null
+      cv_variables: [mrro]
+
+baselines:
+  must_pass: [reference_bucket]
+  must_fail:
+    # Emits a climatological runoff whatever falls, so it keeps flowing
+    # through two rainless years and rises with the season.
+    reference_climatology: dry_down
+
+provenance: >
+  Synthetic. A wet year then two dry ones, generated at run time. Nothing is
+  committed as data.

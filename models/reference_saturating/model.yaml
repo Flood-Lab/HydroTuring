@@ -1,0 +1,19 @@
+name: reference_saturating
+version: "1.0.0"
+description: >
+  The reference bucket with its daily runoff capped at 25 mm: exact for
+  ordinary storms, flat for extreme ones. Scaling a storm past the cap adds
+  rain and no runoff, which is the response of a model at the edge of its
+  training range.
+authors: ["HydroTuring maintainers"]
+license: MIT
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

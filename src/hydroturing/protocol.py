@@ -50,7 +50,12 @@ def _opaque_case_metadata(case: Case) -> tuple[str, int]:
     derived seed for any stochastic inference it performs, without being handed
     the seed that selects the evaluation case.
     """
-    material = f"{case.probe_id}\0{case.seed}".encode()
+    # The variant suffix is dropped so that every variant of one seed hands
+    # the model the same seed: a paired probe compares runs, and a stochastic
+    # model must draw the same numbers in both or the comparison sees its
+    # sampling noise instead of the perturbation.
+    base_probe = case.probe_id.split("@", 1)[0]
+    material = f"{base_probe}\0{case.seed}".encode()
     digest = hashlib.sha256(material).digest()
     case_id = f"case-{digest[:12].hex()}"
     model_seed = int.from_bytes(digest[12:16], "big") & 0x7FFFFFFF

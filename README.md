@@ -51,6 +51,10 @@ before it can be merged.
 | `reference_in_sample` | exact in range, leaks once the forcing leaves it | `regime_transfer` |
 | `reference_calendar` | recession that drifts with the calendar year | `invariance` |
 | `reference_fixed_step` | treats every row as a day whatever the step is | `resolution_invariance` |
+| `reference_anticipating` | reports runoff smoothed over a centred window, so it sees three days ahead | `causality` |
+| `reference_climatology` | emits the seasonal mean whatever falls, and keeps flowing without rain | `dry_down` |
+| `reference_saturating` | caps its daily runoff, so an extreme storm adds rain and no runoff | `monotone_response` |
+| `reference_restless` | recession on an internal thirty-day clock, never settles | `steady_state` |
 
 `reference_cheater` is the one worth dwelling on. Its closure residual is
 **exactly zero on every seed, forever**. Randomising the forcing cannot touch

@@ -18,6 +18,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     degeneracy,
     regime,
     response,
+    stress,
     symmetry,
 )
 

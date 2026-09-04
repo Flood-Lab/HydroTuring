@@ -84,6 +84,18 @@ step is respected: a daily closure probe given an hourly-only model reports
 INCOMPATIBLE, because closure is what it measures and it cannot measure it
 on a model it cannot feed.
 
+## Nothing from the future
+
+The stress probes add one storm to a record and check that nothing the
+model reports changes before it. Any path from later rows to earlier
+output fails that: a bidirectional pass, a centred filter, attention over
+the whole record, or statistics taken over the record you were handed,
+such as normalising inputs by their mean or deriving catchment attributes
+from all of it. If the model needs a climatology, take it from the first
+year of the record and nothing later. Paired variants of one seed carry
+the same `seed` in the request, so a stochastic model draws the same
+numbers in both runs; keep it that way and do not reseed from the clock.
+
 ## Variable names and units
 
 | Name | Meaning | Units |

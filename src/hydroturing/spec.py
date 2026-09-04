@@ -64,6 +64,10 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_leaky",
     "reference_streamflow_only",
     "reference_fixed_step",
+    "reference_anticipating",
+    "reference_climatology",
+    "reference_saturating",
+    "reference_restless",
 }
 
 

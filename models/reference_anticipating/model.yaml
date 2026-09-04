@@ -1,0 +1,19 @@
+name: reference_anticipating
+version: "1.0.0"
+description: >
+  The reference bucket with its runoff smoothed over a centred seven-day
+  window, so every reported value carries three days that have not happened
+  yet. Conserves water and stays physical; responds to rain before it falls.
+  Stands in for any model that reads its record both ways.
+authors: ["HydroTuring maintainers"]
+license: MIT
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

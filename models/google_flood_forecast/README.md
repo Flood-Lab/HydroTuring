@@ -31,17 +31,20 @@ synthetic mass-balance test:
 | --- | --- |
 | GraphCast, IMERG, CPC precipitation; GraphCast temperature | the forcing's `pr` and `tas`, standardised with each product's own training statistics |
 | HRES precipitation and temperature | the forcing's `pr` and `tas`, as above |
-| HRES net solar radiation, net thermal radiation, surface pressure | **mock inputs**, allowed for the synthetic mass-balance test: FAO-56 extraterrestrial radiation at the probe's latitude, attenuated on wet days, with albedo 0.23; net longwave from air temperature at 70 percent humidity; pressure from the elevation the static attributes assume. Their means land inside the training distribution (156 vs 147 W/m2, -59 vs -63 W/m2, 92.5 vs 93.0 kPa). `run.json` lists them under `mock_inputs`. `GFF_MOCK_HRES=0` marks the product missing instead, through the model's own NaN-aware mean over products |
-| 14 climate attributes (`p_mean`, `pet_mean`, `aridity`, `frac_snow`, `moisture_index`, `seasonality`, high/low precipitation frequency and duration, annual P, PET, aridity index, mean temperature) | derived from the forcing the model is given, using Caravan's definitions |
+| HRES net solar radiation, net thermal radiation, surface pressure | **mock inputs**, allowed for the synthetic test, derived from the forcing and nothing else: net radiation inverted from the probe's potential evaporation with Priestley-Taylor at the given temperature, net longwave from air temperature at 70 percent humidity and cloudiness on wet days, net solar as the remainder, pressure from the elevation the static attributes assume. Nothing follows the calendar, so constant weather gives constant inputs and a storm cannot reach earlier rows. `run.json` lists them under `mock_inputs`. `GFF_MOCK_HRES=0` marks the product missing instead, through the model's own NaN-aware mean over products |
+| 14 climate attributes (`p_mean`, `pet_mean`, `aridity`, `frac_snow`, `moisture_index`, `seasonality`, high/low precipitation frequency and duration, annual P, PET, aridity index, mean temperature) | derived from the first year of the forcing the model is given, using Caravan's definitions. The first year only, so that nothing later in the record reaches back through the attributes: the causality probe adds a storm in year two and requires year one to be untouched |
 | the other 70 attributes (land cover, terrain, soils, human footprint, ...) | the training mean, i.e. zero after standardisation: the mock catchment is an average Caravan basin at the probe's latitude |
 
 Each day is its own forecast issue with a 365-day hindcast window, run from a
 fresh state exactly as the operational model does. The reported value is the
 day-0 member of that day's forecast: the prediction for the issue day given
 everything up to and including it. Days early in the record use the history
-that exists. The point prediction is the median of the model's own CMAL
-mixture samples, seeded from the request so a case reproduces exactly.
-`run.json` records all of this per run.
+that exists. The point prediction is the exact median of the model's own
+CMAL mixture, found with the package's deterministic quantile search
+rather than by drawing samples: the same quantity its tester estimates
+from 7500 draws, without the estimator's noise, so that identical days give
+identical answers and a stress probe sees the model rather than its
+sampler. `run.json` records all of this per run.
 
 ## What each probe variable reaches inside the model
 
@@ -50,15 +53,18 @@ know where each one goes. This is the complete map for this adapter:
 
 | Probe variable | Model inputs it reaches | Held fixed by |
 | --- | --- | --- |
-| `pr` | the four precipitation inputs (HRES, GraphCast, IMERG, CPC); the cloudiness factor in the mocked net solar and net thermal radiation; the precipitation attributes `p_mean`, `aridity`, `moisture_index`, `seasonality`, `frac_snow`, `high_prec_*`, `low_prec_*`, `pre_mm_syr`, `ari_ix_sav` | a perturbation of `tas` or `pet` |
-| `tas` | the two temperature inputs (HRES, GraphCast); the mocked net thermal radiation, through air temperature and vapour pressure; `frac_snow` and `tmp_dc_syr` | a perturbation of `pr` |
-| `pet` | the demand attributes `pet_mean`, `aridity`, `moisture_index`, `seasonality`, `pet_mm_syr`, `ari_ix_sav`; nothing dynamic, because none of the model's products carries potential evaporation | a perturbation of `pr` |
-| `static` | only `area_km2` (to convert depth to discharge) and `latitude_deg` (for the mocked radiation); every other attribute the model wants is derived from the forcing above or held at its training mean | everything |
+| `pr` | the four precipitation inputs (HRES, GraphCast, IMERG, CPC); the cloudiness in the mocked longwave and solar radiation; the precipitation attributes `p_mean`, `aridity`, `moisture_index`, `seasonality`, `frac_snow`, `high_prec_*`, `low_prec_*`, `pre_mm_syr`, `ari_ix_sav` | a perturbation of `tas` or `pet` |
+| `tas` | the two temperature inputs (HRES, GraphCast); the mocked net thermal and net solar radiation, through air temperature and the slope of the vapour pressure curve; `frac_snow` and `tmp_dc_syr` | a perturbation of `pr` |
+| `pet` | the mocked net solar radiation, as the energy Priestley-Taylor needs to produce that demand; the demand attributes `pet_mean`, `aridity`, `moisture_index`, `seasonality`, `pet_mm_syr`, `ari_ix_sav` | a perturbation of `pr` |
+| `static` | only `area_km2`, to convert depth to discharge; every other attribute the model wants is derived from the first year of the forcing above or held at its training mean | everything |
 
 So the warming probe, which raises `tas` and `pet` together over identical
-rain, reaches the model through its two temperature products, its
-longwave radiation and its temperature and demand attributes, while every
-precipitation input and the cloud-driven radiation stay fixed.
+rain, reaches the model through its two temperature products and its
+mocked radiation; the attributes, taken from the unperturbed first year,
+stay fixed, as does every precipitation input. Attributes fixed is the
+usual way an LSTM is run under a changed climate, and the reason its
+response to warming is weaker than when the attributes were allowed to
+follow the warmed record.
 
 ## Evaluation window
 
@@ -73,10 +79,14 @@ budget.
 
 | Check | Outcome |
 | --- | --- |
-| `ht verify-adapter` on `mass/catchment-closure`, gate seed 598896396 | contract OK: 395 rows in 20 s, columns `mrro`, `dis`, no missing products |
+| `ht verify-adapter` on `mass/catchment-closure`, gate seed 598896396 | contract OK: 395 rows in 19 s, columns `mrro`, `dis`, no missing products |
 | `ht run` on `mass/catchment-closure` | FAIL (INCOMPLETE): does not report `pr`, `evspsbl`, `mrso`, `snw`, `canopy` |
-| `ht run` on `mass/resolution-invariance` | FAIL (VIOLATION): runoff volume differs by 58% of precipitation between hourly and daily runs of the same month (11%, 38%, 58% on the three gate seeds) |
-| `ht run` on `mass/warming-response` | PASS in both directions: over a year of the same rain, runoff per unit of demand change is -0.48 to -0.14 with the air 3 degC warmer and -0.75 to -0.20 with it 3 degC cooler, across the five gate seeds |
+| `ht run` on `mass/resolution-invariance` | FAIL (VIOLATION): runoff volume differs by 66% of precipitation between hourly and daily runs of the same month (17%, 40%, 66% on the three gate seeds) |
+| `ht run` on `mass/warming-response` | FAIL (VIOLATION), marginal: the sign is right both ways on every seed, but under warming runoff falls by only 0.07 to 0.15 of the added demand (0.61 on one seed), under the 0.10 the probe requires on three of five seeds |
+| `ht run` on `mass/causality` | PASS: nothing changes before the added storm, to floating point, and runoff answers it by 0.32 of the added rain |
+| `ht run` on `mass/dry-down` | FAIL (VIOLATION): 224 mm drain in two rainless years, inside the 322 mm bound and never rising, but as a near-constant 0.3 mm/day that does not decay (runoff CV 0.02); a third dry year would break the bound |
+| `ht run` on `mass/steady-state` | PASS: settles to 0.63 mm/day of runoff under 2.5 mm/day of rain, with zero variation in the last year |
+| `ht run` on `mass/extreme-rain` | FAIL (VIOLATION): the response flattens past twice the largest storm; the ladder returns 0.52, 0.04 and -0.01 of the rain added on its three rungs, 0.07 overall |
 
 Archived in [`models/result.csv`](../result.csv).
 
@@ -109,18 +119,47 @@ pressure and average-catchment attributes, not the operational system.
 The warming probe holds the rain and shifts the air temperature by three
 degrees over a full year, warmer in one variant and cooler in another,
 with potential evaporation following it, and reaches this model through
-the two temperature products, the mocked net longwave radiation and the
-temperature and demand attributes (see the map above). The model's runoff
-falls when demand rises and rises when it falls, in every seed and both
-directions: per unit of demand, -0.48 to -0.14 under
-warming and -0.75 to -0.20 under cooling, against
-0.20 and 0.24 for the exact reference bucket on the same weather. The sign
-is the physical one both ways and the size is plausible, if larger than
-the bucket's and less regular: the two directions differ by up to a factor
-of two within a seed, cooling answering more strongly on two seeds and
-warming on three. That is an internal relationship between temperature
-and streamflow which a model fitting hydrographs did not have to carry,
-and does, in both directions.
+the two temperature products and the mocked radiation (see the map
+above). The attributes stay at the unperturbed first year's values, which
+is how an LSTM is normally run under a changed climate.
+
+The sign is the physical one on every seed and in both directions: runoff
+falls when demand rises and rises when it falls. The size is small. Per
+unit of demand, runoff falls by 0.07 to 0.15 under warming (0.61 on one
+seed) and rises by 0.10 to 0.21 under cooling, against 0.20 and 0.24 for
+the exact reference bucket on the same weather. The probe asks for at
+least 0.10, and three of five seeds fall short under warming, so the
+verdict is FAIL by a margin the report shows. An earlier version of this
+adapter let the attributes follow the warmed record, and the model then
+answered with 0.14 to 0.48: most of its apparent climate sensitivity was
+carried by the attributes, not by the weather it was shown day to day.
+
+### Stress probes
+
+Four probes push the model where no training record goes; only runoff is
+needed, so all four score it.
+
+- **Causality** passes exactly. A 40 mm storm added in the second year
+  changes nothing before its day, to floating point, and adds 0.32 of its
+  water to the runoff afterwards. The adapter earns part of this: its
+  attributes come from the first year only and its mocked inputs from the
+  forcing alone, so nothing in the record reaches back.
+- **Steady state** passes exactly. Under constant weather the model settles
+  to 0.63 mm/day of runoff on 2.5 mm/day of rain and does not move in the
+  last year. An earlier adapter that estimated the median by sampling
+  showed 4 to 8 percent of day-to-day noise here; the deterministic
+  quantile search removed it, and what remained was a model that settles.
+- **Dry-down** fails, and the way it fails is the finding. Over two years
+  without rain the model runs off 224 mm, inside the 322 mm the catchment
+  could have held and never rising, but as a near-constant 0.3 mm/day that
+  does not decay: a baseflow floor learned from its training basins. The
+  exact bucket drains 55 mm and fades. A third dry year would put the
+  model over the bound.
+- **Extreme rain** fails in the classic way. Scaling the largest storm to
+  twice its size returns 0.52 of the added rain as runoff; scaling it to
+  five and ten times returns 0.04 and then nothing (-0.01). The response
+  flattens at the edge of what the model has seen, on 526 mm of added
+  rain a catchment with a 320 mm soil cannot absorb.
 
 ### Dependence on the step
 
@@ -128,7 +167,7 @@ The resolution probe serves one month of the same weather at the day and
 at the hour and runs the model at both. The adapter feeds the rows as
 given, so at the hourly step the model's 365-row hindcast covers fifteen
 days and each hourly rate is read as a daily depth. Integrated over the
-month, its runoff comes to 259 mm from the daily record and 115 mm from
+month, its runoff comes to 290 mm from the daily record and 126 mm from
 the hourly one, on 248 mm of rain (seed 1760592044). That is the size of
 the model's dependence on the step it was trained at, as a number rather
 than a declaration: a model whose arithmetic assumed nothing about the

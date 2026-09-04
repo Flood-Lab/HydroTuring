@@ -21,17 +21,23 @@ precipitation, air temperature and potential ET for one lumped catchment.
   products are in mm/day and degC, as the forcing is.
 * HRES also needs net solar and thermal radiation and surface pressure,
   which the probe does not generate. For the synthetic mass-balance test
-  these are mocked from the forcing with textbook (FAO-56) relations:
-  extraterrestrial radiation at the catchment's latitude, attenuated on wet
-  days, an albedo of 0.23, net longwave from air temperature at 70 percent
-  humidity, and surface pressure from the elevation the static attributes
-  assume. They are labelled as mock inputs in run.json. Set
+  these are mocked from the forcing and nothing else: net radiation is
+  what Priestley-Taylor needs to produce the given potential evaporation at
+  the given temperature, net longwave follows air temperature and
+  cloudiness, and surface pressure follows the elevation the static
+  attributes assume. Nothing depends on the date, so constant weather gives
+  constant inputs and a storm cannot reach earlier rows through them. They
+  are labelled as mock inputs in run.json. Set
   GFF_MOCK_HRES=0 to mark the HRES product missing instead, which is the
   model's own path for an unavailable product (a NaN-aware mean over
   product embeddings).
 * The climate attributes that Caravan derives from forcing are derived here
-  from the forcing the model is given, using Caravan's definitions. Every
-  other attribute (land cover, terrain, soils, human footprint, ...) has no
+  from the first year of the forcing the model is given (or all of it when
+  the record is shorter), using Caravan's definitions. The first year only,
+  so that the attributes are a climatology the model has already seen and
+  nothing later in the record can reach back through them: a storm in year
+  two must not change the catchment's attributes in year one. Every other
+  attribute (land cover, terrain, soils, human footprint, ...) has no
   counterpart in a synthetic lumped catchment and is set to its training
   mean, i.e. zero after standardisation: the mock catchment is an average
   Caravan basin at the probe's latitude.
@@ -44,8 +50,11 @@ forecast: the prediction for the issue day itself, given all forcing up to
 and including it. Days with fewer than 365 days of history behind them use
 the history that exists. Forecast lead days are not needed for a nowcast
 and are not computed. The point prediction is the median of the model's own
-CMAL mixture samples, as in the package's tester, seeded from the request so
-that a case reproduces exactly.
+CMAL mixture, found with the package's deterministic quantile search rather
+than by drawing samples: the same quantity the operational tester
+estimates from 7500 draws, without the estimator's noise, so that two
+identical days give identical answers and a stress probe sees the model
+rather than its sampler.
 
 The catchment area from the static attributes converts the model's
 streamflow depth (mm/day, reported as `mrro`) into discharge (`dis`, m3/s).
@@ -91,26 +100,32 @@ FEATURE_SOURCE = {
 
 TARGET = "streamflow"  # Caravan streamflow, mm/day
 DAYS_PER_YEAR = 365.25
+CLIMATOLOGY_DAYS = 365.0  # the attributes come from the first year the model is shown
+TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0, "PT15M": 1.0 / 96.0, "PT5M": 1.0 / 288.0, "PT1M": 1.0 / 1440.0}
 
 # Mock HRES fields (units as in the Caravan-MultiMet training data: W/m2
-# for radiation, kPa for pressure). Textbook FAO-56 daily relations.
+# for radiation, kPa for pressure). Derived from the forcing and nothing
+# else: the probe's weather is the only weather there is, so an input that
+# followed the calendar would be weather the probe never gave. Under
+# constant forcing the mocks are constant; a storm added in year two
+# cannot reach year one through them.
 ALBEDO = 0.23
-CLOUD_FACTOR_DRY, CLOUD_FACTOR_WET = 0.70, 0.45  # fraction of extraterrestrial radiation
+CLOUD_FACTOR_DRY, CLOUD_FACTOR_WET = 0.70, 0.45  # clearness on dry and wet days
 WET_DAY_MM = 1.0
 RELATIVE_HUMIDITY = 0.70
-SOLAR_CONSTANT = 0.0820  # MJ m-2 min-1
+PRIESTLEY_TAYLOR_ALPHA = 1.26
+LATENT_HEAT = 2.45  # MJ kg-1
 STEFAN_BOLTZMANN = 4.903e-9  # MJ K-4 m-2 day-1
 MJ_PER_DAY_TO_W = 1.0e6 / 86400.0
 MOCK_INPUT_NOTES = {
     "mock_net_solar_radiation": (
-        "FAO-56 extraterrestrial radiation at the catchment latitude, times "
-        f"{CLOUD_FACTOR_DRY} on dry and {CLOUD_FACTOR_WET} on wet days, "
-        f"times (1 - albedo {ALBEDO}); W/m2"
+        "net radiation inverted from potential evaporation with Priestley-Taylor "
+        f"(alpha {PRIESTLEY_TAYLOR_ALPHA}), plus the outgoing longwave; W/m2"
     ),
     "mock_net_thermal_radiation": (
         "FAO-56 net longwave from air temperature at "
-        f"{int(RELATIVE_HUMIDITY * 100)} percent relative humidity and the "
-        "same cloudiness, reported as a negative (outgoing) flux; W/m2"
+        f"{int(RELATIVE_HUMIDITY * 100)} percent relative humidity, cloudier "
+        "on wet days, reported as a negative (outgoing) flux; W/m2"
     ),
     "mock_surface_pressure": (
         "FAO-56 standard atmosphere at the elevation the static attributes "
@@ -119,33 +134,30 @@ MOCK_INPUT_NOTES = {
 }
 
 
-def mock_hres_fields(pr: np.ndarray, tas: np.ndarray, doy: np.ndarray,
-                     latitude_deg: float, elevation_m: float) -> dict[str, np.ndarray]:
-    """Plausible daily radiation and pressure for a catchment the probe only
-    describes by its weather, latitude and an assumed elevation."""
-    phi = np.radians(latitude_deg)
-    j = doy.astype(float)
-    dr = 1.0 + 0.033 * np.cos(2.0 * np.pi * j / 365.0)
-    delta = 0.409 * np.sin(2.0 * np.pi * j / 365.0 - 1.39)
-    omega = np.arccos(np.clip(-np.tan(phi) * np.tan(delta), -1.0, 1.0))
-    ra = (24.0 * 60.0 / np.pi) * SOLAR_CONSTANT * dr * (
-        omega * np.sin(phi) * np.sin(delta) + np.cos(phi) * np.cos(delta) * np.sin(omega)
-    )  # MJ m-2 day-1
+def mock_hres_fields(pr: np.ndarray, tas: np.ndarray, pet: np.ndarray,
+                     elevation_m: float) -> dict[str, np.ndarray]:
+    """Plausible daily radiation and pressure, from the forcing alone.
 
-    cloud = np.where(pr >= WET_DAY_MM, CLOUD_FACTOR_WET, CLOUD_FACTOR_DRY)
-    rs = cloud * ra
-    rso = (0.75 + 2.0e-5 * elevation_m) * ra
-    clearness = np.clip(rs / np.maximum(rso, 1e-6), 0.3, 1.0)
-
-    net_solar = (1.0 - ALBEDO) * rs
+    Potential evaporation is the probe's statement of the energy available
+    for evaporation, so net radiation is what Priestley-Taylor needs to
+    produce that demand at that temperature. Net longwave follows air
+    temperature and cloudiness; net solar is the remainder. Nothing here
+    depends on the date.
+    """
+    pressure = 101.3 * ((293.0 - 0.0065 * elevation_m) / 293.0) ** 5.26
     saturation_kpa = 0.6108 * np.exp(17.27 * tas / (tas + 237.3))
+    slope = 4098.0 * saturation_kpa / (tas + 237.3) ** 2  # kPa per degC
+    gamma = 0.000665 * pressure
+    net_radiation = pet * LATENT_HEAT * (slope + gamma) / (PRIESTLEY_TAYLOR_ALPHA * slope)
+
+    clearness = np.where(pr >= WET_DAY_MM, CLOUD_FACTOR_WET, CLOUD_FACTOR_DRY) / 0.75
     ea = RELATIVE_HUMIDITY * saturation_kpa
     net_longwave = (
         STEFAN_BOLTZMANN * (tas + 273.16) ** 4
         * (0.34 - 0.14 * np.sqrt(ea))
-        * (1.35 * clearness - 0.35)
+        * (1.35 * np.clip(clearness, 0.3, 1.0) - 0.35)
     )
-    pressure = 101.3 * ((293.0 - 0.0065 * elevation_m) / 293.0) ** 5.26
+    net_solar = np.maximum(net_radiation + net_longwave, 0.0)
 
     return {
         "mock_net_solar_radiation": net_solar * MJ_PER_DAY_TO_W,
@@ -282,13 +294,17 @@ def dynamic_inputs(cfg, forcing: dict[str, np.ndarray], center, scale) -> tuple[
 
 @torch.no_grad()
 def nowcast(model, cfg, x_s: torch.Tensor, series: dict[str, np.ndarray],
-            seed: int, seq_length: int) -> np.ndarray:
+            seed: int, seq_length: int, normalized_zero: float) -> np.ndarray:
     """Day-0 prediction for every day, in the model's standardised units.
 
     Each day is its own forecast issue: a window of up to `seq_length` days
     of history ending on that day, processed from a fresh state exactly as
-    the operational model does. Days are batched by history length.
+    the operational model does. Days are batched by history length. The
+    point prediction is the exact median of the CMAL mixture the head
+    returns, clipped at zero flow as the package's sampler clips it.
     """
+    from googlehydrology.utils.cmal_deterministic import _mixture_params_to_quantiles
+
     hindcast = _flatten(cfg.hindcast_inputs)
     forecast = _flatten(cfg.forecast_inputs)
     n = len(next(iter(series.values())))
@@ -316,11 +332,12 @@ def nowcast(model, cfg, x_s: torch.Tensor, series: dict[str, np.ndarray],
                 "x_s": x_s.expand(len(issue), -1),
                 "x_d_hindcast": {f: window(f) for f in hindcast},
                 "x_d_forecast": {f: window(f) for f in forecast},
-                # The sampler reads the batch size off the target tensor.
-                "y": torch.zeros(len(issue), 1, 1),
             }
-            samples = model.sample(data, cfg.n_samples)["y_hat"]  # [batch, steps, target, sample]
-            out[issue] = samples[:, -1, 0, :].median(dim=-1).values.numpy()
+            head = model(data)  # CMAL parameters, [batch, steps, mixture]
+            last = {k: head[k][:, -1:, :] for k in ("mu", "b", "tau", "pi")}
+            quantiles = _mixture_params_to_quantiles(last["mu"], last["b"], last["tau"], last["pi"])
+            median = quantiles[:, 0, 4]  # the 0.5 quantile of the mixture
+            out[issue] = torch.clamp(median, min=normalized_zero).numpy()
     return out
 
 
@@ -336,7 +353,7 @@ def read_forcing(path: Path) -> list[dict]:
     return rows
 
 
-def simulate(forcing: list[dict], static: dict, seed: int) -> tuple[list[dict], dict]:
+def simulate(forcing: list[dict], static: dict, seed: int, timestep: str = "PT1D") -> tuple[list[dict], dict]:
     torch.set_num_threads(THREADS)
     cfg, model = load_model()
 
@@ -345,12 +362,14 @@ def simulate(forcing: list[dict], static: dict, seed: int) -> tuple[list[dict], 
     pet = np.array([r["pet"] for r in forcing])
     dates = [dt.date.fromisoformat(str(r["time"])[:10]) for r in forcing]
     months = np.array([d.month for d in dates])
-    doy = np.array([d.timetuple().tm_yday for d in dates])
 
     names = list(cfg.static_attributes) + list(FEATURE_SOURCE) + [TARGET]
     center, scale = scaler_stats(model, names)
 
-    derived = climate_attributes(pr, tas, pet, months)
+    # Attributes from the first year only: a climatology the model has seen,
+    # through which nothing later in the record can reach back.
+    n_clim = min(len(pr), int(round(CLIMATOLOGY_DAYS / TIMESTEP_DAYS.get(timestep, 1.0))))
+    derived = climate_attributes(pr[:n_clim], tas[:n_clim], pet[:n_clim], months[:n_clim])
     x_s = torch.tensor(
         [[(derived.get(a, center[a]) - center[a]) / scale[a] for a in cfg.static_attributes]],
         dtype=torch.float32,
@@ -360,9 +379,7 @@ def simulate(forcing: list[dict], static: dict, seed: int) -> tuple[list[dict], 
     mocked: dict[str, str] = {}
     if MOCK_HRES:
         inputs.update(mock_hres_fields(
-            pr, tas, doy,
-            latitude_deg=float(static.get("latitude_deg", 40.0)),
-            elevation_m=float(center.get("ele_mt_sav", 0.0)),
+            pr, tas, pet, elevation_m=float(center.get("ele_mt_sav", 0.0)),
         ))
         mocked = {
             feature: MOCK_INPUT_NOTES[source]
@@ -371,7 +388,8 @@ def simulate(forcing: list[dict], static: dict, seed: int) -> tuple[list[dict], 
         }
     series, missing_products = dynamic_inputs(cfg, inputs, center, scale)
 
-    scaled = nowcast(model, cfg, x_s, series, seed, int(cfg.seq_length))
+    normalized_zero = -center[TARGET] / scale[TARGET]
+    scaled = nowcast(model, cfg, x_s, series, seed, int(cfg.seq_length), normalized_zero)
     depth = np.maximum(scaled * scale[TARGET] + center[TARGET], 0.0)  # mm/day
     area_m2 = float(static["area_km2"]) * 1.0e6
     discharge = depth * 1.0e-3 * area_m2 / 86400.0  # m3/s
@@ -382,9 +400,12 @@ def simulate(forcing: list[dict], static: dict, seed: int) -> tuple[list[dict], 
     ]
     notes = {
         "weights": WEIGHTS,
-        "prediction": "day-0 member of each day's forecast, median of CMAL samples",
-        "n_samples": int(cfg.n_samples),
+        "prediction": (
+            "day-0 member of each day's forecast; the exact median of the CMAL "
+            "mixture by deterministic quantile search, clipped at zero flow"
+        ),
         "hindcast_days": int(cfg.seq_length),
+        "climatology_rows": int(n_clim),
         "mock_inputs": mocked,
         "missing_products": missing_products,
         "derived_static_attributes": sorted(a for a in derived if a in cfg.static_attributes),
@@ -408,7 +429,9 @@ def main() -> int:
     forcing = read_forcing(io_dir / request["input"]["forcing"])
     static = json.loads((io_dir / request["input"]["static"]).read_text())
 
-    rows, notes = simulate(forcing, static, int(request.get("seed", 0)))
+    rows, notes = simulate(
+        forcing, static, int(request.get("seed", 0)), str(request.get("timestep", "PT1D"))
+    )
 
     out = io_dir / request["output"]["table"]
     out.parent.mkdir(parents=True, exist_ok=True)

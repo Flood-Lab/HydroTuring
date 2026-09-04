@@ -1,7 +1,4 @@
 run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,detail
-2026-09-03,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,30-day flood event,598896396,"adapter contract OK: 395 rows in 20.4s, columns mrro, dis"
-2026-09-03,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/catchment-closure,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
-2026-09-03,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/resolution-invariance,FAIL,VIOLATION,30-day flood event,746687816 1253639930 1760592044,resolution_invariance: mrro differs by 58.3% of pr between PT1H and PT1D (limit 5%)
 2026-09-03,reference_bucket,1.0.0,0.1.0,subprocess,mass/catchment-closure (adapter contract),PASS,OK,full record,598896396,"adapter contract OK: 4015 rows in 0.1s, columns pr, evspsbl, mrro, mrso, snw, canopy"
 2026-09-03,reference_bucket,1.0.0,0.1.0,subprocess,mass/catchment-closure,PASS,OK,full record,598896396 1105848510 1612800624 2119752738 479221205,residual 0.000% of driver
 2026-09-03,reference_bucket,1.0.0,0.1.0,subprocess,mass/resolution-invariance,PASS,OK,full record,746687816 1253639930 1760592044,all criteria pass
@@ -34,4 +31,59 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-04,reference_in_sample,1.0.0,0.1.0,subprocess,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
 2026-09-04,reference_calendar,1.0.0,0.1.0,subprocess,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
 2026-09-04,reference_streamflow_only,1.0.0,0.1.0,subprocess,mass/warming-response,FAIL,VIOLATION,full record,732983943 1239936057 1746888171 106356638 613308752,"response_sign: warmer (more pet): mrro did not move by 0.0 mm, +0.000 per unit of demand; a decrease of at least 0.1 per unit is expected; cooler (less pet): mrro did not move by 0.0 mm, -0.000 per unit of demand; a decrease of at least 0.1 per unit is expected; non_degenerate: runoff ratio 1.0028 outside [0.02, 0.98]"
-2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/warming-response,PASS,OK,365-day flood event,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
+2026-09-04,reference_bucket,1.0.0,0.1.0,subprocess,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
+2026-09-04,reference_fixed_step,1.0.0,0.1.0,subprocess,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
+2026-09-04,reference_leaky,1.0.0,0.1.0,subprocess,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
+2026-09-04,reference_cheater,1.0.0,0.1.0,subprocess,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
+2026-09-04,reference_degenerate,1.0.0,0.1.0,subprocess,mass/causality,FAIL,VIOLATION,full record,1016628858 1523580972 2030533086,"causality: the 40 mm storm of 2002-02-04 changed mrro by +0.000 of itself afterwards; at least 0.02 is expected; non_degenerate: runoff ratio 0.0000 outside [0.02, 0.98]; mrro is nearly constant (cv 0.0000 < 0.1); runoff barely responds to precipitation (r 0.000 < 0.05)"
+2026-09-04,reference_in_sample,1.0.0,0.1.0,subprocess,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
+2026-09-04,reference_calendar,1.0.0,0.1.0,subprocess,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
+2026-09-04,reference_streamflow_only,1.0.0,0.1.0,subprocess,mass/causality,FAIL,VIOLATION,full record,1016628858 1523580972 2030533086,"non_degenerate: runoff ratio 1.0127 outside [0.02, 0.98]"
+2026-09-04,reference_anticipating,1.0.0,0.1.0,subprocess,mass/causality,FAIL,VIOLATION,full record,1016628858 1523580972 2030533086,causality: mrro differs from the control by 1.573e-01 (relative) before the storm of 2002-02-04; a model may not respond before the rain it responds to
+2026-09-04,reference_climatology,1.0.0,0.1.0,subprocess,mass/causality,FAIL,VIOLATION,full record,1016628858 1523580972 2030533086,causality: the 40 mm storm of 2002-02-04 changed mrro by +0.000 of itself afterwards; at least 0.02 is expected
+2026-09-04,reference_saturating,1.0.0,0.1.0,subprocess,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
+2026-09-04,reference_restless,1.0.0,0.1.0,subprocess,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
+2026-09-04,reference_bucket,1.0.0,0.1.0,subprocess,mass/steady-state,PASS,OK,full record,1815845244 175313711 682265825,all criteria pass
+2026-09-04,reference_fixed_step,1.0.0,0.1.0,subprocess,mass/steady-state,PASS,OK,full record,1815845244 175313711 682265825,all criteria pass
+2026-09-04,reference_leaky,1.0.0,0.1.0,subprocess,mass/steady-state,FAIL,VIOLATION,full record,1815845244 175313711 682265825,steady_state: runoff and evaporation leave +0.375 mm/day of the 2.500 mm/day rain unaccounted for at steady state
+2026-09-04,reference_cheater,1.0.0,0.1.0,subprocess,mass/steady-state,FAIL,VIOLATION,full record,1815845244 175313711 682265825,steady_state: mrso still varies by 31.0% of its level in the last 365 days of constant weather; runoff and evaporation leave +0.525 mm/day of the 2.500 mm/day rain unaccounted for at steady state
+2026-09-04,reference_degenerate,1.0.0,0.1.0,subprocess,mass/steady-state,PASS,OK,full record,1815845244 175313711 682265825,all criteria pass
+2026-09-04,reference_in_sample,1.0.0,0.1.0,subprocess,mass/steady-state,PASS,OK,full record,1815845244 175313711 682265825,all criteria pass
+2026-09-04,reference_calendar,1.0.0,0.1.0,subprocess,mass/steady-state,FAIL,VIOLATION,full record,1815845244 175313711 682265825,steady_state: mrro still varies by 1.9% of its level in the last 365 days of constant weather; mrso still varies by 2.0% of its level in the last 365 days of constant weather
+2026-09-04,reference_streamflow_only,1.0.0,0.1.0,subprocess,mass/steady-state,PASS,OK,full record,1815845244 175313711 682265825,all criteria pass
+2026-09-04,reference_anticipating,1.0.0,0.1.0,subprocess,mass/steady-state,PASS,OK,full record,1815845244 175313711 682265825,all criteria pass
+2026-09-04,reference_climatology,1.0.0,0.1.0,subprocess,mass/steady-state,FAIL,VIOLATION,full record,1815845244 175313711 682265825,steady_state: mrro still varies by 80.0% of its level in the last 365 days of constant weather; evspsbl still varies by 80.0% of its level in the last 365 days of constant weather; runoff and evaporation leave +0.100 mm/day of the 2.500 mm/day rain unaccounted for at steady state
+2026-09-04,reference_saturating,1.0.0,0.1.0,subprocess,mass/steady-state,PASS,OK,full record,1815845244 175313711 682265825,all criteria pass
+2026-09-04,reference_restless,1.0.0,0.1.0,subprocess,mass/steady-state,FAIL,VIOLATION,full record,1815845244 175313711 682265825,steady_state: mrro still varies by 60.4% of its level in the last 365 days of constant weather; mrso still varies by 5.9% of its level in the last 365 days of constant weather
+2026-09-04,reference_bucket,1.0.0,0.1.0,subprocess,mass/extreme-rain,PASS,OK,full record,154098211 661050325 1168002439,all criteria pass
+2026-09-04,reference_fixed_step,1.0.0,0.1.0,subprocess,mass/extreme-rain,PASS,OK,full record,154098211 661050325 1168002439,all criteria pass
+2026-09-04,reference_leaky,1.0.0,0.1.0,subprocess,mass/extreme-rain,PASS,OK,full record,154098211 661050325 1168002439,all criteria pass
+2026-09-04,reference_cheater,1.0.0,0.1.0,subprocess,mass/extreme-rain,PASS,OK,full record,154098211 661050325 1168002439,all criteria pass
+2026-09-04,reference_degenerate,1.0.0,0.1.0,subprocess,mass/extreme-rain,FAIL,VIOLATION,full record,154098211 661050325 1168002439,"monotone_response: scaling the storm to 'x10' added 997 mm of rain and only 0 mm of mrro (0.00); a catchment cannot absorb that much; non_degenerate: runoff ratio 0.0000 outside [0.02, 0.98]; mrro is nearly constant (cv 0.0000 < 0.1); runoff barely responds to precipitation (r 0.000 < 0.05)"
+2026-09-04,reference_in_sample,1.0.0,0.1.0,subprocess,mass/extreme-rain,PASS,OK,full record,154098211 661050325 1168002439,all criteria pass
+2026-09-04,reference_calendar,1.0.0,0.1.0,subprocess,mass/extreme-rain,PASS,OK,full record,154098211 661050325 1168002439,all criteria pass
+2026-09-04,reference_streamflow_only,1.0.0,0.1.0,subprocess,mass/extreme-rain,FAIL,VIOLATION,full record,154098211 661050325 1168002439,"non_degenerate: runoff ratio 1.0116 outside [0.02, 0.98]"
+2026-09-04,reference_anticipating,1.0.0,0.1.0,subprocess,mass/extreme-rain,PASS,OK,full record,154098211 661050325 1168002439,all criteria pass
+2026-09-04,reference_climatology,1.0.0,0.1.0,subprocess,mass/extreme-rain,FAIL,VIOLATION,full record,154098211 661050325 1168002439,monotone_response: scaling the storm to 'x10' added 997 mm of rain and only 0 mm of mrro (0.00); a catchment cannot absorb that much
+2026-09-04,reference_saturating,1.0.0,0.1.0,subprocess,mass/extreme-rain,FAIL,VIOLATION,full record,154098211 661050325 1168002439,monotone_response: scaling the storm to 'x10' added 997 mm of rain and only 0 mm of mrro (0.00); a catchment cannot absorb that much
+2026-09-04,reference_restless,1.0.0,0.1.0,subprocess,mass/extreme-rain,PASS,OK,full record,154098211 661050325 1168002439,all criteria pass
+2026-09-04,reference_bucket,1.0.0,0.1.0,subprocess,mass/dry-down,PASS,OK,full record,186927550 693879664 1200831778,all criteria pass
+2026-09-04,reference_fixed_step,1.0.0,0.1.0,subprocess,mass/dry-down,PASS,OK,full record,186927550 693879664 1200831778,all criteria pass
+2026-09-04,reference_leaky,1.0.0,0.1.0,subprocess,mass/dry-down,PASS,OK,full record,186927550 693879664 1200831778,all criteria pass
+2026-09-04,reference_cheater,1.0.0,0.1.0,subprocess,mass/dry-down,FAIL,VIOLATION,full record,186927550 693879664 1200831778,non_degenerate: mrro is nearly constant (cv 0.0000 < 0.1)
+2026-09-04,reference_degenerate,1.0.0,0.1.0,subprocess,mass/dry-down,FAIL,VIOLATION,full record,186927550 693879664 1200831778,non_degenerate: mrro is nearly constant (cv 0.0000 < 0.1)
+2026-09-04,reference_in_sample,1.0.0,0.1.0,subprocess,mass/dry-down,PASS,OK,full record,186927550 693879664 1200831778,all criteria pass
+2026-09-04,reference_calendar,1.0.0,0.1.0,subprocess,mass/dry-down,PASS,OK,full record,186927550 693879664 1200831778,all criteria pass
+2026-09-04,reference_streamflow_only,1.0.0,0.1.0,subprocess,mass/dry-down,PASS,OK,full record,186927550 693879664 1200831778,all criteria pass
+2026-09-04,reference_anticipating,1.0.0,0.1.0,subprocess,mass/dry-down,PASS,OK,full record,186927550 693879664 1200831778,all criteria pass
+2026-09-04,reference_climatology,1.0.0,0.1.0,subprocess,mass/dry-down,FAIL,VIOLATION,full record,186927550 693879664 1200831778,"dry_down: 613 mm ran off in 730 rainless days, more than the 322 mm the catchment could have held; mrro rose by 3.5% of its post-lag level between 7-day blocks 95 and 96 with no rain to raise it"
+2026-09-04,reference_saturating,1.0.0,0.1.0,subprocess,mass/dry-down,PASS,OK,full record,186927550 693879664 1200831778,all criteria pass
+2026-09-04,reference_restless,1.0.0,0.1.0,subprocess,mass/dry-down,FAIL,VIOLATION,full record,186927550 693879664 1200831778,dry_down: mrro rose by 17.6% of its post-lag level between 7-day blocks 3 and 4 with no rain to raise it
+2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,30-day flood event,598896396,"adapter contract OK: 395 rows in 18.7s, columns mrro, dis"
+2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/catchment-closure,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
+2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/resolution-invariance,FAIL,VIOLATION,30-day flood event,746687816 1253639930 1760592044,resolution_invariance: mrro differs by 65.9% of pr between PT1H and PT1D (limit 5%)
+2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/warming-response,FAIL,VIOLATION,365-day flood event,732983943 1239936057 1746888171 106356638 613308752,"response_sign: warmer (more pet): mrro fell by 12.5 mm, -0.088 per unit of demand; a decrease of at least 0.1 per unit is expected"
+2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/causality,PASS,OK,730-day flood event,1016628858 1523580972 2030533086,all criteria pass
+2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/dry-down,FAIL,VIOLATION,730-day flood event,186927550 693879664 1200831778,non_degenerate: mrro is nearly constant (cv 0.0192 < 0.1)
+2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/steady-state,PASS,OK,1095-day flood event,1815845244 175313711 682265825,all criteria pass
+2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/extreme-rain,FAIL,VIOLATION,1095-day flood event,154098211 661050325 1168002439,monotone_response: scaling the storm to 'x10' added 526 mm of rain and only 35 mm of mrro (0.07); a catchment cannot absorb that much
