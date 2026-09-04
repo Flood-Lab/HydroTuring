@@ -7,6 +7,7 @@ It cannot fetch the probe definition, read the tolerance, or phone home.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -85,6 +86,11 @@ class DockerRunner(Runner):
         request_path = (io_dir / "request.json").resolve()
         input_dir = (io_dir / "input").resolve()
         output_dir = (io_dir / "output").resolve()
+        # A manifest asks for the CPUs the model would like; the host has what
+        # it has. Docker refuses a quota above the host's count outright, so
+        # the request is capped rather than passed through, and a model that
+        # asked for eight runs on a four-core runner instead of not at all.
+        cpus = min(int(resources.get("cpu", 2)), os.cpu_count() or 1)
         return [
             docker, "run", "--rm",
             "--network", "none",
@@ -97,7 +103,7 @@ class DockerRunner(Runner):
             "--mount", f"type=bind,source={input_dir},target=/io/input,readonly",
             "--mount", f"type=bind,source={output_dir},target=/io/output",
             "--memory", f"{resources.get('memory_gb', 4)}g",
-            "--cpus", str(resources.get("cpu", 2)),
+            "--cpus", str(cpus),
             tag,
             *model.entrypoint, "--request", "/io/request.json",
         ]

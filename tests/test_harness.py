@@ -256,6 +256,24 @@ def test_container_runs_with_hardened_read_only_inputs(tmp_path):
     )
 
 
+def test_cpu_request_is_capped_at_the_host(monkeypatch, tmp_path):
+    """Docker refuses a CPU quota above the host's count outright. A manifest
+    asking for eight cores must still run on a four-core runner."""
+    from dataclasses import replace
+
+    from hydroturing.runner import docker_runner
+    from hydroturing.runner.docker_runner import DockerRunner
+
+    model = replace(registry.find_model("reference_bucket"), resources={"cpu": 8, "memory_gb": 8})
+    monkeypatch.setattr(docker_runner.os, "cpu_count", lambda: 4)
+    argv = DockerRunner.command("docker", "img:1", model, tmp_path)
+    assert argv[argv.index("--cpus") + 1] == "4"
+
+    monkeypatch.setattr(docker_runner.os, "cpu_count", lambda: 16)
+    argv = DockerRunner.command("docker", "img:1", model, tmp_path)
+    assert argv[argv.index("--cpus") + 1] == "8"
+
+
 def test_missing_daemon_is_reported_as_such(monkeypatch):
     """A missing binary and a stopped daemon need different fixes, so they
     must not both surface as 'image build failed'."""
