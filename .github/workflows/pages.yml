@@ -2,13 +2,18 @@ name: pages
 
 # Publishes site/ to GitHub Pages. The site is one self-contained HTML file
 # with English, Spanish and Chinese served from the same page, so there is
-# nothing to build and no generator to keep up to date.
+# nothing to build and no generator to keep up to date. The one thing
+# generated here is the pair of badge endpoints the README reads its probe
+# and model counts from, so a merged probe or an evaluated model updates
+# the counts on the repository page without anyone editing a number.
 
 on:
   push:
     branches: [main]
     paths:
       - 'site/**'
+      - 'probes/**'
+      - 'models/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -30,6 +35,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Count the contributions
+        run: python3 scripts/badges.py site/badges
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

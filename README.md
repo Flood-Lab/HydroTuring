@@ -7,6 +7,13 @@
   &middot; English, Español, 中文
 </p>
 
+<p align="center">
+  <a href="#the-probes"><img alt="probes merged" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fflood-lab.github.io%2FHydroTuring%2Fbadges%2Fprobes.json"></a>
+  <a href="#models"><img alt="models evaluated" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fflood-lab.github.io%2FHydroTuring%2Fbadges%2Fmodels.json"></a>
+  <a href="CONTRIBUTORS.md"><img alt="contributors" src="https://img.shields.io/github/contributors/Flood-Lab/HydroTuring?color=1f6f8b&label=contributors"></a>
+  <a href="LICENSE"><img alt="licence" src="https://img.shields.io/badge/licence-PolyForm%20Noncommercial%201.0.0-555"></a>
+</p>
+
 A benchmark that asks one question of any AI hydrologic model: **does it
 conserve what physics says it must conserve?**
 
