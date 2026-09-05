@@ -1,0 +1,19 @@
+name: reference_sublimation_blind
+version: "1.0.0"
+description: >
+  Fully coupled with a temperature-dependent latent heat, but it converts
+  snow sublimation at the latent heat of vaporisation instead of sublimation.
+  It is short by 13.3 percent on exactly the steps where a snowpack is
+  losing mass to the atmosphere, and correct everywhere else.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D]
+emits:
+  fluxes: [pr, evspsbl, mrro, hfls, hfss, hfg]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet, rn]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

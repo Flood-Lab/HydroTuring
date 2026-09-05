@@ -1,0 +1,113 @@
+id: energy/latent-heat-et-consistency
+title: Latent heat and evapotranspiration must describe one evaporation
+law: energy
+track: synthetic
+version: 1
+
+authors:
+  - name: Changming Li
+    affiliation: South China University of Technology
+    orcid: 0000-0003-1793-1824
+
+description: >
+  Force a lumped catchment with ten years of generated daily weather and net
+  radiation, and ask whether the evaporation the model reports as water and
+  the evaporation implied by the latent heat flux it reports are the same
+  evaporation. A model with a water head and an energy head can close both
+  budgets independently and still fail this, because the contradiction lives
+  strictly between the budgets and no single-budget criterion can reach it.
+  Both budgets are therefore also scored here: an incoherence claim means
+  nothing unless the two ledgers it spans are each closed.
+
+requires:
+  fluxes: [pr, evspsbl, mrro, hfls, hfss, hfg]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_years: 10
+  spinup_days: 365
+  max_output_mb: 3.0
+  max_runtime_s: 60
+
+criteria:
+  # The water budget, on the same terms as mass/catchment-closure. The
+  # coherence criterion below is a claim about two closed budgets, so this one
+  # is a precondition rather than the point.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  # The energy budget. hfg is the storage term, so there is no energy state to
+  # difference. Net radiation crosses zero on winter days, hence the floor.
+  - energy_closure:
+      driver: rn
+      sinks: [hfls, hfss, hfg]
+      threshold: 0.05
+      floor: 2.0
+
+  # The cross-budget identity, scored at every step. 0.5 percent rather than
+  # the suite's 5 percent because the failure this exists to catch is only
+  # 3.4 percent large: a constant latent heat of vaporisation is invisible to
+  # the engineering rule. The floor is 0.5 W m-2 rather than 2, because at 2 a
+  # constant-lambda model survives every step whose evaporation is under about
+  # 3.5 mm/day, which is most of them.
+  - flux_identity:
+      flux: hfls
+      water: evspsbl
+      temperature: tas
+      rel_tol: 0.005
+      abs_floor: 0.5
+      lambda_vapour: [2.501e6, -2361.0]
+      lambda_fusion: 3.337e5
+      phase_state: snw
+      snowfall_from: pr
+      snow_threshold_degC: 0.0
+
+  # Catches closure by construction on the water side, as in the mass probe.
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+
+  # Catches the ET = P escape, which closes the water budget with no runoff.
+  - et_plausible:
+      max_ratio_to_pet: 1.0
+      pet_variable: pet
+
+  # Catches every remaining trivial partition.
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro, evspsbl]
+
+  # Stops a model from closing a budget against its own rescaled driver.
+  - forcing_fidelity:
+      variables: [pr]
+      rtol: 1.0e-6
+
+baselines:
+  must_pass: [reference_coupled]
+  must_fail:
+    reference_two_head: flux_identity
+    reference_constant_lambda: flux_identity
+    reference_sublimation_blind: flux_identity
+    reference_energy_leak: energy_closure
+
+citation: >
+  Brutsaert, W. (1982). Evaporation into the Atmosphere. Reidel, for the
+  temperature dependence of the latent heat of vaporisation and for the
+  Priestley-Taylor coefficient the generator uses to derive demand from
+  available energy; Beucler, T., Pritchard, M., Rasp, S., Ott, J., Baldi, P.,
+  and Gentine, P. (2021), Physical Review Letters 126, 098302,
+  doi:10.1103/PhysRevLett.126.098302, as the nearest prior art: the same
+  conservation question for neural emulators, posed as a penalty term rather
+  than as a gate.
+
+provenance: >
+  Synthetic. Generated at run time by generate.py from a recorded seed.
+  Nothing is committed as data, so there is nothing to memorise.
