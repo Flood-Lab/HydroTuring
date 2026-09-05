@@ -73,6 +73,13 @@ class DockerRunner(Runner):
         self._tag: str | None = None
 
     @staticmethod
+    def user_flags() -> list[str]:
+        """`--user uid:gid` of the invoking user, where the platform has one."""
+        if not hasattr(os, "getuid"):
+            return []
+        return ["--user", f"{os.getuid()}:{os.getgid()}"]
+
+    @staticmethod
     def command(docker: str, tag: str, model: ModelManifest, io_dir: Path) -> list[str]:
         """Build the run command.
 
@@ -91,8 +98,17 @@ class DockerRunner(Runner):
         # the request is capped rather than passed through, and a model that
         # asked for eight runs on a four-core runner instead of not at all.
         cpus = min(int(resources.get("cpu", 2)), os.cpu_count() or 1)
+        # The container runs as the user invoking the harness, not as root.
+        # With every capability dropped, root inside the container has no
+        # DAC override, so it cannot write into an output directory the host
+        # user owns; on a Linux host (the CI runner) that is a PermissionError
+        # on result.csv. As the host user it can, and it can touch nothing
+        # else on the host either. HOME points at the tmpfs so a library that
+        # wants a cache directory has one that vanishes with the container.
         return [
             docker, "run", "--rm",
+            *DockerRunner.user_flags(),
+            "--env", "HOME=/tmp",
             "--network", "none",
             "--read-only",
             "--cap-drop", "ALL",

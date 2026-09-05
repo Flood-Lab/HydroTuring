@@ -239,6 +239,12 @@ def test_container_runs_with_hardened_read_only_inputs(tmp_path):
     assert "--network" in argv and argv[argv.index("--network") + 1] == "none"
     assert "--read-only" in argv
     assert argv[argv.index("--cap-drop") + 1] == "ALL"
+    # Not root: with every capability dropped, root could not even write the
+    # output directory the host user owns, and it should not be able to write
+    # anything else of the host's either.
+    import os
+    assert argv[argv.index("--user") + 1] == f"{os.getuid()}:{os.getgid()}"
+    assert argv[argv.index("--env") + 1] == "HOME=/tmp"
     assert argv[argv.index("--security-opt") + 1] == "no-new-privileges"
     assert "--pids-limit" in argv
     assert "--workdir" not in argv
