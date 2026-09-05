@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from hydroturing.criteria.base import FAIL, PASS, CriterionResult, criterion, make_window
+from hydroturing.criteria.base import (
+    FAIL, PASS, CriterionResult, criterion, make_window, reported_states,
+)
 from hydroturing.protocol import RunResult
 from hydroturing.spec import ProbeSpec
 
@@ -60,7 +62,7 @@ def closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
             raise ValueError(f"closure needs '{var}' in the model result")
         outflow += w.volume(w.table[var])
 
-    states = probe.requires_states
+    states = reported_states(w, probe)
     storage = w.storage(states)
     storage_change = float(storage[-1]) - w.storage_initial(states)
 

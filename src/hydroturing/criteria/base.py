@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 from hydroturing.protocol import RunResult
-from hydroturing.spec import ProbeSpec
+from hydroturing.spec import STATE_VARS, ProbeSpec
 
 PASS = "pass"
 FAIL = "fail"
@@ -101,6 +101,23 @@ class Window:
     def volume(self, series: np.ndarray | pd.Series) -> np.ndarray:
         """Convert a rate (per day) to a per-step depth."""
         return np.asarray(series, dtype=float) * self.dt_days
+
+
+def reported_states(window: Window, probe: ProbeSpec) -> tuple[str, ...]:
+    """Every storage the model reported, the probe's required ones first.
+
+    A probe names the stores it must see, and a model that omits one of them
+    is INCOMPLETE before any criterion runs. A model may also carry stores
+    the probe did not ask for, a groundwater zone or water in transit in the
+    channel, and those have to be counted too: a budget that is closed
+    inside the model would otherwise open in the criterion by exactly the
+    water those stores hold.
+    """
+    required = tuple(probe.requires_states)
+    extra = tuple(
+        v for v in STATE_VARS if v in window.table.columns and v not in required
+    )
+    return required + extra
 
 
 def make_window(run: RunResult, probe: ProbeSpec) -> Window:

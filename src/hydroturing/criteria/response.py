@@ -27,6 +27,7 @@ from hydroturing.criteria.base import (
     CriterionResult,
     criterion,
     make_window,
+    reported_states,
 )
 from hydroturing.protocol import RunResult
 from hydroturing.spec import ProbeSpec
@@ -81,7 +82,7 @@ def counterfactual_response(
         )
         shares[var] = change / added
 
-    states = probe.requires_states
+    states = reported_states(control, probe)
     if states:
         def storage_change(w):
             return float(w.storage(states)[-1]) - w.storage_initial(states)

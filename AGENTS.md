@@ -107,6 +107,17 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `mrso` | soil water storage | mm |
 | `snw` | snow water equivalent | mm |
 | `canopy` | canopy interception storage | mm |
+| `gw` | groundwater storage below the soil column | mm |
+| `channel` | water generated as runoff but not yet released by the model's routing | mm |
+
+A probe names the stores it requires. Report every store the model
+actually has, including ones the probe did not name: a groundwater zone
+under `gw`, water in transit through a unit hydrograph or a channel under
+`channel`. The budget is closed over all of them. Leaving one out opens the
+budget by exactly the water it holds, and a model with a groundwater store
+that reports only soil water will be measured as leaking. A store the model
+does not have at all is not fabricated to fill a column; say so in the
+adapter's README and in `run.json`.
 
 ## Three rules that are easy to get wrong
 

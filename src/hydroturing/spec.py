@@ -21,7 +21,7 @@ SCHEMA_DIR = REPO_ROOT / "schemas"
 # Canonical variable names. Fluxes are mm per timestep-day; states are mm.
 # `dis` is the one exception and is m3 s-1, because that is what models report.
 FLUX_VARS = ("pr", "evspsbl", "mrro", "dis")
-STATE_VARS = ("mrso", "snw", "canopy")
+STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
 
 UNITS = {
     "pr": "mm day-1",
@@ -31,6 +31,8 @@ UNITS = {
     "mrso": "mm",
     "snw": "mm",
     "canopy": "mm",
+    "gw": "mm",
+    "channel": "mm",
 }
 
 # Supported timesteps as ISO 8601 durations, and their length in days. Fluxes

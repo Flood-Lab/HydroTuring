@@ -30,6 +30,7 @@ from hydroturing.criteria.base import (
     make_window,
     segments,
     storage_at,
+    reported_states,
 )
 from hydroturing.criteria.closure import DENOMINATORS
 from hydroturing.protocol import RunResult
@@ -79,7 +80,7 @@ def regime_transfer(run: RunResult, probe: ProbeSpec, params: dict) -> Criterion
             f"'{forcing_var}', which this probe's generator does not produce"
         )
 
-    states = probe.requires_states
+    states = reported_states(w, probe)
     blocks = segments(w)
     found = {label for label, _, _ in blocks}
     for needed in (reference_label, extrapolation_label):
