@@ -1,7 +1,9 @@
 # Building a HydroTuring sandbox
 
 Instructions for a coding agent asked to make an existing hydrologic model
-runnable under HydroTuring. The work is always the same three files, and it
+runnable under HydroTuring. A maintainer's agent evaluating a submission
+end to end should start from `.claude/skills/hydroturing-evaluate-model/`,
+which records the whole workflow and what the first evaluations taught. The work is always the same three files, and it
 does not require understanding the model's internals.
 
 ## What you are building
