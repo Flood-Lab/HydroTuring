@@ -8,7 +8,7 @@ description: >
   of a percent of total precipitation. It exists so that a probe claiming to
   test extrapolation has something that is only wrong out of range.
 authors: ["HydroTuring maintainers"]
-license: MIT
+license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1D

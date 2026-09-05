@@ -8,7 +8,7 @@ version = "0.1.0.dev0"
 description = "A benchmark that tests whether AI hydrologic models conserve mass, energy and momentum."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "PolyForm-Noncommercial-1.0.0"}
 authors = [{name = "Zhi Li"}]
 dependencies = [
     "numpy>=1.23",

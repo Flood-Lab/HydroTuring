@@ -6,7 +6,7 @@ description: >
   One or two sentences: what the model is, and what it predicts.
 authors: ["Your Name <you@institution.edu>"]
 reference: "https://doi.org/..."
-license: MIT
+license: "your code licence, e.g. Apache-2.0; name the weights licence too if it differs"
 
 runner: docker
 entrypoint: ["python3", "ht_adapter.py"]

@@ -8,7 +8,7 @@ description: >
   different dates and its answer moves. It exists so that an invariance probe
   has something to catch.
 authors: ["HydroTuring maintainers"]
-license: MIT
+license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1D

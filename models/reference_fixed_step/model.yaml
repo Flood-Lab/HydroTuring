@@ -7,7 +7,7 @@ description: >
   from a day, so its integrated volumes differ at every resolution it is
   run at. Stands in for a model built at one resolution and run at another.
 authors: ["HydroTuring maintainers"]
-license: MIT
+license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]

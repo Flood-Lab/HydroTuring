@@ -5,7 +5,7 @@ description: >
   storage never changes. Closes exactly for any forcing. It pins the
   non_degenerate criterion.
 authors: ["HydroTuring maintainers"]
-license: MIT
+license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1D

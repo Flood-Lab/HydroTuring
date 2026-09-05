@@ -6,7 +6,7 @@ description: >
   yet. Conserves water and stays physical; responds to rain before it falls.
   Stands in for any model that reads its record both ways.
 authors: ["HydroTuring maintainers"]
-license: MIT
+license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]

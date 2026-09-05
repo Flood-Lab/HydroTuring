@@ -6,7 +6,7 @@ description: >
   model, the probe's tolerance has drifted past what exact physics achieves,
   and the probe is wrong rather than the model.
 authors: ["HydroTuring maintainers"]
-license: MIT
+license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]

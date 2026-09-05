@@ -6,7 +6,7 @@ description: >
   constant forcing it never settles. Stands in for a recurrent state with a
   life of its own.
 authors: ["HydroTuring maintainers"]
-license: MIT
+license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]

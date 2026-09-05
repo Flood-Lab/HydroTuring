@@ -5,7 +5,7 @@ description: >
   construction on every seed, so randomised forcing cannot catch it. It pins
   the state_bounds criterion, which can.
 authors: ["HydroTuring maintainers"]
-license: MIT
+license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1D

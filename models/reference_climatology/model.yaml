@@ -6,7 +6,7 @@ description: >
   that never moves. Keeps flowing through two rainless years, which no
   catchment can, and never notices a warming.
 authors: ["HydroTuring maintainers"]
-license: MIT
+license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
