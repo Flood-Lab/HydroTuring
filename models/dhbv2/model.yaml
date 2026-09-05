@@ -1,0 +1,39 @@
+name: dhbv2
+version: "0.5.4-hbv2ep100"
+description: >
+  δHBV 2.0, the differentiable HBV behind the MHPI group's CONUS-scale water
+  model (Song et al. 2025): an LSTM and an MLP write the parameters of an
+  HBV bucket model, three of them varying in time, and the bucket model
+  runs. Packaged from the NextGen module mhpi/dhbv2 at v0.5.4 with the
+  published daily weights (hbv_2_ep100.pt). Unlike a streamflow-only
+  network it carries explicit stores and an explicit evaporation, so it can
+  be scored on closure. The HBV core has no interception store, so canopy
+  is reported as identically zero; README.md says how every input is
+  filled and which structural settings were read from the checkpoint.
+authors:
+  - "MHPI group, Penn State (Song, Bindas, Shen, Lonzarich, Yang, Ji et al.)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1029/2024WR038928"
+license: "PSU Non-Commercial Software License (code and weights)"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+
+# Everything the HBV core actually carries. `gw` is the two groundwater
+# boxes, `channel` the water generated as runoff but still inside the unit
+# hydrograph. Canopy is zero because HBV has no interception store, which is
+# a statement about the model rather than a value invented for the column.
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  states: [mrso, snw, canopy, gw, channel]
+
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 2, memory_gb: 4, gpu: false}
+
+# The point of this submission is the water budget, and the closure probe
+# is defined over the ten-year record. One lumped catchment runs the whole
+# record in about a second, so nothing is gained by cutting it.
+window_days: full

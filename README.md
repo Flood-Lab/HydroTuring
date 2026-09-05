@@ -86,6 +86,7 @@ in one specific way, so that no criterion goes untested.
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |
 | [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (INCOMPLETE)**, 2 of 7 probes passed |
+| [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (VIOLATION)**, 3 of 7 probes passed; the budget gains 83% of the rain from a learned regional-groundwater term |
 | `reference_bucket` | exact | conserves water exactly by construction | must pass every probe |
 | `reference_leaky` | broken | hides a silent 15% sink | caught by `closure` |
 | `reference_cheater` | broken | solves for storage as whatever balances the budget | caught by `state_bounds` |
