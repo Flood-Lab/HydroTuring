@@ -305,8 +305,10 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <text x="396" y="173" class="probe" data-i18n="infra.probe.pet">PET demand</text>
       <circle cx="388" cy="183.5" r="2.4" fill="var(--pass)"/>
       <text x="396" y="187" class="probe" data-i18n="infra.probe.latent">latent heat</text>
-      <rect x="384" y="200" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
-      <text x="418" y="224" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
+      <circle cx="388" cy="197.5" r="2.4" fill="var(--pass)"/>
+      <text x="396" y="201" class="probe" data-i18n="infra.probe.partition">partition</text>
+      <rect x="384" y="214" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
+      <text x="418" y="238" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
       <rect x="472" y="100" width="92" height="236" rx="6" fill="var(--surface-2)"/>
       <text x="518" y="121" class="pillar" data-i18n="infra.momentum" text-anchor="middle">MOMENTUM</text>
       <text x="518" y="138" class="note" data-i18n="infra.momentum.s1" text-anchor="middle">routing conserves</text>
@@ -608,6 +610,7 @@ en: {
   "infra.probe.phase":"phase",
   "infra.probe.pet":"PET demand",
   "infra.probe.latent":"latent heat",
+  "infra.probe.partition":"partition",
   "infra.probe.routing":"routing",
   "infra.flow":"seed → case → run → one bit",
   "infra.s1a":"seeded",
@@ -651,11 +654,11 @@ en: {
   "models.th5":"Verdict",
   "models.intro":"<p>Every model that has been run against the suite. A submitted model is evaluated in an isolated container on a flood-event window of each probe's generated record. A physical model is one the acceptance gate requires every probe to pass; it is evaluated the same way, and a probe that fails one is examined before the model is.</p>",
   "models.legend":"<p>Every evaluation is appended to <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>, with the probe, the window, the seeds and the worst criterion. The verdict is one bit and its reason; the numbers under it are in the archive and in each model's README. To submit a model, open a <a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">model submission</a>.</p>",
-  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>submitted</td><td>Google Flood Hub's mean-embedding forecast LSTM, through OpenHydroNet with the published weights. Discharge only.</td><td>5 / 15</td><td><span class="tag incomplete">FAIL (INCOMPLETE)</span></td></tr>
-<tr><td class="mono">dhbv2</td><td>submitted</td><td>δHBV 2.0, the MHPI differentiable HBV: networks write the parameters of a bucket model that reports its stores, its evaporation and, declared, its regional groundwater exchange.</td><td>10 / 15</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
-<tr><td class="mono">flex_lumped</td><td>physical</td><td>Lumped FLEX/HBV from chrimerss/HydrologicModels: interception, beta-partitioned soil, fast and slow reservoirs, a lag.</td><td>14 / 15</td><td><span class="tag merged">PASS</span></td></tr>
-<tr><td class="mono">flex_topo</td><td>physical</td><td>FLEX-Topo: plateau, hillslope and wetland units on the Wark catchment's real fractions, sharing one groundwater store.</td><td>14 / 15</td><td><span class="tag merged">PASS</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>14 / 15</td><td><span class="tag merged">PASS</span></td></tr>
+  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>submitted</td><td>Google Flood Hub's mean-embedding forecast LSTM, through OpenHydroNet with the published weights. Discharge only.</td><td>5 / 16</td><td><span class="tag incomplete">FAIL (INCOMPLETE)</span></td></tr>
+<tr><td class="mono">dhbv2</td><td>submitted</td><td>δHBV 2.0, the MHPI differentiable HBV: networks write the parameters of a bucket model that reports its stores, its evaporation and, declared, its regional groundwater exchange.</td><td>10 / 16</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
+<tr><td class="mono">flex_lumped</td><td>physical</td><td>Lumped FLEX/HBV from chrimerss/HydrologicModels: interception, beta-partitioned soil, fast and slow reservoirs, a lag.</td><td>14 / 16</td><td><span class="tag merged">PASS</span></td></tr>
+<tr><td class="mono">flex_topo</td><td>physical</td><td>FLEX-Topo: plateau, hillslope and wetland units on the Wark catchment's real fractions, sharing one groundwater store.</td><td>14 / 16</td><td><span class="tag merged">PASS</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>14 / 16</td><td><span class="tag merged">PASS</span></td></tr>
 `,
   "probes.h":"The probes",
   "probes.intro":"<p>Every probe in the suite, and every one the roadmap is waiting for. A merged probe is in the repository and passes the acceptance gate against the reference models. A wanted probe is named, unclaimed, and yours to take.</p>",
@@ -678,6 +681,7 @@ en: {
 <tr><td class="mono">mass/phase-counterfactual</td><td>mass</td><td>The same water as rain instead of snow: timing moves, the integrated volumes do not.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">energy/pet-consistency</td><td>energy</td><td>Evaporation reaches demand when the model's own soil is wettest, never exceeds it, and falls when driest.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">energy/latent-heat-et-consistency</td><td>energy</td><td>The evaporation a model reports as water and the one implied by its latent heat: are they the same evaporation?</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">energy/evaporative-partition</td><td>energy</td><td>One summer without rain under radiation that did not change: the latent heat a drying surface gives up has to warm the air.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>momentum</td><td>The channel store is never negative and never holds more than its hydrograph can.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">coupled/snowmelt-energy-water</td><td>coupled</td><td>Melt in the water budget must match the energy spent melting.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>mass</td><td>Snowfall minus melt minus sublimation minus the change in snow water.</td><td><span class="tag wanted">wanted</span></td></tr>
@@ -801,6 +805,7 @@ es: {
   "infra.probe.phase":"fase",
   "infra.probe.pet":"demanda",
   "infra.probe.latent":"calor latente",
+  "infra.probe.partition":"partición",
   "infra.probe.routing":"tránsito",
   "infra.flow":"semilla → caso → ejecución → un bit",
   "infra.s1a":"generador",
@@ -844,11 +849,11 @@ es: {
   "models.th5":"Veredicto",
   "models.intro":"<p>Todos los modelos que se han ejecutado contra la batería. Un modelo enviado se evalúa en un contenedor aislado sobre una ventana de crecida del registro generado de cada prueba. Un modelo físico es uno que la compuerta de aceptación exige que toda prueba supere; se evalúa igual, y una prueba que lo falla se examina antes que el modelo.</p>",
   "models.legend":"<p>Cada evaluación se añade a <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>, con la prueba, la ventana, las semillas y el peor criterio. El veredicto es un bit y su razón; los números están en el archivo y en el README de cada modelo. Para enviar un modelo, abre un <a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">envío de modelo</a>.</p>",
-  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>enviado</td><td>El LSTM de pronóstico de Google Flood Hub, vía OpenHydroNet con los pesos publicados. Solo caudal.</td><td>5 / 15</td><td><span class="tag incomplete">FALLA (INCOMPLETO)</span></td></tr>
-<tr><td class="mono">dhbv2</td><td>enviado</td><td>δHBV 2.0, el HBV diferenciable de MHPI: redes que escriben los parámetros de un modelo de cubetas que reporta sus almacenes, su evaporación y, declarado, su intercambio regional de agua subterránea.</td><td>10 / 15</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
-<tr><td class="mono">flex_lumped</td><td>físico</td><td>FLEX/HBV agregado de chrimerss/HydrologicModels: intercepción, suelo con partición beta, embalses rápido y lento, un retardo.</td><td>14 / 15</td><td><span class="tag merged">PASA</span></td></tr>
-<tr><td class="mono">flex_topo</td><td>físico</td><td>FLEX-Topo: unidades de meseta, ladera y humedal con las fracciones reales de la cuenca Wark, un solo almacén subterráneo.</td><td>14 / 15</td><td><span class="tag merged">PASA</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>14 / 15</td><td><span class="tag merged">PASA</span></td></tr>
+  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>enviado</td><td>El LSTM de pronóstico de Google Flood Hub, vía OpenHydroNet con los pesos publicados. Solo caudal.</td><td>5 / 16</td><td><span class="tag incomplete">FALLA (INCOMPLETO)</span></td></tr>
+<tr><td class="mono">dhbv2</td><td>enviado</td><td>δHBV 2.0, el HBV diferenciable de MHPI: redes que escriben los parámetros de un modelo de cubetas que reporta sus almacenes, su evaporación y, declarado, su intercambio regional de agua subterránea.</td><td>10 / 16</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
+<tr><td class="mono">flex_lumped</td><td>físico</td><td>FLEX/HBV agregado de chrimerss/HydrologicModels: intercepción, suelo con partición beta, embalses rápido y lento, un retardo.</td><td>14 / 16</td><td><span class="tag merged">PASA</span></td></tr>
+<tr><td class="mono">flex_topo</td><td>físico</td><td>FLEX-Topo: unidades de meseta, ladera y humedal con las fracciones reales de la cuenca Wark, un solo almacén subterráneo.</td><td>14 / 16</td><td><span class="tag merged">PASA</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>14 / 16</td><td><span class="tag merged">PASA</span></td></tr>
 `,
   "probes.h":"Las pruebas",
   "probes.intro":"<p>Todas las pruebas de la batería, y todas las que la hoja de ruta espera. Una prueba integrada está en el repositorio y supera la compuerta de aceptación frente a los modelos de referencia. Una prueba que se busca tiene nombre, nadie la ha reclamado, y es tuya si la tomas.</p>",
@@ -871,6 +876,7 @@ es: {
 <tr><td class="mono">mass/phase-counterfactual</td><td>masa</td><td>La misma agua como lluvia en vez de nieve: cambia el momento, no los volúmenes integrados.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">energy/pet-consistency</td><td>energía</td><td>La evaporación alcanza la demanda cuando el suelo del propio modelo está más húmedo, nunca la supera y baja cuando está más seco.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">energy/latent-heat-et-consistency</td><td>energía</td><td>La evaporación que un modelo reporta como agua y la que implica su calor latente: ¿son la misma evaporación?</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">energy/evaporative-partition</td><td>energía</td><td>Un verano sin lluvia bajo una radiación que no cambió: el calor latente que cede una superficie que se seca tiene que calentar el aire.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>momento</td><td>El almacén del cauce nunca es negativo ni retiene más de lo que cabe en su hidrograma.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">coupled/snowmelt-energy-water</td><td>acoplada</td><td>El deshielo del balance hídrico debe coincidir con la energía gastada en fundir.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>masa</td><td>Nevada menos deshielo menos sublimación menos el cambio de agua en la nieve.</td><td><span class="tag wanted">se busca</span></td></tr>
@@ -994,6 +1000,7 @@ zh: {
   "infra.probe.phase":"相态",
   "infra.probe.pet":"蒸散需求",
   "infra.probe.latent":"潜热一致",
+  "infra.probe.partition":"能量分配",
   "infra.probe.routing":"汇流演算",
   "infra.flow":"种子 → 案例 → 运行 → 一位判定",
   "infra.s1a":"带种子的",
@@ -1037,11 +1044,11 @@ zh: {
   "models.th5":"结论",
   "models.intro":"<p>所有已在本套件上运行过的模型。提交模型在隔离容器中，于每个检验项生成记录的洪水事件窗口上评估。物理模型是验收闸门要求每个检验项都必须通过的模型，以同样方式评估；若某检验项未能通过物理模型，先检查检验项，再检查模型。</p>",
   "models.legend":"<p>每次评估都会追加到 <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>，记录检验项、窗口、种子与最差准则。结论是一个比特及其原因；其下的数字在归档和各模型的 README 中。提交模型请打开<a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">模型提交</a>。</p>",
-  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>提交模型</td><td>Google Flood Hub 的均值嵌入预报 LSTM，经 OpenHydroNet 以公开权重运行。仅输出流量。</td><td>5 / 15</td><td><span class="tag incomplete">未通过（信息不全）</span></td></tr>
-<tr><td class="mono">dhbv2</td><td>提交模型</td><td>δHBV 2.0，MHPI 的可微 HBV：神经网络写出水桶模型的参数，模型报告蓄水、蒸发，并申报其区域地下水交换。</td><td>10 / 15</td><td><span class="tag violation">未通过（违反）</span></td></tr>
-<tr><td class="mono">flex_lumped</td><td>物理模型</td><td>来自 chrimerss/HydrologicModels 的集总 FLEX/HBV：截留、beta 分配的土壤、快慢水库与滞时。</td><td>14 / 15</td><td><span class="tag merged">通过</span></td></tr>
-<tr><td class="mono">flex_topo</td><td>物理模型</td><td>FLEX-Topo：台地、坡地与湿地单元按 Wark 流域的真实面积比共享一个地下水库。</td><td>14 / 15</td><td><span class="tag merged">通过</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>14 / 15</td><td><span class="tag merged">通过</span></td></tr>
+  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>提交模型</td><td>Google Flood Hub 的均值嵌入预报 LSTM，经 OpenHydroNet 以公开权重运行。仅输出流量。</td><td>5 / 16</td><td><span class="tag incomplete">未通过（信息不全）</span></td></tr>
+<tr><td class="mono">dhbv2</td><td>提交模型</td><td>δHBV 2.0，MHPI 的可微 HBV：神经网络写出水桶模型的参数，模型报告蓄水、蒸发，并申报其区域地下水交换。</td><td>10 / 16</td><td><span class="tag violation">未通过（违反）</span></td></tr>
+<tr><td class="mono">flex_lumped</td><td>物理模型</td><td>来自 chrimerss/HydrologicModels 的集总 FLEX/HBV：截留、beta 分配的土壤、快慢水库与滞时。</td><td>14 / 16</td><td><span class="tag merged">通过</span></td></tr>
+<tr><td class="mono">flex_topo</td><td>物理模型</td><td>FLEX-Topo：台地、坡地与湿地单元按 Wark 流域的真实面积比共享一个地下水库。</td><td>14 / 16</td><td><span class="tag merged">通过</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>14 / 16</td><td><span class="tag merged">通过</span></td></tr>
 `,
   "probes.h":"检验项一览",
   "probes.intro":"<p>套件中的每一项检验，以及路线图正在等待的每一项。已合并的检验项已在仓库中，并在参照模型上通过验收闸门。征集中的检验项已有名字、尚无人认领，欢迎认领。</p>",
@@ -1064,6 +1071,7 @@ zh: {
 <tr><td class="mono">mass/phase-counterfactual</td><td>质量</td><td>同样的水以雨而非雪的形式落下：时间会变，积分体积不变。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">energy/pet-consistency</td><td>能量</td><td>当模型自身土壤最湿时蒸发达到需求、永不超过需求，最干时蒸发下降。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">energy/latent-heat-et-consistency</td><td>能量</td><td>模型作为水量报告的蒸发与其潜热通量所隐含的蒸发：是否是同一个蒸发？</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">energy/evaporative-partition</td><td>能量</td><td>净辐射不变的情况下一个无雨的夏天：干燥地表让出的潜热必须去加热空气。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>动量</td><td>河道蓄水永不为负，也永不超过其单位线所能容纳的量。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">coupled/snowmelt-energy-water</td><td>耦合</td><td>水量收支中的融雪量必须与融化耗能一致。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>质量</td><td>降雪减融雪减升华减雪水当量变化。</td><td><span class="tag wanted">征集中</span></td></tr>

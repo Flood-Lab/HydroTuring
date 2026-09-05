@@ -1,0 +1,23 @@
+name: reference_ground_dodge
+version: "1.0.0"
+description: >
+  Latent heat agrees with the water it evaporated and the energy budget
+  closes, but the sensible heat flux is a fixed share of net radiation
+  that never reads the soil. When the soil dries, the energy the latent
+  flux gives up is absorbed by the ground flux instead of warming the
+  air, which over a season would require a soil heat store that does
+  not exist. It is the dodge a model can take once it knows a partition
+  probe is watching the sum, and it is why energy/evaporative-partition
+  bounds the ground share as well as the sum.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D]
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet, rn]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

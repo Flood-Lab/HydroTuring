@@ -2,7 +2,7 @@
 """HydroTuring adapter. Standard library only, to show that the /io contract
 needs no scientific Python stack and could be written in any language.
 
-Discards 15 percent of net radiation.
+Coherent, both budgets close, and the energy goes into the ground.
 """
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ import json
 import sys
 from pathlib import Path
 
-MODE = "energy_leak"
-MODEL = {"name": "reference_energy_leak", "version": "1.0.0"}
+MODE = "ground_dodge"
+MODEL = {"name": "reference_ground_dodge", "version": "1.0.0"}
 
 COLUMNS = [
     "time", "pr", "evspsbl", "mrro", "sbl", "hfls", "hfss", "hfg",

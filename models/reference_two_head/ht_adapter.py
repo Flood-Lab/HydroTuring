@@ -30,6 +30,7 @@ LAMBDA_A, LAMBDA_B = 2.501e6, -2361.0
 LAMBDA_F = 3.337e5
 LAMBDA_CONST = 2.45e6  # the constant a careless model would use
 CLIMATOLOGICAL_EF = 0.65  # evaporative fraction of a model whose heads never meet
+CLIMATOLOGICAL_H_SHARE = 0.25  # sensible share of a model whose H never reads the soil
 ENERGY_LEAK = 0.15
 SECONDS_PER_DAY = 86400.0
 
@@ -69,6 +70,13 @@ def partition_energy(rn, tas, liquid_mm, sublimated_mm, dt_days):
         latent = CLIMATOLOGICAL_EF * (rn - ground)
     else:
         latent = (lam_v * liquid_mm + lam_s * sublimated_mm) / seconds
+
+    if MODE == "ground_dodge":
+        # A sensible heat flux that is a fixed share of net radiation and never
+        # reads the soil, with the ground flux left to absorb whatever the
+        # latent flux gives up. Coherent, and both budgets close.
+        sensible = CLIMATOLOGICAL_H_SHARE * rn
+        return latent, sensible, rn - latent - sensible
 
     sensible = rn - ground - latent
     if MODE == "energy_leak":

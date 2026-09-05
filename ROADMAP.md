@@ -33,13 +33,21 @@ Every probe here is a few hundred lines at most.
 ## Cross-budget consistency
 
 A model can close its water budget and close its energy budget while being
-incoherent between them. The first probe that notices is merged; the second
-is the one we most want next.
+incoherent between them. Two probes now notice: one asks whether the two
+ledgers agree on a number, the other whether they agree under a change
+neither has seen. The snowmelt one is what we most want next.
 
 ### `energy/latent-heat-et-consistency` &middot; **merged**
 Latent heat must equal evapotranspiration times the latent heat of the phase
 change it underwent, at every step, with a temperature-dependent &lambda;.
 Filed under `energy` because the schema admits mass, energy and momentum.
+Contributed by Changming Li (SCUT).
+
+### `energy/evaporative-partition` &middot; **merged**
+One summer without rain under net radiation held fixed: the latent heat a
+drying surface gives up has nowhere to go but the sensible and ground fluxes,
+and the three changes must sum to zero. A counterfactual rather than a
+same-instant residual, so a model cannot fit its way past it.
 Contributed by Changming Li (SCUT).
 
 ### `coupled/snowmelt-energy-water` &middot; hard &middot; **unclaimed**

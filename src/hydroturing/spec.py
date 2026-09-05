@@ -75,6 +75,7 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_two_head",
     "reference_constant_lambda",
     "reference_sublimation_blind",
+    "reference_ground_dodge",
     "reference_energy_leak",
     "reference_calendar",
     "reference_cheater",
