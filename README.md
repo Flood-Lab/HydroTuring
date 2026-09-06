@@ -66,12 +66,13 @@ not.
 
 ## The probes
 
-Seven, all of them mass so far. Each was merged only after the acceptance gate
-saw it pass three physical models, a bucket that conserves water exactly and
-two hand-written FLEX models, and fail a purpose-built broken one on the named
-criterion. A probe that fails a physical model is examined before the model
-is; that is the first thing done with any probe pull request. `ht list`
-prints them;
+Fourteen: twelve under mass, one each under energy and momentum. Each was
+merged only after the acceptance gate saw it pass three physical models, a
+bucket that conserves water exactly and two hand-written FLEX models, and
+fail a purpose-built broken one on the named criterion. A probe that fails a
+physical model is examined before the model is; that is the first thing done
+with any probe pull request. Eleven of the fourteen can be scored on a model
+that reports runoff and nothing else. `ht list` prints them;
 [ROADMAP.md](ROADMAP.md#probes-we-want) has the seventeen more we want, all
 unclaimed.
 
@@ -84,6 +85,13 @@ unclaimed.
 | [`mass/dry-down`](probes/mass/dry-down) | mass | Two years without rain: runoff can only fall, and no more may drain than the catchment held. | `reference_climatology` |
 | [`mass/steady-state`](probes/mass/steady-state) | mass | Three years of the same day: does everything settle, and does the budget balance once it has? | `reference_restless` |
 | [`mass/extreme-rain`](probes/mass/extreme-rain) | mass | The largest storm scaled up to ten times: runoff may not fall, nor exceed the rain that was added. | `reference_saturating` |
+| [`mass/runoff-bounds`](probes/mass/runoff-bounds) | mass | Over ten years, is the runoff possible at all: at least rain minus demand minus storage, at most rain plus storage? The mass question a runoff-only model has to answer. | `reference_degenerate`, `reference_overflowing` |
+| [`mass/area-invariance`](probes/mass/area-invariance) | mass | The same weather on the same catchment told as ten times larger: every depth must be identical. | `reference_area_leak` |
+| [`mass/response-nonnegativity`](probes/mass/response-nonnegativity) | mass | One 120 mm storm added: from that day on, runoff may never be lower than without it. | `reference_overshooting` |
+| [`mass/antecedent-monotonicity`](probes/mass/antecedent-monotonicity) | mass | The same storm after a dry month and a wet one: the wetter catchment runs off more, and no more than the extra water. | `reference_cheater` |
+| [`mass/phase-counterfactual`](probes/mass/phase-counterfactual) | mass | The same water falling as rain instead of snow: timing moves, the integrated volumes may not. | `reference_sublimating` |
+| [`energy/pet-consistency`](probes/energy/pet-consistency) | energy | Evaporation reaches demand when the model's own soil is wettest, stays below it, and falls when the soil is driest. | `reference_thirsty` |
+| [`momentum/routing-conservation`](probes/momentum/routing-conservation) | momentum | The channel store is never negative and never holds more than its hydrograph can. | `reference_stuck_router` |
 
 ## Models
 
@@ -98,8 +106,8 @@ goes untested.
 
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |
-| [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (INCOMPLETE)**, 2 of 7 probes passed |
-| [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (VIOLATION)**, 4 of 7 probes passed; the budget gains 83% of the rain from a learned regional-groundwater term. With its daily parameters rescaled to the step it is step-invariant to 2% of the rain in runoff and 9% in evaporation, inside the limit the physical models set |
+| [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (INCOMPLETE)**, 5 of 14 probes passed. Runoff-only, so three budget probes cannot ask it anything; of the seven that ask on runoff alone it passes the runoff bounds, memory and area, and fails step, extreme rain, phase, and a 0.18 mm/day dip after an added storm |
+| [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (VIOLATION)**, 10 of 14 probes passed. Its learned regional-groundwater term, declared as `gwex`, closes the budget to 1e-8; what remains is a learned field capacity twice the catchment's, a response to doubled rain above the rain added, a runoff depth that changes with the area it is told, and a third more runoff when snow falls as rain |
 | `reference_bucket` | exact | conserves water exactly by construction | must pass every probe |
 | [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, triangular lag | must pass every probe |
 | [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe |
@@ -111,6 +119,12 @@ goes untested.
 | `reference_climatology` | broken | emits the seasonal mean whatever falls, and keeps flowing without rain | caught by `dry_down` |
 | `reference_saturating` | broken | caps its daily runoff, so an extreme storm adds rain and no runoff | caught by `monotone_response` |
 | `reference_restless` | broken | a recession on an internal thirty-day clock, so it never settles | caught by `steady_state` |
+| `reference_overflowing` | broken | reports its runoff plus 80% of the rain again, from nowhere | caught by `runoff_bounds` |
+| `reference_area_leak` | broken | loses a share of runoff that grows with the area it is told | caught by `invariance` (area) |
+| `reference_overshooting` | broken | a derivative term sharpens its hydrograph, so an added storm lowers later flow | caught by `response_nonnegativity` |
+| `reference_sublimating` | broken | loses 40% of every snowfall to an unreported sublimation | caught by `phase_invariance` |
+| `reference_thirsty` | broken | evaporates a fixed share of its soil store, never reading demand; conserves water exactly | caught by `demand_consistency` |
+| `reference_stuck_router` | broken | a routing kernel summing to 0.9, so a tenth of every day's runoff never leaves the channel | caught by `routing_conservation` |
 | `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | scored INCOMPLETE on budget probes; caught by `response_sign` |
 | `reference_in_sample` | broken | exact in range, leaks once the forcing leaves it | waiting for a `regime_transfer` probe |
 | `reference_calendar` | broken | a recession that drifts with the calendar year | waiting for an `invariance` probe |
@@ -262,7 +276,7 @@ settled.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Seven probes, all mass, synthetic track only. Energy,
+Suite `0.1.0`, pre-release. Fourteen probes, twelve mass, one energy, one momentum, synthetic track only. Energy,
 momentum and the real-data track are next. The harness runs paired cases and
 scores labelled regimes, so the generalisation probes on the roadmap —
 extrapolation in space and time, counterfactual response, invariance — are

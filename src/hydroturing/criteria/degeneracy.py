@@ -49,7 +49,14 @@ def non_degenerate(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionR
     # on a flood-event window.
     scored_days = len(w.table) * w.dt_days
     if "mrro" in w.table.columns and total_pr > 0:
-        runoff_ratio = float(np.asarray(w.table["mrro"], dtype=float).sum() / total_pr)
+        # A declared exchange with the outside (`gwex`) is water the model
+        # says it received; the runoff ratio is taken against everything
+        # that came in, so a declared source is not mistaken for runoff
+        # from nowhere.
+        supply = total_pr
+        if "gwex" in w.table.columns:
+            supply += float(np.asarray(w.table["gwex"], dtype=float).sum())
+        runoff_ratio = float(np.asarray(w.table["mrro"], dtype=float).sum() / max(supply, 1e-12))
         diagnostics["runoff_ratio"] = runoff_ratio
         if scored_days < 365:
             diagnostics["runoff_ratio_check"] = (

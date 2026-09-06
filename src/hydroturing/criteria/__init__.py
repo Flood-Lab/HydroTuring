@@ -16,6 +16,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     closure,
     bounds,
     degeneracy,
+    limits,
     regime,
     response,
     stress,

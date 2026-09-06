@@ -123,6 +123,7 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `evspsbl` | evapotranspiration | mm/day |
 | `mrro` | total runoff | mm/day |
 | `dis` | river discharge | m3/s |
+| `gwex` | a declared exchange with the outside: regional groundwater, inter-basin transfer; positive into the catchment | mm/day |
 | `mrso` | soil water storage | mm |
 | `snw` | snow water equivalent | mm |
 | `canopy` | canopy interception storage | mm |
@@ -137,6 +138,14 @@ budget by exactly the water it holds, and a model with a groundwater store
 that reports only soil water will be measured as leaking. A store the model
 does not have at all is not fabricated to fill a column; say so in the
 adapter's README and in `run.json`.
+
+A model with an explicit exchange with the outside, a regional groundwater
+term or an inter-basin transfer, reports it as the flux `gwex`, positive
+into the catchment. Declared, it is a source in the budget and the budget
+can close; hidden, it is the residual, and the closure probe reports the
+model as leaking or making water by exactly that term. The runoff ratio is
+taken against rain plus the declared source. `models/dhbv2` does this for
+HBV 2.0's regional groundwater term.
 
 ## Three rules that are easy to get wrong
 

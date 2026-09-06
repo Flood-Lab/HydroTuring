@@ -22,6 +22,13 @@ long.
 | `mass/dry-down` | Zhi Li (CU Boulder) |
 | `mass/steady-state` | Zhi Li (CU Boulder) |
 | `mass/extreme-rain` | Zhi Li (CU Boulder) |
+| `mass/runoff-bounds` | Zhi Li (CU Boulder) |
+| `mass/area-invariance` | Zhi Li (CU Boulder) |
+| `mass/response-nonnegativity` | Zhi Li (CU Boulder) |
+| `mass/antecedent-monotonicity` | Zhi Li (CU Boulder) |
+| `mass/phase-counterfactual` | Zhi Li (CU Boulder) |
+| `energy/pet-consistency` | Zhi Li (CU Boulder) |
+| `momentum/routing-conservation` | Zhi Li (CU Boulder) |
 
 ## Models
 

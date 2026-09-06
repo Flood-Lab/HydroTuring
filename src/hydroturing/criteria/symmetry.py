@@ -51,6 +51,10 @@ def invariance(
     rtol = float(params.get("rtol", 1e-6))
     unchanged = list(params.get("unchanged", []))
     scaled = dict(params.get("scaled", {}))
+    # Variables the transform must not move *if the model reports them*: a
+    # store the model lacks is not a failure of invariance, but one it has
+    # and moves is.
+    optional = list(params.get("optional", []))
 
     if not unchanged and not scaled:
         raise ValueError(
@@ -70,6 +74,10 @@ def invariance(
 
     expectations = [(var, 1.0) for var in unchanged]
     expectations += [(var, float(f)) for var, f in scaled.items()]
+    expectations += [
+        (var, 1.0) for var in optional
+        if var in control.table.columns and var in transformed.table.columns
+    ]
 
     worst_var, worst = None, 0.0
     deviations: dict[str, float] = {}

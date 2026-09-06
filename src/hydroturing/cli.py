@@ -221,9 +221,12 @@ def cmd_verify_adapter(args) -> int:
     if args.probe:
         probe = registry.find_probe(args.probe, roots)
     else:
+        # The closure probe is the reference implementation and the natural
+        # smoke test; fall back to the first probe the model's step fits.
+        ordered = sorted(probes, key=lambda p: (p.id != "mass/catchment-closure", p.id))
         probe = next(
-            (p for p in probes if all(model.supports_timestep(t) for t in p.timesteps)),
-            probes[0],
+            (p for p in ordered if all(model.supports_timestep(t) for t in p.timesteps)),
+            ordered[0],
         )
 
     seed = gate_seeds(probe.id, 1)[0]

@@ -1,0 +1,20 @@
+name: reference_overshooting
+version: "1.0.0"
+description: >
+  The bucket with its runoff sharpened by a derivative term: each day's
+  reported runoff is the bucket's plus 0.8 times the change since the day
+  before, floored at zero. After a storm the recession is steeper than the
+  water allows, and an added storm lowers the flow on the days after it. It
+  pins the step-by-step non-negativity of the response.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

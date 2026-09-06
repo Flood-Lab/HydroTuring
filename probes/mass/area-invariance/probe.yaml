@@ -1,0 +1,58 @@
+id: mass/area-invariance
+title: The same weather on a ten times larger catchment gives the same depths
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Zhi Li
+    affiliation: University of Colorado Boulder
+    github: chrimerss
+
+description: >
+  Three years of the same weather on the same catchment told twice, once
+  as 250 square kilometres and once as 2500. Every attribute but the area
+  is identical. A lumped water budget is written per unit area, so runoff
+  depth, evaporation and every store must be the same to floating point;
+  only discharge in cubic metres per second scales. A model that has
+  learned area as a proxy for something else, or carries a term that reads
+  it, moves. Scored on runoff, so every runoff model can be asked.
+
+requires:
+  fluxes: [mrro]
+  states: []
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 3
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 300
+  min_window_days: 365
+  variants: [control, area10]
+
+criteria:
+  - invariance:
+      control: control
+      transformed: area10
+      unchanged: [mrro]
+      optional: [evspsbl, mrso, snw, canopy, gw, channel]
+      rtol: 1.0e-6
+
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro]
+
+baselines:
+  must_pass: [reference_bucket, flex_lumped, flex_topo]
+  must_fail:
+    # Loses a share of runoff that grows with the area it is told.
+    reference_area_leak: invariance
+
+provenance: >
+  Synthetic. One weather sequence per seed, generated at run time; the
+  variants differ only in the stated area. Nothing is committed as data.

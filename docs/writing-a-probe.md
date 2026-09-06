@@ -100,6 +100,12 @@ Every one is binary.
 | `dry_down` | without rain, runoff and storages only fall, and no more drains than was held | one run, rainless record |
 | `steady_state` | under constant weather everything settles, runoff stays below the rain, and the budget balances | one run, constant record |
 | `monotone_response` | scaling a storm up a ladder cannot lower runoff, add more runoff than rain, or fail to run off most of an extreme | paired runs, a ladder |
+| `runoff_bounds` | integrated runoff lies between rain minus demand minus storage and rain plus storage; needs runoff only | one run |
+| `response_nonnegativity` | after an added storm the perturbed runoff is never below the control's, on any step | paired runs |
+| `antecedent_monotonicity` | the same storm after more rain runs off more, and no more than the extra rain | paired runs |
+| `phase_invariance` | the same water as rain instead of snow leaves the integrated volumes within a share of the rain | paired runs |
+| `demand_consistency` | evaporation reaches demand when the model's own soil is wettest, never exceeds it, and falls when driest | one run |
+| `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff | one run |
 
 Picking a denominator for `closure` and `regime_transfer`:
 
@@ -141,6 +147,10 @@ def generate(seed: int, variant: str = "control") -> tuple[pd.DataFrame, dict]:
 A probe whose expectation only holds over a long enough stretch, such as the
 sign of a response to warming, sets `case.min_window_days` and a submitted
 model's evaluation window is widened to at least that.
+
+`invariance` takes `unchanged` (must be reported and must not move),
+`scaled` (must move by a factor) and `optional` (must not move *if the
+model reports it*), so a store a model lacks is not an invariance failure.
 
 The first variant is the control. Every non-paired criterion is scored against
 it alone, so adding a variant to a probe never silently changes what its
@@ -225,6 +235,12 @@ The reference models available today:
 | `reference_climatology` | the seasonal mean, whatever the weather; never reads the rain | `dry_down` |
 | `reference_saturating` | daily runoff capped at 25 mm; flat beyond its training range | `monotone_response` |
 | `reference_restless` | a recession with its own thirty-day clock; never settles | `steady_state` |
+| `reference_overflowing` | reports its runoff plus 80% of the rain again | `runoff_bounds` |
+| `reference_area_leak` | loses a share of runoff that grows with the stated area | `invariance` (area) |
+| `reference_overshooting` | a derivative term sharpens its hydrograph | `response_nonnegativity` |
+| `reference_sublimating` | loses 40% of every snowfall unreported | `phase_invariance` |
+| `reference_thirsty` | evaporates a fixed share of its soil store whatever the demand | `demand_consistency` |
+| `reference_stuck_router` | a routing kernel summing to 0.9 | `routing_conservation` |
 
 If your probe needs a broken model that does not exist yet, add it under
 `models/` alongside the probe. A criterion with nothing that trips it is

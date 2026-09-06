@@ -1,0 +1,19 @@
+name: reference_overflowing
+version: "1.0.0"
+description: >
+  The bucket reporting its runoff plus 80 percent of the rain again, taken
+  from nowhere. Every store stays physical and evaporation
+  is untouched, so over a record the runoff exceeds what rain, demand and
+  storage allow. It pins the upper runoff bound.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

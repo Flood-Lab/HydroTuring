@@ -3,9 +3,9 @@
 
 Each file is the JSON that shields.io's `endpoint` badge consumes. The
 counts come from the repository itself: a probe is a directory under
-probes/ with a probe.yaml, a model is a directory under models/ with a
-model.yaml that is neither the template nor one of the reference models
-the gate uses. Run by the pages workflow; nothing here needs a dependency.
+probes/ with a probe.yaml, a model is a directory under models/ whose
+model.yaml runs in a container, i.e. a submitted model rather than a
+reference or physical one the gate uses. Run by the pages workflow; nothing here needs a dependency.
 """
 
 from __future__ import annotations
@@ -22,11 +22,16 @@ def probes() -> int:
 
 
 def models() -> int:
-    return sum(
-        1
-        for path in ROOT.glob("models/*/model.yaml")
-        if not path.parent.name.startswith(("_", "reference_"))
-    )
+    """Submitted models: the ones that run in a container. Reference and
+    physical models run as trusted subprocesses and are there to test the
+    probes, not to be counted as evaluations."""
+    count = 0
+    for path in ROOT.glob("models/*/model.yaml"):
+        if path.parent.name.startswith("_"):
+            continue
+        if "runner: docker" in path.read_text():
+            count += 1
+    return count
 
 
 def badge(label: str, count: int) -> dict:

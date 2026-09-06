@@ -1,5 +1,5 @@
 name: dhbv2
-version: "0.5.4-hbv2ep100.2"
+version: "0.5.4-hbv2ep100.3"
 description: >
   δHBV 2.0, the differentiable HBV behind the MHPI group's CONUS-scale water
   model (Song et al. 2025): an LSTM and an MLP write the parameters of an
@@ -20,12 +20,15 @@ runner: docker
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1D
 
+# Everything the HBV core actually carries, and the regional groundwater
+# exchange it adds to its lower store, declared under `gwex` so the budget
+# is closed over a source the model admits to rather than one it hides.
 # Everything the HBV core actually carries. `gw` is the two groundwater
 # boxes, `channel` the water generated as runoff but still inside the unit
 # hydrograph. Canopy is zero because HBV has no interception store, which is
 # a statement about the model rather than a value invented for the column.
 emits:
-  fluxes: [pr, evspsbl, mrro, dis]
+  fluxes: [pr, evspsbl, mrro, dis, gwex]
   states: [mrso, snw, canopy, gw, channel]
 
 needs_forcing: [pr, tas, pet]

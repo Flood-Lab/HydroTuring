@@ -20,7 +20,7 @@ SCHEMA_DIR = REPO_ROOT / "schemas"
 
 # Canonical variable names. Fluxes are mm per timestep-day; states are mm.
 # `dis` is the one exception and is m3 s-1, because that is what models report.
-FLUX_VARS = ("pr", "evspsbl", "mrro", "dis")
+FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex")
 STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
 
 UNITS = {
@@ -28,6 +28,7 @@ UNITS = {
     "evspsbl": "mm day-1",
     "mrro": "mm day-1",
     "dis": "m3 s-1",
+    "gwex": "mm day-1",
     "mrso": "mm",
     "snw": "mm",
     "canopy": "mm",
@@ -73,6 +74,12 @@ TRUSTED_SUBPROCESS_MODELS = {
     # Physical models from chrimerss/HydrologicModels: must pass every probe.
     "flex_lumped",
     "flex_topo",
+    "reference_overflowing",
+    "reference_thirsty",
+    "reference_stuck_router",
+    "reference_area_leak",
+    "reference_overshooting",
+    "reference_sublimating",
 }
 
 

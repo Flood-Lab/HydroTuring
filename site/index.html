@@ -585,7 +585,7 @@ en: {
   "seeds.body":`<p>Forcing is generated at run time from a recorded seed. Nothing is committed as data, so there is nothing to memorise, and a reviewer reviews a short deterministic script instead of a binary file.</p>
 <p>Every probe runs five seeds and all of them must pass, so no model gets through on a lucky draw. Any run reproduces exactly, because the seed is written into the report.</p>`,
   "example.h":"One model through the suite",
-  "example.intro":`<p>This is the report for the Google Flood Hub model, run through the open-source OpenHydroNet package with its published weights, on the seven mass probes with the gate seeds. It is the output of one command, unedited.</p>`,
+  "example.intro":`<p>This is the report for the Google Flood Hub model, run through the open-source OpenHydroNet package with its published weights, on the first seven mass probes with the gate seeds. It is the output of one command, unedited.</p>`,
   "example.reading":`<p>How to read it:</p>
 <ul>
 <li>The verdict is one bit, and it is <code>FAIL</code>. The reason beside it, <code>INCOMPLETE</code>, is the worst reason among the probes: the closure probe never ran, because the model reports runoff and nothing else.</li>
@@ -609,6 +609,13 @@ en: {
 <tr><td class="mono">mass/dry-down</td><td>mass</td><td>Two years without rain: runoff can only fall, and only stored water can drain.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/steady-state</td><td>mass</td><td>Three years of the same day: everything settles and the budget balances.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/extreme-rain</td><td>mass</td><td>The largest storm scaled to ten times: runoff cannot fall, nor exceed the rain added.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/runoff-bounds</td><td>mass</td><td>Over ten years, is the runoff possible at all: at least rain minus demand minus storage, at most rain plus storage? Runoff only.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/area-invariance</td><td>mass</td><td>The same weather on a ten times larger catchment: every depth identical.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/response-nonnegativity</td><td>mass</td><td>One storm added: from that day on, runoff may never be lower than without it.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/antecedent-monotonicity</td><td>mass</td><td>The same storm after a dry month and a wet one: more runoff from the wet one, no more than the extra water.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/phase-counterfactual</td><td>mass</td><td>The same water as rain instead of snow: timing moves, the integrated volumes do not.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">energy/pet-consistency</td><td>energy</td><td>Evaporation reaches demand when the model's own soil is wettest, never exceeds it, and falls when driest.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">momentum/routing-conservation</td><td>momentum</td><td>The channel store is never negative and never holds more than its hydrograph can.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">coupled/latent-heat-et-consistency</td><td>coupled</td><td>Latent heat must equal evapotranspiration times the latent heat of vaporisation.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">coupled/snowmelt-energy-water</td><td>coupled</td><td>Melt in the water budget must match the energy spent melting.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>mass</td><td>Snowfall minus melt minus sublimation minus the change in snow water.</td><td><span class="tag wanted">wanted</span></td></tr>
@@ -748,7 +755,7 @@ es: {
   "seeds.body":`<p>El forzamiento se genera en tiempo de ejecución a partir de una semilla registrada. No se versiona ningún dato, así que no hay nada que memorizar, y quien revisa lee un script corto y determinista en lugar de un archivo binario.</p>
 <p>Cada prueba se ejecuta con cinco semillas y todas deben aprobar, de modo que ningún modelo pasa por suerte. Cualquier ejecución se reproduce de forma exacta, porque la semilla queda escrita en el informe.</p>`,
   "example.h":"Un modelo a través de la batería",
-  "example.intro":`<p>Este es el informe del modelo de Google Flood Hub, ejecutado con el paquete de código abierto OpenHydroNet y sus pesos publicados, sobre las siete pruebas de masa con las semillas de la compuerta. Es la salida de un solo comando, sin editar.</p>`,
+  "example.intro":`<p>Este es el informe del modelo de Google Flood Hub, ejecutado con el paquete de código abierto OpenHydroNet y sus pesos publicados, sobre las primeras siete pruebas de masa con las semillas de la compuerta. Es la salida de un solo comando, sin editar.</p>`,
   "example.reading":`<p>Cómo leerlo:</p>
 <ul>
 <li>El veredicto es un bit, y es <code>FAIL</code>. La razón que lo acompaña, <code>INCOMPLETE</code>, es la peor entre las pruebas: la prueba de cierre nunca se ejecutó, porque el modelo reporta escorrentía y nada más.</li>
@@ -772,6 +779,13 @@ es: {
 <tr><td class="mono">mass/dry-down</td><td>masa</td><td>Dos años sin lluvia: la escorrentía solo puede bajar, y solo puede drenar el agua almacenada.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/steady-state</td><td>masa</td><td>Tres años del mismo día: todo se asienta y el balance cuadra.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/extreme-rain</td><td>masa</td><td>La mayor tormenta multiplicada por diez: la escorrentía no puede bajar ni superar la lluvia añadida.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/runoff-bounds</td><td>masa</td><td>En diez años, ¿es posible esa escorrentía? Al menos lluvia menos demanda menos almacenamiento; a lo sumo lluvia más almacenamiento. Solo con caudal.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/area-invariance</td><td>masa</td><td>El mismo tiempo sobre una cuenca diez veces mayor: cada lámina idéntica.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/response-nonnegativity</td><td>masa</td><td>Una tormenta añadida: desde ese día la escorrentía nunca puede ser menor que sin ella.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/antecedent-monotonicity</td><td>masa</td><td>La misma tormenta tras un mes seco y tras uno húmedo: más escorrentía en el húmedo, y no más que el agua extra.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/phase-counterfactual</td><td>masa</td><td>La misma agua como lluvia en vez de nieve: cambia el momento, no los volúmenes integrados.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">energy/pet-consistency</td><td>energía</td><td>La evaporación alcanza la demanda cuando el suelo del propio modelo está más húmedo, nunca la supera y baja cuando está más seco.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">momentum/routing-conservation</td><td>momento</td><td>El almacén del cauce nunca es negativo ni retiene más de lo que cabe en su hidrograma.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">coupled/latent-heat-et-consistency</td><td>acoplada</td><td>El calor latente debe igualar la evapotranspiración por el calor latente de vaporización.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">coupled/snowmelt-energy-water</td><td>acoplada</td><td>El deshielo del balance hídrico debe coincidir con la energía gastada en fundir.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>masa</td><td>Nevada menos deshielo menos sublimación menos el cambio de agua en la nieve.</td><td><span class="tag wanted">se busca</span></td></tr>
@@ -911,7 +925,7 @@ zh: {
   "seeds.body":`<p>强迫数据在运行时由记录下来的随机种子现场生成。仓库中不提交任何数据，因此没有可供记忆的对象；评审人读到的是一段简短且确定性的脚本，而不是一个二进制文件。</p>
 <p>每个检验项运行五个种子，全部通过才算通过，所以没有模型能靠运气蒙混过关。由于种子会写入报告，任何一次运行都可以精确复现。</p>`,
   "example.h":"一个模型走完整套检验",
-  "example.intro":`<p>这是 Google Flood Hub 模型的报告：通过开源的 OpenHydroNet 及其公开权重运行，在七项质量检验项上使用闸门种子。它是一条命令的原始输出，未经编辑。</p>`,
+  "example.intro":`<p>这是 Google Flood Hub 模型的报告：通过开源的 OpenHydroNet 及其公开权重运行，在最初七项质量检验项上使用闸门种子。它是一条命令的原始输出，未经编辑。</p>`,
   "example.reading":`<p>如何解读：</p>
 <ul>
 <li>判定只有一位，结果是 <code>FAIL</code>。旁边的原因 <code>INCOMPLETE</code> 是各检验项中最严重的一个：闭合检验根本没有运行，因为模型只报告径流，别无其他。</li>
@@ -935,6 +949,13 @@ zh: {
 <tr><td class="mono">mass/dry-down</td><td>质量</td><td>两年无雨：径流只能下降，只有蓄存的水才能排出。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/steady-state</td><td>质量</td><td>连续三年同一天气：一切收敛，收支平衡。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/extreme-rain</td><td>质量</td><td>最大暴雨放大十倍：径流不得减少，也不得超过所加降雨。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/runoff-bounds</td><td>质量</td><td>十年之内，这样的径流是否可能：至少为降雨减去需求再减去蓄水，至多为降雨加蓄水？仅凭径流即可判定。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/area-invariance</td><td>质量</td><td>同样的天气，流域面积放大十倍：每一项深度都必须完全相同。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/response-nonnegativity</td><td>质量</td><td>加入一场暴雨：自那天起，径流在任何一天都不得低于未加雨的情形。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/antecedent-monotonicity</td><td>质量</td><td>同一场暴雨，分别落在干月与湿月之后：湿的流域径流更多，且不超过多出的水量。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/phase-counterfactual</td><td>质量</td><td>同样的水以雨而非雪的形式落下：时间会变，积分体积不变。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">energy/pet-consistency</td><td>能量</td><td>当模型自身土壤最湿时蒸发达到需求、永不超过需求，最干时蒸发下降。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">momentum/routing-conservation</td><td>动量</td><td>河道蓄水永不为负，也永不超过其单位线所能容纳的量。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">coupled/latent-heat-et-consistency</td><td>耦合</td><td>潜热通量必须等于蒸散乘以汽化潜热。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">coupled/snowmelt-energy-water</td><td>耦合</td><td>水量收支中的融雪量必须与融化耗能一致。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>质量</td><td>降雪减融雪减升华减雪水当量变化。</td><td><span class="tag wanted">征集中</span></td></tr>

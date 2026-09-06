@@ -19,7 +19,12 @@ capillary rise `Cmax · (1 − Su/Sumax)` from it. Total runoff is the slow
 outflow plus the area-weighted fast outflows, through a triangular lag.
 Parameters are `B_run_model.py`'s Wark sets.
 
-Four stated deviations from the repository code: transpiration takes
+Five stated deviations from the repository code: the beta partition is
+integrated in sub-steps when a step's effective rain exceeds a quarter of a
+unit's capacity, so that a large storm on the plateau's small store does
+not overshoot it (one explicit step per day made the flow dip *below* the
+unperturbed run ten days after an added storm, a numerical artefact the
+response-nonnegativity probe caught); transpiration takes
 FLEX's `min(1, ·)` limit; the hillslope's preferential share `D` of the
 fast partition is moved once, to the slow reservoir (the original also
 subtracts it from the unsaturated store, losing it); the wetland's capillary rise is limited by and

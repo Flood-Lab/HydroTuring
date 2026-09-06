@@ -10,7 +10,7 @@ import json
 import sys
 from pathlib import Path
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso", "snw", "canopy"]
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso", "snw", "canopy", "channel"]
 
 MODEL = {"name": "reference_bucket", "version": "1.0.0"}
 
@@ -90,6 +90,10 @@ def simulate(forcing, static, dt_days=1.0):
             "mrso": soil,
             "snw": swe,
             "canopy": canopy,
+            # Runoff leaves the stores and the catchment in the same step: no
+            # routing, so the water in transit is identically zero. Reported,
+            # not omitted, because it is a statement about the model.
+            "channel": 0.0,
         })
     return rows
 

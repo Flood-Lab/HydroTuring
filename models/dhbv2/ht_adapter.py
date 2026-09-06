@@ -26,6 +26,15 @@ over the HBV components the model runs in parallel:
 * `canopy`  zero. HBV has no interception store, so its canopy storage is
             identically zero. This is a statement about the model's
             structure, not a value invented to fill a column.
+* `gwex`    the regional groundwater exchange HBV 2.0 adds to its lower
+            store every day, declared as the flux it is (positive into the
+            catchment, mm per day, mean over components). It is computed
+            from the parameters the MLP wrote, parRT and parAC, and the
+            upstream area, exactly as the model applies it; where the term
+            would drain the store below zero the model clamps it and the
+            declared flux is clamped the same way. Declared, the budget can
+            close; the residual the closure probe found before this was
+            this term, hidden.
 
 How the probe's forcing is mapped onto the model's inputs
 ---------------------------------------------------------
@@ -96,8 +105,8 @@ import numpy as np
 import torch
 import yaml
 
-MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100.2"}
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "snw", "canopy", "gw", "channel"]
+MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100.3"}
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 
 MODEL_DIR = Path(os.environ.get("DHBV_MODEL_DIR", "/model/dhbv_2"))
 THREADS = int(os.environ.get("DHBV_THREADS", "2"))
@@ -231,6 +240,43 @@ def load_model() -> tuple[dict, torch.nn.Module, dict, dict]:
     return config, model, norm, structure
 
 
+def regional_exchange(core, static_params, slz: np.ndarray, percolation: np.ndarray,
+                      upstream_area_km2: float, dt: float) -> np.ndarray:
+    """The lateral groundwater term HBV 2.0 adds to its lower store each step.
+
+    Reconstructed from the parameters the network wrote, as the core applies
+    them: parRT (mm/day) times a factor in [-1, 1] that depends on the
+    upstream area against parAC, per component; scaled to the step as the
+    core's own parameters are. The core clamps the store at zero, so a
+    draining term can remove at most what the store holds after that step's
+    percolation; the same clamp is applied here using the reported store of
+    the previous step plus the mean percolation, which is exact when the
+    term is a source and approximate when it is a sink. Returned as a depth
+    per step, mean over components.
+    """
+    names = [p for p in core.phy_param_names if p not in core.dynamic_params]
+    nmul = core.nmul
+    raw = static_params[0, : len(names) * nmul].view(len(names), nmul).double().numpy()
+    b = core.parameter_bounds
+    def descale(name):
+        lo, hi = b[name]
+        return lo + (hi - lo) * raw[names.index(name)]
+    rt = descale("parRT") * dt
+    ac = descale("parAC")
+    a = float(upstream_area_km2)
+    if a < 2500.0:
+        factor = np.clip((a - ac) / 1000.0, -1.0, 1.0)
+    else:
+        factor = np.exp(np.clip(-(a - 2500.0) / 50.0, -10.0, 0.0))
+    lf = rt * factor  # per component, per step
+    n = slz.shape[0]
+    added = np.zeros(n)
+    for t in range(n):
+        before = (slz[t - 1] if t > 0 else np.full(nmul, 0.001)) + percolation[t]
+        added[t] = float(np.maximum(lf, -before).mean())
+    return added
+
+
 def standardise(values: np.ndarray, names: list[str], norm: dict) -> np.ndarray:
     mean = np.array([norm[v][2] for v in names], dtype=np.float64)
     std = np.array([norm[v][3] for v in names], dtype=np.float64)
@@ -300,9 +346,11 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
     }
     with torch.no_grad():
         out = model(data)
-    snowpack, meltwater, sm, suz, slz = (
-        s[:, 0, :].mean(-1).double().numpy() for s in model.phy_model.get_states()
-    )
+        _, static_params = model.nn_model(data["xc_nn_norm"], data["c_nn_norm"])
+    states = model.phy_model.get_states()
+    snowpack, meltwater, sm, suz, slz = (s[:, 0, :].mean(-1).double().numpy() for s in states)
+    gwex = regional_exchange(model.phy_model, static_params, states[4][:, 0, :].double().numpy(),
+                             out["percolation"][:, 0, 0].double().numpy(), derived["uparea"], dt)
     routed = out["streamflow"][:, 0, 0].double().numpy()
     unrouted = out["streamflow_no_rout"][:, 0, 0].double().numpy()
     aet = out["AET_hydro"][:, 0, 0].double().numpy()
@@ -317,6 +365,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             "evspsbl": float(aet[i] / dt),
             "mrro": float(mrro[i]),
             "dis": float(mrro[i] * 1.0e-3 * area_m2 / 86400.0),
+            "gwex": float(gwex[i] / dt),
             "mrso": float(sm[i]),
             "snw": float(snowpack[i] + meltwater[i]),
             "canopy": 0.0,
@@ -336,6 +385,8 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         "climatology_rows": int(n_clim),
         "derived_static_attributes": sorted(a for a in derived if a in attr_names),
         "static_attributes_at_training_mean": [a for a in attr_names if a not in derived],
+        "gwex": "regional groundwater exchange parRT * clamp((Ac - parAC)/1000, -1, 1), "
+                "reconstructed from the network's parameters; declared as a source",
         "states": {
             "snw": "SNOWPACK + MELTWATER, mean over components",
             "mrso": "SM, mean over components",

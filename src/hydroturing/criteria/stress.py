@@ -269,7 +269,10 @@ def steady_state(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRes
         )
     residual = None
     if "evspsbl" in means:
-        residual = rain - means["mrro"] - means["evspsbl"]
+        declared = 0.0
+        if "gwex" in w.table.columns:
+            declared = float(w.table["gwex"].to_numpy(dtype=float)[-rows:].mean())
+        residual = rain + declared - means["mrro"] - means["evspsbl"]
         if abs(residual) > tolerance * rain:
             failures.append(
                 f"runoff and evaporation leave {residual:+.3f} mm/day of the "
@@ -384,4 +387,169 @@ def monotone_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
             "totals": {name: {"rain_mm": p, var: q} for name, p, q, _ in ladder},
             "overall_share": overall,
         },
+    )
+
+
+@criterion("response_nonnegativity", paired=True)
+def response_nonnegativity(runs: dict[str, RunResult], probe: ProbeSpec, params: dict) -> CriterionResult:
+    """More water can never lower the flow, at any moment.
+
+    The extreme-rain probe checks that added rain adds runoff in total; this
+    checks it step by step. From the storm onward the perturbed run's runoff
+    may not fall below the control's by more than a small share of what was
+    added, on any step. A network's impulse response can dip negative while
+    its integral is fine, and every other criterion integrates.
+    """
+    driver = str(params.get("driver", "pr"))
+    var = str(params.get("variable", "mrro"))
+    slack = float(params.get("tolerance", 0.001))  # share of the added rain, per day
+
+    control = make_window(pick(runs, params, "control", "control"), probe)
+    pulsed = make_window(pick(runs, params, "perturbed", "pulse"), probe)
+    if len(control.table) != len(pulsed.table):
+        raise ValueError("the variants must have the same number of scored steps")
+    diff = pulsed.forcing[driver].to_numpy(dtype=float) - control.forcing[driver].to_numpy(dtype=float)
+    changed = np.nonzero(np.abs(diff) > 1e-9)[0]
+    if len(changed) == 0:
+        raise ValueError("the variants carry the same driver; there is no perturbation to look for")
+    cause = int(changed[0])
+    added = float(control.volume(diff).sum())
+    if added <= 0:
+        raise ValueError(f"the perturbed variant removes {driver}; it must add it")
+
+    a = control.table[var].to_numpy(dtype=float)[cause:]
+    b = pulsed.table[var].to_numpy(dtype=float)[cause:]
+    dip = a - b  # positive where the perturbed run is lower
+    worst = float(dip.max())
+    limit = slack * added
+    ok = worst <= limit
+    i = int(dip.argmax()) + cause
+    return CriterionResult(
+        name="response_nonnegativity",
+        status=PASS if ok else FAIL,
+        value=worst / added if added > 0 else None,
+        threshold=slack,
+        message=(
+            f"{var} never falls below the control after the added {added:.0f} mm "
+            f"(largest dip {worst / added:.1e} of it)"
+            if ok
+            else f"{var} falls {worst:.3f} mm/day below the control on "
+            f"{control.forcing['time'].iloc[i]} after {added:.0f} mm of rain was added; "
+            "more water cannot lower the flow"
+        ),
+        diagnostics={"cause_step": cause, "added_mm": added, "worst_dip_mm_per_day": worst,
+                     "worst_step": i},
+    )
+
+
+@criterion("antecedent_monotonicity", paired=True)
+def antecedent_monotonicity(runs: dict[str, RunResult], probe: ProbeSpec, params: dict) -> CriterionResult:
+    """The same storm on a wetter catchment yields more runoff, and no more
+    than the extra water that was there.
+
+    The `wet` variant adds rain before the storm and nothing during or after
+    it. Over the storm window the wet run's runoff must exceed the dry run's
+    by at least a share of the storm, and by no more than the antecedent
+    rain that was added. A memoryless model, one that runs off a fixed share
+    of each day's rain, answers both storms identically and fails the first;
+    a model that manufactures water fails the second.
+    """
+    driver = str(params.get("driver", "pr"))
+    var = str(params.get("variable", "mrro"))
+    min_share = float(params.get("min_share", 0.02))
+    window_days = float(params.get("window_days", 30.0))
+
+    dry = make_window(pick(runs, params, "control", "dry"), probe)
+    wet = make_window(pick(runs, params, "perturbed", "wet"), probe)
+    if len(dry.table) != len(wet.table):
+        raise ValueError("the variants must have the same number of scored steps")
+    diff = wet.forcing[driver].to_numpy(dtype=float) - dry.forcing[driver].to_numpy(dtype=float)
+    added_steps = np.nonzero(np.abs(diff) > 1e-9)[0]
+    if len(added_steps) == 0:
+        raise ValueError("the variants carry the same driver; there is no antecedent rain")
+    antecedent = float(dry.volume(diff).sum())
+    if antecedent <= 0:
+        raise ValueError("the wet variant must add rain, not remove it")
+    storm = int(added_steps[-1]) + 1  # the storm follows the last antecedent step
+    n = int(round(window_days / dry.dt_days))
+    stop = min(len(dry.table), storm + n)
+    storm_mm = float(dry.volume(dry.forcing[driver].to_numpy(dtype=float)[storm:stop]).sum())
+    if storm_mm <= 0:
+        raise ValueError("no storm follows the antecedent rain in the scored window")
+
+    q_dry = float(dry.volume(dry.table[var].to_numpy(dtype=float)[storm:stop]).sum())
+    q_wet = float(wet.volume(wet.table[var].to_numpy(dtype=float)[storm:stop]).sum())
+    extra = q_wet - q_dry
+    failures = []
+    if extra < min_share * storm_mm:
+        failures.append(
+            f"the storm of {storm_mm:.0f} mm ran off {extra:+.1f} mm more on the wetter catchment; "
+            f"at least {min_share:g} of the storm is expected"
+        )
+    if extra > antecedent + 1e-6:
+        failures.append(
+            f"the wetter catchment ran off {extra:.1f} mm more but only {antecedent:.0f} mm more "
+            "had fallen on it"
+        )
+    ok = not failures
+    return CriterionResult(
+        name="antecedent_monotonicity",
+        status=PASS if ok else FAIL,
+        value=extra / storm_mm,
+        threshold=min_share,
+        message=(
+            f"the wetter catchment runs off {extra:.1f} mm more from the {storm_mm:.0f} mm storm "
+            f"({extra / storm_mm:.2f} of it), within the {antecedent:.0f} mm it had been given"
+            if ok else "; ".join(failures)
+        ),
+        diagnostics={"antecedent_mm": antecedent, "storm_mm": storm_mm, "runoff_dry_mm": q_dry,
+                     "runoff_wet_mm": q_wet},
+    )
+
+
+@criterion("phase_invariance", paired=True)
+def phase_invariance(runs: dict[str, RunResult], probe: ProbeSpec, params: dict) -> CriterionResult:
+    """Rain that would have been snow is still the same water.
+
+    The `warm` variant lifts every sub-freezing day above the snow threshold
+    and changes nothing else, demand included. Timing moves; mass does not:
+    integrated over the record, runoff (and evaporation, where reported) may
+    differ between the variants by at most a share of the rain. A snow store
+    that loses water it never reports shows here as a difference that only
+    exists when it snows.
+    """
+    threshold = float(params.get("threshold", 0.05))
+    volumes = list(params.get("volumes", ["mrro", "evspsbl"]))
+    control = make_window(pick(runs, params, "control", "control"), probe)
+    warm = make_window(pick(runs, params, "perturbed", "warm"), probe)
+    if len(control.table) != len(warm.table):
+        raise ValueError("the variants must have the same number of scored steps")
+    if not np.allclose(control.forcing["pr"], warm.forcing["pr"]):
+        raise ValueError("the variants must carry the same precipitation")
+    rain = float(control.volume(control.forcing["pr"]).sum())
+    if rain <= 0:
+        raise ValueError("no rain fell")
+    shares = {}
+    for var in volumes:
+        if var in control.table.columns and var in warm.table.columns:
+            a = float(control.volume(control.table[var]).sum())
+            b = float(warm.volume(warm.table[var]).sum())
+            shares[var] = (b - a) / rain
+    if not shares:
+        raise ValueError(f"phase_invariance found none of {volumes} in the model result")
+    worst_var, worst = max(shares.items(), key=lambda kv: abs(kv[1]))
+    ok = abs(worst) <= threshold
+    return CriterionResult(
+        name="phase_invariance",
+        status=PASS if ok else FAIL,
+        value=abs(worst),
+        threshold=threshold,
+        message=(
+            f"turning snow into rain moves the integrated volumes by at most {abs(worst):.1%} of "
+            f"the rain ({worst_var})"
+            if ok
+            else f"{worst_var} differs by {worst:+.1%} of the rain when snow falls as rain "
+            f"(limit {threshold:.0%}); the same water fell either way"
+        ),
+        diagnostics={"shares": shares, "rain_mm": rain},
     )

@@ -80,6 +80,21 @@ Three years of the same day: everything settles and the budget balances.
 ### `mass/extreme-rain` &middot; **merged**
 The largest storm scaled to ten times: runoff cannot fall, nor exceed the rain added.
 
+### `mass/runoff-bounds` &middot; **merged**
+Over ten years, is the runoff possible at all? The mass question a runoff-only model has to answer.
+
+### `mass/area-invariance` &middot; **merged**
+The same weather on a ten times larger catchment: every depth identical.
+
+### `mass/response-nonnegativity` &middot; **merged**
+An added storm may never lower the flow, on any day.
+
+### `mass/antecedent-monotonicity` &middot; **merged**
+The same storm after a dry month and a wet one: more runoff from the wet one, and no more than the extra water.
+
+### `mass/phase-counterfactual` &middot; **merged**
+The same water as rain instead of snow: timing moves, volumes do not.
+
 ### `mass/snowpack-mass-closure` &middot; starter &middot; **unclaimed**
 Snowfall minus melt minus sublimation minus the change in SWE.
 *Discriminates:* models that quietly lose water at the rain-snow transition,
@@ -162,6 +177,9 @@ do not. A good first contribution.
 
 ## Energy
 
+### `energy/pet-consistency` &middot; **merged**
+Evaporation follows demand when the model's own soil is wettest and water when it is driest; no energy flux needed.
+
 ### `energy/surface-energy-closure` &middot; starter &middot; **unclaimed**
 Net radiation minus sensible minus latent minus ground heat flux, minus the
 change in stored energy.
@@ -184,6 +202,9 @@ separate heads that never have to agree.
 ---
 
 ## Momentum
+
+### `momentum/routing-conservation` &middot; **merged**
+The channel store is never negative and never holds more than its hydrograph can.
 
 ### `momentum/channel-routing-mass` &middot; starter &middot; **unclaimed**
 Inflow minus outflow minus the change in channel storage, per reach.

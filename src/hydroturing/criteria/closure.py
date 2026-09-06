@@ -62,6 +62,18 @@ def closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
             raise ValueError(f"closure needs '{var}' in the model result")
         outflow += w.volume(w.table[var])
 
+    # A model with an explicit exchange with the outside, a regional
+    # groundwater term, an inter-basin transfer, may declare it as `gwex`
+    # (positive into the catchment). Declared, it is a source in the budget
+    # and the budget can close; hidden, it is the residual. The denominator
+    # stays the rain, so a declared source does not dilute the residual.
+    sources = params.get("sources", ["gwex"])
+    declared = np.zeros(len(w.table))
+    for var in sources:
+        if var in w.table.columns:
+            declared += w.volume(w.table[var])
+    drive = drive + declared
+
     states = reported_states(w, probe)
     storage = w.storage(states)
     storage_change = float(storage[-1]) - w.storage_initial(states)
@@ -69,7 +81,7 @@ def closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     step_residual = drive - outflow - np.diff(storage, prepend=w.storage_initial(states))
     cumulative = float(drive.sum() - outflow.sum() - storage_change)
 
-    total_drive = float(drive.sum())
+    total_drive = float((drive - declared).sum())
     if total_drive <= 0:
         return CriterionResult(
             name="closure", status=FAIL,
@@ -103,6 +115,7 @@ def closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
         diagnostics={
             "cumulative_residual": cumulative,
             "denominator_total": total_drive,
+            "declared_sources_total": float(declared.sum()),
             "storage_change": storage_change,
             "max_step_residual": float(np.abs(step_residual).max()),
             "mean_step_residual": float(np.abs(step_residual).mean()),

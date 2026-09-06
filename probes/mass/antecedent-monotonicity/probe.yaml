@@ -1,0 +1,62 @@
+id: mass/antecedent-monotonicity
+title: The same storm on a wetter catchment runs off more, and no more than the extra water
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Zhi Li
+    affiliation: University of Colorado Boulder
+    github: chrimerss
+
+description: >
+  The same 60 mm storm twice: after a rainless month, and after a month
+  that carried 120 mm and then ten dry days. Everything else is identical,
+  before and after. Over the month following the storm the wetter
+  catchment must run off more, by at least a share of the storm, because
+  fuller stores pass more of what arrives; and by no more than the 120 mm
+  it was given, because that is all the extra water there is. This is the
+  sign of memory. A memoryless model, one that runs off a fixed share of
+  each day's rain, answers both storms alike and fails the first bound; a
+  model that makes water fails the second. Scored on runoff alone.
+
+requires:
+  fluxes: [mrro]
+  states: []
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 2
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 300
+  min_window_days: 730
+  variants: [dry, wet]
+
+criteria:
+  - antecedent_monotonicity:
+      control: dry
+      perturbed: wet
+      driver: pr
+      variable: mrro
+      min_share: 0.02
+      window_days: 30
+
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro]
+
+baselines:
+  must_pass: [reference_bucket, flex_lumped, flex_topo]
+  must_fail:
+    # Runs off a fixed share of the day's rain: no memory of the month before.
+    reference_cheater: antecedent_monotonicity
+
+provenance: >
+  Synthetic. One weather sequence per seed, generated at run time, with
+  the month before the storm emptied in one variant and filled in the
+  other. Nothing is committed as data.

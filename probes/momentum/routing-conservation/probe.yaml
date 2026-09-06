@@ -1,0 +1,62 @@
+id: momentum/routing-conservation
+title: A routing store holds runoff for as long as its hydrograph and no longer
+law: momentum
+track: synthetic
+version: 1
+
+authors:
+  - name: Zhi Li
+    affiliation: University of Colorado Boulder
+    github: chrimerss
+
+description: >
+  Three years of temperate weather with a cluster of large storms in the
+  second year, for any model that routes its runoff and reports the water
+  in transit as the channel store. That store is generated runoff not yet
+  released. It can never be negative, and it can never hold more than the
+  flow feeding it could have put there over the length of its hydrograph:
+  at any step the channel is at most fifteen days of the largest runoff
+  seen over the preceding month. A kernel that does not sum to one leaves
+  water in the channel forever, and the store grows past what any
+  hydrograph can hold. The first probe under the momentum law: the channel
+  is where momentum is conserved, and this is its mass shadow.
+
+requires:
+  fluxes: [mrro]
+  states: [channel]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 3
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 300
+  min_window_days: 1095
+
+criteria:
+  - routing_conservation:
+      max_lag_days: 15
+      lookback_days: 30
+      tolerance: 0.05
+
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro]
+
+baselines:
+  # The exact bucket does not route: its channel store is identically zero
+  # and it reports it so, which satisfies the bound trivially. The two FLEX
+  # models route through a lag and are the real test.
+  must_pass: [reference_bucket, flex_lumped, flex_topo]
+  must_fail:
+    # A three-day kernel summing to 0.9: a tenth of every day's runoff
+    # never leaves the channel, and the store grows without bound.
+    reference_stuck_router: routing_conservation
+
+provenance: >
+  Synthetic. Generated at run time from a recorded seed, with six storms
+  added in the second year. Nothing is committed as data.

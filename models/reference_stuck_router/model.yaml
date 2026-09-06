@@ -1,0 +1,18 @@
+name: reference_stuck_router
+version: "1.0.0"
+description: >
+  The bucket with a unit hydrograph whose weights sum to 0.9: a tenth of
+  every day's runoff enters the channel store and never leaves. Reported
+  honestly, the channel grows without bound; it pins routing conservation.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

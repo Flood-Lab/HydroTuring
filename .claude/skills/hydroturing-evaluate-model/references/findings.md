@@ -100,6 +100,23 @@ capacities from static.json; step as a parameter). They calibrated one
 tolerance: resolution-invariance 5% → 10% because FLEX-Topo moves 5.1%.
 Trusted subprocess models are listed in `spec.TRUSTED_SUBPROCESS_MODELS`.
 
+## Round-2 probes (2026-09-06)
+
+Seven more probes, all gated on the three physical models: runoff-bounds
+(the mass question a runoff-only model must answer), area-invariance,
+response-nonnegativity, antecedent-monotonicity, phase-counterfactual,
+energy/pet-consistency (regimes from the model's own soil range, not the
+stated capacity), momentum/routing-conservation (`channel` <= max_lag ×
+recent peak runoff). Six broken models were added for them. Lessons: a
+broken model must be broken enough to cross the bound (overflowing at
++80% of rain, not ×1.3); `invariance` gained `optional` for stores a
+model lacks; the response-nonnegativity storm has to be sharp (120 mm) to
+expose a negative impulse lobe; FLEX-Topo's one-step-per-day beta
+partition overshoots a small store and dipped 0.84 mm/day ten days after
+an added storm, fixed by sub-stepping the partition (documented deviation).
+`gwex` joined the contract: δHBV declares its regional groundwater term
+and closes to 1e-8 (adapter .3).
+
 ## Known open items
 
 - The `probe` workflow's `container` job has failed on every recorded run

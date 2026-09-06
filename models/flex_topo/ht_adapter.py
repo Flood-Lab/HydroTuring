@@ -34,6 +34,12 @@ Deviations from the repository code, stated so they can be argued with:
   fraction into the wetland routine (`landscapes[2]`), which creates or
   destroys water whenever the two fractions differ. With the Wark
   fractions used here they differ by a factor of eight.
+* The unsaturated store's beta partition is integrated in sub-steps when a
+  step's effective rain exceeds a quarter of the unit's capacity, and the
+  partition is capped at one. The repository takes one step per day, which
+  on the plateau's few tens of millimetres of storage lets a large storm
+  overshoot the store and send the next day's rain the wrong way; the
+  equations are the same, integrated more carefully.
 * Soil and canopy capacities are told to the model by static.json: the
   three units' `Sumax` are scaled so that their area-weighted mean equals
   the catchment's, keeping their ratios, and every `Imax` is the canopy
@@ -146,13 +152,19 @@ def simulate(forcing: list[dict], static: dict, dt: float) -> list[dict]:
                 pe = 0.0
                 ei = min(Ep, si[name])
                 si[name] -= ei
-            # Unsaturated store and beta partition.
+            # Unsaturated store and beta partition. The partition is a function
+            # of the store it fills, so a single explicit step with more rain
+            # than the store can hold overshoots: the plateau's store is a few
+            # tens of millimetres and a large storm is several times that. The
+            # step is split so that no sub-step delivers more than a quarter of
+            # the capacity; the equations are unchanged and water is conserved.
+            quf = 0.0
             if pe > 0.0:
-                rho = (su[name] / p["Sumax"]) ** p["beta"]
-                su[name] += (1.0 - rho) * pe
-                quf = rho * pe
-            else:
-                quf = 0.0
+                parts = max(1, int(-(-pe // (0.25 * p["Sumax"]))))
+                for _ in range(parts):
+                    rho = min(1.0, (su[name] / p["Sumax"]) ** p["beta"])
+                    su[name] += (1.0 - rho) * pe / parts
+                    quf += rho * pe / parts
             # Transpiration.
             ep_left = max(0.0, Ep - ei)
             ea = min(ep_left * min(1.0, su[name] / (p["Sumax"] * p["Ce"])), su[name])

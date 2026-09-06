@@ -1,0 +1,20 @@
+name: reference_thirsty
+version: "1.0.0"
+description: >
+  The bucket with evaporation that never reads the demand: a fixed two
+  percent of the soil store leaves every day, capped only by the water
+  there. It conserves water exactly, so every mass probe passes it, and it
+  evaporates above potential in winter and below it in summer. It pins the
+  demand-consistency criterion, which is an energy statement.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
