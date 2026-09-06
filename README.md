@@ -128,7 +128,7 @@ things:
 - `INCOMPATIBLE` the model and probe disagree on timestep, required forcing or
   paired-perturbation support, so running them would not be meaningful.
 - `ERROR` the adapter or benchmark machinery failed. This is operational, not
-  a scientific verdict, and makes model-evaluation CI fail.
+  a scientific verdict, and is the one outcome that makes `ht run` exit 2.
 
 The verdict is one bit. Everything under it stays quantitative, so a paper can
 show that one model leaks 6% and another 40% long before anyone crosses the

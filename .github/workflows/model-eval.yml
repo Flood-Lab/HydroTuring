@@ -1,17 +1,21 @@
 name: model
 
-# Evaluates a submitted model against every merged probe.
+# Evaluates a submitted model against every merged probe, on request only.
+#
+# Evaluations are run by a maintainer on a local machine with Docker and
+# archived in models/result.csv; that archive is the record. This workflow
+# is kept for an independent re-run of one model on a clean runner, and is
+# no longer triggered by pushes or pull requests: a heavy model does not fit
+# the 45-minute budget on a four-core runner, and re-evaluating every model
+# on every touch of models/ was cost without a decision attached to it.
+#
+#   gh workflow run model --ref main -f model=<name>
 #
 # Trust boundary: a submitted model is an arbitrary Dockerfile. It is built
 # without secrets and run with no network, so it cannot exfiltrate anything
 # and cannot read the probe definitions or tolerances it is judged against.
 
 on:
-  push:
-    branches: [main]
-    paths: ['models/**']
-  pull_request:
-    paths: ['models/**']
   workflow_dispatch:
     inputs:
       model:
@@ -20,15 +24,11 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   evaluate:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # Fork submissions need a maintainer to look at the Dockerfile first.
-    # Remove this line only once the review flow is settled.
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,14 +47,10 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.model }}" ]; then
             echo "models=${{ github.event.inputs.model }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          else
             models=$(find models -mindepth 2 -maxdepth 2 -name model.yaml \
               | cut -d/ -f2 | grep -v '^_' | tr '\n' ' ')
             echo "models=${models}" >> "$GITHUB_OUTPUT"
-          else
-            changed=$(git diff --name-only HEAD^ HEAD -- models/ \
-              | cut -d/ -f2 | sort -u | grep -v '^_' | tr '\n' ' ')
-            echo "models=${changed}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Verify the adapter contract
@@ -97,18 +93,3 @@ jobs:
           name: hydroturing-results
           path: results/
 
-      - name: Comment the scorecard
-        if: always() && github.event_name == 'pull_request' && steps.select.outputs.models != ''
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const body = fs.readFileSync('scorecard.md', 'utf8');
-            if (body.trim()) {
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body,
-              });
-            }

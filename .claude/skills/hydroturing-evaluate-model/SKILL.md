@@ -59,10 +59,12 @@ then δHBV 2.0). Read `references/findings.md` for what those two taught, and
    commit with `Closes #N`, fast-forward `main`, push, then `gh issue comment`
    with the verdict block and the mechanism behind each failure. The pages
    workflow regenerates the probe/model count badges on any `models/**` push.
-9. **Watch CI.** The `model` workflow only triggers on `models/**` paths; a
-   harness fix needs `gh workflow run model --ref main -f model=<name>`.
-   Compare its scorecard with the local one: same pass/fail pattern is the
-   expectation, different numbers are normal because CI draws fresh seeds.
+9. **Optionally re-run on a clean runner.** The `model` workflow no longer
+   fires on pushes (disabled 2026-09-05: too heavy for the 4-core runner,
+   and the local archive is the record). `gh workflow run model --ref main
+   -f model=<name>` runs one model on demand. Compare its scorecard with
+   the local one: same pass/fail pattern is the expectation, different
+   numbers are normal because CI draws fresh seeds.
 
 ## Adapter rules that were not obvious until they bit
 

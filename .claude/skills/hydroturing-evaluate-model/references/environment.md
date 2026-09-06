@@ -26,8 +26,8 @@ in the message closes the submission issue on push.
 
 ## CI (GitHub Actions, ubuntu-latest, 4 cores)
 
-- `model` workflow: triggers on `models/**` pushes/PRs, or
-  `gh workflow run model --ref main -f model=<name>`; 45-minute limit;
+- `model` workflow: manual only since 2026-09-05,
+  `gh workflow run model --ref main -f model=<name>` (blank = every model); 45-minute limit;
   builds the image without secrets, `ht verify-adapter`, then `ht run` with
   fresh seeds; exit 1 (FAIL) is green, exit 2 (ERROR) is red; scorecard in
   the log and `results/` as an artifact. δHBV on the full record took ~10
