@@ -152,9 +152,13 @@ td.mono{font-size:12.8px; color:var(--ink); white-space:nowrap}
 .callout p{margin:0; max-width:42em; font-size:15.5px}
 
 .steps{counter-reset:s; list-style:none; padding:0; margin:0 0 20px; max-width:none}
-.steps li{counter-increment:s; display:grid; grid-template-columns:26px 1fr; gap:14px; margin-bottom:16px; max-width:40em}
-.steps li::before{content:counter(s); font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--accent);
-  border:1px solid var(--line-strong); border-radius:50%; width:24px; height:24px; display:grid; place-items:center; margin-top:1px}
+/* The number is positioned rather than a grid column. As a grid, every inline
+   child of the li became its own grid item, so a step containing a <strong>
+   put the rest of its sentence in the 26px number column, one word per line. */
+.steps li{counter-increment:s; position:relative; padding-left:40px; margin-bottom:16px; max-width:40em}
+.steps li::before{content:counter(s); position:absolute; left:0; top:1px;
+  font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--accent);
+  border:1px solid var(--line-strong); border-radius:50%; width:24px; height:24px; display:grid; place-items:center}
 
 footer{padding:44px 0 64px; color:var(--muted); font-size:14px}
 footer a{color:var(--muted)}
