@@ -228,7 +228,8 @@ def cmd_verify_adapter(args) -> int:
 
     seed = gate_seeds(probe.id, 1)[0]
     try:
-        result = verify_adapter_contract(model, probe, seed, window=args.window)
+        workdir = Path(args.workdir) if args.workdir else None
+        result = verify_adapter_contract(model, probe, seed, workdir=workdir, window=args.window)
     except Exception as exc:  # report a clean smoke-test failure, never a traceback
         print(f"{prefix(False)}adapter contract FAILED for {model.name}:\n  {exc}")
         if args.csv:
@@ -402,6 +403,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--probe")
     verify.add_argument("--csv", metavar="PATH",
                         help="append the contract check as a row to this CSV archive")
+    verify.add_argument("--workdir", help="keep the /io directory here instead of a temp dir")
     add_window(verify)
     add_probe_roots(verify)
     verify.set_defaults(fn=cmd_verify_adapter)

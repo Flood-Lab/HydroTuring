@@ -76,6 +76,17 @@ model at its own step and at the next finer one, whatever the manifest
 lists. It then measures how far the integrated runoff moved, in percent of
 the rain. A model whose arithmetic assumes its native step moves a lot.
 
+**Put learned parameters in the units of the step.** A model whose network
+writes physical parameters (a recession coefficient per day, a percolation
+cap in mm per day, a unit hydrograph in days) has to have those parameters
+rescaled to the step the case runs at before its physics uses them, or the
+physics drains its stores as many times too fast as there are steps in a
+day, and the probe measures the adapter's units rather than the model. A
+per-day fraction k becomes 1 - (1 - k)^dt, a per-day amount becomes
+amount × dt, a hydrograph keeps its shape in days. The networks themselves
+are fed what they were trained on, rates in mm per day; the physics is fed
+depths per row. `models/dhbv2/ht_adapter.py` does this.
+
 **Feed the model the rows at the step you were given.** Do not aggregate
 hourly rows to days inside the adapter, or split days into hours, to reach
 the step the model prefers. The adapter is the model's units layer, not a

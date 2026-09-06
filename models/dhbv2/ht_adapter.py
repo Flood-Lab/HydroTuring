@@ -32,11 +32,25 @@ How the probe's forcing is mapped onto the model's inputs
 The model takes precipitation, air temperature and potential evaporation,
 which is exactly what the probe generates, so nothing has to be mocked.
 The probe's `pet` is handed to the model directly; the module's own
-Hargreaves routine is not used. Fluxes arrive as rates in mm per day at
-whatever step the case runs at, and the model wants depths per row, so the
-adapter multiplies by the step length and divides the model's fluxes back.
-It does not resample: the rows go in at the step they came at, which is
-what a resolution probe measures.
+Hargreaves routine is not used. The adapter does not resample: the rows go
+in at the step they came at, which is what a resolution probe measures.
+
+Units at a step other than a day
+--------------------------------
+The networks were trained to read forcing in mm per day and to write HBV
+parameters in daily units: recession coefficients per day, a percolation
+cap and a degree-day factor and a groundwater exchange in mm per day, a
+unit hydrograph in days. Run at an hourly step, the physics would drain
+its stores twenty-four times too fast unless those parameters are put in
+the units of the step. So the networks are fed rates, as they were
+trained, the HBV core is fed depths per row (rate times step length), and
+every parameter with a time in its units is rescaled to the step before
+the core uses it: a per-day fraction k becomes 1 - (1 - k)^dt, a per-day
+amount becomes amount * dt, the unit hydrograph keeps its shape in days by
+scaling its time constant and its length. At a daily step the scaling is
+the identity. What remains step-dependent after that is the LSTM's own
+recurrence, whose memory was learned with one step meaning one day, and
+that is the part of the model the resolution probe then measures.
 
 Of the 28 catchment attributes the parameterisation network reads, the
 ones with an unambiguous definition are derived from the first year of the
@@ -82,7 +96,7 @@ import numpy as np
 import torch
 import yaml
 
-MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100"}
+MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100.2"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "snw", "canopy", "gw", "channel"]
 
 MODEL_DIR = Path(os.environ.get("DHBV_MODEL_DIR", "/model/dhbv_2"))
@@ -112,6 +126,41 @@ def climate_attributes(pr: np.ndarray, tas: np.ndarray, pet: np.ndarray,
 
 
 # --- the model ----------------------------------------------------------------
+
+
+class StepScaledHbv2:
+    """Mixin swapped onto the loaded HBV core: puts the daily parameters the
+    networks wrote into the units of the case's step before the physics
+    runs. See the module docstring. Installed by `load_model` with
+    `__class__` assignment so the trained weights and configuration are
+    untouched; `dt_days` is set per case."""
+
+    dt_days = 1.0
+    ROUTING_LENGTH_DAYS = 15  # hydrodl2's lenF at the daily step
+
+    PER_DAY_FRACTION = ("parK0", "parK1", "parK2", "parC")
+    PER_DAY_AMOUNT = ("parPERC", "parCFMAX", "parRT")
+
+    @classmethod
+    def _to_step(cls, name: str, value, dt: float):
+        if name in cls.PER_DAY_FRACTION:
+            return 1.0 - (1.0 - value) ** dt
+        if name in cls.PER_DAY_AMOUNT:
+            return value * dt
+        return value
+
+    def _PBM(self, forcing, Ac, Elevation, states, phy_dy_params_dict, phy_static_params_dict):
+        dt = float(self.dt_days)
+        if dt != 1.0:
+            phy_dy_params_dict = {k: self._to_step(k, v, dt) for k, v in phy_dy_params_dict.items()}
+            phy_static_params_dict = {k: self._to_step(k, v, dt) for k, v in phy_static_params_dict.items()}
+            if self.routing:
+                # uh_gamma uses theta = relu(route_b) + 0.5 in steps over lenF
+                # steps; keep the hydrograph's shape in days.
+                theta_days = torch.relu(self.routing_param_dict["route_b"]) + 0.5
+                self.routing_param_dict["route_b"] = theta_days / dt - 0.5
+                self.lenF = int(round(self.ROUTING_LENGTH_DAYS / dt))
+        return super()._PBM(forcing, Ac, Elevation, states, phy_dy_params_dict, phy_static_params_dict)
 
 
 def checkpoint_structure(state: dict, n_phy: int, n_dynamic: int) -> tuple[int, bool]:
@@ -170,6 +219,8 @@ def load_model() -> tuple[dict, torch.nn.Module, dict, dict]:
     handler = ModelHandler(config, device="cpu")
     handler.eval()
     model = handler.model_dict[PHY_MODEL]
+    core = model.phy_model
+    core.__class__ = type("StepScaledHbv2", (StepScaledHbv2, core.__class__), {})
     norm = json.loads((MODEL_DIR / "normalization_statistics.json").read_text())
     structure = {
         "weights": weights.name,
@@ -208,9 +259,11 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
     pet_rate = np.array([r["pet"] for r in forcing])
     n = len(pr_rate)
 
-    # The model wants depths per row; the forcing is rates per day.
+    # The physics wants depths per row; the networks read rates per day, as
+    # they were trained to, and write daily parameters that the core rescales.
     pr = pr_rate * dt
     pet = pet_rate * dt
+    model.phy_model.dt_days = dt
 
     # Attributes from the first year only: a climatology the model has seen,
     # through which nothing later in the record can reach back.
@@ -230,8 +283,9 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
     c_norm = standardise(attrs, attr_names, norm)
 
     forcing_names = list(config["model"]["phy"]["forcings"])  # P, T, PET
-    x = np.stack([pr, tas, pet], axis=-1)[:, None, :]  # [time, 1, 3]
-    x_norm = standardise(x, forcing_names, norm)
+    x = np.stack([pr, tas, pet], axis=-1)[:, None, :]  # [time, 1, 3], depths per row
+    x_rates = np.stack([pr_rate, tas, pet_rate], axis=-1)[:, None, :]  # mm/day, for the LSTM
+    x_norm = standardise(x_rates, forcing_names, norm)
 
     data = {
         "xc_nn_norm": torch.tensor(
@@ -274,6 +328,11 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
     notes = {
         **structure,
         "timestep": timestep,
+        "parameter_units": (
+            "daily, as written by the networks" if dt == 1.0 else
+            f"rescaled to a {timestep} step: per-day fractions as 1-(1-k)^dt, "
+            "per-day amounts as amount*dt, unit hydrograph time constant and length in days"
+        ),
         "climatology_rows": int(n_clim),
         "derived_static_attributes": sorted(a for a in derived if a in attr_names),
         "static_attributes_at_training_mean": [a for a in attr_names if a not in derived],

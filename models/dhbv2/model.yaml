@@ -1,5 +1,5 @@
 name: dhbv2
-version: "0.5.4-hbv2ep100"
+version: "0.5.4-hbv2ep100.2"
 description: >
   δHBV 2.0, the differentiable HBV behind the MHPI group's CONUS-scale water
   model (Song et al. 2025): an LSTM and an MLP write the parameters of an

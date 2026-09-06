@@ -44,7 +44,7 @@ channel(UH store), canopy(0)`.
 | causality | PASS | PASS | bucket structure |
 | dry-down | PASS | PASS | stores drain |
 | extreme-rain | 1.07 of added rain returned | 1.05 | dynamic parameters release stored water (inferred, marginal) |
-| resolution-invariance | 216% | 482% | HBV rate constants have no dt |
+| resolution-invariance | 216% unscaled → with parameters scaled to the step (adapter .2): runoff 2.2% (passes), ET 8.6% (fails the 5% line) | 482% (unscaled) | rate constants had no dt; what remains after scaling is the LSTM recurrence writing a lower `parBETAET` at the hourly step |
 | steady-state | −1.08 mm/day unplaced | −1.04 | the same source term, constant |
 | warming-response | PASS, −0.65/−0.70 per unit | PASS | ET follows PET and SM |
 
@@ -65,6 +65,17 @@ Packaging facts: shipped config does not fit weights (see SKILL.md);
 the release wheel `dhbv2==0.5.4` is installed with `--no-deps` and the
 checkout kept only for `LICENSE`; image 2.76 GB; one full 10-year record
 runs in ~4 s inside the container, most of it loading 400 MB of MLP weights.
+
+### Parameter scaling (adapter .2, 2026-09-05)
+
+The maintainer's rule: a network that writes physical parameters in daily
+units must have them rescaled to the case's step in the adapter, or the
+probe measures the adapter's units. Per-day fractions → `1-(1-k)^dt`,
+per-day amounts → `×dt`, unit hydrograph time constant `/dt` and length
+`15/dt`; networks fed rates, physics fed depths. Verified: identity at
+dt=1; hourly physics with the daily LSTM parameters repeated 24× matches
+the daily volumes within 1%, so the residual 2.2%/8.6% is the recurrence.
+AGENTS.md now states the rule.
 
 ## Harness changes the evaluations forced
 

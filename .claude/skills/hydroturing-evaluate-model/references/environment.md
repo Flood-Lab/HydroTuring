@@ -12,6 +12,12 @@
   4–20 s per case. `ht verify-adapter` rebuilds the image (cached) on every
   call, so its reported time includes that; the probe's `max_runtime_s`
   applies to the container run only.
+- Docker's file sharing here covers `/Users` reliably; bind mounts from
+  `/private/tmp` (the session scratchpad and Python's default temp dir)
+  worked for a while and then failed with "bind source path does not
+  exist" (container exit 125) after a buildkit hiccup. When that happens,
+  run with `--workdir "$HOME/.hydroturing-tmp/wd"` and keep any staged
+  `/io` directories under `$HOME`.
 - Weights downloads: Google's from GitHub at build time; MHPI's from a
   public S3 URL (`--no-sign-request`, or plain HTTPS), 374 MB for δHBV daily.
 - The scratch venv's tests: `PYTHONPATH=src <venv>/bin/python -m pytest -q

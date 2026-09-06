@@ -46,9 +46,37 @@ invented to satisfy a column, and it is recorded as such in `run.json`.
 The model takes precipitation, temperature and potential evaporation,
 which is what the probe generates, so no forcing has to be mocked. The
 probe's `pet` goes in directly; the module's Hargreaves routine is not
-used. The forcing arrives as rates in mm per day at the case's step; the
-adapter multiplies by the step length to give the model the depth per row
-it wants and divides its fluxes back. It never resamples.
+used. The adapter never resamples: rows go in at the step of the case.
+
+### Units at a step other than a day
+
+The networks were trained to read forcing in mm per day and to write HBV
+parameters in daily units. At an hourly step the adapter therefore does
+three things, none of which changes anything at the daily step:
+
+- the networks are fed rates in mm per day, as they were trained;
+- the HBV core is fed depths per row, rate × step length, and its fluxes
+  are divided back to rates;
+- every parameter with a time in its units is put in the units of the
+  step before the core uses it: `parK0`, `parK1`, `parK2`, `parC` (per-day
+  fractions) become `1 − (1 − k)^dt`; `parPERC`, `parCFMAX`, `parRT`
+  (per-day amounts) become `amount × dt`; the unit hydrograph keeps its
+  shape in days by scaling its time constant by `1/dt` and its length from
+  15 days to `15/dt` steps. `parFC`, `parUZL`, `parBETA`, `parLP`, `parTT`,
+  `parCFR`, `parCWH`, `parBETAET`, `parAC` carry no time and are untouched.
+
+Without the scaling the stores drained twenty-four times too fast and the
+integrated runoff moved by 216–482 % of the rain between the hourly and
+daily step; that number measured the adapter's units, not the model. With
+it, on the resolution probe's first gate seed, runoff differs by 2.2 % of
+the rain and evaporation by 8.6 %. What is left is the LSTM's own
+recurrence, whose memory was learned with one step meaning one day:
+holding the hourly physics but feeding it the daily run's parameter series
+repeated 24× brings both volumes within 1 % of the daily run, and the
+hourly LSTM writes a lower `parBETAET` (0.29 against 0.32 normalised) and
+a higher `parBETA` (0.38 against 0.30), which is where the extra
+evaporation comes from. That is the model's step dependence, and it is
+what the probe now reports.
 
 Of the 28 attributes the parameterisation network reads:
 
