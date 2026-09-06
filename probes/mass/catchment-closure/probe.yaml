@@ -62,7 +62,9 @@ criteria:
       rtol: 1.0e-6
 
 baselines:
-  must_pass: [reference_bucket]
+  # The exact bucket and the two hand-written physical models from
+  # chrimerss/HydrologicModels. A probe that fails any of them is wrong.
+  must_pass: [reference_bucket, flex_lumped, flex_topo]
   must_fail:
     reference_leaky: closure
     reference_cheater: state_bounds

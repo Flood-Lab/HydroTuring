@@ -1,0 +1,26 @@
+name: flex_topo
+version: "1.0.0"
+description: >
+  FLEX-Topo, the semi-distributed model of Zhi Li's HydrologicModels
+  repository (semi-distributed_model/FLEXtopo.py): three landscape units
+  classified from height-above-nearest-drainage and slope, plateau,
+  hillslope and wetland, each with its own interception, unsaturated and
+  fast stores and its own runoff mechanism, feeding one shared slow
+  groundwater reservoir that the wetland draws on by capillary rise, and a
+  triangular lag. Landscape fractions are those of the Wark catchment the
+  model was built for, computed from the repository's terrain grids. A
+  physical model that every probe must pass. No snow module, so snow is
+  reported as identically zero.
+authors: ["Zhi Li (model, github.com/chrimerss/HydrologicModels)", "HydroTuring maintainers (adapter)"]
+reference: "https://github.com/chrimerss/HydrologicModels/tree/master/semi-distributed_model"
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy, gw, channel]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

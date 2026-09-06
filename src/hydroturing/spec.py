@@ -70,6 +70,9 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_climatology",
     "reference_saturating",
     "reference_restless",
+    # Physical models from chrimerss/HydrologicModels: must pass every probe.
+    "flex_lumped",
+    "flex_topo",
 }
 
 

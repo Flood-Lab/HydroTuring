@@ -103,3 +103,4 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-06,dhbv2,0.5.4-hbv2ep100.2,0.1.0,docker,mass/steady-state,FAIL,VIOLATION,full record,1815845244 175313711 682265825,steady_state: runoff and evaporation leave -1.082 mm/day of the 2.500 mm/day rain unaccounted for at steady state
 2026-09-06,dhbv2,0.5.4-hbv2ep100.2,0.1.0,docker,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
 2026-09-06,dhbv2,0.5.4-hbv2ep100.2,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,full record,598896396,"adapter contract OK: 4015 rows in 4.6s, columns pr, evspsbl, mrro, dis, mrso, snw, canopy, gw, channel"
+2026-09-06,dhbv2,0.5.4-hbv2ep100.2,0.1.0,docker,mass/resolution-invariance,PASS,OK,full record,746687816 1253639930 1760592044,all criteria pass

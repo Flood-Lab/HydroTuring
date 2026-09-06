@@ -44,7 +44,7 @@ channel(UH store), canopy(0)`.
 | causality | PASS | PASS | bucket structure |
 | dry-down | PASS | PASS | stores drain |
 | extreme-rain | 1.07 of added rain returned | 1.05 | dynamic parameters release stored water (inferred, marginal) |
-| resolution-invariance | 216% unscaled → with parameters scaled to the step (adapter .2): runoff 2.2% (passes), ET 8.6% (fails the 5% line) | 482% (unscaled) | rate constants had no dt; what remains after scaling is the LSTM recurrence writing a lower `parBETAET` at the hourly step |
+| resolution-invariance | 216% unscaled → with parameters scaled to the step (adapter .2): runoff 2.2%, ET 8.6%; failed the 5% limit, passes the 10% limit calibrated on the physical models (probe v2) | 482% (unscaled) | rate constants had no dt; what remains after scaling is the LSTM recurrence writing a lower `parBETAET` at the hourly step |
 | steady-state | −1.08 mm/day unplaced | −1.04 | the same source term, constant |
 | warming-response | PASS, −0.65/−0.70 per unit | PASS | ET follows PET and SM |
 
@@ -88,6 +88,17 @@ AGENTS.md now states the rule.
 - Extra store names `gw`, `channel`; closure over every reported store.
 - Containers run as the invoking user (root without CAP_DAC_OVERRIDE could
   not write the runner-owned output directory on Linux).
+
+## Physical reference models (2026-09-06)
+
+`flex_lumped` and `flex_topo`, from chrimerss/HydrologicModels, are in
+`must_pass` of every probe beside `reference_bucket`. Any probe PR is run
+against the three first. Adapter deviations from the repository code are
+listed in each model's README (ET `min(1,·)` limit; hillslope preferential
+share moved once; wetland capillary rise with the wetland fraction;
+capacities from static.json; step as a parameter). They calibrated one
+tolerance: resolution-invariance 5% → 10% because FLEX-Topo moves 5.1%.
+Trusted subprocess models are listed in `spec.TRUSTED_SUBPROCESS_MODELS`.
 
 ## Known open items
 

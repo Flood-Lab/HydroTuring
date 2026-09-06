@@ -158,9 +158,16 @@ def dry_down(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
 
     runoff = w.table["mrro"].to_numpy(dtype=float)
     total = float(w.volume(runoff).sum())
+    # What the catchment held when the rain stopped: the capacities of its
+    # bounded stores, plus whatever it reports in the stores that have no
+    # capacity to name, snow, groundwater and water in transit. A slow
+    # groundwater reservoir can legitimately hold and drain more than the
+    # soil column's capacity; a model that reports it is not penalised for
+    # having it, and one that does not report it is held to the capacities.
     bound = _capacity(run, keys)
-    if "snw" in w.state0.index:
-        bound += max(0.0, float(w.state0["snw"]))
+    for var in ("snw", "gw", "channel"):
+        if var in w.state0.index:
+            bound += max(0.0, float(w.state0[var]))
     days = len(runoff) * w.dt_days
 
     failures = []

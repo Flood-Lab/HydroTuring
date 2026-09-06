@@ -125,8 +125,11 @@ places where following it took judgement.
 - `ht validate`, `ht gate`, `ht list`, `pytest -q` must all be green before a
   push; `ht run` exit 1 is a scientific FAIL (fine), exit 2 is a harness
   ERROR (not fine).
-- The seven merged probes and what each catches are in the README tables;
-  `docs/writing-a-probe.md` is the probe author's guide.
+- Every probe must pass three physical models (`reference_bucket`,
+  `flex_lumped`, `flex_topo`) and fail its named broken one; a probe PR is
+  gated on the physical models first. The seven merged probes and what each
+  catches are in the README tables; `docs/writing-a-probe.md` is the probe
+  author's guide.
 
 ## Writing it up
 

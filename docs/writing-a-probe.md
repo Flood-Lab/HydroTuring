@@ -176,15 +176,22 @@ as a share of the precipitation. See `probes/mass/resolution-invariance`.
 
 ```yaml
 baselines:
-  must_pass: [reference_bucket]
+  must_pass: [reference_bucket, flex_lumped, flex_topo]
   must_fail:
     reference_leaky: closure
     reference_cheater: state_bounds
     reference_degenerate: non_degenerate
 ```
 
-`must_pass` guards against tolerance drift: if a physically exact model ever
-fails your probe, the probe is wrong. `must_fail` pins which criterion does
+`must_pass` guards against tolerance drift: if a physical model ever fails
+your probe, the probe is wrong until shown otherwise. Three are required:
+the exact bucket, and the two hand-written FLEX models from
+chrimerss/HydrologicModels, which conserve water but partition it with the
+nonlinearities a real conceptual model has. They are what calibrates a
+tolerance: the resolution probe's limit was moved from 5 to 10 percent when
+FLEX-Topo, exactly conservative, moved 5.1 percent between an hourly and a
+daily step because its partition answers intensity. A probe pull request is
+run against these three before anything else. `must_fail` pins which criterion does
 the catching, so a probe cannot appear to work while catching things for the
 wrong reason.
 
@@ -193,6 +200,8 @@ The reference models available today:
 | Model | What it does | Caught by |
 | --- | --- | --- |
 | `reference_bucket` | conserves water exactly by construction | nothing, it must pass |
+| `flex_lumped` | lumped FLEX/HBV from chrimerss/HydrologicModels; conservative, nonlinear partition | nothing, it must pass |
+| `flex_topo` | FLEX-Topo, three landscape units sharing a groundwater store | nothing, it must pass |
 | `reference_leaky` | hides a silent 15% sink | `closure` |
 | `reference_cheater` | solves for storage as whatever balances the budget; runoff is a fixed share of rain | `state_bounds`, `response_sign` |
 | `reference_degenerate` | evaporates all precipitation, produces no runoff | `non_degenerate`, `counterfactual_response`, `response_sign` |

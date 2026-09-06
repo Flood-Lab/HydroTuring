@@ -1,0 +1,25 @@
+name: flex_lumped
+version: "1.0.0"
+description: >
+  A lumped FLEX-type conceptual model, the "HBVMod" of Zhi Li's
+  HydrologicModels repository (lumped_model/HBVMod.py): an interception
+  store, an unsaturated store with a beta partition into fast runoff,
+  transpiration limited by soil moisture, percolation to a slow linear
+  reservoir, a fast linear reservoir, and a triangular lag. Written by hand
+  from the physics and calibrated against a real catchment, so it is a
+  physical model that every probe must pass: a probe that fails it is
+  measuring something other than physics. No snow module, so snow is
+  reported as identically zero.
+authors: ["Zhi Li (model, github.com/chrimerss/HydrologicModels)", "HydroTuring maintainers (adapter)"]
+reference: "https://github.com/chrimerss/HydrologicModels/tree/master/lumped_model"
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy, gw, channel]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

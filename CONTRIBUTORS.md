@@ -33,6 +33,13 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `google_flood_forecast` | Zhi Li (CU Boulder), [#1](../../issues/1) | HydroTuring maintainers |
 | `dhbv2` | Zhi Li (CU Boulder), [#2](../../issues/2) | HydroTuring maintainers |
 
+Physical reference models, which every probe must pass:
+
+| Model | Author | Source |
+| --- | --- | --- |
+| `flex_lumped` | Zhi Li (CU Boulder) | [chrimerss/HydrologicModels](https://github.com/chrimerss/HydrologicModels), `lumped_model/` |
+| `flex_topo` | Zhi Li (CU Boulder) | [chrimerss/HydrologicModels](https://github.com/chrimerss/HydrologicModels), `semi-distributed_model/` |
+
 ## Harness and infrastructure
 
 - Zhi Li (CU Boulder), maintainer

@@ -2,7 +2,7 @@ id: mass/resolution-invariance
 title: Integrated runoff must not depend on the step the weather was given at
 law: mass
 track: synthetic
-version: 1
+version: 2
 
 authors:
   - name: Zhi Li
@@ -45,13 +45,22 @@ case:
 
 criteria:
   # The probe's assertion: integrated volumes agree between the steps, to
-  # within the engineering rule's share of the precipitation that fell.
-  # Evapotranspiration and storages are compared too when the model reports
-  # them; runoff is enough to be scored.
+  # within a share of the precipitation that fell. Evapotranspiration and
+  # storages are compared too when the model reports them; runoff is enough
+  # to be scored.
+  #
+  # The share is calibrated on physical models, not on the engineering rule.
+  # A conservative bucket whose partition is nonlinear in rain intensity
+  # legitimately moves between an hourly and a daily step, because within-
+  # day intensity is real physics: the exact bucket moves by about 1 percent
+  # of the rain, flex_lumped by 2.5, flex_topo by 5.1 on one gate seed. The
+  # limit sits at twice the largest of those. The broken fixed-step model
+  # moves by 49 percent and the two neural models evaluated so far by 66 and
+  # 216 (482 with fresh seeds) before parameter scaling.
   - resolution_invariance:
       volumes: [mrro, evspsbl]
       states: [mrso, snw, canopy]
-      threshold: 0.05
+      threshold: 0.10
 
   # Invariance alone is satisfiable by reporting nothing twice. The record
   # is a month, so the runoff ratio is reported rather than judged and the
@@ -63,7 +72,9 @@ criteria:
       cv_variables: [mrro]
 
 baselines:
-  must_pass: [reference_bucket]
+  # The exact bucket and the two hand-written physical models from
+  # chrimerss/HydrologicModels. A probe that fails any of them is wrong.
+  must_pass: [reference_bucket, flex_lumped, flex_topo]
   must_fail:
     reference_fixed_step: resolution_invariance
     reference_degenerate: non_degenerate

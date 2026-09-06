@@ -41,7 +41,9 @@ criteria:
       floor: 0.05
 
 baselines:
-  must_pass: [reference_bucket]
+  # The exact bucket and the two hand-written physical models from
+  # chrimerss/HydrologicModels. A probe that fails any of them is wrong.
+  must_pass: [reference_bucket, flex_lumped, flex_topo]
   must_fail:
     # Its recession keeps an internal clock, so its runoff never holds still.
     reference_restless: steady_state

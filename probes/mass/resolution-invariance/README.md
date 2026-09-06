@@ -82,7 +82,7 @@ rate times the step. A model reads the step from `timestep` in the request.
 
 | Criterion | What it asserts |
 | --- | --- |
-| `resolution_invariance` | runoff volume, and evaporation volume and end-of-month storage where the model reports them, agree between the model's step and the next finer one to within 5 percent of the precipitation that fell; the worst disagreement is the reported value |
+| `resolution_invariance` | runoff volume, and evaporation volume and end-of-month storage where the model reports them, agree between the model's step and the next finer one to within 10 percent of the precipitation that fell; the worst disagreement is the reported value. The limit is calibrated on physical models: an exact bucket moves 1 percent, the two FLEX models 2.5 and 5.1, because a partition that is nonlinear in intensity legitimately answers hourly and daily rain differently; a fixed-step model moves 49 |
 | `non_degenerate` | runoff actually varies, so the invariance cannot be satisfied by reporting nothing twice; the runoff ratio is reported rather than judged on a month and the rainfall-response check is off |
 
 ## Baselines

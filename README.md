@@ -60,8 +60,11 @@ not.
 ## The probes
 
 Seven, all of them mass so far. Each was merged only after the acceptance gate
-saw it pass a model that conserves water exactly and fail a purpose-built
-broken one on the named criterion. `ht list` prints them;
+saw it pass three physical models, a bucket that conserves water exactly and
+two hand-written FLEX models, and fail a purpose-built broken one on the named
+criterion. A probe that fails a physical model is examined before the model
+is; that is the first thing done with any probe pull request. `ht list`
+prints them;
 [ROADMAP.md](ROADMAP.md#probes-we-want) has the seventeen more we want, all
 unclaimed.
 
@@ -77,17 +80,22 @@ unclaimed.
 
 ## Models
 
-`models/` holds two kinds. A submitted model is there to be evaluated, and
+`models/` holds three kinds. A submitted model is there to be evaluated, and
 every run of one is appended to [models/result.csv](models/result.csv). A
-reference model is there to test the probes rather than to be tested: one that
-is exactly conservative and must pass everything, and a set that is each broken
-in one specific way, so that no criterion goes untested.
+physical model is there to test the probes: the exact bucket and two
+hand-written conceptual models from
+[chrimerss/HydrologicModels](https://github.com/chrimerss/HydrologicModels)
+must pass every probe, so a probe that fails one is wrong until shown
+otherwise. A broken model is broken in one specific way, so that no criterion
+goes untested.
 
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |
 | [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (INCOMPLETE)**, 2 of 7 probes passed |
-| [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (VIOLATION)**, 3 of 7 probes passed; the budget gains 83% of the rain from a learned regional-groundwater term. With its daily parameters rescaled to the step, runoff agrees between hourly and daily to 2% of the rain; evaporation still moves 9% through the LSTM's recurrence |
+| [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (VIOLATION)**, 4 of 7 probes passed; the budget gains 83% of the rain from a learned regional-groundwater term. With its daily parameters rescaled to the step it is step-invariant to 2% of the rain in runoff and 9% in evaporation, inside the limit the physical models set |
 | `reference_bucket` | exact | conserves water exactly by construction | must pass every probe |
+| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, triangular lag | must pass every probe |
+| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe |
 | `reference_leaky` | broken | hides a silent 15% sink | caught by `closure` |
 | `reference_cheater` | broken | solves for storage as whatever balances the budget | caught by `state_bounds` |
 | `reference_degenerate` | broken | evaporates all precipitation, produces no runoff | caught by `non_degenerate`, `response_sign` |

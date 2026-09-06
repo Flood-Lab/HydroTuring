@@ -51,7 +51,9 @@ criteria:
       cv_variables: [mrro]
 
 baselines:
-  must_pass: [reference_bucket]
+  # The exact bucket and the two hand-written physical models from
+  # chrimerss/HydrologicModels. A probe that fails any of them is wrong.
+  must_pass: [reference_bucket, flex_lumped, flex_topo]
   must_fail:
     # Reports runoff smoothed over a centred window, so three days of the
     # future leak into every value.
