@@ -3,6 +3,18 @@
 A probe is a conservation law made executable. It defines a generated case, a
 set of binary criteria, and the reference models it must be able to separate.
 
+## Propose it first
+
+Open a [probe proposal](../../../issues/new?template=probe_proposal.yml)
+before you build. The form asks how an unphysical model would pass your probe,
+and it is much cheaper to discover that it would in a paragraph than in three
+hundred lines. A maintainer labels the issue `accepted` and assigns it to you;
+then fork the repository, work through the rest of this page, and open a pull
+request from your fork when the gate is green.
+
+One merged probe earns co-authorship on the benchmark paper, as do five
+accepted model proposals. See [CONTRIBUTING.md](../CONTRIBUTING.md#credit).
+
 ## Start from a template
 
 ```bash
@@ -219,6 +231,10 @@ If your probe needs a broken model that does not exist yet, add it under
 untested.
 
 ## Before opening a PR
+
+The pull request comes from your fork and closes the proposal issue. Title it
+`[PROBE: <law>] <description>`. Review is two passes, one on the physics and
+one on the implementation.
 
 ```bash
 ht validate

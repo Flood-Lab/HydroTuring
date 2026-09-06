@@ -21,12 +21,19 @@ Not whether it fits a hydrograph. Whether its water budget closes, its energy
 budget closes, and its routing conserves momentum. A model passes HydroTuring
 only when every criterion of every probe passes.
 
-> **Write a probe, join the paper.** The suite is only as good as the physics
-> people bring to it. Anyone may submit a probe — you do not need to be
-> invited, affiliated, or known to us. **If your probe is merged, you are a
-> co-author on the HydroTuring paper.** One merged probe is the whole
-> threshold. Start at [ROADMAP.md](ROADMAP.md#probes-we-want) or propose your
-> own.
+> **Bring a probe or a model, join the paper.** The suite is only as good as
+> the physics people bring to it, and only as interesting as what has been put
+> through it. Anyone may propose either — you do not need to be invited,
+> affiliated, or known to us.
+>
+> **One merged probe earns co-authorship on the HydroTuring paper. So do five
+> accepted model proposals.** You do not have to be able to package a model to
+> propose it; say so on the form and the work is assigned to someone who can,
+> and it still counts as yours.
+>
+> Start with a [probe](ROADMAP.md#probes-we-want) or a
+> [model](../../issues/new?template=model_submission.yml). Terms in
+> [CONTRIBUTING.md](CONTRIBUTING.md#credit).
 
 ```
 $ ht run --model reference_bucket
@@ -167,11 +174,25 @@ thin adapter that reads `/io/request.json` and writes `/io/output/result.csv`.
 The adapter is usually thirty lines. See [docs/adapting-a-model.md](docs/adapting-a-model.md),
 and `AGENTS.md` if you are having a coding agent build the sandbox for you.
 
-To ask the maintainers to package and evaluate a model, open a
-[model submission](../../issues/new?template=model_submission.yml). The form
-accepts AI-based, AI+physics and physics models, with separate links for the
-model code and optional pretrained weights, and asks whether there is a time
-window you want the test to run over.
+**We want more models, and we want the ones you think matter.** Every
+published rainfall-runoff model, every LSTM, every foundation model with a
+hydrologic claim is in scope.
+
+Start with a [model proposal](../../issues/new?template=model_submission.yml).
+The form accepts AI-based, AI+physics and physics models, with separate links
+for the model code and optional pretrained weights, and asks whether there is
+a time window you want the test to run over.
+
+**You do not need to be able to package it yourself.** The *packaging status*
+field decides who the issue is assigned to and nothing else: ready means it is
+yours to finish, help needed means the maintainer takes it. Either way the
+proposal counts as yours, and five accepted proposals earn co-authorship on
+the benchmark paper the same as one merged probe. Knowing which models are
+worth putting through the benchmark is a judgement about the field, and it is
+not one the maintainer can make alone.
+
+Once a proposal is accepted, fork and build; the pull request comes from the
+fork and closes the issue.
 
 A submitted model is scored on the largest flood event of the generated
 record rather than on all ten years of it: by default a month for a daily
@@ -184,6 +205,11 @@ The container runs with no network and never sees the probe code, so a model
 cannot read the tolerance it is being judged against. Every evaluation is
 appended to [models/result.csv](models/result.csv).
 
+**A model that fails is worth proposing.** `INCOMPLETE` is the current state
+of nearly every published rainfall-runoff model — it has not violated
+conservation, it has declined to be falsifiable — and recording that honestly
+is a large part of what this is for.
+
 ## Contributing a probe
 
 **Please submit one.** A benchmark with four probes tests four things; the
@@ -193,11 +219,12 @@ AI models get wrong, that law is a probe, and we would rather have it from you
 than approximate it ourselves.
 
 **Contributors of merged probes are co-authors on the benchmark paper.** The
-threshold is one probe, merged and passing the acceptance gate. This is how
-model intercomparison projects have always worked in this field: you
-contribute an experiment, you are an author on the paper that reports it.
-[CONTRIBUTING.md](CONTRIBUTING.md#credit) has the full terms — author order,
-the right to decline, and what happens before anything is submitted.
+threshold is one probe, merged and passing the acceptance gate, or five
+accepted model proposals. This is how model intercomparison projects have
+always worked in this field: you contribute an experiment, you are an author
+on the paper that reports it. [CONTRIBUTING.md](CONTRIBUTING.md#credit) has
+the full terms — author order, the right to decline, and what happens before
+anything is submitted.
 
 **[ROADMAP.md](ROADMAP.md) lists the probes we want**, each with a difficulty
 and a note on what it discriminates. Claiming one is easier than inventing
@@ -206,7 +233,13 @@ twice. The two we most want are the cross-budget consistency probes: a model
 can close its water budget and its energy budget while being incoherent
 between them, and nothing in the suite currently notices.
 
-Do not start from a blank page:
+Propose first, then fork, then open a pull request — the same three steps for
+a probe or a model. The proposal issue is where we find out whether a probe
+discriminates, which is cheaper to learn in a paragraph than in three hundred
+lines. Once it is labelled `accepted` it is assigned to you and nobody else
+will build it.
+
+Then do not start from a blank page:
 
 ```bash
 ht init-probe --list-templates           # the shapes available

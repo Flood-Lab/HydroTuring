@@ -6,6 +6,12 @@ end to end should start from `.claude/skills/hydroturing-evaluate-model/`,
 which records the whole workflow and what the first evaluations taught. The work is always the same three files, and it
 does not require understanding the model's internals.
 
+Before any of it: contributions here start with an issue, not a pull request.
+If there is no accepted [model proposal](https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml)
+for this model, open one and wait for it to be labelled `accepted` and
+assigned. Then fork, build, and open the pull request from the fork. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## What you are building
 
 ```

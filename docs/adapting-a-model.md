@@ -4,6 +4,20 @@ Walkthrough for wrapping an existing hydrologic model so HydroTuring can run
 it. See `AGENTS.md` for the contract stated compactly, which is also what to
 hand a coding agent.
 
+## 0. Propose it first
+
+Open a [model proposal](../../../issues/new?template=model_submission.yml)
+before you build anything. It is where we find out whether the model can be
+containerised at all, and who is going to do it. A maintainer labels the issue
+`accepted` and assigns it; then fork, and work through the rest of this page.
+
+**You do not need to be able to package the model to propose it.** The form's
+*packaging status* field decides who the issue is assigned to and nothing else
+— not whether it is accepted, and not your credit. Five accepted model
+proposals count as one merged probe towards co-authorship on the benchmark
+paper, whoever performs the packaging. See
+[CONTRIBUTING.md](../CONTRIBUTING.md#credit).
+
 ## 1. Decide what your model honestly emits
 
 This is the only decision that requires judgement. List the variables the
@@ -141,6 +155,18 @@ probe, plus one for the adapter contract check when `verify-adapter` is
 given the same `--csv`. For a model that reports only discharge, the
 contract row is the only line saying it was actually built and run, because
 its scientific verdict is INCOMPLETE before the container is started.
+
+## 6. Submit it
+
+Push to your fork and open a pull request titled `[MODEL] <name>`, linking the
+proposal issue so it closes on merge. Paste the `--markdown` report into the
+template.
+
+**A FAIL is not a reason to hold the pull request back.** `INCOMPLETE` is the
+current state of nearly every published rainfall-runoff model, and recording
+that honestly is a large part of what the benchmark is for. Review is on the
+contract — does the adapter honour `/io`, is `emits` honest, is the image
+reproducible — never on the verdict.
 
 ## Common failures
 

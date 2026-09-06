@@ -25,10 +25,13 @@ long.
 
 ## Models
 
-Submitted models, with who asked for them and who packaged them. Every
+Proposed models, with who proposed them and who packaged them. These are
+separate contributions and are recorded separately: deciding what belongs in
+the benchmark is a different judgement from wrapping it in a container, and
+five accepted proposals count as one probe towards authorship. Every
 evaluation is archived in [models/result.csv](models/result.csv).
 
-| Model | Submitted by | Adapter |
+| Model | Proposed by | Packaged by |
 | --- | --- | --- |
 | `google_flood_forecast` | Zhi Li (CU Boulder), [#1](../../issues/1) | HydroTuring maintainers |
 | `dhbv2` | Zhi Li (CU Boulder), [#2](../../issues/2) | HydroTuring maintainers |

@@ -4,7 +4,9 @@ The suite is deliberately small right now. This is the list of probes we want
 next, so you can **claim one instead of inventing one**.
 
 To claim: open a [probe proposal](../../issues/new?template=probe_proposal.yml)
-naming the id below. We will label it `accepted` and it is yours. Then:
+naming the id below. We label it `accepted`, assign it to you, and it is
+yours — nobody else will build it while your name is on it. Then fork the
+repository and:
 
 ```bash
 ht init-probe --list-templates           # the shapes available
@@ -16,8 +18,12 @@ Each entry below names the template to start from. A templated probe scaffolds
 into something that already passes `ht gate` against a placeholder case, so
 you can watch it separate the reference models before you write any physics.
 
-Contributors of merged probes are authors on the benchmark paper. See
-[CONTRIBUTING.md](CONTRIBUTING.md#credit).
+Contributors of merged probes are authors on the benchmark paper, as are
+contributors of five accepted model proposals. Models are solicited too, and
+this page does not list them: propose any model you think the benchmark
+should have a verdict on, at
+[model proposal](../../issues/new?template=model_submission.yml). You do not
+need to be able to package it. See [CONTRIBUTING.md](CONTRIBUTING.md#credit).
 
 Difficulty is about the physics and the discriminating case, not the code.
 Every probe here is a few hundred lines at most.
@@ -227,3 +233,13 @@ Welcome, and please propose it first. The proposal form asks one question
 that matters more than the rest: *how would a model pass your probe while
 understanding no physics?* If you can answer that, you have a probe. If you
 cannot, you may have a diagnostic rather than a test.
+
+## Models we want
+
+All of them, and this list deliberately does not exist. There is no roadmap
+for models because there is no shortlist: any published rainfall-runoff
+model, any LSTM, any foundation model making a hydrologic claim is in scope,
+and the useful judgement is which ones the field would learn something from.
+Open a [model proposal](../../issues/new?template=model_submission.yml) and
+say why. The form's *packaging status* field decides whether the work lands
+with you or with the maintainer; it does not affect your credit either way.

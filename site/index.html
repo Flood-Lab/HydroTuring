@@ -177,6 +177,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <a class="navlink" href="#mission" data-i18n="nav.mission">Mission</a>
       <a class="navlink" href="#how" data-i18n="nav.how">How it works</a>
       <a class="navlink" href="#probes" data-i18n="nav.probes">Probes</a>
+      <a class="navlink" href="#contribute" data-i18n="nav.contribute">Contribute</a>
       <a class="navlink" href="#probe" data-i18n="nav.probe">Contribute a probe</a>
       <a class="navlink" href="#model" data-i18n="nav.model">Submit a model</a>
       <a class="navlink" href="#credit" data-i18n="nav.credit">Credit</a>
@@ -428,6 +429,15 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (INCOMPLETE)  [2/7 probes 
   </div>
 </section>
 
+<section id="contribute">
+  <div class="wrap">
+    <h2 data-i18n="flow.h">How a contribution moves</h2>
+    <div data-i18n-html="flow.intro"></div>
+    <ol class="steps" data-i18n-html="flow.steps"></ol>
+    <div class="callout"><p data-i18n-html="flow.assign"></p></div>
+  </div>
+</section>
+
 <section id="probe">
   <div class="wrap">
     <h2 data-i18n="probe.h">Contribute a probe</h2>
@@ -500,7 +510,7 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (INCOMPLETE)  [2/7 probes 
 const I18N = {
 en: {
   "nav.mission":"Mission", "nav.how":"How it works", "nav.probe":"Contribute a probe",
-  "nav.model":"Submit a model", "nav.credit":"Credit",
+  "nav.contribute":"Contribute", "nav.model":"Submit a model", "nav.credit":"Credit",
   "hero.eyebrow":"A conservation-law benchmark",
   "hero.lead":"A benchmark that asks one question of any AI hydrologic model: does it conserve what physics says it must conserve?",
   "hero.sub":"Not whether it fits a hydrograph. Whether its water budget closes, its energy budget closes, and its routing conserves momentum.",
@@ -617,10 +627,16 @@ en: {
 <ul><li><strong>VIOLATION</strong> — the model reported its budget and the budget did not close.</li>
 <li><strong>INCOMPLETE</strong> — the model never reported enough to be checked. Every streamflow-only model lands here today. It has not violated conservation; it has declined to be falsifiable.</li></ul>
 <p>The verdict is one bit. Everything under it stays quantitative, so a paper can show that one model leaks 6% and another 40% long before anyone crosses the line.</p>`,
+  "flow.h":"How a contribution moves",
+  "flow.intro":`<p>Two very different kinds of contribution live here, and <strong>we are asking for both</strong>. A probe is a test of a conservation law. A model is something to be tested. The route is the same three steps either way.</p>`,
+  "flow.steps":`<li><strong>Open an issue</strong> — a probe proposal or a model proposal. A maintainer labels it accepted and assigns it.</li>
+<li><strong>Fork the repository</strong>, once it is accepted rather than before.</li>
+<li><strong>Open a pull request</strong> from your fork, linking the issue it closes.</li>`,
+  "flow.assign":`The issue is assigned to whoever will do the work, and that need not be you. Packaging a model can need a GPU, a licence, weights you cannot redistribute, or a week you do not have. <strong>Propose it anyway</strong> — the form asks directly under packaging status, the issue is assigned to the maintainer, and the proposal still counts as yours. Knowing which models are worth putting through the benchmark is a judgement about the field, and it is not one the maintainer can make alone.`,
   "probe.h":"Contribute a probe",
   "probe.intro":`<p>The roadmap lists the probes we want, with difficulty labels and a note on what each one discriminates. Claim one rather than inventing one.</p>
 <p>The two we most want are the cross-budget consistency probes. A model can close its water budget and its energy budget while being incoherent between them, and nothing in the suite currently notices.</p>`,
-  "probe.steps":`<li>Open a proposal issue naming the probe you want from the roadmap. We label it accepted and it is yours.</li>
+  "probe.steps":`<li>Open a proposal issue naming the probe you want from the roadmap. We label it accepted, assign it to you, and it is yours.</li>
 <li>Scaffold it. You get a probe.yaml that already validates and a generator skeleton that already honours the length contract.</li>
 <li>Write the physics: the forcing generator, and a README explaining what your probe asserts.</li>
 <li>Run the acceptance gate. It proves your probe separates the reference models. This is not a formality.</li>
@@ -631,7 +647,9 @@ en: {
   "probe.question":`The proposal form asks one question that matters more than the rest: <strong>how would a model pass your probe while understanding no physics?</strong> If you can answer that, you have a probe. If you cannot, you may have a diagnostic rather than a test.`,
   "probe.pr":`<p>Nothing beyond numpy, pandas, PyYAML and jsonschema is needed, and no Docker. The reference models run in-process so the gate stays fast enough to sit on every pull request.</p>`,
   "model.h":"Submit a model",
-  "model.body":`<p>Your model may be written in any language. It ships as a container plus a thin adapter, usually about thirty lines. The container runs with no network and never sees the probe code, so it cannot read the tolerance it is judged against.</p>`,
+  "model.body":`<p><strong>We want more models, and we want the ones you think matter.</strong> Every published rainfall-runoff model, every LSTM, every foundation model with a hydrologic claim is in scope. A benchmark is only as interesting as what has been put through it.</p>
+<p>Start with a model proposal. <strong>You do not need to be able to package it yourself</strong> — the packaging status field decides who the issue is assigned to and nothing else, and five accepted proposals earn co-authorship on the paper just as one merged probe does. Once it is accepted, fork and build.</p>
+<p>Your model may be written in any language. It ships as a container plus a thin adapter, usually about thirty lines. The container runs with no network and never sees the probe code, so it cannot read the tolerance it is judged against.</p>`,
   "model.c1":"the harness mounts /io and runs your entrypoint once",
   "model.c2":"read: case, seed, requested variables",
   "model.c3":"read: time, pr, tas, pet",
@@ -645,7 +663,7 @@ en: {
 <p>Declare only what your model honestly produces. A model that predicts discharge alone should say so and accept an INCOMPLETE verdict. Fabricating a column to escape it produces a VIOLATION instead, which is worse and is also dishonest. Submitting a model that fails is welcome and useful.</p>`,
   "credit.h":"Credit",
   "credit.body":`<p>Every probe carries its authors, with affiliation and ORCID. They are named in every report that runs the probe and in each release, rather than buried in a commit log.</p>
-<p><strong>Contributors of at least one merged probe are invited as co-authors on the HydroTuring paper.</strong> This is how model intercomparison projects in this field have always worked: you contribute an experiment, and you are an author on the paper that reports it.</p>
+<p><strong>One merged probe earns co-authorship on the HydroTuring paper. So do five accepted model proposals.</strong> The two are additive, and a model proposal counts whether or not you packaged the model yourself: what is being credited is the judgement of what belongs in the benchmark. This is how model intercomparison projects in this field have always worked — you contribute an experiment, and you are an author on the paper that reports it.</p>
 <p>Author order is settled before submission and circulated to every contributor for agreement. Anyone may decline, and no manuscript is submitted before all listed authors have approved it. Disagreements about tolerances are settled by the scientific steering committee, which is being formed.</p>`,
   "foot.start":"Start here", "foot.roadmap":"Roadmap", "foot.contributing":"Contributing",
   "foot.docs":"Documentation", "foot.d1":"Writing a probe", "foot.d2":"Adapting a model",
@@ -655,7 +673,7 @@ en: {
 },
 es: {
   "nav.mission":"Misión", "nav.how":"Cómo funciona", "nav.probe":"Aportar una prueba",
-  "nav.model":"Enviar un modelo", "nav.credit":"Créditos",
+  "nav.contribute":"Contribuir", "nav.model":"Enviar un modelo", "nav.credit":"Créditos",
   "hero.eyebrow":"Un banco de pruebas de leyes de conservación",
   "hero.lead":"Un banco de pruebas que hace una sola pregunta a cualquier modelo hidrológico basado en IA: ¿conserva lo que la física dice que debe conservar?",
   "hero.sub":"No si se ajusta a un hidrograma. Si su balance hídrico cierra, si su balance de energía cierra y si su tránsito conserva la cantidad de movimiento.",
@@ -772,10 +790,16 @@ es: {
 <ul><li><strong>VIOLATION</strong> — el modelo informó su balance y el balance no cerró.</li>
 <li><strong>INCOMPLETE</strong> — el modelo nunca informó lo suficiente para poder verificarse. Hoy, todo modelo que solo predice caudal termina aquí. No ha violado la conservación: ha renunciado a ser falsable.</li></ul>
 <p>El veredicto es un bit. Todo lo que hay debajo sigue siendo cuantitativo, de modo que un artículo puede mostrar que un modelo pierde un 6% y otro un 40% mucho antes de que alguien cruce el umbral.</p>`,
+  "flow.h":"Cómo avanza una contribución",
+  "flow.intro":`<p>Aquí conviven dos tipos de contribución muy distintos, y <strong>pedimos ambos</strong>. Una prueba verifica una ley de conservación. Un modelo es aquello que se verifica. El recorrido es el mismo en los dos casos.</p>`,
+  "flow.steps":`<li><strong>Abre una incidencia</strong>: una propuesta de prueba o una propuesta de modelo. Una persona mantenedora la etiqueta como aceptada y la asigna.</li>
+<li><strong>Haz un fork del repositorio</strong>, una vez aceptada y no antes.</li>
+<li><strong>Abre un pull request</strong> desde tu fork, enlazando la incidencia que cierra.</li>`,
+  "flow.assign":`La incidencia se asigna a quien vaya a hacer el trabajo, y no tiene por qué ser quien la propone. Empaquetar un modelo puede exigir una GPU, una licencia, pesos que no puedes redistribuir o una semana de la que no dispones. <strong>Propónlo igualmente</strong>: el formulario lo pregunta directamente en el estado de empaquetado, la incidencia se asigna a la persona mantenedora, y la propuesta sigue contando como tuya. Saber qué modelos merece la pena evaluar es un juicio sobre el campo, y no es uno que la persona mantenedora pueda emitir sola.`,
   "probe.h":"Aportar una prueba",
   "probe.intro":`<p>La hoja de ruta enumera las pruebas que buscamos, con etiquetas de dificultad y una nota sobre qué discrimina cada una. Reclama una en lugar de inventarla.</p>
 <p>Las dos que más buscamos son las de consistencia entre balances. Un modelo puede cerrar su balance hídrico y su balance de energía siendo incoherente entre ambos, y hoy nada en el conjunto lo detecta.</p>`,
-  "probe.steps":`<li>Abre una propuesta indicando qué prueba de la hoja de ruta quieres. La etiquetamos como aceptada y queda asignada a ti.</li>
+  "probe.steps":`<li>Abre una propuesta indicando qué prueba de la hoja de ruta quieres. La etiquetamos como aceptada, te la asignamos y queda a tu cargo.</li>
 <li>Genera el andamiaje. Obtienes un probe.yaml que ya valida y un esqueleto de generador que ya respeta el contrato de longitud.</li>
 <li>Escribe la física: el generador del forzamiento y un README que explique qué afirma tu prueba.</li>
 <li>Ejecuta la compuerta de aceptación. Demuestra que tu prueba separa los modelos de referencia. No es un trámite.</li>
@@ -786,7 +810,9 @@ es: {
   "probe.question":`El formulario de propuesta hace una pregunta que importa más que las demás: <strong>¿cómo podría un modelo aprobar tu prueba sin entender nada de física?</strong> Si puedes responderla, tienes una prueba. Si no, quizá tengas un diagnóstico y no un test.`,
   "probe.pr":`<p>No hace falta nada más que numpy, pandas, PyYAML y jsonschema, ni tampoco Docker. Los modelos de referencia se ejecutan en el mismo proceso para que la compuerta siga siendo lo bastante rápida como para correr en cada pull request.</p>`,
   "model.h":"Enviar un modelo",
-  "model.body":`<p>Tu modelo puede estar escrito en cualquier lenguaje. Se entrega como un contenedor más un adaptador delgado, normalmente de unas treinta líneas. El contenedor se ejecuta sin red y nunca ve el código de las pruebas, así que no puede leer la tolerancia con la que se lo juzga.</p>`,
+  "model.body":`<p><strong>Queremos más modelos, y queremos los que tú consideres importantes.</strong> Todo modelo de lluvia-escorrentía publicado, toda LSTM, todo modelo fundacional con una afirmación hidrológica entra en el alcance. Un banco de pruebas solo es tan interesante como aquello que se ha hecho pasar por él.</p>
+<p>Empieza por una propuesta de modelo. <strong>No hace falta que puedas empaquetarlo tú</strong>: el campo de estado de empaquetado solo decide a quién se asigna la incidencia, y cinco propuestas aceptadas dan derecho a coautoría igual que una prueba incorporada. Una vez aceptada, haz un fork y constrúyelo.</p>
+<p>Tu modelo puede estar escrito en cualquier lenguaje. Se entrega como un contenedor más un adaptador delgado, normalmente de unas treinta líneas. El contenedor se ejecuta sin red y nunca ve el código de las pruebas, así que no puede leer la tolerancia con la que se lo juzga.</p>`,
   "model.c1":"el marco monta /io y ejecuta tu punto de entrada una vez",
   "model.c2":"lectura: caso, semilla, variables solicitadas",
   "model.c3":"lectura: time, pr, tas, pet",
@@ -800,7 +826,7 @@ es: {
 <p>Declara solo lo que tu modelo produce de verdad. Un modelo que predice únicamente el caudal debe decirlo y aceptar un veredicto INCOMPLETE. Fabricar una columna para evitarlo produce un VIOLATION, que es peor y además es deshonesto. Enviar un modelo que falla es bienvenido y útil.</p>`,
   "credit.h":"Créditos",
   "credit.body":`<p>Cada prueba lleva a sus autores, con afiliación y ORCID. Aparecen en cada informe que ejecuta la prueba y en cada publicación de versión, en lugar de quedar enterrados en un registro de commits.</p>
-<p><strong>Quienes aporten al menos una prueba incorporada son invitados como coautores del artículo de HydroTuring.</strong> Así han funcionado siempre los proyectos de intercomparación de modelos en este campo: aportas un experimento y firmas el artículo que lo reporta.</p>
+<p><strong>Una prueba incorporada da derecho a coautoría en el artículo de HydroTuring. Cinco propuestas de modelo aceptadas, también.</strong> Ambas vías se suman, y una propuesta de modelo cuenta tanto si empaquetaste el modelo como si no: lo que se reconoce es el criterio sobre qué merece estar en el banco de pruebas. Así han funcionado siempre los proyectos de intercomparación de modelos en este campo: aportas un experimento y firmas el artículo que lo reporta.</p>
 <p>El orden de autoría se decide antes del envío y se circula a cada persona contribuyente para su acuerdo. Cualquiera puede declinar, y ningún manuscrito se envía sin la aprobación de todas las personas firmantes. Las discrepancias sobre tolerancias las resuelve el comité científico de dirección, actualmente en formación.</p>`,
   "foot.start":"Empieza aquí", "foot.roadmap":"Hoja de ruta", "foot.contributing":"Cómo contribuir",
   "foot.docs":"Documentación", "foot.d1":"Escribir una prueba", "foot.d2":"Adaptar un modelo",
@@ -810,7 +836,7 @@ es: {
 },
 zh: {
   "nav.mission":"使命", "nav.how":"工作原理", "nav.probe":"贡献检验项",
-  "nav.model":"提交模型", "nav.credit":"署名",
+  "nav.contribute":"参与贡献", "nav.model":"提交模型", "nav.credit":"署名",
   "hero.eyebrow":"面向守恒律的基准测试",
   "hero.lead":"HydroTuring 只向任何一个基于 AI 的水文模型提出一个问题：它是否守恒了物理要求它守恒的量？",
   "hero.sub":"考察的不是它能否拟合流量过程线，而是它的水量平衡是否闭合、能量平衡是否闭合、汇流是否守恒动量。",
@@ -927,10 +953,16 @@ zh: {
 <ul><li><strong>VIOLATION</strong>（违反）——模型上报了自己的收支，而收支没有闭合。</li>
 <li><strong>INCOMPLETE</strong>（不完整）——模型上报的信息根本不足以接受检验。今天几乎所有只预测流量的模型都落在这一类。它并没有违反守恒，而是放弃了可证伪性。</li></ul>
 <p>结论只有一个比特，其下的全部诊断量仍然是连续的。这样，在还没有模型跨过阈值之前，论文就已经可以说明：某个模型漏损 6%，另一个漏损 40%。</p>`,
+  "flow.h":"一份贡献如何推进",
+  "flow.intro":`<p>这里有两类很不一样的贡献，<strong>两类我们都在征集</strong>。检验项用来检验一条守恒律，模型则是被检验的对象。两者的流程完全相同。</p>`,
+  "flow.steps":`<li><strong>先提 issue</strong>：检验项提案，或模型提案。维护者会标记为 accepted 并指派负责人。</li>
+<li><strong>fork 本仓库</strong>：在提案被接受之后，而不是之前。</li>
+<li><strong>从你的 fork 提交 pull request</strong>，并关联它所关闭的那个 issue。</li>`,
+  "flow.assign":`issue 会指派给真正动手的人，而这个人不一定是提案者。把一个模型打包成容器可能需要 GPU、许可证、无法转授的权重，或者你根本抽不出的一整周时间。<strong>那也请照样提出来</strong>：表单在「打包状态」一栏会直接询问，issue 会转而指派给维护者，而这份提案依然算在你名下。判断哪些模型值得放进基准，是对这个领域的判断，维护者一个人做不了。`,
   "probe.h":"贡献检验项",
   "probe.intro":`<p>路线图列出了我们希望补充的检验项，标注了难度，并说明每一项能够甄别什么。请优先认领，而不是另起炉灶。</p>
 <p>我们最希望有人来做的，是两个跨收支一致性检验项。一个模型可以分别闭合水量平衡与能量平衡，却在两者之间自相矛盾，而目前整套检验对此毫无察觉。</p>`,
-  "probe.steps":`<li>提交一个提案 issue，写明你要认领路线图中的哪一项。我们会标记为 accepted，该项即归你负责。</li>
+  "probe.steps":`<li>提交一个提案 issue，写明你要认领路线图中的哪一项。我们会标记为 accepted 并指派给你，该项即归你负责。</li>
 <li>生成脚手架。你会得到一个已经通过校验的 probe.yaml，以及一个已经满足长度约定的生成器骨架。</li>
 <li>写物理：强迫数据生成器，以及说明这个检验项断言了什么的 README。</li>
 <li>运行验收闸门。它用来证明你的检验项确实能区分参照模型。这不是走过场。</li>
@@ -941,7 +973,9 @@ zh: {
   "probe.question":`提案表单中有一个问题比其他都重要：<strong>一个完全不懂物理的模型，要怎样才能通过你的检验项？</strong>如果你答得上来，你就有了一个检验项；如果答不上来，你手上可能只是一个诊断量，而不是一个测试。`,
   "probe.pr":`<p>除 numpy、pandas、PyYAML 和 jsonschema 之外不需要任何其他依赖，也不需要 Docker。参照模型在同一进程内运行，以保证验收闸门足够快，可以挂在每一个 pull request 上。</p>`,
   "model.h":"提交模型",
-  "model.body":`<p>你的模型可以用任何语言编写。它以一个容器加一个很薄的适配器的形式提交，适配器通常只有三十行左右。容器在无网络的环境中运行，并且看不到检验项的代码，因此无法读取评判它的容差。</p>`,
+  "model.body":`<p><strong>我们希望有更多模型，尤其希望有你认为重要的那些。</strong>任何已发表的降雨—径流模型、任何 LSTM、任何提出水文学主张的基础模型，都在范围之内。一套基准有多大意思，取决于有多少模型真正被它检验过。</p>
+<p>请先提交模型提案。<strong>你不必自己有能力把它打包成容器</strong>——「打包状态」一栏只决定 issue 指派给谁；五份被接受的模型提案与一个被合并的检验项一样，都可获得论文署名。提案通过后，再 fork 并开始动手。</p>
+<p>你的模型可以用任何语言编写。它以一个容器加一个很薄的适配器的形式提交，适配器通常只有三十行左右。容器在无网络的环境中运行，并且看不到检验项的代码，因此无法读取评判它的容差。</p>`,
   "model.c1":"评估框架挂载 /io 并调用一次你的入口程序",
   "model.c2":"读取：算例、随机种子、所需变量",
   "model.c3":"读取：time, pr, tas, pet",
@@ -955,7 +989,7 @@ zh: {
 <p>只声明你的模型真正产出的量。只预测流量的模型就该如实声明，并接受 INCOMPLETE 的结论。为了躲开它而编造一列数据，得到的会是 VIOLATION，那更糟，而且不诚实。提交一个会失败的模型是受欢迎的，也是有价值的。</p>`,
   "credit.h":"署名与致谢",
   "credit.body":`<p>每个检验项都记录其作者，含所在单位与 ORCID。他们会出现在每一份运行该检验项的报告以及每一次版本发布中，而不是被埋在提交记录里。</p>
-<p><strong>贡献至少一个被合并检验项的人，将受邀成为 HydroTuring 论文的共同作者。</strong>这正是本领域模型比对计划一贯的做法：你贡献一项实验，你就署名于报告该实验的论文。</p>
+<p><strong>一个被合并的检验项即可成为 HydroTuring 论文的共同作者；五个被接受的模型提案同样可以。</strong>两者可以累加；模型提案是否由你本人完成打包都算数，因为被认可的是「什么该进入这套基准」这一判断本身。这正是本领域模型比对计划一贯的做法：你贡献一项实验，你就署名于报告该实验的论文。</p>
 <p>作者顺序在投稿前确定，并发给每一位贡献者征求同意。任何人都可以选择不署名；在全部署名作者认可之前不会投稿。关于容差的分歧由科学指导委员会裁定，该委员会正在组建中。</p>`,
   "foot.start":"从这里开始", "foot.roadmap":"路线图", "foot.contributing":"贡献指南",
   "foot.docs":"文档", "foot.d1":"编写检验项", "foot.d2":"适配模型",

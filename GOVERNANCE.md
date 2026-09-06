@@ -23,10 +23,27 @@ tolerance, and decide when a suite version is cut.
 **Probe authors.** Own the physics of the probes they contribute and are
 consulted before anyone changes their tolerance.
 
+**Model proposers.** Credited for the proposal whether or not they package
+the model, because deciding what belongs in the benchmark is a separate
+judgement from wrapping it in a container.
+
 ## Decisions
+
+**Accepting a proposal.** The maintainer labels a probe or model proposal
+`accepted` and assigns it. For a probe the question is whether it
+discriminates; for a model, whether the benchmark would learn something from
+its verdict and whether it can be containerised. Acceptance is deliberately
+cheap and early, because the point of proposing first is to fail fast on
+paper rather than slowly in code. The issue is assigned to whoever will do the
+work, which for a model is often the maintainer rather than the proposer.
 
 **Merging a probe.** Two reviews, one on the physics and one on the
 implementation, plus a green acceptance gate. The maintainer merges.
+
+**Merging a model.** One review, on the contract rather than the physics: the
+adapter honours `/io`, `emits` is honest, and the image is reproducible. The
+verdict itself is never grounds for rejection. A model that fails is a result,
+not a defect.
 
 **Changing a tolerance on a merged probe.** Requires the probe's authors and
 the steering committee, because it silently changes every recorded result.

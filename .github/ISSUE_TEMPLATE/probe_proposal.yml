@@ -7,7 +7,13 @@ body:
     attributes:
       value: |
         Proposals come before pull requests. It costs you ten minutes and it
-        saves you from building a probe that duplicates one under review.
+        saves you from building a probe that duplicates one under review, or
+        one that turns out not to discriminate.
+
+        Once this is labelled `accepted` it is assigned to you and it is
+        yours: fork, build, open a pull request from the fork. One merged probe
+        earns co-authorship on the benchmark paper. See
+        [CONTRIBUTING.md](https://github.com/Flood-Lab/HydroTuring/blob/main/CONTRIBUTING.md#credit).
 
   - type: dropdown
     id: law
@@ -53,4 +59,17 @@ body:
         Synthetic track probes generate forcing from a seed at run time.
         Sketch the generator. If you need real data instead, say which dataset
         and why synthetic will not do.
+    validations: {required: true}
+
+  - type: dropdown
+    id: builder
+    attributes:
+      label: Will you build it?
+      description: >
+        This decides who the issue is assigned to. Proposing a probe you
+        cannot build yourself is still worth doing, and the proposal still
+        counts as yours.
+      options:
+        - "Yes — assign it to me"
+        - "No — I am proposing it for someone else to build"
     validations: {required: true}

@@ -1,14 +1,26 @@
-name: Model submission
-description: Submit a hydrologic model to be packaged and evaluated by HydroTuring
+name: Model proposal
+description: Propose a hydrologic model for HydroTuring to package and evaluate
 title: "[MODEL] "
-labels: ["model-submission"]
+labels: ["model-proposal"]
 body:
   - type: markdown
     attributes:
       value: |
-        Submit a model you would like HydroTuring to probe. A passing result is
-        not required: incomplete and failing models are scientifically useful
-        outcomes. Please point to immutable releases or commits where possible.
+        Propose a model you think HydroTuring should have a verdict on. A
+        passing result is not required: incomplete and failing models are
+        scientifically useful outcomes. Please point to immutable releases or
+        commits where possible.
+
+        **You do not need to be able to package it yourself.** The *packaging
+        status* field below decides who the issue is assigned to and nothing
+        else — say that help is needed and it goes to the maintainer.
+
+        Five accepted model proposals count the same as one merged probe
+        towards co-authorship on the benchmark paper, whoever ends up doing
+        the packaging. Knowing which models are worth putting through the
+        benchmark is a judgement about the field, and it is not one the
+        maintainer can make alone. See
+        [CONTRIBUTING.md](https://github.com/Flood-Lab/HydroTuring/blob/main/CONTRIBUTING.md#credit).
 
   - type: input
     id: model_name
@@ -118,6 +130,11 @@ body:
     id: packaging
     attributes:
       label: Packaging status
+      description: >-
+        This decides who the issue is assigned to. "Ready" means it is yours
+        to finish: fork, package, open a pull request. Either "help is needed"
+        assigns it to the maintainer instead. Neither answer affects whether
+        the proposal is accepted, and neither affects your credit for it.
       options:
         - Dockerfile and HydroTuring adapter are ready
         - Dockerfile is ready; adapter help is needed
@@ -130,6 +147,18 @@ body:
       label: Installation and inference notes
       description: Describe how to install dependencies, obtain weights, initialize the model, and run inference without network access.
       placeholder: "Commands, environment requirements, weight filenames, and expected resource needs"
+    validations: {required: true}
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this model belongs in the benchmark
+      description: >-
+        What would we learn from its verdict that we do not already know?
+        Widely used, architecturally novel, makes an explicit conservation
+        claim, or is believed to conserve and has never been checked — any of
+        these is a good answer. This is the field judgement the proposal is
+        credited for.
     validations: {required: true}
 
   - type: checkboxes
