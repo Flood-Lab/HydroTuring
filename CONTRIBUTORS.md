@@ -49,6 +49,7 @@ Physical reference models, which every probe must pass:
 | --- | --- | --- |
 | `flex_lumped` | Zhi Li (CU Boulder) | [chrimerss/HydrologicModels](https://github.com/chrimerss/HydrologicModels), `lumped_model/` |
 | `flex_topo` | Zhi Li (CU Boulder) | [chrimerss/HydrologicModels](https://github.com/chrimerss/HydrologicModels), `semi-distributed_model/` |
+| `sacsma_snow17` | E. Anderson and NWS/HRL (model); Upstream Tech (packaging); HydroTuring maintainers (port) | [Upstream-Tech/SACSMA-SNOW17](https://github.com/Upstream-Tech/SACSMA-SNOW17) |
 
 ## Harness and infrastructure
 

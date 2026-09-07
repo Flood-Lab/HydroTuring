@@ -67,9 +67,10 @@ not.
 ## The probes
 
 Fourteen: twelve under mass, one each under energy and momentum. Each was
-merged only after the acceptance gate saw it pass three physical models, a
-bucket that conserves water exactly and two hand-written FLEX models, and
-fail a purpose-built broken one on the named criterion. A probe that fails a
+merged only after the acceptance gate saw it pass four physical models, a
+bucket that conserves water exactly, two hand-written FLEX models and the
+NWS's SAC-SMA with Snow-17, and fail a purpose-built broken one on the
+named criterion. A probe that fails a
 physical model is examined before the model is; that is the first thing done
 with any probe pull request. Eleven of the fourteen can be scored on a model
 that reports runoff and nothing else. `ht list` prints them;
@@ -97,11 +98,11 @@ unclaimed.
 
 `models/` holds three kinds. A submitted model is there to be evaluated, and
 every run of one is appended to [models/result.csv](models/result.csv). A
-physical model is there to test the probes: the exact bucket and two
+physical model is there to test the probes: the exact bucket, two
 hand-written conceptual models from
 [chrimerss/HydrologicModels](https://github.com/chrimerss/HydrologicModels)
-must pass every probe, so a probe that fails one is wrong until shown
-otherwise. A broken model is broken in one specific way, so that no criterion
+and the NWS's SAC-SMA with Snow-17 must pass every probe, so a probe that
+fails one is wrong until shown otherwise. A broken model is broken in one specific way, so that no criterion
 goes untested.
 
 | Model | Kind | What it does | Standing |
@@ -111,6 +112,7 @@ goes untested.
 | `reference_bucket` | exact | conserves water exactly by construction | must pass every probe |
 | [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, triangular lag | must pass every probe |
 | [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe |
+| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe |
 | `reference_leaky` | broken | hides a silent 15% sink | caught by `closure` |
 | `reference_cheater` | broken | solves for storage as whatever balances the budget | caught by `state_bounds` |
 | `reference_degenerate` | broken | evaporates all precipitation, produces no runoff | caught by `non_degenerate`, `response_sign` |

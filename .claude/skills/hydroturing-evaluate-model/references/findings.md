@@ -100,6 +100,20 @@ capacities from static.json; step as a parameter). They calibrated one
 tolerance: resolution-invariance 5% → 10% because FLEX-Topo moves 5.1%.
 Trusted subprocess models are listed in `spec.TRUSTED_SUBPROCESS_MODELS`.
 
+## SAC-SMA + Snow-17 (2026-09-07)
+
+`sacsma_snow17`: a stdlib port of Upstream-Tech/SACSMA-SNOW17's Fortran
+(`models/sacsma_snow17/sacsma_snow17.py`), fourth physical must-pass model;
+passes all 14 probes. Validation recipe: f2py the Fortran in the scratch
+venv with `PATH` including the venv (`meson`/`ninja` from pip) and
+`--f77flags="-fallow-argument-mismatch -std=legacy"` for `ex_sac1`; drive
+both step by step. SAC-SMA matches to 1e-4 mm; Snow-17 matches ten-year
+totals to 0.02% but the compiled Fortran never carries `SBAESC` across
+steps (instrumented `AESC19` computes 0.99, carryover holds 0), `tiny` is
+uninitialised and `SNOF` never set. Snow-17 is defined on whole hours, so
+the manifest lists PT1D and PT1H only. Conservative choices: SCF=1, SIDE
+declared as negative `gwex`, capacities from static.json.
+
 ## Round-2 probes (2026-09-06)
 
 Seven more probes, all gated on the three physical models: runoff-bounds

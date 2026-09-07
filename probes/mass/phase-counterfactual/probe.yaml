@@ -49,7 +49,7 @@ criteria:
       cv_variables: [mrro]
 
 baselines:
-  must_pass: [reference_bucket, flex_lumped, flex_topo]
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
   must_fail:
     # Loses forty percent of every snowfall to a sublimation it never reports.
     reference_sublimating: phase_invariance

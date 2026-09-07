@@ -46,7 +46,7 @@ criteria:
       cv_variables: [mrro]
 
 baselines:
-  must_pass: [reference_bucket, flex_lumped, flex_topo]
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
   must_fail:
     # Evaporates everything: runs off nothing, below the lower bound.
     reference_degenerate: runoff_bounds

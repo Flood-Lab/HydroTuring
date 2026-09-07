@@ -1,0 +1,28 @@
+name: sacsma_snow17
+version: "1.0.0"
+description: >
+  SAC-SMA with Snow-17 and a gamma unit hydrograph, the US National Weather
+  Service's operational conceptual model, in a standard-library port of the
+  legacy Fortran packaged by Upstream-Tech/SACSMA-SNOW17 (sac1.f, ex_sac1.f,
+  duamel.f, snow19/*.f, commit 8737b92) and checked against the f2py build
+  of that Fortran. A physical model that every probe must pass. Snow-17's
+  gauge-catch multiplier is set to one and SAC-SMA's deep-groundwater loss
+  is declared as a negative exchange, so the model is conservative and says
+  where its water goes; README.md lists every such choice.
+authors:
+  - "E. Anderson, NWS/HRL (Snow-17, 1973; SAC-SMA, 1979); Q. Duan, V. Koren (revisions)"
+  - "Upstream Tech (f2py packaging)"
+  - "HydroTuring maintainers (port and adapter)"
+reference: "https://github.com/Upstream-Tech/SACSMA-SNOW17"
+license: "US Government work (NWS code); repository unlicensed; port PolyForm-Noncommercial-1.0.0"
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+# Snow-17 is defined on whole hours: one day and one hour.
+timestep: [PT1D, PT1H]
+emits:
+  fluxes: [pr, evspsbl, mrro, gwex]
+  states: [mrso, snw, canopy, gw, channel]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

@@ -51,7 +51,7 @@ baselines:
   # The exact bucket does not route: its channel store is identically zero
   # and it reports it so, which satisfies the bound trivially. The two FLEX
   # models route through a lag and are the real test.
-  must_pass: [reference_bucket, flex_lumped, flex_topo]
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
   must_fail:
     # A three-day kernel summing to 0.9: a tenth of every day's runoff
     # never leaves the channel, and the store grows without bound.

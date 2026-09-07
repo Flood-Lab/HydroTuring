@@ -51,7 +51,7 @@ criteria:
       cv_variables: [mrro]
 
 baselines:
-  must_pass: [reference_bucket, flex_lumped, flex_topo]
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
   must_fail:
     # Runs off a fixed share of the day's rain: no memory of the month before.
     reference_cheater: antecedent_monotonicity

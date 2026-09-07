@@ -74,6 +74,7 @@ TRUSTED_SUBPROCESS_MODELS = {
     # Physical models from chrimerss/HydrologicModels: must pass every probe.
     "flex_lumped",
     "flex_topo",
+    "sacsma_snow17",
     "reference_overflowing",
     "reference_thirsty",
     "reference_stuck_router",

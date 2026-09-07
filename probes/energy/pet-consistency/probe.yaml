@@ -51,7 +51,7 @@ criteria:
       cv_variables: [mrro, evspsbl]
 
 baselines:
-  must_pass: [reference_bucket, flex_lumped, flex_topo]
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
   must_fail:
     # Evaporates a fixed share of its soil store every day whatever the demand.
     reference_thirsty: demand_consistency

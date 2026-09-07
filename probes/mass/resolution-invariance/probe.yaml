@@ -74,7 +74,7 @@ criteria:
 baselines:
   # The exact bucket and the two hand-written physical models from
   # chrimerss/HydrologicModels. A probe that fails any of them is wrong.
-  must_pass: [reference_bucket, flex_lumped, flex_topo]
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
   must_fail:
     reference_fixed_step: resolution_invariance
     reference_degenerate: non_degenerate
