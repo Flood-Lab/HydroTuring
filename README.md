@@ -97,7 +97,8 @@ unclaimed.
 ## Models
 
 `models/` holds three kinds. A submitted model is there to be evaluated, and
-every run of one is appended to [models/result.csv](models/result.csv). A
+every run of one is appended to [models/result.csv](models/result.csv); the
+physical models' runs are archived there too. A
 physical model is there to test the probes: the exact bucket, two
 hand-written conceptual models from
 [chrimerss/HydrologicModels](https://github.com/chrimerss/HydrologicModels)
@@ -110,9 +111,9 @@ goes untested.
 | [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (INCOMPLETE)**, 5 of 14 probes passed. Runoff-only, so three budget probes cannot ask it anything; of the seven that ask on runoff alone it passes the runoff bounds, memory and area, and fails step, extreme rain, phase, and a 0.18 mm/day dip after an added storm |
 | [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (VIOLATION)**, 10 of 14 probes passed. Its learned regional-groundwater term, declared as `gwex`, closes the budget to 1e-8; what remains is a learned field capacity twice the catchment's, a response to doubled rain above the rain added, a runoff depth that changes with the area it is told, and a third more runoff when snow falls as rain |
 | `reference_bucket` | exact | conserves water exactly by construction | must pass every probe |
-| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, triangular lag | must pass every probe |
-| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe |
-| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe |
+| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, triangular lag | must pass every probe; **PASS**, 14 of 14 |
+| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe; **PASS**, 14 of 14 |
+| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe; **PASS**, 14 of 14 |
 | `reference_leaky` | broken | hides a silent 15% sink | caught by `closure` |
 | `reference_cheater` | broken | solves for storage as whatever balances the budget | caught by `state_bounds` |
 | `reference_degenerate` | broken | evaporates all precipitation, produces no runoff | caught by `non_degenerate`, `response_sign` |

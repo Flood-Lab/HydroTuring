@@ -22,15 +22,16 @@ def probes() -> int:
 
 
 def models() -> int:
-    """Submitted models: the ones that run in a container. Reference and
-    physical models run as trusted subprocesses and are there to test the
-    probes, not to be counted as evaluations."""
+    """Models evaluated against the suite: the submitted ones, which run in
+    a container, and the physical models the gate requires every probe to
+    pass. The deliberately broken reference models (reference_*) are there
+    to trip criteria and are not counted; nor is the template."""
     count = 0
     for path in ROOT.glob("models/*/model.yaml"):
-        if path.parent.name.startswith("_"):
+        name = path.parent.name
+        if name.startswith(("_", "reference_")):
             continue
-        if "runner: docker" in path.read_text():
-            count += 1
+        count += 1
     return count
 
 

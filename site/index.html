@@ -147,6 +147,8 @@ td.mono{font-size:12.8px; color:var(--ink); white-space:nowrap}
 .tag.merged{background:var(--pass-soft); color:var(--pass)}
 .tag.accepted,.tag.progress{background:var(--accent-soft); color:var(--accent)}
 .tag.wanted{background:var(--surface-2); color:var(--muted)}
+.tag.violation{background:var(--accent-soft); color:var(--accent)}
+.tag.incomplete{background:var(--surface-2); color:var(--muted)}
 
 .callout{border-left:3px solid var(--accent); background:var(--accent-soft); padding:16px 20px; border-radius:0 8px 8px 0; margin:22px 0}
 .callout p{margin:0; max-width:42em; font-size:15.5px}
@@ -181,6 +183,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <a class="navlink" href="#mission" data-i18n="nav.mission">Mission</a>
       <a class="navlink" href="#how" data-i18n="nav.how">How it works</a>
       <a class="navlink" href="#probes" data-i18n="nav.probes">Probes</a>
+      <a class="navlink" href="#models" data-i18n="nav.models">Models</a>
       <a class="navlink" href="#contribute" data-i18n="nav.contribute">Contribute</a>
       <a class="navlink" href="#probe" data-i18n="nav.probe">Contribute a probe</a>
       <a class="navlink" href="#model" data-i18n="nav.model">Submit a model</a>
@@ -433,6 +436,26 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (INCOMPLETE)  [2/7 probes 
   </div>
 </section>
 
+<section id="models">
+  <div class="wrap">
+    <h2 data-i18n="models.h">Models evaluated</h2>
+    <div data-i18n-html="models.intro"></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th data-i18n="models.th1">Model</th>
+          <th data-i18n="models.th2">Kind</th>
+          <th data-i18n="models.th3">What it is</th>
+          <th data-i18n="models.th4">Probes passed</th>
+          <th data-i18n="models.th5">Verdict</th>
+        </tr></thead>
+        <tbody data-i18n-html="models.rows"></tbody>
+      </table>
+    </div>
+    <div data-i18n-html="models.legend"></div>
+  </div>
+</section>
+
 <section id="contribute">
   <div class="wrap">
     <h2 data-i18n="flow.h">How a contribution moves</h2>
@@ -595,6 +618,21 @@ en: {
 <li>Every row is appended to <code>models/result.csv</code> with the date, the seeds and the detail, so the same model can be read before and after a fix.</li>
 </ul>`,
   "nav.probes":"Probes",
+  "nav.models":"Models",
+  "models.h":"Models evaluated",
+  "models.th1":"Model",
+  "models.th2":"Kind",
+  "models.th3":"What it is",
+  "models.th4":"Probes passed",
+  "models.th5":"Verdict",
+  "models.intro":"<p>Every model that has been run against the suite. A submitted model is evaluated in an isolated container on a flood-event window of each probe's generated record. A physical model is one the acceptance gate requires every probe to pass; it is evaluated the same way, and a probe that fails one is examined before the model is.</p>",
+  "models.legend":"<p>Every evaluation is appended to <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>, with the probe, the window, the seeds and the worst criterion. The verdict is one bit and its reason; the numbers under it are in the archive and in each model's README. To submit a model, open a <a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">model submission</a>.</p>",
+  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>submitted</td><td>Google Flood Hub's mean-embedding forecast LSTM, through OpenHydroNet with the published weights. Discharge only.</td><td>5 / 14</td><td><span class="tag incomplete">FAIL (INCOMPLETE)</span></td></tr>
+<tr><td class="mono">dhbv2</td><td>submitted</td><td>δHBV 2.0, the MHPI differentiable HBV: networks write the parameters of a bucket model that reports its stores, its evaporation and, declared, its regional groundwater exchange.</td><td>10 / 14</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
+<tr><td class="mono">flex_lumped</td><td>physical</td><td>Lumped FLEX/HBV from chrimerss/HydrologicModels: interception, beta-partitioned soil, fast and slow reservoirs, a lag.</td><td>14 / 14</td><td><span class="tag merged">PASS</span></td></tr>
+<tr><td class="mono">flex_topo</td><td>physical</td><td>FLEX-Topo: plateau, hillslope and wetland units on the Wark catchment's real fractions, sharing one groundwater store.</td><td>14 / 14</td><td><span class="tag merged">PASS</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>14 / 14</td><td><span class="tag merged">PASS</span></td></tr>
+`,
   "probes.h":"The probes",
   "probes.intro":"<p>Every probe in the suite, and every one the roadmap is waiting for. A merged probe is in the repository and passes the acceptance gate against the reference models. A wanted probe is named, unclaimed, and yours to take.</p>",
   "probes.th1":"Probe",
@@ -765,6 +803,21 @@ es: {
 <li>Cada fila se añade a <code>models/result.csv</code> con la fecha, las semillas y el detalle, para que el mismo modelo pueda leerse antes y después de una corrección.</li>
 </ul>`,
   "nav.probes":"Pruebas",
+  "nav.models":"Modelos",
+  "models.h":"Modelos evaluados",
+  "models.th1":"Modelo",
+  "models.th2":"Tipo",
+  "models.th3":"Qué es",
+  "models.th4":"Pruebas superadas",
+  "models.th5":"Veredicto",
+  "models.intro":"<p>Todos los modelos que se han ejecutado contra la batería. Un modelo enviado se evalúa en un contenedor aislado sobre una ventana de crecida del registro generado de cada prueba. Un modelo físico es uno que la compuerta de aceptación exige que toda prueba supere; se evalúa igual, y una prueba que lo falla se examina antes que el modelo.</p>",
+  "models.legend":"<p>Cada evaluación se añade a <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>, con la prueba, la ventana, las semillas y el peor criterio. El veredicto es un bit y su razón; los números están en el archivo y en el README de cada modelo. Para enviar un modelo, abre un <a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">envío de modelo</a>.</p>",
+  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>enviado</td><td>El LSTM de pronóstico de Google Flood Hub, vía OpenHydroNet con los pesos publicados. Solo caudal.</td><td>5 / 14</td><td><span class="tag incomplete">FALLA (INCOMPLETO)</span></td></tr>
+<tr><td class="mono">dhbv2</td><td>enviado</td><td>δHBV 2.0, el HBV diferenciable de MHPI: redes que escriben los parámetros de un modelo de cubetas que reporta sus almacenes, su evaporación y, declarado, su intercambio regional de agua subterránea.</td><td>10 / 14</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
+<tr><td class="mono">flex_lumped</td><td>físico</td><td>FLEX/HBV agregado de chrimerss/HydrologicModels: intercepción, suelo con partición beta, embalses rápido y lento, un retardo.</td><td>14 / 14</td><td><span class="tag merged">PASA</span></td></tr>
+<tr><td class="mono">flex_topo</td><td>físico</td><td>FLEX-Topo: unidades de meseta, ladera y humedal con las fracciones reales de la cuenca Wark, un solo almacén subterráneo.</td><td>14 / 14</td><td><span class="tag merged">PASA</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>14 / 14</td><td><span class="tag merged">PASA</span></td></tr>
+`,
   "probes.h":"Las pruebas",
   "probes.intro":"<p>Todas las pruebas de la batería, y todas las que la hoja de ruta espera. Una prueba integrada está en el repositorio y supera la compuerta de aceptación frente a los modelos de referencia. Una prueba que se busca tiene nombre, nadie la ha reclamado, y es tuya si la tomas.</p>",
   "probes.th1":"Prueba",
@@ -935,6 +988,21 @@ zh: {
 <li>每一行都连同日期、种子和细节追加到 <code>models/result.csv</code>，同一个模型在修正前后都能被读到。</li>
 </ul>`,
   "nav.probes":"检验项",
+  "nav.models":"模型",
+  "models.h":"已评估模型",
+  "models.th1":"模型",
+  "models.th2":"类型",
+  "models.th3":"简介",
+  "models.th4":"通过检验项",
+  "models.th5":"结论",
+  "models.intro":"<p>所有已在本套件上运行过的模型。提交模型在隔离容器中，于每个检验项生成记录的洪水事件窗口上评估。物理模型是验收闸门要求每个检验项都必须通过的模型，以同样方式评估；若某检验项未能通过物理模型，先检查检验项，再检查模型。</p>",
+  "models.legend":"<p>每次评估都会追加到 <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>，记录检验项、窗口、种子与最差准则。结论是一个比特及其原因；其下的数字在归档和各模型的 README 中。提交模型请打开<a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">模型提交</a>。</p>",
+  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>提交模型</td><td>Google Flood Hub 的均值嵌入预报 LSTM，经 OpenHydroNet 以公开权重运行。仅输出流量。</td><td>5 / 14</td><td><span class="tag incomplete">未通过（信息不全）</span></td></tr>
+<tr><td class="mono">dhbv2</td><td>提交模型</td><td>δHBV 2.0，MHPI 的可微 HBV：神经网络写出水桶模型的参数，模型报告蓄水、蒸发，并申报其区域地下水交换。</td><td>10 / 14</td><td><span class="tag violation">未通过（违反）</span></td></tr>
+<tr><td class="mono">flex_lumped</td><td>物理模型</td><td>来自 chrimerss/HydrologicModels 的集总 FLEX/HBV：截留、beta 分配的土壤、快慢水库与滞时。</td><td>14 / 14</td><td><span class="tag merged">通过</span></td></tr>
+<tr><td class="mono">flex_topo</td><td>物理模型</td><td>FLEX-Topo：台地、坡地与湿地单元按 Wark 流域的真实面积比共享一个地下水库。</td><td>14 / 14</td><td><span class="tag merged">通过</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>14 / 14</td><td><span class="tag merged">通过</span></td></tr>
+`,
   "probes.h":"检验项一览",
   "probes.intro":"<p>套件中的每一项检验，以及路线图正在等待的每一项。已合并的检验项已在仓库中，并在参照模型上通过验收闸门。征集中的检验项已有名字、尚无人认领，欢迎认领。</p>",
   "probes.th1":"检验项",
