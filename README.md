@@ -182,7 +182,9 @@ ht run --model reference_bucket          # evaluate one model
 ht run --model my-model --json out.json  # machine-readable report
 ```
 
-Without installing, `./ht` runs the CLI straight from `src/`. Set `HT_ASCII=1`
+Without installing, `./ht` (or `ht.cmd` in a Windows shell) runs the CLI
+straight from `src/`, as does `python -m hydroturing` with `src` on
+`PYTHONPATH`. Set `HT_ASCII=1`
 for reports with the words and no marks, which is also what you get
 automatically wherever the output stream cannot carry them.
 

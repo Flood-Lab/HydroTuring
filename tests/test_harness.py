@@ -241,9 +241,13 @@ def test_container_runs_with_hardened_read_only_inputs(tmp_path):
     assert argv[argv.index("--cap-drop") + 1] == "ALL"
     # Not root: with every capability dropped, root could not even write the
     # output directory the host user owns, and it should not be able to write
-    # anything else of the host's either.
+    # anything else of the host's either. A host without POSIX ids (Windows)
+    # passes no --user; Docker Desktop's file sharing handles ownership there.
     import os
-    assert argv[argv.index("--user") + 1] == f"{os.getuid()}:{os.getgid()}"
+    if hasattr(os, "getuid"):
+        assert argv[argv.index("--user") + 1] == f"{os.getuid()}:{os.getgid()}"
+    else:
+        assert "--user" not in argv
     assert argv[argv.index("--env") + 1] == "HOME=/tmp"
     assert argv[argv.index("--security-opt") + 1] == "no-new-privileges"
     assert "--pids-limit" in argv
@@ -670,3 +674,16 @@ def test_marked_columns_stay_aligned(monkeypatch):
         if name in line
     }
     assert len(columns) == 1, f"criterion names start at differing columns: {columns}"
+
+
+def test_trusted_models_run_on_the_harness_interpreter():
+    """Manifests say `python3` because a container has one; the host may
+    not (Windows has `python` or `py`), and a virtual environment's
+    interpreter is the one with the dependencies. A trusted in-repo model
+    runs on whatever is running the harness."""
+    import sys
+    from hydroturing.runner.subprocess_runner import SubprocessRunner
+
+    assert SubprocessRunner.resolve_entrypoint(["python3", "ht_adapter.py"]) == [sys.executable, "ht_adapter.py"]
+    assert SubprocessRunner.resolve_entrypoint(["python", "x.py"])[0] == sys.executable
+    assert SubprocessRunner.resolve_entrypoint(["./model.exe", "--go"]) == ["./model.exe", "--go"]
