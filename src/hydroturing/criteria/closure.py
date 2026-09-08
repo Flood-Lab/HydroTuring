@@ -124,6 +124,62 @@ def closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     )
 
 
+@criterion("paired_closure", paired=True)
+def paired_closure(
+    runs: dict[str, RunResult], probe: ProbeSpec, params: dict
+) -> CriterionResult:
+    """Require closure in each named variant, without changing single-run scoring.
+
+    The ordinary ``closure`` criterion still judges the control run alone.
+    Paired probes opt into this wrapper when both budgets must be checked;
+    the existing residual, denominator and floor rules apply independently
+    to every selected run.
+    """
+    variants = params.get("variants", probe.variants)
+    if not isinstance(variants, (list, tuple)) or len(variants) < 2:
+        raise ValueError("paired_closure needs at least two variant names")
+    if any(not isinstance(name, str) or not name for name in variants):
+        raise ValueError("paired_closure variant names must be nonempty strings")
+    if len(set(variants)) != len(variants):
+        raise ValueError("paired_closure variant names must be unique")
+    missing = [name for name in variants if name not in runs]
+    if missing:
+        raise ValueError(f"paired_closure is missing requested variants: {missing}")
+
+    closure_params = {key: value for key, value in params.items() if key != "variants"}
+    results = {name: closure(runs[name], probe, closure_params) for name in variants}
+    failed = [name for name, result in results.items() if not result.passed]
+    values = [result.value for result in results.values() if result.value is not None]
+    return CriterionResult(
+        name="paired_closure",
+        status=FAIL if failed else PASS,
+        value=max(values, default=None),
+        threshold=float(params.get("threshold", 0.05)),
+        message=(
+            "; ".join(f"{name}: {results[name].message}" for name in failed)
+            if failed
+            else f"water budgets close in all variants: {', '.join(variants)}"
+        ),
+        diagnostics={
+            "variants": {
+                name: {
+                    "status": result.status,
+                    "value": result.value,
+                    "threshold": result.threshold,
+                    "message": result.message,
+                    "diagnostics": result.diagnostics,
+                }
+                for name, result in results.items()
+            },
+            "failed_variants": failed,
+            "suspicious_exact": any(
+                result.diagnostics.get("suspicious_exact", False)
+                for result in results.values()
+            ),
+        },
+    )
+
+
 @criterion("forcing_fidelity")
 def forcing_fidelity(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     """The model must report back the forcing it was actually given.

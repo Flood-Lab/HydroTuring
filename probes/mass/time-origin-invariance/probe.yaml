@@ -1,0 +1,78 @@
+id: mass/time-origin-invariance
+title: Identical forcing under aligned calendars gives identical water budgets
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Siavash Shams
+    github: SiavashShams
+
+description: >
+  Run the same generated weather and static catchment twice, with daily
+  timestamps starting in 2000 and 1972. Over this fixed window the 28-year
+  shift preserves month, day, day of year, weekday and leap-day positions.
+  Only the absolute calendar origin changes. With identical forcing,
+  parameters, initialization and model seed, a stationary model must return
+  identical fluxes and storages. Check the water budget independently in
+  both variants and reject zero-runoff or constant-flux control outputs.
+  This tests time-origin dependence, not whether a year-dependent physical
+  driver would legitimately change a catchment's response.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 10
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 60
+  # Short submitted-model windows must still exercise the annual runoff
+  # ratio check, which is deliberately skipped below 365 days.
+  min_window_days: 365
+  variants: [control, shifted]
+
+criteria:
+  - invariance:
+      control: control
+      transformed: shifted
+      unchanged: [evspsbl, mrro, mrso, snw, canopy]
+      optional: [gw, channel, gwex]
+      # max(abs(shifted-control)) / max(mean(abs(control)), 1 native unit).
+      # The 1 mm or 1 mm/day floor admits roundoff near empty stores; 1e-9
+      # is for a deterministic symmetry, not observational uncertainty.
+      normalization_floor: 1.0
+      rtol: 1.0e-9
+
+  - paired_closure:
+      variants: [control, shifted]
+      # Each residual is divided by its own forcing precipitation total.
+      # No floor is needed; an empty precipitation total fails closure.
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+      sources: [gwex]
+
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro, evspsbl]
+
+baselines:
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
+  must_fail:
+    # Conserves water but changes its recession coefficient with the year.
+    reference_calendar: invariance
+    reference_degenerate: non_degenerate
+    reference_leaky: paired_closure
+
+provenance: >
+  Synthetic weather generated from a recorded seed; no data are committed.
+  Weather construction and catchment parameters are adapted from the
+  project's mass/area-invariance generator, with calendar-aligned seasonal
+  phase and above-freezing temperatures. Implements accepted proposal #10.
