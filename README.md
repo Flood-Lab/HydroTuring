@@ -12,6 +12,7 @@
   <a href="#models"><img alt="models evaluated" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fflood-lab.github.io%2FHydroTuring%2Fbadges%2Fmodels.json"></a>
   <a href="CONTRIBUTORS.md"><img alt="contributors" src="https://img.shields.io/github/contributors/Flood-Lab/HydroTuring?color=1f6f8b&label=contributors"></a>
   <a href="LICENSE"><img alt="licence" src="https://img.shields.io/badge/licence-PolyForm%20Noncommercial%201.0.0-555"></a>
+  <a href="https://discord.gg/7SQb6bUZD"><img alt="Discord" src="https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white"></a>
 </p>
 
 A benchmark that asks one question of any AI hydrologic model: **does it
@@ -32,7 +33,8 @@ only when every criterion of every probe passes.
 > and it still counts as yours.
 >
 > Start with a [probe](ROADMAP.md#probes-we-want) or a
-> [model](../../issues/new?template=model_submission.yml). Terms in
+> [model](../../issues/new?template=model_submission.yml), or come talk it
+> over on [Discord](https://discord.gg/7SQb6bUZD) first. Terms in
 > [CONTRIBUTING.md](CONTRIBUTING.md#credit).
 
 ```
@@ -276,6 +278,12 @@ The gate is the only bar that matters, and it is a technical one: your probe
 must pass an exact physical model and catch the deliberately broken ones. See
 [GOVERNANCE.md](GOVERNANCE.md) for how disagreements about tolerances get
 settled.
+
+## Community
+
+Questions, probe ideas, a model you would like evaluated, a tolerance you
+think is wrong: the [HydroTuring Discord](https://discord.gg/7SQb6bUZD) is
+where that conversation happens, before and alongside the issues.
 
 ## Status
 
