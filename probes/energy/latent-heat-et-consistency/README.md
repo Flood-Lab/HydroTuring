@@ -31,8 +31,9 @@ passes through zero and a percentage of nothing is not a bound.
 The floor is **0.5 W m-2**, not the 2 W m-2 that a first reading of the
 nighttime problem suggests. At 2 W m-2 a constant-lambda model survives every
 step whose evaporation is below roughly 3.5 mm/day, which on this record is
-most of them: it trips 4 steps of 3650 rather than 33, and a different seed
-could let it through entirely. That number came from running it.
+most of them: on the first gate seed it trips 3 steps of 3650 rather than
+993, and a different seed could let it through entirely. Those numbers came
+from running it.
 
 Two remarks for anyone tempted to argue the tolerance is too tight. First, no
 observation enters this probe: the reference budget is exact by construction
@@ -131,9 +132,10 @@ sublimation-blind model exactly on its lower bound. That is the honest price
 of not guessing, and it is the right price: without the model saying which
 kilograms were ice, blindness and a draining pack base are indistinguishable
 from the outside. `reference_sublimation_blind` reports `sbl` and is caught on
-every sublimating step rather than only the dry frozen ones, so the
-discrimination is stronger where the information exists and absent where it
-does not.
+every sublimating step whose flux is large enough for the missing 13.3 percent
+to clear the floor, between 70 and 112 of roughly 400 sublimating steps on
+each of ten seeds, rather than only the dry frozen ones, so the discrimination
+is stronger where the information exists and absent where it does not.
 
 ## A choice the benchmark is making, stated plainly
 
@@ -171,8 +173,9 @@ already adapted to that probe sees nothing unfamiliar. Two things are added.
 
 Net radiation comes from a clear-sky cycle at 40 degN, attenuated by its own
 AR(1) cloudiness process, with an albedo that switches below freezing and an
-outgoing longwave term that follows air temperature. It crosses zero on winter
-days, which is why the energy criteria carry a floor.
+outgoing longwave term that follows air temperature. It averages under 20 W
+m-2 in December and January and goes negative on a handful of overcast days,
+which is why the energy criteria carry a floor.
 
 Potential evapotranspiration is then derived from that net radiation by
 Priestley-Taylor with alpha = 1.26, rather than being an independent function
@@ -182,8 +185,37 @@ they are not two forcings, they are one. The consequence that matters is that
 PET stays small but non-zero on cold clear days, without which no snowpack
 would ever sublimate and half the criterion would have nothing to score.
 
-Typical record: about 800 mm/yr of precipitation, 550 mm/yr of potential ET,
-net radiation averaging 79 W m-2, and roughly 550 dry sub-zero days in 4015.
+Typical record: about 850 mm/yr of precipitation, 775 mm/yr of potential ET,
+net radiation averaging 90 W m-2, roughly 500 dry sub-zero days in 4015, and
+about 400 sublimating steps in the 3650 that are scored.
+
+### The seasonal cycle, corrected
+
+The first release of the generator had the sign of the shortwave seasonal
+term flipped: clear-sky radiation peaked at the winter solstice, at 378 W
+m-2 in December against 112 in June, and Priestley-Taylor demand followed it,
+270 mm over the five winter months against 154 over summer. Every annual
+total in the paragraph above looked plausible, which is how it survived
+review. The consequence was hydrological rather than energetic. The wet
+season carried the year's strongest demand, the soil never reached capacity,
+saturation excess all but vanished, and the exact model's runoff became 96
+percent baseflow from a store that drains at 0.6 percent a day. Its
+correlation with seven-day rainfall, which `non_degenerate` requires to be at
+least 0.05, then depended on the draw: over 200 seeds it ranged from -0.017
+upward and fell short on 13 percent of them, so a five-seed evaluation of the
+exact model would have failed about half the time, and the gate was green only
+because its five fixed seeds happened to pass.
+
+The temptation was to switch the response test off for this probe, which the
+criterion allows. That would have hidden a wrong case rather than fixed one.
+With the sign corrected the water side is what it was designed to be, the
+record of `mass/catchment-closure` under a demand of the same size and season,
+and the exact model's rain response has the same distribution here that
+`reference_bucket` has there: a minimum of 0.09 and a median of 0.20 over the
+same 200 seeds, with no failures. Nothing about the tolerances above changed.
+The step counts quoted for the reference models were re-measured on the
+corrected case; the ground-melt table records the review of the earlier
+criterion and stands as history.
 
 ## Related work
 
@@ -206,7 +238,7 @@ which is a property no amount of accuracy on either run establishes.
 | Model | Both budgets close? | Verdict |
 | --- | --- | --- |
 | `reference_coupled` | yes | PASS, every criterion |
-| `reference_two_head` | yes, to 1e-15 | `flux_identity`, 3495 steps of 3650, implied lambda 3.13e6 J kg-1 |
+| `reference_two_head` | yes, to 1e-15 | `flux_identity`, 3583 steps of 3650, implied lambda 3.31e6 J kg-1 |
 | `reference_constant_lambda` | yes | `flux_identity` |
 | `reference_sublimation_blind` | yes | `flux_identity`, sublimating steps only |
 | `reference_energy_leak` | water only | `energy_closure` |
@@ -222,11 +254,11 @@ hand-written physical model in the suite returns INCOMPLETE on this probe, so
 none of them can guard its tolerance.
 
 `min_window_days` is 3650 for the same family of reasons. A submitted model is
-otherwise scored on a 30-day flood window, and on thirty days of this record
-runoff is nearly constant, `non_degenerate` trips on the exact model, and the
-phase change supplies three sublimating steps instead of about eight hundred.
-The expectations here hold over the record, so the record is what a model is
-judged on.
+otherwise scored on a 30-day flood window, which on this record falls in the
+spring thaw, where the phase change supplies between none and nine sublimating
+steps instead of about four hundred, so the half of `flux_identity` that
+exists to see it would have almost nothing to score. The expectations here
+hold over the record, so the record is what a model is judged on.
 
 ## References
 

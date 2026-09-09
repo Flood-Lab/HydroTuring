@@ -2,7 +2,7 @@ id: energy/latent-heat-et-consistency
 title: Latent heat and evapotranspiration must describe one evaporation
 law: energy
 track: synthetic
-version: 1
+version: 2
 
 authors:
   - name: Changming Li
@@ -31,11 +31,12 @@ case:
   spinup_days: 365
   max_output_mb: 3.0
   max_runtime_s: 60
-  # A submitted model is otherwise scored on a 30-day flood window, and on
-  # thirty days of this record runoff is nearly constant, the exact model
-  # trips non_degenerate, and the phase change supplies three sublimating
-  # steps instead of four hundred. The expectations here hold over the
-  # record, so the record is what a model is judged on.
+  # A submitted model is otherwise scored on a 30-day flood window. The
+  # flood window falls in the spring thaw, where the phase change supplies
+  # between none and nine sublimating steps instead of about four hundred,
+  # so the half of flux_identity that exists to see it would have almost
+  # nothing to score. The expectations here hold over the record, so the
+  # record is what a model is judged on.
   min_window_days: 3650
 
 criteria:
@@ -48,7 +49,8 @@ criteria:
       sinks: [evspsbl, mrro]
 
   # The energy budget. hfg is the storage term, so there is no energy state to
-  # difference. Net radiation crosses zero on winter days, hence the floor.
+  # difference. Net radiation averages under 20 W m-2 in the depth of winter
+  # and goes below zero on some days, hence the floor.
   - energy_closure:
       driver: rn
       sinks: [hfls, hfss, hfg]
