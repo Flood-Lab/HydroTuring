@@ -17,7 +17,7 @@ MODE = "constant_lambda"
 MODEL = {"name": "reference_constant_lambda", "version": "1.0.0"}
 
 COLUMNS = [
-    "time", "pr", "evspsbl", "mrro", "hfls", "hfss", "hfg",
+    "time", "pr", "evspsbl", "mrro", "sbl", "hfls", "hfss", "hfg",
     "mrso", "snw", "canopy", "channel",
 ]
 
@@ -137,6 +137,9 @@ def simulate(forcing, static, dt_days=1.0):
             "time": step["time"],
             "pr": pr_rate,
             "evspsbl": (liquid + sublimation) / dt_days,
+            # The sublimating share of the evaporation above, so a
+            # criterion never has to infer which kilograms left as ice.
+            "sbl": sublimation / dt_days,
             "mrro": (surface + baseflow) / dt_days,
             "hfls": latent,
             "hfss": sensible,

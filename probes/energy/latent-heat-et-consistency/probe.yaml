@@ -31,6 +31,12 @@ case:
   spinup_days: 365
   max_output_mb: 3.0
   max_runtime_s: 60
+  # A submitted model is otherwise scored on a 30-day flood window, and on
+  # thirty days of this record runoff is nearly constant, the exact model
+  # trips non_degenerate, and the phase change supplies three sublimating
+  # steps instead of four hundred. The expectations here hold over the
+  # record, so the record is what a model is judged on.
+  min_window_days: 3650
 
 criteria:
   # The water budget, on the same terms as mass/catchment-closure. The
@@ -63,6 +69,11 @@ criteria:
       abs_floor: 0.5
       lambda_vapour: [2.501e6, -2361.0]
       lambda_fusion: 3.337e5
+      # Optional. A model that reports its sublimating share is held to the
+      # equality at every step; one that does not is held to the interval the
+      # two latent heats span wherever a pack is or could be present, and is
+      # never failed for a split it did not claim.
+      sublimation: sbl
       phase_state: snw
       snowfall_from: pr
       snow_threshold_degC: 0.0

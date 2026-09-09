@@ -61,30 +61,107 @@ do not close, so observations can never be the reference". This probe is the
 same argument applied to the energy budget, and it is the reason
 `flux_identity` should never be ported to that track.
 
-## The phase change, and what is not assumed
+## The phase change, and why the criterion asks instead of guessing
 
 Water leaving a snowpack sublimates and takes `lambda_s = lambda_v(0) +
 lambda_f`, **13.3 percent** more energy per kilogram. A model that converts
 every kilogram at the vaporisation rate is short of that on exactly the steps
 where a pack is losing mass to the atmosphere.
 
-The sublimated mass is never assumed. Each step falls into one of three cases,
-decided from the forcing and the model's own snow state:
+Knowing which kilograms those were is the whole difficulty, and the first
+version of this criterion got it wrong. It inferred the split: on a step with
+no precipitation and air below freezing, nothing can fall and nothing can
+melt, so any decrease in the reported snow store must be sublimation. That
+reasoning has a hole. **A pack also loses water at its base.** Snow-17's
+`DAYGM` term is exactly that, and this repository's own `sacsma_snow17` port
+runs it at 0.1 mm/day.
 
-| Case | What is asserted |
+Review reproduced the consequence. Taking `reference_coupled` unchanged except
+for a constant ground melt into the soil, with the latent heat still exactly
+right:
+
+| Honest model | old criterion |
 | --- | --- |
-| No pack, and none can fall during the step | `LE = lambda_v(T) E` |
-| Pack, no precipitation, air below freezing: nothing can fall and nothing can melt, so the pack's own reported mass loss is the sublimated mass | `LE = lambda_v L + lambda_s S` |
-| Pack, anything else: melt and sublimation are not separable from what the model reports | `lambda_v(T) E <= LE <= lambda_s E` |
+| no ground melt | pass, worst 0.00 of tolerance |
+| ground melt 0.1 mm/day (this repository's Snow-17 setting) | pass, worst 0.77 |
+| ground melt 0.3 mm/day | **fail on 375 to 429 steps of 3650**, worst 2.32 |
 
-The third case is deliberately weak. Asserting a split the model never
-reported would fail an honest model whose snow physics differs from the
-reference's, and a criterion that does that is worse than no criterion. The
-discrimination survives it: `reference_sublimation_blind` is caught on the
-second case, which this record supplies about 400 steps of per seed.
+The probe's own stated principle is that a criterion which fails an honest
+model whose snow physics differs from the reference's is worse than no
+criterion. The inference did exactly that, with 23 percent of the tolerance to
+spare at the repository's own default. So the criterion no longer infers.
 
-A model that reports no snow state simply has the split disabled rather than
-being judged against an assumption about it.
+**A model that reports `sbl`** — the sublimating share of its evaporation, a
+component of `evspsbl` and never an addition to it — is held to the equality
+at every step, pack or no pack, because it has said which kilograms left as
+ice:
+
+```
+LE = lambda_v(T) * (E - sbl) + lambda_s * sbl
+```
+
+The claim has to be a real one: `sbl` may not be negative, may not exceed the
+evaporation it is a share of, and must be zero where the model itself reports
+no snow and none could fall. Without that last condition a warm-season model
+could report a fictitious sublimating share to bend its effective lambda
+upwards.
+
+**A model that does not report `sbl`** is held to the equality at `lambda_v`
+on steps where it reports no pack and none could arrive, and to the interval
+
+```
+lambda_v(T) * E  <=  LE  <=  lambda_s * E
+```
+
+wherever a pack is or could be present. Nothing is guessed.
+
+The same ground-melt model under the criterion as it now stands, in both
+postures:
+
+| Ground melt | reports `sbl` | declines to report |
+| --- | --- | --- |
+| 0.0 mm/day | pass, worst 0.00 | pass |
+| 0.1 mm/day | pass, worst 0.00 | pass |
+| 0.3 mm/day | pass, worst 0.00 | pass |
+| 1.0 mm/day | pass, worst 0.00 | pass |
+
+**What this costs.** A model that declines to report `sbl` cannot be caught on
+the phase change at all; the interval is wide enough to admit a
+sublimation-blind model exactly on its lower bound. That is the honest price
+of not guessing, and it is the right price: without the model saying which
+kilograms were ice, blindness and a draining pack base are indistinguishable
+from the outside. `reference_sublimation_blind` reports `sbl` and is caught on
+every sublimating step rather than only the dry frozen ones, so the
+discrimination is stronger where the information exists and absent where it
+does not.
+
+## A choice the benchmark is making, stated plainly
+
+`flux_identity` at 0.5 percent fails any model that uses a **constant** latent
+heat of vaporisation, and `reference_constant_lambda` exists to make sure it
+does. That is a position, not a conservation law, and it should be argued with
+rather than discovered.
+
+A constant lambda is a common convention in land-surface schemes, and a model
+using one is internally consistent: its water and its energy describe the same
+evaporation, at a lambda that is wrong by at most 3.4 percent over this
+record. What the criterion asserts is a specific thermodynamic
+parameterisation, `lambda_v(T) = 2.501e6 - 2361 T`, not merely that the two
+budgets agree.
+
+The benchmark chooses to call the constant a violation, for two reasons. The
+identity is thermodynamics rather than a modelling choice, and 3.4 percent is
+two orders of magnitude above what an exact model achieves here. And a
+tolerance loose enough to admit a constant lambda is loose enough to admit a
+model whose lambda is not a lambda at all, which is the failure the probe
+exists for.
+
+If the maintainers would rather this probe test coherence alone and leave the
+temperature dependence to a separate criterion, the change is one parameter:
+`lambda_vapour: [2.45e6, 0.0]` with `rel_tol` raised to the suite's 5 percent
+turns it into that probe, and `reference_constant_lambda` would then belong to
+the criterion that replaces it. This is worth settling before an LSM group
+meets it in a report rather than after.
 
 ## The case
 
@@ -134,11 +211,22 @@ which is a property no amount of accuracy on either run establishes.
 | `reference_sublimation_blind` | yes | `flux_identity`, sublimating steps only |
 | `reference_energy_leak` | water only | `energy_closure` |
 | `reference_bucket` | water only | INCOMPLETE: reports no energy fluxes |
+| `flex_lumped`, `flex_topo`, `sacsma_snow17` | water only | INCOMPLETE, the same way |
 
-That last row is the suite-level consequence of the first energy probe, and it
-is the correct verdict rather than a regression. A water-only model has not
-violated conservation of energy; it has declined to be falsifiable about it,
-which is what INCOMPLETE has always meant here.
+Those last two rows are the suite-level consequence of the first probe that
+needs energy fluxes, and they are the correct verdict rather than a
+regression. A water-only model has not violated conservation of energy; it has
+declined to be falsifiable about it, which is what INCOMPLETE has always meant
+here. It is why `must_pass` names `reference_coupled` alone: every
+hand-written physical model in the suite returns INCOMPLETE on this probe, so
+none of them can guard its tolerance.
+
+`min_window_days` is 3650 for the same family of reasons. A submitted model is
+otherwise scored on a 30-day flood window, and on thirty days of this record
+runoff is nearly constant, `non_degenerate` trips on the exact model, and the
+phase change supplies three sublimating steps instead of about eight hundred.
+The expectations here hold over the record, so the record is what a model is
+judged on.
 
 ## References
 

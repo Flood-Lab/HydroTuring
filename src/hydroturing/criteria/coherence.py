@@ -24,15 +24,20 @@ and takes `lambda_s = lambda_v(0) + lambda_f`, 13.3 percent more energy per
 kilogram. A model that converts every kilogram at the vaporisation rate is
 short of that on exactly the steps where snow is disappearing.
 
-The sublimated mass is not assumed. On a step with no precipitation and air
-below freezing, no snow can fall and none can melt, so any decrease in the
-snow water equivalent the model itself reported is sublimation. Where the
-split cannot be inferred that way, because a pack is present and melting is
-possible, the criterion asserts only the interval that the two latent heats
-span rather than an equality. A criterion that failed an honest model whose
-snow physics differs from the reference's would be worse than no criterion,
-and a model that declines to report a snow state simply has the split
-disabled rather than being judged against an assumption about it.
+The sublimated mass is never inferred. A model that reports `sbl`, the
+sublimating share of its evaporation, is held to the equality at every step,
+because it has said which kilograms left as ice. A model that does not report
+it is held only to the interval the two latent heats span, wherever a pack is
+present or could arrive during the step.
+
+An earlier version inferred the split instead, reading any loss from the snow
+store on a dry sub-freezing day as sublimation. That is wrong, and review
+caught it: a pack also loses water at its base, which is what Snow-17's DAYGM
+term does. An honest model running a constant ground melt of 0.3 mm/day failed
+on about 400 steps of 3650 while its latent heat was exactly right, and at
+0.1 mm/day it passed with only 20 percent of the tolerance to spare. Asking
+the model rather than guessing costs one optional variable and removes the
+whole class of error.
 
 Related work. Enforcing conservation inside a neural emulator, and measuring
 the "physical inconsistency" left over when it is not enforced, is established
@@ -45,6 +50,7 @@ and energy budgets, evaluated as a residual the model cannot fit away.
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 
 from hydroturing.criteria.base import FAIL, PASS, CriterionResult, criterion, make_window
 from hydroturing.protocol import RunResult
@@ -75,6 +81,7 @@ def flux_identity(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRe
     phase_state = params.get("phase_state", "snw")
     snowfall_var = str(params.get("snowfall_from", "pr"))
     snow_threshold = float(params.get("snow_threshold_degC", 0.0))
+    sublimation_var = params.get("sublimation", "sbl")
 
     w = make_window(run, probe)
     for var in (flux, water):
@@ -96,50 +103,64 @@ def flux_identity(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRe
     lam_s = lam_a + lam_f
     seconds = dt * SECONDS_PER_DAY
 
-    # Every step falls into one of three cases, and only two of them are an
-    # equality. Which case a step is in is decided from the forcing and the
-    # model's own snow state, never from an assumption about how the model
-    # partitions evaporation.
+    # Two regimes, and which one a step is in depends on what the model chose
+    # to report rather than on anything this criterion assumes about snow.
     #
-    #   no pack           all of it is liquid          LE = lambda_v(T) E
-    #   pack, dry, frozen no snowfall and no melt is possible, so the pack's
-    #                     own mass loss is the sublimated mass
-    #                                                  LE = lambda_v L + lambda_s S
-    #   pack, otherwise   melt and sublimation are not separable from what the
-    #                     model reports, so the criterion asserts only the
-    #                     interval the two latent heats span
-    #                                     lambda_v(T) E <= LE <= lambda_s E
+    #   reports `sbl`      it has said which kilograms left as ice, so the
+    #                      equality holds at every step, pack or no pack:
+    #                          LE = lambda_v (E - sbl) + lambda_s sbl
     #
-    # The interval is weaker on purpose. Asserting a split the model never
-    # reported would fail an honest model whose snow physics differs from the
-    # reference's, and a criterion that does that is worse than no criterion.
+    #   reports no `sbl`   snow-free steps where none could fall are still an
+    #                      equality at lambda_v; anywhere a pack is or could
+    #                      be present, only the interval:
+    #                          lambda_v(T) E <= LE <= lambda_s E
+    #
+    # The interval is the honest bound on a model that has not told us, and it
+    # is weak on purpose. A pack loses water to more than sublimation --
+    # Snow-17's DAYGM puts it into the soil -- so a criterion that read the
+    # pack's own mass loss as sublimation would fail an honest model.
     subl = np.zeros_like(et_mass)
-    inferable = np.ones_like(et_mass, dtype=bool)
-    split_steps = 0
+    reported_split = bool(sublimation_var) and sublimation_var in w.table.columns
+    if reported_split:
+        column = pd.to_numeric(w.table[sublimation_var], errors="coerce").to_numpy(dtype=float)
+        if not np.isfinite(column).all():
+            raise ValueError(f"column {sublimation_var!r} has non-finite values")
+        subl = column * dt
+
+    pack_possible = np.ones_like(et_mass, dtype=bool)
     if phase_state and phase_state in w.table.columns and snowfall_var in w.forcing.columns:
         snw = w.table[phase_state].to_numpy(dtype=float)
         prior = float(w.state0[phase_state]) if phase_state in w.state0.index else snw[0]
         previous = np.concatenate(([prior], snw[:-1]))
-        frozen_and_dry = (w.forcing[snowfall_var].to_numpy(dtype=float) <= 0.0) & (
-            tas < snow_threshold
-        )
-        # A step is snow-free only if none could have arrived during it. A
-        # pack that falls and sublimates away inside one step begins and ends
-        # at zero, and asserting the liquid equality there would fail a model
-        # that handled it correctly.
-        snowfall = (w.forcing[snowfall_var].to_numpy(dtype=float) > 0.0) & (
-            tas < snow_threshold
-        )
-        no_pack = (previous <= 0.0) & (snw <= 0.0) & ~snowfall
-        pack_loss = np.clip(previous - snw, 0.0, None)
-        subl = np.where(frozen_and_dry, np.minimum(pack_loss, np.clip(et_mass, 0.0, None)), 0.0)
-        inferable = no_pack | frozen_and_dry
-        split_steps = int((subl > 0).sum())
+        # A step is snow-free only if none could arrive during it: a pack that
+        # falls and disappears inside one step begins and ends at zero.
+        snowfall = (w.forcing[snowfall_var].to_numpy(dtype=float) > 0.0) & (tas < snow_threshold)
+        pack_possible = (previous > 0.0) | (snw > 0.0) | snowfall
 
-    equality = (lam_v * (et_mass - subl) + lam_s * subl) / seconds
-    spanned = np.stack([lam_v * et_mass / seconds, lam_s * et_mass / seconds])
-    lower = np.where(inferable, equality, spanned.min(axis=0))
-    upper = np.where(inferable, equality, spanned.max(axis=0))
+    failures: list[str] = []
+    if reported_split:
+        # The split is a claim about the model's own evaporation, so it has to
+        # be one: never negative, never more than what evaporated, and zero
+        # where the model itself reports no ice to lose. Without the last of
+        # these, a model could report a fictitious sublimating share to bend
+        # its effective lambda upwards on a warm day.
+        checks = (
+            (subl < -1e-9, "negative"),
+            (subl > np.maximum(et_mass, 0.0) + 1e-9,
+             "larger than the evaporation it is a share of"),
+            ((~pack_possible) & (subl > 1e-9),
+             "non-zero where the model reports no snow and none could fall"),
+        )
+        for mask, what in checks:
+            if mask.any():
+                failures.append(f"{sublimation_var!r} is {what} on {int(mask.sum())} steps")
+        equality = (lam_v * (et_mass - subl) + lam_s * subl) / seconds
+        lower = upper = equality
+    else:
+        liquid_only = lam_v * et_mass / seconds
+        spanned = np.stack([liquid_only, lam_s * et_mass / seconds])
+        lower = np.where(pack_possible, spanned.min(axis=0), liquid_only)
+        upper = np.where(pack_possible, spanned.max(axis=0), liquid_only)
 
     tolerance = np.maximum(rel_tol * np.abs(le), abs_floor)
     residual = np.where(le < lower, le - lower, np.where(le > upper, le - upper, 0.0))
@@ -153,21 +174,30 @@ def flux_identity(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRe
     total_mass = float(et_mass.sum())
     implied = float((le * dt * SECONDS_PER_DAY).sum() / total_mass) if total_mass > 0 else float("nan")
 
-    liquid = inferable & (subl <= 0.0)
+    bounded = pack_possible & (not reported_split)
     worst = float(slack.max()) if slack.size else 0.0
     n_bad = int(violating.sum())
-    ok = n_bad == 0
+    ok = n_bad == 0 and not failures
 
     def worst_in(mask):
         return float(slack[mask].max()) if mask.any() else 0.0
 
-    detail = (
-        f"implied lambda {implied:.4g} J/kg; worst step {worst:.2f} of tolerance "
-        f"(liquid {worst_in(liquid):.2f}, sublimating {worst_in(subl > 0.0):.2f} "
-        f"over {split_steps} steps, bounded {worst_in(~inferable):.2f} over "
-        f"{int((~inferable).sum())})"
-    )
-    if ok:
+    split_steps = int((subl > 0).sum())
+    detail = f"implied lambda {implied:.4g} J/kg; worst step {worst:.2f} of tolerance"
+    if reported_split:
+        detail += (
+            f" ({split_steps} steps report sublimation, worst there "
+            f"{worst_in(subl > 0):.2f})"
+        )
+    else:
+        detail += (
+            f" (equality on {int((~bounded).sum())} snow-free steps, interval on "
+            f"{int(bounded.sum())} where a pack is or could be present)"
+        )
+
+    if failures:
+        message = "; ".join(failures) + f" [{detail}]"
+    elif ok:
         message = f"latent heat matches the reported evaporation at every step: {detail}"
     else:
         first = int(violating.argmax())
@@ -186,10 +216,10 @@ def flux_identity(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRe
         diagnostics={
             "implied_lambda_j_per_kg": implied,
             "worst_slack": worst,
-            "worst_slack_liquid": worst_in(liquid),
             "worst_slack_sublimating": worst_in(subl > 0.0),
-            "worst_slack_bounded": worst_in(~inferable),
-            "bounded_steps": int((~inferable).sum()),
+            "worst_slack_bounded": worst_in(bounded),
+            "bounded_steps": int(bounded.sum()),
+            "reported_split": bool(reported_split),
             "violating_steps": n_bad,
             "sublimating_steps": split_steps,
             "rel_tol": rel_tol,
