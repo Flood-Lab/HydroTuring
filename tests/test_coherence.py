@@ -26,8 +26,12 @@ def lambda_v(tas):
 
 
 def build(evspsbl, tas, hfls, snw, pr, sbl=None):
-    """One run of a made-up model, as the criterion receives it."""
-    columns = {"time": np.arange(N), "evspsbl": evspsbl, "hfls": hfls, "snw": snw}
+    """One run of a made-up model, as the criterion receives it.
+
+    `snw=None` is a model that reports no snow state at all."""
+    columns = {"time": np.arange(N), "evspsbl": evspsbl, "hfls": hfls}
+    if snw is not None:
+        columns["snw"] = snw
     if sbl is not None:
         columns["sbl"] = sbl
     forcing = pd.DataFrame({"time": np.arange(N), "pr": pr, "tas": tas})
@@ -142,3 +146,20 @@ def test_a_split_larger_than_the_evaporation_is_rejected(winter):
     result = run(evspsbl=evspsbl, tas=tas, hfls=hfls, snw=snw, pr=pr, sbl=sbl)
     assert result.status != PASS
     assert "share of" in result.message
+
+
+def test_a_model_with_no_snow_state_is_bounded_everywhere(winter):
+    """A model that reports no snow store has told us nothing about phase, so
+    every step is one where a pack could be present and the interval is all
+    the criterion may assert. Holding such a model to the liquid equality
+    would be an implicit assumption that it never sublimates."""
+    tas, pr, _, evspsbl = winter
+    sublimating = (LAMBDA_A + LAMBDA_F) * evspsbl / SECONDS
+    liquid = lambda_v(tas) * evspsbl / SECONDS
+    outside = 3.2e6 * evspsbl / SECONDS
+
+    for hfls in (liquid, sublimating):
+        r = run(evspsbl=evspsbl, tas=tas, hfls=hfls, snw=None, pr=pr)
+        assert r.status == PASS, r.message
+        assert r.diagnostics["bounded_steps"] == len(tas) - SPINUP
+    assert run(evspsbl=evspsbl, tas=tas, hfls=outside, snw=None, pr=pr).status != PASS
