@@ -1,0 +1,62 @@
+id: mass/multi-decadal-drift
+title: Slow budget-compensating storage drift exceeds capacity over fifty years
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Bing Li
+    github: hiter-joe
+
+description: >
+  Repeat seeded warm weather for fifty years after a five-year spinup.
+  A small runoff reporting deficit can be hidden in invented storage while
+  the budget closes exactly. The long record exposes the accumulated error
+  when soil storage exceeds its physical capacity. Seasonal variation and
+  bounded trends are not themselves violations.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_years: 50
+  spinup_days: 1825
+  min_window_days: 18250
+  max_output_mb: 10.0
+  max_runtime_s: 300
+
+criteria:
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+      gw: [0.0, null]
+      channel: [0.0, null]
+  - et_plausible:
+      max_ratio_to_pet: 1.0
+      pet_variable: pet
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro, evspsbl]
+  - forcing_fidelity:
+      variables: [pr]
+      rtol: 1.0e-6
+
+baselines:
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
+  must_fail:
+    reference_slow_drift: state_bounds
+
+provenance: >
+  Synthetic forcing generated from a seed at run time, with a repeated
+  five-year block and no committed dataset. Proposed in issue #13.

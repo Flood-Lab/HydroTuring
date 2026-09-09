@@ -95,12 +95,11 @@ Snowfall minus melt minus sublimation minus the change in SWE.
 *Discriminates:* models that quietly lose water at the rain-snow transition,
 a very common bug that a whole-catchment budget can absorb.
 
-### `mass/multi-decadal-drift` &middot; starter &middot; **unclaimed**
-Fifty years with no trend in the forcing. Total storage must not drift
-secularly.
-*Discriminates:* a leak too small to trip a ten-year 5 percent threshold but
-large enough to be unphysical over a climate-relevant record. Good first
-probe: the criterion already exists, the case is the contribution.
+### `mass/multi-decadal-drift` &middot; **merged**
+Fifty years of repeated warm weather expose a runoff reporting deficit hidden
+in accumulating soil storage: the budget closes, but storage exceeds capacity.
+Checks physical bounds rather than rejecting every bounded trend.
+Contributed by Bing Li (@hiter-joe).
 
 ### `mass/routing-network-closure` &middot; standard &middot; **unclaimed**
 A branching network. Mass must close reach by reach, not only basin-wide.
