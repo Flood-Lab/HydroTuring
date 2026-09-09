@@ -32,20 +32,15 @@ Every probe here is a few hundred lines at most.
 
 ## Cross-budget consistency
 
-**These are the two we most want.** A model can close its water budget and
-close its energy budget while being incoherent between them, and nothing in
-the suite currently notices. Closing that gap is the sharpest thing anyone
-could contribute.
+A model can close its water budget and close its energy budget while being
+incoherent between them. The first probe that notices is merged; the second
+is the one we most want next.
 
-### `coupled/latent-heat-et-consistency` &middot; hard &middot; **unclaimed**
-
-Latent heat flux must equal evapotranspiration times the latent heat of
-vaporisation, at every step, with a temperature-dependent &lambda;.
-
-*Why it discriminates.* A model with separate water and energy heads can
-satisfy both budgets independently and still report an LE that implies a
-different ET than the one it reported. No single-budget probe can see this.
-Needs a reference model that closes both budgets separately but incoherently.
+### `energy/latent-heat-et-consistency` &middot; **merged**
+Latent heat must equal evapotranspiration times the latent heat of the phase
+change it underwent, at every step, with a temperature-dependent &lambda;.
+Filed under `energy` because the schema admits mass, energy and momentum.
+Contributed by Changming Li (SCUT).
 
 ### `coupled/snowmelt-energy-water` &middot; hard &middot; **unclaimed**
 
