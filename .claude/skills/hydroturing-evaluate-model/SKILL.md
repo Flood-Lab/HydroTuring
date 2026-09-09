@@ -131,6 +131,17 @@ places where following it took judgement.
   catches are in the README tables; `docs/writing-a-probe.md` is the probe
   author's guide.
 
+## When a probe PR is reviewed and merged
+
+The first contributed probe (#9) needed six documents moved by hand after
+the merge: README tables, CONTRIBUTORS, ROADMAP, the site's probe table in
+three languages, the flowchart, and archive rows for every evaluated model.
+The list is now the last section of `AGENTS.md`, and
+`tests/test_docs_in_sync.py` fails the probe workflow when any of them is
+behind. Review a probe PR against that list, not from memory. Merge by
+fast-forwarding `main`, and re-fetch the PR head immediately before doing
+so: the author may have amended it after the review comment.
+
 ## Writing it up
 
 Commit messages explain why in prose (see `git log`); no bullet lists, no
