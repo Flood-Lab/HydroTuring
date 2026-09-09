@@ -28,6 +28,7 @@ long.
 | `mass/antecedent-monotonicity` | Zhi Li (CU Boulder) |
 | `mass/phase-counterfactual` | Zhi Li (CU Boulder) |
 | `energy/pet-consistency` | Zhi Li (CU Boulder) |
+| `energy/latent-heat-et-consistency` | Changming Li (SCUT) |
 | `momentum/routing-conservation` | Zhi Li (CU Boulder) |
 
 ## Models
