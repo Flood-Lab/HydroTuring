@@ -68,16 +68,15 @@ not.
 
 ## The probes
 
-Fourteen: twelve under mass, one each under energy and momentum. Each was
-merged only after the acceptance gate saw it pass four physical models, a
-bucket that conserves water exactly, two hand-written FLEX models and the
-NWS's SAC-SMA with Snow-17, and fail a purpose-built broken one on the
-named criterion. A probe that fails a
-physical model is examined before the model is; that is the first thing done
-with any probe pull request. Eleven of the fourteen can be scored on a model
+Sixteen: thirteen under mass, two under energy and one under momentum. The
+acceptance gate separates each probe's applicable physical baselines from
+purpose-built broken models on named criteria. The mass probes must pass an
+exact bucket, two hand-written FLEX models and the NWS's SAC-SMA with Snow-17.
+A probe that fails a physical model is examined before the model is; that is
+the first thing done with any probe pull request. Eleven of the sixteen can be scored on a model
 that reports runoff and nothing else. `ht list` prints them;
-[ROADMAP.md](ROADMAP.md#probes-we-want) has the seventeen more we want, all
-unclaimed.
+[ROADMAP.md](ROADMAP.md#probes-we-want) lists further probes; check the issues
+for current claims before proposing one.
 
 | Probe | Law | What it asks | The broken model it catches |
 | --- | --- | --- | --- |
@@ -87,6 +86,7 @@ unclaimed.
 | [`mass/causality`](probes/mass/causality) | mass | One storm added mid-record: nothing may change before it, and runoff must answer after it. | `reference_anticipating` |
 | [`mass/dry-down`](probes/mass/dry-down) | mass | Two years without rain: runoff can only fall, and no more may drain than the catchment held. | `reference_climatology` |
 | [`mass/steady-state`](probes/mass/steady-state) | mass | Three years of the same day: does everything settle, and does the budget balance once it has? | `reference_restless` |
+| [`mass/multi-decadal-drift`](probes/mass/multi-decadal-drift) | mass | Fifty years of repeated warm weather: does budget-compensating storage drift exceed capacity? | `reference_slow_drift` |
 | [`mass/extreme-rain`](probes/mass/extreme-rain) | mass | The largest storm scaled up to ten times: runoff may not fall, nor exceed the rain that was added. | `reference_saturating` |
 | [`mass/runoff-bounds`](probes/mass/runoff-bounds) | mass | Over ten years, is the runoff possible at all: at least rain minus demand minus storage, at most rain plus storage? The mass question a runoff-only model has to answer. | `reference_degenerate`, `reference_overflowing` |
 | [`mass/area-invariance`](probes/mass/area-invariance) | mass | The same weather on the same catchment told as ten times larger: every depth must be identical. | `reference_area_leak` |
@@ -115,12 +115,12 @@ goes untested.
 
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |
-| [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (INCOMPLETE)**, 5 of 14 probes passed. Runoff-only, so three budget probes cannot ask it anything; of the seven that ask on runoff alone it passes the runoff bounds, memory and area, and fails step, extreme rain, phase, and a 0.18 mm/day dip after an added storm |
-| [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (VIOLATION)**, 10 of 14 probes passed. Its learned regional-groundwater term, declared as `gwex`, closes the budget to 1e-8; what remains is a learned field capacity twice the catchment's, a response to doubled rain above the rain added, a runoff depth that changes with the area it is told, and a third more runoff when snow falls as rain |
+| [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (INCOMPLETE)**, 5 of 16 probes passed. Runoff-only, so the budget probes cannot ask it anything; of the seven that ask on runoff alone it passes the runoff bounds, memory and area, and fails step, extreme rain, phase, and a 0.18 mm/day dip after an added storm |
+| [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (ERROR)**, 10 of 16 probes passed; the new drift evaluation could not run because Docker was unavailable. Earlier evaluated probes show VIOLATION. Its learned regional-groundwater term, declared as `gwex`, closes the budget to 1e-8; what remains is a learned field capacity twice the catchment's, a response to doubled rain above the rain added, a runoff depth that changes with the area it is told, and a third more runoff when snow falls as rain |
 | `reference_bucket` | exact | conserves water exactly by construction | must pass every probe that can ask it anything; INCOMPLETE on the energy probe, which needs fluxes it does not report |
-| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, triangular lag | must pass every probe that can ask it anything; **PASS**, 14 of 15, INCOMPLETE on the energy probe |
-| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 14 of 15, INCOMPLETE on the energy probe |
-| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 14 of 15, INCOMPLETE on the energy probe |
+| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, triangular lag | must pass every probe that can ask it anything; **PASS**, 15 of 16, INCOMPLETE on the energy probe |
+| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 15 of 16, INCOMPLETE on the energy probe |
+| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 15 of 16, INCOMPLETE on the energy probe |
 | `reference_coupled` | exact | the bucket with snow sublimation and a surface energy budget: every kilogram converted at the latent heat of the phase it actually underwent | must pass every criterion of `energy/latent-heat-et-consistency` |
 | `reference_two_head` | broken | a water head and an energy head that never meet: both budgets close to 1e-15 and the latent heat implies an evaporation it never reported | caught by `flux_identity` |
 | `reference_constant_lambda` | broken | coherent, but converts every kilogram at the same latent heat of vaporisation | caught by `flux_identity` |
@@ -134,6 +134,7 @@ goes untested.
 | `reference_climatology` | broken | emits the seasonal mean whatever falls, and keeps flowing without rain | caught by `dry_down` |
 | `reference_saturating` | broken | caps its daily runoff, so an extreme storm adds rain and no runoff | caught by `monotone_response` |
 | `reference_restless` | broken | a recession on an internal thirty-day clock, so it never settles | caught by `steady_state` |
+| `reference_slow_drift` | broken | a fixed runoff reporting deficit hidden in accumulating soil storage | caught by `state_bounds` over fifty years |
 | `reference_overflowing` | broken | reports its runoff plus 80% of the rain again, from nowhere | caught by `runoff_bounds` |
 | `reference_area_leak` | broken | loses a share of runoff that grows with the area it is told | caught by `invariance` (area) |
 | `reference_overshooting` | broken | a derivative term sharpens its hydrograph, so an added storm lowers later flow | caught by `response_nonnegativity` |

@@ -181,3 +181,8 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-09,sacsma_snow17,1.0.0,0.1.0,subprocess,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
 2026-09-09,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
 2026-09-09,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, hfls, hfss, hfg, mrso, snw, canopy"
+2026-09-09,flex_lumped,1.0.0,0.1.0,subprocess,mass/multi-decadal-drift,PASS,OK,full record,1349990263 1856942377 216410844 723362958 1230315072,residual 0.000% of driver
+2026-09-09,flex_topo,1.0.0,0.1.0,subprocess,mass/multi-decadal-drift,PASS,OK,full record,1349990263 1856942377 216410844 723362958 1230315072,residual 0.000% of driver
+2026-09-09,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/multi-decadal-drift,FAIL,ERROR,full record,1349990263 1856942377 216410844 723362958 1230315072,"the docker CLI is installed but the daemon is not reachable. Start Docker, or use --runner subprocess for an in-repo model."
+2026-09-09,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/multi-decadal-drift,PASS,OK,full record,1349990263 1856942377 216410844 723362958 1230315072,residual 0.000% of driver
+2026-09-09,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/multi-decadal-drift,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"

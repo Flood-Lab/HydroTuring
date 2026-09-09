@@ -21,6 +21,7 @@ long.
 | `mass/causality` | Zhi Li (CU Boulder) |
 | `mass/dry-down` | Zhi Li (CU Boulder) |
 | `mass/steady-state` | Zhi Li (CU Boulder) |
+| `mass/multi-decadal-drift` | Bing Li ([@hiter-joe](https://github.com/hiter-joe)) |
 | `mass/extreme-rain` | Zhi Li (CU Boulder) |
 | `mass/runoff-bounds` | Zhi Li (CU Boulder) |
 | `mass/area-invariance` | Zhi Li (CU Boulder) |
