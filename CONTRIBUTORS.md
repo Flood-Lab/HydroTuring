@@ -31,6 +31,7 @@ long.
 | `energy/pet-consistency` | Zhi Li (CU Boulder) |
 | `energy/latent-heat-et-consistency` | Changming Li (SCUT) |
 | `energy/evaporative-partition` | Changming Li (SCUT) |
+| `energy/surface-energy-closure` | Han Wang ([@cehw](https://github.com/cehw)) |
 | `momentum/routing-conservation` | Zhi Li (CU Boulder) |
 
 ## Models
@@ -46,7 +47,8 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `google_flood_forecast` | Zhi Li (CU Boulder), [#1](../../issues/1) | HydroTuring maintainers |
 | `dhbv2` | Zhi Li (CU Boulder), [#2](../../issues/2) | HydroTuring maintainers |
 
-Physical reference models, which every probe must pass:
+Physical reference models, which every compatible probe must pass when their
+outputs support its criteria:
 
 | Model | Author | Source |
 | --- | --- | --- |

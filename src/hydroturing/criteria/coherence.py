@@ -53,7 +53,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from hydroturing.criteria.base import FAIL, PASS, CriterionResult, criterion, make_window
+from hydroturing.criteria.base import (
+    FAIL, PASS, CriterionResult, criterion, make_window, segments,
+)
 from hydroturing.criteria.response import pick
 from hydroturing.protocol import RunResult
 from hydroturing.spec import ProbeSpec
@@ -294,6 +296,95 @@ def energy_closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionR
             "denominator_total": total,
             "mean_step_residual_w_m2": mean_abs,
             "max_step_residual_w_m2": float(np.abs(step_residual).max() / w.dt_days),
+            "floor_w_m2": floor,
+        },
+    )
+
+
+@criterion("energy_closure_by_phase")
+def energy_closure_by_phase(
+    run: RunResult, probe: ProbeSpec, params: dict
+) -> CriterionResult:
+    """The mean absolute skin-budget residual must be small in every block.
+
+    The generator labels contiguous day/night blocks independently of the
+    sign of net radiation. Taking the absolute residual before integration
+    prevents opposite errors from cancelling both within and across blocks.
+    H and LE may have either sign; G is at the actual soil surface, so soil
+    heat storage is not subtracted again from this zero-capacity skin budget.
+    """
+    driver = str(params.get("driver", "rn"))
+    sinks = list(params.get("sinks", ["hfls", "hfss", "hfg"]))
+    threshold = float(params.get("threshold", 0.05))
+    floor = float(params.get("floor", 2.0))
+    segment_column = str(params.get("segment_column", "_regime"))
+
+    w = make_window(run, probe)
+    if driver not in w.forcing.columns:
+        raise ValueError(
+            f"energy_closure_by_phase needs forcing column '{driver}'; "
+            "this probe's generator does not produce it"
+        )
+    for var in sinks:
+        if var not in w.table.columns:
+            raise ValueError(f"energy_closure_by_phase needs '{var}' in the model result")
+    phases = segments(w, segment_column)
+    drive = w.forcing[driver].to_numpy(dtype=float)
+    fluxes = w.table[sinks].to_numpy(dtype=float)
+    finite = np.isfinite(drive) & np.isfinite(fluxes).all(axis=1)
+    if not finite.all():
+        n_bad = int((~finite).sum())
+        return CriterionResult(
+            name="energy_closure_by_phase",
+            status=FAIL,
+            message=f"non-finite surface energy values on {n_bad} scored steps",
+            diagnostics={"non_finite_steps": n_bad},
+        )
+
+    # A Case has one fixed dt, so it cancels from sum(abs(r) * dt) / sum(dt).
+    # Taking the mean directly also avoids rounding an exact tolerance-boundary
+    # value upward through an unnecessary multiplication and division by dt.
+    residual = drive - fluxes.sum(axis=1)
+    blocks = []
+    for label, start, stop in phases:
+        duration_days = (stop - start) * w.dt_days
+        mean_abs = float(np.abs(residual[start:stop]).mean())
+        mean_driver = float(np.abs(drive[start:stop]).mean())
+        allowance = max(threshold * mean_driver, floor)
+        slack = (
+            mean_abs / allowance if allowance > 0
+            else (0.0 if mean_abs == 0 else float("inf"))
+        )
+        blocks.append({
+            "label": label,
+            "start": start,
+            "stop": stop,
+            "duration_hours": duration_days * 24.0,
+            "mean_abs_w_m2": mean_abs,
+            "mean_abs_driver_w_m2": mean_driver,
+            "allowance_w_m2": allowance,
+            "slack": slack,
+            "passed": mean_abs <= allowance,
+        })
+
+    failed = sum(not block["passed"] for block in blocks)
+    worst = max(blocks, key=lambda block: block["slack"])
+    return CriterionResult(
+        name="energy_closure_by_phase",
+        status=PASS if failed == 0 else FAIL,
+        value=worst["slack"],
+        threshold=1.0,
+        message=(
+            f"{failed} of {len(blocks)} phase blocks fail; worst {worst['label']} "
+            f"[{worst['start']}:{worst['stop']}] has mean absolute residual "
+            f"{worst['mean_abs_w_m2']:.3g} W m-2 against "
+            f"{worst['allowance_w_m2']:.3g} W m-2 allowed"
+        ),
+        diagnostics={
+            "blocks": blocks,
+            "failed_blocks": failed,
+            "worst_block": worst,
+            "relative_threshold": threshold,
             "floor_w_m2": floor,
         },
     )

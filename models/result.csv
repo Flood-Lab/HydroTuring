@@ -191,3 +191,8 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-11,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.000% of driver
 2026-09-11,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/time-origin-invariance,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
 2026-09-11,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.000% of driver
+2026-09-10,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H"
+2026-09-10,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H"
+2026-09-10,flex_lumped,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-10,flex_topo,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-10,sacsma_snow17,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
