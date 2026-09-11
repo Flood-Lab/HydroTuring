@@ -48,10 +48,13 @@ From static.json, only what maps onto a SUMMA quantity:
   above the capacity by table design; a capacity of zero is a bare surface
   (USGS class 19, which SUMMA gives no leaves or stems).
 
-The cold state is the shipped one (283.16 K soil at 0.3 volumetric water, no
+The cold state is the shipped one (283.16 K soil at a matric head of -1 m, no
 snow, no canopy water) except the aquifer, which starts empty: under the
 shipped aquiferBaseflowRate the shipped 0.4 m drains within the first hours
-and would put 400 mm of runoff into the spinup.
+and would put 400 mm of runoff into the spinup. SUMMA's check_icond recomputes
+the soil's liquid water from that head through its van Genuchten curve, so the
+adapter writes the water content the head gives (0.325 for loam), not the
+shipped file's 0.3, which SUMMA would replace.
 
 Forcing SUMMA needs that the probes do not generate is mocked from each row
 alone, with no calendar and nothing from another row (README.md has what
@@ -99,8 +102,6 @@ Fluxes are step means, as rates in mm/day or W m-2; states are end of step.
 * `evspsbl`  total evapotranspiration including snow and canopy sublimation
              (SUMMA's scalarTotalET leaves sublimation out), positive upward;
              net deposition makes it negative
-* `sbl`      snow plus canopy sublimation, positive upward; frost deposition
-             is negative
 * `mrro`     routed runoff (averageRoutedRunoff): surface runoff plus aquifer
              baseflow after the time-delay histogram
 * `channel`  cumulative instantaneous minus routed runoff: water inside the
@@ -126,6 +127,11 @@ Fluxes are step means, as rates in mm/day or W m-2; states are end of step.
              counts that water twice
 * `canopy`   scalarCanopyLiq + scalarCanopyIce
 * `gw`       scalarAquiferStorage, m to mm
+
+`sbl` is not reported. SUMMA's snow and canopy sublimation are net fluxes over
+each step, negative when frost deposits, and they are carried inside
+`evspsbl`. The contract's `sbl` is the non-negative share of `evspsbl` that
+left as ice, and no non-negative share describes a step of net deposition.
 
 Developer switches: SUMMA_HT_DIAG=1 writes SUMMA's raw series next to the
 request (only possible where that directory is writable, never under the
@@ -156,8 +162,8 @@ from pathlib import Path
 import netCDF4
 import numpy as np
 
-MODEL = {"name": "summa", "version": "4.0.0-f787fa5.3"}
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "sbl", "hfls", "hfss", "hfg",
+MODEL = {"name": "summa", "version": "4.0.0-f787fa5.4"}
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "hfls", "hfss", "hfg",
            "mrso", "snw", "canopy", "gw", "channel"]
 
 SUMMA_EXE = os.environ.get("SUMMA_EXE", "/opt/summa/bin/summa.exe")
@@ -180,7 +186,6 @@ TAN_SLOPE = 0.1
 CONTOUR_LENGTH_M = 100.0
 SHIPPED_LAYERS_M = [0.025, 0.075, 0.15, 0.25, 0.5, 0.5, 1.0, 1.5]
 COLD_TEMPERATURE_K = 283.16
-COLD_THETA = 0.3
 COLD_MATRIC_HEAD_M = -1.0
 DEFAULT_ROOTING_DEPTH_M = 2.0  # localParamInfo.txt
 
@@ -268,6 +273,15 @@ def mock_vapour_pressure(tas):
 def mock_spechum(tas, pressure):
     ea = mock_vapour_pressure(tas)
     return 0.622 * ea / (pressure - 0.378 * ea)
+
+
+def summa_vol_frac_liq(psi_m: float, soil: dict[str, float]) -> float:
+    """soil_utils.f90 volFracLiq, which check_icond.f90 applies to the cold state's matric head."""
+    if psi_m >= 0.0:
+        return soil["theta_sat"]
+    n = soil["vGn_n"]
+    m = 1.0 - 1.0 / n
+    return soil["theta_res"] + (soil["theta_sat"] - soil["theta_res"]) * (1.0 + (soil["vGn_alpha"] * psi_m) ** n) ** (-m)
 
 
 def priestley_taylor_w_per_mm_day(tc: np.ndarray, pressure: np.ndarray) -> np.ndarray:
@@ -417,7 +431,7 @@ def write_trial_params(path: Path, params: dict[str, float]) -> None:
                     [(k, "f8", ("hru",), v) for k, v in params.items()])
 
 
-def write_cold_state(path: Path, layers: list[float], step_s: int) -> None:
+def write_cold_state(path: Path, layers: list[float], step_s: int, theta: float) -> None:
     n = len(layers)
     with netCDF4.Dataset(path, "w") as nc:
         for dim, size in (("hru", 1), ("scalarv", 1), ("midSoil", n), ("midToto", n), ("ifcToto", n + 1)):
@@ -434,7 +448,7 @@ def write_cold_state(path: Path, layers: list[float], step_s: int) -> None:
             ("scalarCanopyTemp", "f8", scalar, COLD_TEMPERATURE_K),
             ("mLayerTemp", "f8", ("midToto", "hru"), np.full((n, 1), COLD_TEMPERATURE_K)),
             ("mLayerVolFracIce", "f8", ("midToto", "hru"), np.zeros((n, 1))),
-            ("mLayerVolFracLiq", "f8", ("midToto", "hru"), np.full((n, 1), COLD_THETA)),
+            ("mLayerVolFracLiq", "f8", ("midToto", "hru"), np.full((n, 1), theta)),
             ("mLayerMatricHead", "f8", ("midSoil", "hru"), np.full((n, 1), COLD_MATRIC_HEAD_M)),
             ("iLayerHeight", "f8", ("ifcToto", "hru"), np.concatenate(([0.0], np.cumsum(layers)))[:, None]),
             ("mLayerDepth", "f8", ("midToto", "hru"), np.array(layers)[:, None]),
@@ -483,6 +497,8 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
     soil = rosetta_soil(SOIL_TYPE)
     depth_m = float(static["soil_capacity_mm"]) / 1000.0 / soil["theta_sat"]
     layers = soil_layers(depth_m)
+    cold_theta = summa_vol_frac_liq(COLD_MATRIC_HEAD_M, soil)
+    cold_storage_mm = cold_theta * depth_m * 1000.0  # no ice, snow, canopy water, aquifer or channel water
     canopy_capacity = float(static.get("canopy_capacity_mm", 0.0))
     veg_type = VEG_TYPE if canopy_capacity > 0.0 else BARE_VEG_TYPE
     vai_max = float(monthly_vai(veg_type).max())
@@ -513,7 +529,7 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
     write_forcing(WORK / "forcing" / "forcing.nc", stamps, reference, step_s, pr, tas, atmos)
     write_attributes(WORK / "settings" / "attributes.nc", static, veg_type, measurement_height_m)
     write_trial_params(WORK / "settings" / "trialParams.nc", params)
-    write_cold_state(WORK / "settings" / "coldState.nc", layers, step_s)
+    write_cold_state(WORK / "settings" / "coldState.nc", layers, step_s, cold_theta)
     write_file_manager(WORK / "settings" / "fileManager.txt", stamps[0], stamps[-1])
     staged = time.monotonic()
 
@@ -543,7 +559,6 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
     result = {
         "evspsbl": -out["scalarTotalET"] * per_day + sublimation,
         "mrro": routed,
-        "sbl": sublimation,
         "hfls": -out["scalarLatHeatTotal"],
         "hfss": -out["scalarSenHeatTotal"],
         "hfg": out["scalarGroundNetNrgFlux"],
@@ -566,22 +581,27 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
         "measurement_height_m_written": measurement_height_m,
         "measurement_height_m_applied_by_summa": [float(np.nanmin(out["scalarAdjMeasHeight"])),
                                                   float(np.nanmax(out["scalarAdjMeasHeight"]))],
+        "cold_state_volumetric_liquid": round(cold_theta, 6),
+        "cold_state_storage_mm": round(cold_storage_mm, 6),
         "snow_threshold_air_degC": threshold_c,
         "tempCritRain_K": round(params["tempCritRain"], 6),
         "trial_parameters": {k: round(v, 6) for k, v in params.items()},
     }
-    notes = describe(result, out, atmos, pr, tas, threshold_c, dt_days, timestep, catchment, rn is not None)
+    notes = describe(result, out, atmos, pr, tas, threshold_c, dt_days, timestep, catchment, rn is not None,
+                     cold_storage_mm)
     notes["seconds"] = {"stage": round(staged - started, 2), "summa": round(ran - staged, 2)}
     diag = {**out, "rn_target": atmos["target"], "SWRadAtm": atmos["SWRadAtm"],
             "LWRadAtm": atmos["LWRadAtm"], "spechum": atmos["spechum"]}
     return result, notes, diag
 
 
-def describe(result, out, atmos, pr, tas, threshold_c, dt_days, timestep, catchment, has_rn):
+def describe(result, out, atmos, pr, tas, threshold_c, dt_days, timestep, catchment, has_rn, initial_storage_mm):
     """What run.json says about a case: the mapping, and the budgets as SUMMA kept them."""
     storage = sum(result[k] for k in ("mrso", "snw", "canopy", "gw", "channel"))
     fluxes = (pr - result["evspsbl"] - result["mrro"]) * dt_days
-    step_residual = fluxes[1:] - np.diff(storage)
+    # The first step is checked against the cold state SUMMA starts from.
+    step_residual = fluxes - np.diff(np.concatenate(([initial_storage_mm], storage)))
+    net_sublimation = -(out["scalarSnowSublimation"] + out["scalarCanopySublimation"])
 
     surface = result["hfls"] + result["hfss"] + result["hfg"]
     target, summa_rn = atmos["target"], out["scalarNetRadiation"]
@@ -639,14 +659,17 @@ def describe(result, out, atmos, pr, tas, threshold_c, dt_days, timestep, catchm
             "channel": "cumulative averageInstantRunoff - averageRoutedRunoff (time-delay histogram)",
         },
         "fluxes": {
-            "evspsbl": "-(scalarTotalET + scalarSnowSublimation + scalarCanopySublimation)",
-            "sbl": "-(scalarSnowSublimation + scalarCanopySublimation); negative is deposition",
+            "evspsbl": "-(scalarTotalET + scalarSnowSublimation + scalarCanopySublimation); sublimation "
+                       "and deposition are net, so a step of net deposition lowers it",
+            "sbl": "not reported: SUMMA's sublimation is a net flux, negative on deposition, and the "
+                   "contract's sbl is a non-negative share",
             "mrro": "averageRoutedRunoff", "hfls": "-scalarLatHeatTotal", "hfss": "-scalarSenHeatTotal",
             "hfg": "scalarGroundNetNrgFlux (top of the snow-soil column); the canopy's net energy "
                    "flux is in no column",
         },
         "diagnostics_whole_record": {
-            "water_max_abs_step_residual_mm": float(np.abs(step_residual).max()) if step_residual.size else 0.0,
+            "water_max_abs_step_residual_mm": float(np.abs(step_residual).max()),
+            "water_first_step_residual_mm": float(step_residual[0]),
             "water_cumulative_residual_mm": float(step_residual.sum()),
             "water_input_mm": float((pr * dt_days).sum()),
             "soil_elastic_storage_change_mm": float(np.sum(out["scalarSoilCompress"]) * dt_days * SECONDS_PER_DAY),
@@ -660,7 +683,7 @@ def describe(result, out, atmos, pr, tas, threshold_c, dt_days, timestep, catchm
             "mean_advective_heat_w_m2": float(advective.mean()),
             "mean_canopy_net_energy_w_m2": float(out["scalarCanopyNetNrgFlux"].mean()),
             "summa_balance_max_abs": balance,
-            "deposition_steps": int((result["sbl"] < 0.0).sum()),
+            "deposition_steps": int((net_sublimation < 0.0).sum()),
             "negative_evspsbl_steps": int((result["evspsbl"] < 0.0).sum()),
         },
     }

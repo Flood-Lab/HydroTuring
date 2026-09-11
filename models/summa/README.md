@@ -3,7 +3,8 @@
 SUMMA, the Structure for Unifying Multiple Modeling Alternatives (Clark et
 al. 2015, *WRR*, [10.1002/2015WR017198](https://doi.org/10.1002/2015WR017198)),
 compiled from [CH-Earth/summa](https://github.com/CH-Earth/summa) release
-v4.0.0 (`f787fa5`, 2026-09-04) and run as one lumped HRU. Submitted as
+v4.0.0 (`f787fa5`, 2026-09-04) and run as one lumped HRU. Proposed by Yuanhang
+Liu (Independent Researcher) as
 [Flood-Lab/HydroTuring#30](https://github.com/Flood-Lab/HydroTuring/issues/30).
 
 SUMMA solves the coupled conservation equations for water and energy in a
@@ -119,10 +120,19 @@ depth, and a remainder under half the layer above is merged into it.
 - 120 mm: 0.301 m in 3 layers.
 
 The probes give no elevation, so the HRU sits at sea level. The cold state is
-the test case's (283.16 K, 0.3 volumetric water, no snow, an empty canopy)
-except the aquifer, which starts empty. Under the shipped
+the test case's (283.16 K soil at a matric head of -1 m, no snow, an empty
+canopy) except the aquifer, which starts empty. Under the shipped
 `aquiferBaseflowRate`, the shipped 0.4 m would drain within hours and put
 400 mm of runoff into the spinup.
+
+SUMMA does not start from the water content in the file. `check_icond.f90`
+recomputes each soil layer's liquid water from its matric head through the van
+Genuchten curve (`volFracLiq` in `soil_utils.f90`, with the ROSETTA loam's
+parameters). The loam therefore starts at 0.3247 volumetric water, not the
+shipped file's 0.3. The adapter writes that value, so the cold state it hands
+SUMMA says what SUMMA starts from; SUMMA's output is the same bit for bit
+either way. The water diagnostics in `run.json` check the first step against
+that state.
 
 ### Rain and snow
 
@@ -218,11 +228,13 @@ out:
 - Over that record, freezing of intercepted rain adds 234 mm of canopy ice on
   the days ice grows, and intercepted snow adds 111 mm.
 
-**On the four probes that score canopy bounds**, the canopy peaks at:
+**On the five probes that score canopy bounds**, the canopy peaks at:
 - 14.3 to 27.0 mm on latent-heat, on 23 to 36 days above capacity per seed;
 - 13.4 to 20.3 mm on catchment-closure, on 30 to 42 days;
 - 14.5 to 23.0 mm on the precipitation counterfactual, on 20 to 63 days;
-- 5.3 to 18.9 mm on evaporative-partition, on 2 to 5 days.
+- 5.3 to 18.9 mm on evaporative-partition, on 2 to 5 days;
+- 13.5 to 20.1 mm on human-abstraction, on 22 to 51 days, the same in the
+  natural and irrigated runs.
 
 Every peak falls on a day within 0.7 C of freezing with 25 to 71 mm of
 precipitation, and most days above capacity are within 1 C of freezing.
@@ -331,7 +343,6 @@ states are end of step.
 | --- | --- | --- |
 | `pr` | the forcing, echoed as the text it arrived as | mm/day |
 | `evspsbl` | `-(scalarTotalET + scalarSnowSublimation + scalarCanopySublimation)`; SUMMA's total ET leaves sublimation out | positive upward, kg m-2 s-1 to mm/day; net deposition makes it negative |
-| `sbl` | `-(scalarSnowSublimation + scalarCanopySublimation)` | positive upward; frost deposition is negative |
 | `mrro` | `averageRoutedRunoff`: surface runoff plus aquifer baseflow after the time-delay histogram | m/s to mm/day |
 | `channel` | cumulative `averageInstantRunoff` minus `averageRoutedRunoff` | mm; SUMMA normalises the histogram to sum to one |
 | `hfls` | `-scalarLatHeatTotal` | W m-2, positive away from the surface (SUMMA's are positive downward) |
@@ -342,6 +353,15 @@ states are end of step.
 | `canopy` | `scalarCanopyLiq + scalarCanopyIce` | mm |
 | `gw` | `scalarAquiferStorage` | m to mm |
 
+`sbl` is not reported. SUMMA's snow and canopy sublimation are net fluxes over
+each step: on a step when more frost deposits than sublimates they are
+negative. They are carried inside `evspsbl`, so deposition lowers it. The
+contract's `sbl` is the non-negative share of `evspsbl` that left as ice, and
+no non-negative share describes a step of net deposition. Clipping at zero
+would misstate those steps, so the column is left out, as the contract
+allows. The third version reported the signed flux as `sbl`, and its
+`flux_identity` numbers are kept under What changed.
+
 `mrso` carries a term SUMMA's soil balance keeps outside the volumetric water
 content: water stored by compressing the soil matrix under `specificStorage`
 (1e-6 per metre of head). It is small but not nothing. A dry column that
@@ -349,10 +369,24 @@ rewets takes up to about 3 mm into it in a day, and two rainless years release
 about 4 mm from it. Left out, it shows as exactly that residual in the water
 budget.
 
-`hfg` is SUMMA's ground heat flux: the net energy flux into the snow-soil
-column through its top. That top is the soil surface when there is no snow and
-the snow surface when there is, so the snowpack's heat storage and melt energy
-are inside `hfg`.
+`hfg` is SUMMA's `scalarGroundNetNrgFlux`. That is absorbed shortwave, net
+longwave, turbulent heat and precipitation heat at the ground surface
+(`vegNrgFlux.f90:981`). SUMMA passes it as the upper boundary flux of its
+snow-soil column (`iLayerNrgFlux(0)`, `snowSoilNrgFlux.f90:218`).
+
+The ground surface is the top layer of that column (`mLayerTempTrial_1`,
+`vegNrgFlux.f90:259`): the soil when there is no snow, the top snow layer
+when there is. With snow, SUMMA also switches the ground's latent heat to
+sublimation (`vegNrgFlux.f90:548-550`). So when snow lies, the surface
+exchanging turbulent and radiative energy with the atmosphere is the snow
+surface.
+
+The contract names no separate snowpack heat term, so the flux is taken
+there, with the pack's heat storage and melt energy inside it. Mapping it to
+the soil-snow interface instead would leave the pack's storage and melt as
+an unexplained surface-budget residual on every snow day. The only snow-free
+energy probe, surface-energy-closure, is unaffected: its ground is always
+soil.
 
 The canopy is treated differently, and plainly so. Its heat storage and the
 phase change of water intercepted on it are also energy held above the soil
@@ -376,9 +410,11 @@ decisions.
 
 ## The budgets as SUMMA keeps them
 
-**Water.** The archived run has 120 cases. Recomputed from the reported
-columns, every step of every case closes to 7.3e-6 mm and every record to
-8.6e-6 mm, with four exceptions. Each exception is a single step, off by
+**Water.** The archived run has 126 cases. Recomputed from the reported
+columns, starting from the cold state SUMMA itself starts from, every step
+of every case closes to 7.3e-6 mm and every record to 8.6e-6 mm, with four
+exceptions. The first step, which the third version did not check, closes
+to 2.7e-8 mm. Each exception is a single step, off by
 2.6e-5 to 7.9e-5 mm, on a day with only a trace of precipitation (4.3e-5 to
 0.0023 mm/day):
 - one latent-heat seed;
@@ -438,26 +474,37 @@ of the surface, that SUMMA does not share.
 water at `LH_vap` = 2.501e6 J/kg, the latent heat of vaporisation at 0 C,
 whatever the temperature. It converts sublimated water at `LH_sub` = 2.8347e6,
 which is exactly the probe's value. The reported latent heat equals
-`LH_vap * E_liquid + LH_sub * E_ice` to 9.1e-4 W/m2. The probe asks for
-2.501e6 - 2361 T, so every liquid-evaporation step with the air more than
-about 5 C from freezing leaves the 0.5 percent tolerance:
-- 966 to 1013 of 3650 days on the latent-heat probe;
-- 151 to 183 of 1095 on the partition probe;
-- every one of them above 5.3 C in absolute temperature.
+`LH_vap * E_liquid + LH_sub * E_ice` to 9.1e-4 W/m2. The probe asks for 2.501e6 - 2361 T.
 
-That is what `reference_constant_lambda` is built to show. The harness
-message leads with two further findings about `sbl`:
-- SUMMA's net sublimation is negative on 25 to 193 days, when frost deposits.
-- It is non-zero on 3 to 36 days when the criterion's snow test sees no
-  snow. That test reads ground `snw` only, while SUMMA's `sbl` also carries
-  sublimation from the canopy.
+The adapter reports no `sbl`, so the criterion does two things:
+- On snow-free steps, where no pack lies and none could fall, it holds latent
+  heat to that equality.
+- Where a pack is or could be present, it asks only that latent heat lie
+  between the liquid and ice conversions of the reported evaporation.
+
+SUMMA meets the interval on every such step. It fails the equality:
+- on 931 to 962 of 3650 days on the latent-heat probe, 928 to 960 of them with
+  the air more than 5.3 C from freezing;
+- on 141 to 171 of 1095 on the partition probe, all but one of them above
+  5.3 C.
+
+The other 2 to 9 latent-heat days a seed are days when the canopy's ice
+sublimates, about 1 mm/day, with no snow on the ground and none falling.
+SUMMA converts that water at `LH_sub`, while the criterion's equality asks for
+the liquid value. They are the worst steps, 7.3 to 9.4 times the tolerance,
+and the ice comes from the rain frozen on the canopy (Rain on a freezing
+canopy).
+
+That is what `reference_constant_lambda` is built to show. The third version,
+which reported the signed sublimation as `sbl`, failed the same criterion
+through the split instead; its numbers are under What changed.
 
 ## Verdict
 
 ```
-### HydroTuring `summa` v4.0.0-f787fa5.3
+### HydroTuring `summa` v4.0.0-f787fa5.4
 
-FAIL (VIOLATION) · 8/19 probes passed · suite 0.1.0
+FAIL (VIOLATION) · 8/20 probes passed · suite 0.1.0
 ```
 
 It passes eight probes:
@@ -467,24 +514,31 @@ It passes eight probes:
 - `time-origin-invariance`, bit for bit;
 - `warming-response` and `routing-conservation`.
 
-The threshold translation flipped no probe verdict against
-`4.0.0-f787fa5.2`. It moved one failure inside a probe and changed the size
-and mechanism of another:
-- **Phase-counterfactual.** `phase_invariance` now fails on seed 25625370, and
-  the `non_degenerate` failure on seed 1039529598 now passes.
-- **Canopy `state_bounds`.** On four probes the excess grew from hundredths of
-  a millimetre of liquid to 4 to 25 mm of ice.
+Against `4.0.0-f787fa5.3` no verdict changed. The fourth version's changes
+leave SUMMA's output the same bit for bit, and `flux_identity` still fails
+without `sbl`. The count is out of 20 because the suite gained
+`mass/human-abstraction`, which SUMMA fails because it has no human water use.
+
+In `4.0.0-f787fa5.3` the threshold translation flipped no probe verdict
+against `4.0.0-f787fa5.2`. It moved one failure inside a probe and changed the
+size and mechanism of another:
+- **Phase-counterfactual.** `phase_invariance` began failing on seed 25625370,
+  and the `non_degenerate` failure on seed 1039529598 passed.
+- **Canopy `state_bounds`.** On the four probes that scored canopy bounds then,
+  the excess grew from hundredths of a millimetre of liquid to 4 to 25 mm of
+  ice.
 
 For each failure: the mechanism, and whether it is the model or a choice the
 packaging had to make.
 
 | Probe | Failing criterion (worst seed) | Mechanism | Model or packaging |
 | --- | --- | --- | --- |
-| `energy/latent-heat-et-consistency` | `flux_identity` (5 of 5 seeds); `state_bounds` canopy 12.3 to 25.0 mm above the 2 mm capacity (5 of 5) | a latent heat of vaporisation held at its 0 C value; deposition and canopy-ice sublimation as above. The canopy: rain frozen on it near 0 C, up to 27.0 mm of ice (section on the freezing canopy); a few warm days also end a few hundredths of a mm above capacity as liquid drains at 0.005 s-1 | model (constants; drainage law). The canopy ice is SUMMA with the shipped setup's decisions and default parameters (all rain intercepted, `snowUnloadingCoeff` 0), reached through the translated threshold |
+| `energy/latent-heat-et-consistency` | `flux_identity` (5 of 5 seeds); `state_bounds` canopy 12.3 to 25.0 mm above the 2 mm capacity (5 of 5) | a latent heat of vaporisation held at its 0 C value, and on 2 to 9 days a seed canopy ice sublimating at `LH_sub` with no snow on the ground (above). The canopy: rain frozen on it near 0 C, up to 27.0 mm of ice (section on the freezing canopy); a few warm days also end a few hundredths of a mm above capacity as liquid drains at 0.005 s-1 | model (constants; drainage law). The canopy ice is SUMMA with the shipped setup's decisions and default parameters (all rain intercepted, `snowUnloadingCoeff` 0), reached through the translated threshold |
 | `energy/evaporative-partition` | `partition_shift` (3 of 3); `flux_identity` (3 of 3); `state_bounds` canopy 4.1 and 16.9 mm (2 of 3) | SUMMA's net radiation responds to the drought through its surface temperature; constant latent heat; canopy ice | model; the size of the shift residual depends on the wind mock. The canopy ice is attributed as for latent-heat |
 | `energy/surface-energy-closure` | `energy_closure_by_phase`, 20 of 28 blocks (17 to 22 across seeds) | the gap between SUMMA's net radiation and `rn`: albedo by day, surface temperature by day and night; SUMMA's own budget passes every block | the mock cannot deliver `rn`, meeting the model's own surface temperature |
 | `mass/catchment-closure` | `state_bounds` canopy 11.4 to 18.3 mm above capacity (5 of 5) | rain frozen on a sub-zero canopy: peaks of 13.4 to 20.3 mm on days of 31 to 45 mm at 0.1 to 0.5 C, on 30 to 42 days a seed | SUMMA with the shipped setup's decisions and default parameters, reached through the translated threshold; 0.02 mm under the direct mapping |
 | `mass/precipitation-counterfactual` | `state_bounds` canopy 15.7 to 16.7 mm above capacity (3 of 3 seeds; up to 21 mm across the variants) | canopy ice as above, more in the wetter variants. The partition the probe is about passes: on the worst seed evaporation takes 0.24 to 0.30 of the added or removed rain, runoff 0.67 to 0.73 and storage 0.03, summing to 1.000 in each variant; on every seed runoff rises along the ladder, returning 0.70 to 0.73 of the rain added at the top | SUMMA with the shipped setup's decisions and default parameters, reached through the translated threshold; the bare surface passes |
+| `mass/human-abstraction` | `human_abstraction`: all 380 mm of the prescribed withdrawal are missing from the budget difference, 100 % against a 5 % limit (3 of 3 seeds); `state_bounds` canopy 11.6 to 18.1 mm above capacity (3 of 3) | SUMMA has no abstraction or water-use process, so nothing reads the `abstr` column. The natural and irrigated runs are identical, and evaporation, runoff and storage each change by 0.0 mm. The canopy ice is the same in both runs, as on the other probes that score canopy bounds | model: SUMMA has no human water use, and the adapter does not invent one, so this is not a packaging gap. The canopy ice is attributed as for catchment-closure |
 | `mass/steady-state` | `steady_state`: soil water 10.2 %, canopy 10.6 %, runoff 1.1 %; -0.029 mm/day unplaced (3 of 3) | under constant weather the phenology still cycles LAI and SAI through the year, so transpiration, soil water and interception cycle with it; the forest evaporates 2.53 of the 2.5 mm/day rain, runoff is 0.0008 mm/day and the soil is still drying 10.7 mm a year in the third year, which is the unplaced residual | model (its phenology keys on the day of year); the bare surface passes |
 | `mass/resolution-invariance` | runoff differs by 20.9 % of the rain (17.1 to 20.9 across seeds) | at the hourly step Green-Ampt infiltration excess makes 54.2 mm of surface runoff from bursts up to 43 mm/h, against 0.5 mm at the daily step. The daily step, fed a daily-mean temperature and humidity, draws 33 W/m2 of sensible heat from the air into evaporation, where the hourly step returns 5 W/m2 to it, so ET is 41 mm lower hourly. Both steps receive the same net radiation (64.7 W/m2 target, 66.0 in SUMMA). The hourly step also makes some snow the daily step does not: 0.008, 0.13 and 0.029 of its precipitation on the three seeds against none daily (0.04 to 0.25 against 0 to 0.009 under the direct mapping), from sub-zero April hours and SUMMA's ramp. Retained snow lowers hourly runoff, against the direction of the deviation, so it does not explain the failure | model (intensity-dependent infiltration, step-dependent turbulent exchange); how large depends on the humidity and wind mocks |
 | `mass/antecedent-monotonicity` | +0.0002 to +0.0025 of the 60 mm storm (0.02 needed) | the wetter month's extra 120 mm is evaporated before the storm: 137 to 156 mm of ET in those 30 days against 19 to 42 mm in the drier run, on 131 to 157 mm of demand. Both runs meet the storm with soil water within 2 to 5 mm of each other (120 to 132 mm in an 802 mm-deep column), and neither drains within the month | model at this demand; passes with 90 percent humidity or a bare surface |
@@ -541,8 +595,8 @@ moist air leaves more rain to run off.
 
 What the table says:
 
-- **Model findings.** `flux_identity` fails in every column, on 892 to 1175
-  days wherever shortwave reaches SUMMA and 423 under the midnight stamp. The
+- **Model findings.** `flux_identity` fails in every column, on 853 to 1175
+  days wherever shortwave reaches SUMMA and 387 under the midnight stamp. The
   hourly phase test fails in every column too. Both are the model.
 - **The threshold mapping.** It moves the canopy excess by three orders of
   magnitude on the closure probes, from 0.02 to 0.07 mm to 16 to 17 mm. It
@@ -582,6 +636,40 @@ What the table says:
   - The threshold translation follows from the probes' definition and SUMMA's
     own wet-bulb routine.
   - The split was changed once, for the reason below.
+
+## What changed in 4.0.0-f787fa5.4
+
+The pull request's review raised three points about the adapter, and main
+gained a twentieth probe. Each change and its effect:
+
+- **`sbl` is no longer reported.**
+  - Why: SUMMA's snow and canopy sublimation are net fluxes, negative when
+    frost deposits. The contract's `sbl` is a non-negative share of
+    `evspsbl`, and no such share describes a step of net deposition. Clipping
+    at zero would misstate those steps.
+  - Effect: `evspsbl` is unchanged, with deposition inside it.
+    `flux_identity` still fails on both energy probes that score it, now on
+    the snow-free equality: 931 to 962 latent-heat days a seed and 141 to 171
+    partition days.
+  - History: with the signed flux reported as `sbl`, the third version failed
+    the same criterion at 4.95 to 5.64 times the tolerance on latent-heat and
+    4.69 to 5.15 on partition. Its message led with `sbl` negative on 174
+    steps and non-zero where the criterion saw no snow on 36 (latent-heat's
+    worst seed); on partition's worst seed the counts were 25 and 3.
+- **`hfg` stays at the top of the snow-soil column.** The reason is now given
+  with SUMMA's Fortran under What is reported.
+- **The water diagnostics start from the cold state.**
+  - Before: the first step was never checked.
+  - Finding: checking it showed that SUMMA does not start from the file's
+    water content. `check_icond.f90` recomputes it from the matric head, which
+    gives 0.3247 for loam, not 0.3.
+  - Change: the adapter now writes that value. SUMMA's output is the same bit
+    for bit, and the first step closes (numbers under The budgets as SUMMA
+    keeps them).
+- **The proposer is named**: Yuanhang Liu (Independent Researcher), here and
+  in CONTRIBUTORS.
+- **The branch merged main again**, which brings `mass/human-abstraction`.
+- **No verdict changed.** SUMMA fails the new probe, so the count is 8 of 20.
 
 ## What changed in 4.0.0-f787fa5.3
 
@@ -705,7 +793,8 @@ is evaluated on its full record. `run.json` carries, for every case:
 - the mapping and the mocks;
 - the heights from the table and the height SUMMA applied;
 - the translated `tempCritRain`;
-- the water residual and the soil's elastic storage change;
+- the cold-state storage, the water residual from the first step on, and the
+  soil's elastic storage change;
 - SUMMA's snow share against the probe rule's, and the canopy's net energy
   flux;
 - SUMMA's balance diagnostics and the net-radiation gap.
