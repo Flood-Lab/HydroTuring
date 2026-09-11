@@ -73,8 +73,8 @@ Each was merged only after the acceptance gate saw it pass its declared
 exact reference and fail a purpose-built broken one on the named criterion.
 Four physical models, a bucket that conserves water exactly, two
 hand-written FLEX models and the NWS's SAC-SMA with Snow-17, must pass
-every probe that can ask them anything; the four energy probes need outputs
-they do not report and score them INCOMPLETE instead. A probe that fails a
+every probe that can ask them anything; four of the five energy probes need
+outputs they do not report and score them INCOMPLETE instead. A probe that fails a
 physical model is examined before the model is; that is the first thing done
 with any probe pull request. Eleven of the twenty can be scored on a model
 that reports runoff and nothing else. `ht list` prints them;

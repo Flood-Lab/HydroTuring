@@ -93,8 +93,10 @@ def radiative_identity(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
             diagnostics={"non_positive_kelvin_steps": n_bad},
         )
 
-    # Finite inputs can still overflow; never turn inf/inf into a passing NaN.
-    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+    # Finite but absurd values still overflow: a huge temperature in the
+    # fourth power, a huge rel_tol in the allowance. Either would let an inf
+    # or NaN slip through the comparison below as a pass, so both are caught.
+    with np.errstate(over="ignore", invalid="ignore"):
         expected = eps * sigma * ts**4 + (1.0 - eps) * rlds
         residual = rlus - expected
         allowance = np.maximum(rel_tol * np.abs(rlus), abs_floor)
