@@ -1,0 +1,64 @@
+name: discord
+
+# Opens a post in the matching Discord forum for every proposal:
+# probe-proposal goes to the probe forum and model-proposal to the model
+# forum, each through its own webhook.
+#
+# Triggered on `labeled`, not `opened`: the issue form applies its label just
+# after the issue is created, so it is not reliably in the `opened` payload.
+# The same trigger also catches a maintainer labelling a blank issue by hand.
+#
+# Titles and bodies are untrusted text from anyone with a GitHub account.
+# They reach the shell only through env and are JSON-encoded by jq, never
+# pasted into the script, and there is no checkout: the webhook secrets are
+# only ever seen by curl.
+
+on:
+  issues:
+    types: [labeled]
+
+permissions: {}
+
+jobs:
+  post:
+    if: >-
+      github.event.label.name == 'probe-proposal' ||
+      github.event.label.name == 'model-proposal'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Open a forum post
+        env:
+          PROBE_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_PROBE }}
+          MODEL_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_MODEL }}
+          LABEL: ${{ github.event.label.name }}
+          NUMBER: ${{ github.event.issue.number }}
+          TITLE: ${{ github.event.issue.title }}
+          BODY: ${{ github.event.issue.body }}
+          URL: ${{ github.event.issue.html_url }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+        run: |
+          case "$LABEL" in
+            probe-proposal) webhook="$PROBE_WEBHOOK" ;;
+            model-proposal) webhook="$MODEL_WEBHOOK" ;;
+          esac
+          # A forum whose secret was never set should say so, not fail in curl.
+          if [ -z "$webhook" ]; then
+            echo "::error::no Discord webhook secret for $LABEL"
+            exit 1
+          fi
+          payload=$(jq -n \
+            --arg name "#$NUMBER $TITLE" --arg title "$TITLE" --arg url "$URL" \
+            --arg author "$AUTHOR" --arg body "$BODY" '
+            {
+              thread_name: ($name | .[0:100]),
+              allowed_mentions: {parse: []},
+              embeds: [{
+                title: ($title | .[0:256]),
+                url: $url,
+                author: {name: $author, url: ("https://github.com/" + $author)},
+                description: (if $body == "" then "(no description)" else ($body | .[0:3500]) end)
+              }]
+            }')
+          curl --fail-with-body -sS -H 'Content-Type: application/json' \
+               -d "$payload" "$webhook"
