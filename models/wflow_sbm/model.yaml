@@ -1,5 +1,5 @@
 name: wflow_sbm
-version: "1.0.4-ht.3"
+version: "1.0.4-ht.4"
 description: >
   wflow_sbm, the distributed hydrological model of Deltares' Wflow.jl at v1.0.4
   (van Verseveld et al. 2024, GMD, which evaluates v0.7.3): the SBM soil column

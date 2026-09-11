@@ -98,18 +98,22 @@ model Wflow built and written to `run.json`:
   them for the case's step;
 - `notes.parameters.static_maps_written`: the static-map values as the adapter wrote them;
 - `notes.human_withdrawal`: whether the case prescribed a withdrawal and, if it did, what it asked
-  for, what the river and the saturated store supplied, the return flow and any shortfall.
+  for (as given, and with any negative values set aside and counted in `ignored_negative_mm`),
+  what the allocation recorded from the river and the saturated store, the return flow, any
+  shortfall in the allocation, and the river balance error that shows how much of the river
+  share the kinematic wave did not deliver.
 
 A few numbers are constants in Wflow's source rather than parameters, so they cannot be read
 back from the model. `notes.wflow_code_constants` names them with their values and files: the
 snow refreezing efficiency, the rain and snow correction factors, the stemflow share of the gap
 fraction, the 23-hour interception switch, the transpiration bounds of the Feddes h3
 interpolation, the unsaturated-flow iteration step, the largest water-table change per lateral
-sub-step, the kinematic-wave solver's tolerance and iteration cap, and the shares of river and
-subsurface storage that Wflow's allocation treats as available to a prescribed withdrawal.
+sub-step, the kinematic-wave solver's tolerance and iteration cap, its discharge floor of 1.0e-30
+m3/s, and the shares of river and subsurface storage that Wflow's allocation treats as available
+to a prescribed withdrawal.
 
 **Switched off**, because the probe's catchment has none of it: reservoirs and lakes,
-glaciers, paddies, irrigation and all water demand, floodplains, lateral snow transport
+glaciers, paddies, irrigation and every water-demand sector except the domestic demand that carries a prescribed `abstr` (see [A prescribed withdrawal](#a-prescribed-withdrawal)), floodplains, lateral snow transport
 (which at a pit would carry snow out of the map), the frozen-soil infiltration reduction,
 open water outside the river (`WaterFrac` 0), and leakage out of the saturated store
 (`MaxLeakage` 0, as in the test model). Leaf area index is not cyclic, so nothing in the
@@ -151,6 +155,27 @@ v1.0.4) and does not subtract anything from the outputs itself.
   gross and net demand are both set to `abstr` from the forcing each step, as a depth per step.
   With gross equal to net, Wflow's return-flow fraction is zero, so all the water allocated is
   consumed.
+- **Inputs and units, checked.** Wflow reads `[input.forcing]` entries into the model at every
+  step, not only `[input.cyclic]` ones:
+  - `run_timestep!` calls `load_dynamic_input!` (`Wflow.jl:289`);
+  - that calls `update_forcing!` every step, and `update_cyclic!` only for cyclic tables
+    (`io.jl:180-184`);
+  - the forcing entries come from `config.input.forcing` (`io.jl:562`), and each is written straight
+    into the model field its standard name points to (`io.jl:128`, `158-159`).
+
+  The domestic demand names have unit `mm dt-1` (`standard_name.jl:258-261`), so the adapter passes
+  `abstr` as a depth per step. The `dt / BASETIMESTEP` in `NonIrrigationDemand`
+  (`demand/water_demand.jl:59,68`) scales only what `ncread` returns when the model is built, and
+  for a forcing entry that is the default of 0.
+
+  An hourly case confirms both: 72 hourly steps of the `mass/resolution-invariance` case with
+  `abstr` at 2.4 mm/day, so 7.2 mm prescribed.
+  - The allocation recorded 7.2 mm: 0.17 from the river, 7.03 from the saturated store.
+  - Σ(−`gwex` × dt) is 7.200000 mm.
+  - Against the same 72 hours without the column, evaporation, runoff and storage together fall
+    by 7.199 mm.
+
+  Read as mm/day and scaled again, the prescription would have come to 0.3 mm.
 - **Sources.** On the one-cell domain Wflow draws from two sources, in this order:
   1. the river of the cell, up to 0.80 of the river's storage at the start of the step, taken out
      of the river kinematic wave as abstraction;
@@ -161,23 +186,32 @@ v1.0.4) and does not subtract anything from the outputs itself.
   demand goes to surface water first, in a single allocation area. There are no reservoirs, and
   the `sbm` type has no aquifer below the soil column.
 - **Shortfall.** Each source gives no more than it holds, and whatever the two cannot supply is
-  not taken. `run.json` records the shortfall under `notes.human_withdrawal`, with the number of
-  steps it occurred on and the largest single step.
+  not allocated. `run.json` records this allocation shortfall under `notes.human_withdrawal`, with
+  the number of steps it occurred on and the largest single step. Water allocated from the river
+  that the river kinematic wave does not deliver is not a shortfall in the allocation; it shows
+  in the river balance error instead.
 - **`gwex`.** What the allocation took from the river and the saturated store in each step is
   declared as negative `gwex`, together with the leakage (zero here).
-- **What it took on the gate seeds.** Nothing fell short. Each record, including its spin-up
-  year, prescribes 418 mm. The river supplied 4.7 to 5.6 mm of it and the saturated store the
-  rest, 412 to 413 mm. The saturated store's share leaves cleanly: Wflow's subsurface balance
-  closes to 8e-11 m3. The river kinematic wave puts back 3.4 to 4.3 mm of the river's share.
-  When its discharge sits at the 1e-30 m3/s floor it cannot deliver a negative lateral inflow
-  (see the budget below). Wflow's river balance error, and with it the adapter's residual, grows
-  by that much against the natural run. `gwex` still declares what the allocation recorded; the
-  put-back water is the residual that `mass/human-abstraction` reports.
+- **What it took on the gate seeds.** Nothing fell short in the allocation. Each record,
+  including its spin-up year, prescribes 418 mm. The allocation recorded 4.7 to 5.6 mm from the
+  river and the rest, 412 to 413 mm, from the saturated store. The saturated store's share
+  leaves cleanly: Wflow's subsurface balance closes to 9e-11 m3. The river's share is not all
+  delivered. The river kinematic wave takes it as a negative lateral inflow, and while its
+  discharge sits at the 1.0e-30 m3/s floor (`routing/routing_process.jl`) it cannot. Wflow's
+  river balance error (`human_withdrawal.river_balance_error_mm`), and with it the adapter's
+  residual, comes out 3.4 to 4.3 mm larger than in the natural run, so the river lost only about
+  1.2 to 1.5 mm. `gwex` still declares what the allocation recorded
+  (`allocated_surface_water_mm` plus `allocated_groundwater_mm`); the undelivered water is the
+  residual that `mass/human-abstraction` reports.
 - **Other probes.** Water demand is switched on only when the forcing has an `abstr` column. Both
   variants of `mass/human-abstraction` carry one (all zeros in `natural`), so the pair runs one
-  configuration. Switching demand on changes nothing by itself. With an all-zero column added,
-  the output tables of `mass/catchment-closure` and of `mass/dry-down` on seed 1200831778 are
-  byte for byte those of the adapter before the wiring, and without the column they are too.
+  configuration. Switching demand on changes nothing by itself. This was checked against the build
+  of `1.0.4-ht.3` from just before the wiring, which writes the same columns as this version (no
+  `gw`). On the same staged cases of `mass/catchment-closure` and of `mass/dry-down` (seed
+  1200831778), that build's `result.csv` and this version's are byte for byte the same, both
+  with an all-zero `abstr` column added and without the column. Against `1.0.4-ht.2`, whose
+  tables still had a `gw` column of zeros, only archive verdicts and details were compared (see
+  Sensitivity).
 
 ## The step
 
@@ -228,7 +262,7 @@ ht run --model wflow_sbm --gate-seeds
 
 ## Result
 
-**FAIL (INCOMPLETE), 15 of 20 probes passed**, adapter `1.0.4-ht.3`, on the gate seeds, every
+**FAIL (INCOMPLETE), 15 of 20 probes passed**, adapter `1.0.4-ht.4`, on the gate seeds, every
 case on the full record (`window_days: full`).
 
 | Probe | Verdict | Reason | Detail |
@@ -371,9 +405,11 @@ The land roughness and horizontal-conductivity settings tried on ht.1 moved neit
 violation there and were not repeated.
 
 The rows marked ht.2 were computed before `1.0.4-ht.3`. That version drops the `gw` column, adds
-to `run.json`, and takes a prescribed withdrawal through Wflow's water demand. Without a
-withdrawal it changes no output value: on the gate seeds, its archive rows for the nineteen
-probes other than `mass/human-abstraction` match the ht.2 rows in verdict and detail.
+to `run.json`, and takes a prescribed withdrawal through Wflow's water demand; `1.0.4-ht.4`
+relabels and adds to `run.json`. Without a withdrawal neither changes an output value: on the
+gate seeds, the archive rows for the nineteen probes other than `mass/human-abstraction` match
+the ht.2 rows in verdict and detail. That compares archive rows, not tables, since ht.2's tables
+still carry the `gw` column.
 
 `momentum/routing-conservation`, channel over its bound (limit 1), seeds 417694852,
 924646966, 1431599080:

@@ -90,8 +90,10 @@ own water demand and allocation. The domestic sector's gross and net demand are 
 each step, so there is no return flow. Wflow takes the demand from the river cell first, up to
 0.80 of the river's storage, and the rest from the saturated store, up to 0.75 of the lateral
 subsurface storage, as negative recharge. Whatever neither source can supply is not taken. The
-water taken is declared as negative `gwex`, and run.json records the prescription, what each
-source supplied and the shortfall. Without the column, water demand stays off.
+water the allocation records is declared as negative `gwex`. run.json records the prescription,
+what the allocation recorded from each source, the shortfall, and Wflow's river balance error,
+which shows how much of the river share the kinematic wave could not deliver. Without the
+column, water demand stays off.
 
 What run.json records
 ---------------------
@@ -121,7 +123,7 @@ using PrecompileTools: @compile_workload, @setup_workload
 using TOML: TOML
 using Wflow: Wflow
 
-const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.3")
+const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.4")
 const WFLOW = Dict{String, Any}(
     "package" => "Wflow.jl", "version" => "1.0.4",
     "commit" => "82df72031511339d50fd9142fa159d0ec13e73c5", "model_type" => "sbm",
@@ -177,6 +179,8 @@ const WFLOW_CODE_CONSTANTS = Dict{String, Any}(
         "source" => "demand/water_demand.jl, surface_water_allocation_local! (only with a prescribed withdrawal)"),
     "withdrawal_available_share_of_subsurface_storage" => Dict("value" => 0.75,
         "source" => "demand/water_demand.jl, groundwater_allocation_local! (only with a prescribed withdrawal)"),
+    "kinematic_wave_discharge_floor_m3_per_s" => Dict("value" => 1.0e-30,
+        "source" => "routing/routing_process.jl, kinematic_wave (lines 37 and 50)"),
     "feddes_h3_potential_transpiration_bounds_mm_per_day" => Dict("value" => [1.0, 5.0],
         "source" => "soil/soil_process.jl, feddes_h3"),
     "unsaturated_flow_iteration_step_mm" => Dict("value" => 0.2, "source" => "soil/soil_process.jl, unsatzone_flow_layer"),
@@ -581,13 +585,14 @@ function parameter_record(model)
 end
 
 """
-    withdrawal_record(model, withdrawal, forcing, prescribed, removed_sw, removed_gw, shortfall, returned)
+    withdrawal_record(model, withdrawal, forcing, prescribed, allocated_sw, allocated_gw, shortfall, returned,
+                      river_error_mm, dt_days)
 
-The prescribed net withdrawal and what Wflow's allocation took for it, in mm over the cell for
-the whole record, spin-up included.
+The prescribed net withdrawal and what Wflow's allocation recorded for it, in mm over the cell
+for the whole record, spin-up included.
 """
-function withdrawal_record(model, withdrawal::Bool, forcing::Forcing, prescribed, removed_sw, removed_gw,
-                           shortfall, returned)
+function withdrawal_record(model, withdrawal::Bool, forcing::Forcing, prescribed, allocated_sw, allocated_gw,
+                           shortfall, returned, river_error_mm::Float64, dt_days::Float64)
     withdrawal || return Dict{String, Any}(
         "prescribed" => false,
         "note" => "the case gives no abstr column, so Wflow's water demand and allocation are off",
@@ -610,13 +615,22 @@ function withdrawal_record(model, withdrawal::Bool, forcing::Forcing, prescribed
         "gwex" => "minus (leakage + surface-water abstraction + groundwater abstraction), the volumes " *
             "Wflow's allocation records for the step, as a depth over the cell",
         "negative_prescription_steps" => count(<(0.0), forcing.abstr),
+        "prescribed_unclamped_mm" => sum(forcing.abstr) * dt_days,
+        "ignored_negative_mm" => sum(x -> max(-x, 0.0), forcing.abstr) * dt_days,
         "prescribed_mm" => sum(prescribed),
-        "removed_surface_water_mm" => sum(removed_sw),
-        "removed_groundwater_mm" => sum(removed_gw),
+        "allocated_surface_water_mm" => sum(allocated_sw),
+        "allocated_groundwater_mm" => sum(allocated_gw),
+        "allocated_note" => "allocated_* and the shortfall are the volumes Wflow's allocation records for each " *
+            "step. The river share is then taken out of the river kinematic wave, which cannot deliver all of " *
+            "it while its discharge sits at the 1.0e-30 m3/s floor; see river_balance_error_mm",
         "return_flow_mm" => sum(returned),
         "shortfall_mm" => sum(shortfall),
         "steps_with_shortfall" => count(>(1.0e-9), shortfall),
         "largest_step_shortfall_mm" => maximum(shortfall; init = 0.0),
+        "river_balance_error_mm" => river_error_mm,
+        "river_balance_error_note" => "Wflow's river balance error summed over the record, as a depth over the " *
+            "cell; negative is water the river kinematic wave created. Above the natural level (the same case " *
+            "without a withdrawal), this is river abstraction the kinematic wave did not deliver.",
     )
 end
 
@@ -760,7 +774,7 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         "wflow_parameters" => parameters,
         "wflow_code_constants" => WFLOW_CODE_CONSTANTS,
         "human_withdrawal" => withdrawal_record(model, withdrawal, forcing, prescribed_mm, removed_sw,
-            removed_gw, shortfall, returned),
+            removed_gw, shortfall, returned, river_error_mm, dt_days),
         "switched_off" => [
             "reservoirs and lakes", "glaciers",
             withdrawal ? "irrigation, paddies and every demand sector but the domestic one that carries abstr" :
@@ -887,7 +901,7 @@ end
 
 @setup_workload begin
     @compile_workload begin
-        for (timestep, n, abstr) in (("PT1D", 60, false), ("PT1H", 72, false), ("PT1D", 60, true))
+        for (timestep, n, abstr) in (("PT1D", 60, false), ("PT1H", 72, false), ("PT1D", 60, true), ("PT1H", 72, true))
             dir = mktempdir()
             try
                 main(["--request", synthetic_case(dir, timestep, n; abstr)])
