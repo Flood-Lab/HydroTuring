@@ -20,8 +20,12 @@ over the cell; land-cover variables are its own fraction-weighted sums):
              evaporation, interception evaporation and snow evaporation
 * `sbl`      snowEvap, the snow evaporation counted once inside totalET. It
              is taken out of the snow cover, and the degree-day pack holds
-             no liquid water, so what leaves it leaves as ice; never above
-             evspsbl and never negative
+             no liquid water, so what leaves it leaves the solid store; never
+             above evspsbl and never negative. CWatM takes it at any
+             temperature (snow_frost.py:788 has no temperature condition),
+             about two thirds of it on days above 0 degC on the gate runs, so
+             it is evaporation drawn from the solid snow store rather than
+             resolved sublimation
 * `mrro`     runoff: surface runoff, interflow and baseflow after CWatM's
              runoff-concentration lag, i.e. what leaves the cell
 * `dis`      the same over the catchment area, m3/s
@@ -52,10 +56,22 @@ a forcing without the column writes the same settings, byte for byte, as
 before, so no other probe can be touched. The withdrawal is given to CWatM
 as an industrial demand map whose withdrawal and consumption are both
 `abstr`, so it is fully consumptive and returns nothing; the domestic map is
-zero and livestock is off. CWatM 1.11 reads sector demand at most monthly
-(industryTimeMonthly; the reader refreshes on a new month), so each calendar
-month of CWatM's calendar carries the mean of that month's `abstr`: monthly
-volumes are honoured, the shape within a month is not. swAbstractionFrac = 0
+zero and livestock is off. CWatM 1.11's demand readers are monthly only: they re-read on newStart
+or a new month (industry.py:112-147), and water_demand.py:1267-1278 derives
+nonIrrDemand, pot_nonIrrConsumption and nonIrrReturnFlowFraction only then.
+The demand file therefore holds one record per month, the depth of the
+month's first row stamped on that row's date, which CWatM's own read returns
+on that day. Before every other step the adapter writes that row's depth
+into industryDemand, pot_industryConsumption, nonIrrDemand and
+pot_nonIrrConsumption (zero at or below CWatM's InvCellArea minimum, as
+industry.py:132-135 does), with ind_efficiency = 1 and
+nonIrrReturnFlowFraction = 0. No row's demand is known before its step, and
+a guard stops the run if CWatM's nonIrrDemand after a step differs from the
+row's depth. CWatM's own code still removes the water: frac_industry and
+totalDemand every step (water_demand.py:1281-1287), pumping
+(water_demand.py:2068), withdrawal (water_demand.py:2127-2131) and the store
+update (groundwater.py:120). CWatM's demand cannot be negative, so a
+negative `abstr` (a net return) is not honoured; run.json reports it. swAbstractionFrac = 0
 sends the whole demand to groundwater, where CWatM pumps
 nonFossilGroundwaterAbs = min(storGroundwater - 0.01 mm, demand) out of
 storGroundwater (groundwater.py:120). limitAbstraction = True leaves any
@@ -143,7 +159,7 @@ from pathlib import Path
 import numpy as np
 from netCDF4 import Dataset
 
-MODEL = {"name": "cwatm", "version": "1.11-5baaadd.3"}
+MODEL = {"name": "cwatm", "version": "1.11-5baaadd.4"}
 COLUMNS = ["time", "pr", "evspsbl", "sbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0, "PT15M": 1.0 / 96.0, "PT5M": 1.0 / 288.0, "PT1M": 1.0 / 1440.0}
 
@@ -582,6 +598,14 @@ swAbstractionFrac = 0.0
 """
 
 
+def feed_depths(forcing: list[dict], dt_days: float) -> np.ndarray | None:
+    """Each row's prescribed net withdrawal as depth per CWatM day (m), floored
+    at zero because CWatM's demand cannot be negative; None without `abstr`."""
+    if "abstr" not in forcing[0]:
+        return None
+    return np.maximum(np.array([r["abstr"] for r in forcing], dtype=float) * dt_days / 1000.0, 0.0)
+
+
 def build_case(work: Path, forcing: list[dict], static: dict, dt_days: float,
                med: dict | None = None) -> dict:
     """Write every file CWatM reads for this case. Returns what was chosen."""
@@ -609,33 +633,45 @@ def build_case(work: Path, forcing: list[dict], static: dict, dt_days: float,
     write_grid(work / "ewref.nc", lat, {"EWRef": pet}, days, units)
 
     demand = None
-    if "abstr" in forcing[0]:
-        # CWatM's calendar advances one day per forcing row, so a row's month is
-        # the month CWatM reads its demand for. Each month carries the mean net
-        # withdrawal of its rows, as depth per CWatM day (demand_unit = True).
-        want = np.array([r["abstr"] for r in forcing]) * dt_days / 1000.0
-        rows_by_month: dict[dt.date, list[int]] = {}
+    feed = feed_depths(forcing, dt_days)
+    if feed is not None:
+        # One record per month of CWatM's calendar (a day per forcing row): the
+        # depth of the month's first row, stamped on that row's date, so CWatM's
+        # own reads on newStart and on each new month return exactly that day's
+        # depth and nothing later. Every other row is written into CWatM's demand
+        # state before its step (run_cwatm).
+        first_row: dict[dt.date, int] = {}
         for i in range(n):
-            rows_by_month.setdefault((start + dt.timedelta(days=i)).replace(day=1), []).append(i)
-        months = sorted(rows_by_month)
-        depth = np.array([max(0.0, float(want[rows_by_month[k]].mean())) for k in months])
-        month_days = np.array([(k - months[0]).days for k in months], dtype=float)
-        month_units = f"days since {months[0].isoformat()} 00:00:00"
-        write_grid(work / "demand_industry.nc", lat, {"indww": depth, "indwc": depth}, month_days, month_units)
+            first_row.setdefault((start + dt.timedelta(days=i)).replace(day=1), i)
+        months = sorted(first_row)
+        depth = np.array([feed[first_row[k]] for k in months])
+        record_days = np.array([first_row[k] for k in months], dtype=float)
+        record_units = f"days since {start.isoformat()} 00:00:00"
+        write_grid(work / "demand_industry.nc", lat, {"indww": depth, "indwc": depth}, record_days, record_units)
         zero = np.zeros(len(months))
-        write_grid(work / "demand_domestic.nc", lat, {"domww": zero, "domwc": zero}, month_days, month_units)
-        below = [k.isoformat()[:7] for k, d in zip(months, depth) if 0.0 < d <= 1.0 / area_m2]
+        write_grid(work / "demand_domestic.nc", lat, {"domww": zero, "domwc": zero}, record_days, record_units)
         demand = {
             "option": "includeWaterDemand = True, limitAbstraction = True, swAbstractionFrac = 0",
-            "maps": "demand_industry.nc: indww = indwc = the month's mean abstr (m per CWatM day, demand_unit = True); "
-                    "demand_domestic.nc: zero; uselivestock = False",
-            "resolution": "monthly: CWatM 1.11 reads sector demand at most once a month (industryTimeMonthly)",
+            "maps": "demand_industry.nc: one record per month, indww = indwc = the depth of the month's first row, "
+                    "stamped on that row's date (days since the start date); demand_domestic.nc: zero; "
+                    "uselivestock = False; demand_unit = True (m per CWatM day)",
+            "daily_feed": "CWatM 1.11 re-reads sector demand only on newStart or a new month (industry.py:112-147) "
+                          "and derives nonIrrDemand, pot_nonIrrConsumption and nonIrrReturnFlowFraction only then "
+                          "(water_demand.py:1267-1278). Before every other step the adapter sets industryDemand, "
+                          "pot_industryConsumption, nonIrrDemand and pot_nonIrrConsumption to that row's depth (zero at "
+                          "or below CWatM's InvCellArea minimum, industry.py:132-135), ind_efficiency = 1 and "
+                          "nonIrrReturnFlowFraction = 0; on newStart and month starts CWatM's own read gives that "
+                          "row's depth. CWatM's own code removes the water: frac_industry and totalDemand every step "
+                          "(water_demand.py:1281-1287), pumping (water_demand.py:2068), withdrawal "
+                          "(water_demand.py:2127-2131) and the store update (groundwater.py:120)",
+            "guard": "the run stops if CWatM's nonIrrDemand after a step differs from that row's depth",
             "source_store": "storGroundwater: nonFossilGroundwaterAbs = min(storGroundwater - 0.01 mm, demand), "
                             "subtracted in groundwater.py:120 before recharge and baseflow",
             "shortfall": "limitAbstraction = True: demand the store cannot meet stays unmet (unmetDemand); "
                          "no fossil water is supplied",
+            "negative": "CWatM's demand cannot be negative: a net return (negative abstr) is not honoured; "
+                        "its total is reported as ignored_negative_mm",
             "gwex": "gwex = -nonFossilGroundwaterAbs, what CWatM removed; return flow is zero (consumption = withdrawal)",
-            "months_below_cwatm_minimum": below,
         }
 
     write_grid(work / "ldd.nc", lat, {"ldd": 5.0})
@@ -672,7 +708,8 @@ def scalar(x) -> float:
     return float(np.asarray(x, dtype=float).reshape(-1)[0])
 
 
-def run_cwatm(settings: Path, n_steps: int) -> tuple[dict[str, np.ndarray], dict]:
+def run_cwatm(settings: Path, n_steps: int, feed: np.ndarray | None = None,
+              start: dt.date | None = None) -> tuple[dict[str, np.ndarray], dict]:
     """CWATMexe from cwatm/run_cwatm.py, with the frame stepped here so every
     step's stores can be read."""
     from cwatm.management_modules.globals import Flags, dateVar, globalFlags, settingsfile
@@ -698,8 +735,25 @@ def run_cwatm(settings: Path, n_steps: int) -> tuple[dict[str, np.ndarray], dict
     out = {k: np.zeros(n_steps) for k in names}
     previous = scalar(v.totalSto) + scalar(v.storGroundwater) + scalar(v.gridcell_storage)
     worst = 0.0
+    guard_worst = 0.0
+    # CWatM's newStart is its first step and newMonth a calendar day 1
+    # (timestep.py:858-859); its calendar advances a day per row.
+    month_start = ([k == 0 or (start + dt.timedelta(days=k)).day == 1 for k in range(n_steps)]
+                   if feed is not None else None)
     i = 0
     while frame.currentStep <= model.lastStep:
+        if feed is not None and not month_start[i]:
+            # Between month starts CWatM neither re-reads the demand
+            # (industry.py:117) nor re-derives its totals (water_demand.py:1268),
+            # so the demand it allocates on this step is the state written here:
+            # this row's depth, after CWatM's own InvCellArea filter.
+            d = np.where(feed[i] > v.InvCellArea, feed[i], 0.0).astype(np.float64)
+            v.industryDemand = d.copy()
+            v.pot_industryConsumption = d.copy()
+            v.nonIrrDemand = d.copy()
+            v.pot_nonIrrConsumption = d.copy()
+            v.ind_efficiency = np.ones_like(d)
+            v.nonIrrReturnFlowFraction = np.zeros_like(d)
         frame.step()
         out["P"][i] = scalar(v.Precipitation)
         out["ET"][i] = scalar(v.totalET)
@@ -717,6 +771,13 @@ def run_cwatm(settings: Path, n_steps: int) -> tuple[dict[str, np.ndarray], dict
         out["unmet"][i] = scalar(getattr(v, "unmetDemand", 0.0))
         out["surface"][i] = scalar(getattr(v, "act_SurfaceWaterAbstract", 0.0))
         out["returnflow"][i] = scalar(getattr(v, "returnFlow", 0.0))
+        if feed is not None:
+            expected = feed[i] if feed[i] > scalar(v.InvCellArea) else 0.0
+            gap = abs(out["demand"][i] - expected)
+            guard_worst = max(guard_worst, gap)
+            if gap > 1e-15:
+                raise RuntimeError(f"row {i}: CWatM's demand was {1000.0 * out['demand'][i]!r} mm, "
+                                   f"the forcing prescribes {1000.0 * expected!r} mm")
         now = out["soil"][i] + out["snow"][i] + out["canopy"][i] + out["gw"][i] + out["channel"][i]
         worst = max(worst, abs(now - previous - (out["P"][i] - out["ET"][i] - out["Q"][i] - out["gwabs"][i])))
         previous = now
@@ -734,6 +795,8 @@ def run_cwatm(settings: Path, n_steps: int) -> tuple[dict[str, np.ndarray], dict
         "largest_tws_minus_reported_stores_mm": 1000.0 * float(np.max(np.abs(out["tws"] - reported))),
         "budget": "P - ET - Q + gwex = change in mrso + snw + canopy + gw + channel",
     }
+    if feed is not None:
+        check["largest_demand_minus_prescribed_mm"] = 1000.0 * guard_worst
     return out, check
 
 
@@ -749,11 +812,13 @@ def read_forcing(path: Path) -> list[dict]:
 
 def simulate(forcing: list[dict], static: dict, timestep: str, med: dict | None = None) -> tuple[list[dict], dict]:
     dt_days = TIMESTEP_DAYS[timestep]
+    feed = feed_depths(forcing, dt_days)
     work = Path(tempfile.mkdtemp(prefix="cwatm-"))
     try:
         chosen = build_case(work, forcing, static, dt_days, med)
         with contextlib.redirect_stdout(io.StringIO()):
-            out, check = run_cwatm(work / "settings.ini", len(forcing))
+            out, check = run_cwatm(work / "settings.ini", len(forcing), feed,
+                                   dt.date.fromisoformat(chosen["calendar_start"]))
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -798,12 +863,19 @@ def simulate(forcing: list[dict], static: dict, timestep: str, med: dict | None 
         },
     }
     if "water_demand" in notes:
+        raw = np.array([r["abstr"] for r in forcing], dtype=float) * dt_days   # mm per row, unclamped
+        fed = 1000.0 * np.where(feed > 1.0 / area_m2, feed, 0.0)               # mm per row CWatM was given
+        pumped = 1000.0 * out["gwabs"]
         notes["water_demand"] = {
             **notes["water_demand"],
-            "prescribed_mm": float(sum(max(0.0, r["abstr"]) for r in forcing) * dt_days),
+            "prescribed_mm": float(raw.sum()),
+            "ignored_negative_mm": float(-raw[raw < 0.0].sum()),
+            "rows_below_cwatm_minimum": int(np.sum((feed > 0.0) & (feed <= 1.0 / area_m2))),
             "demanded_by_cwatm_mm": 1000.0 * float(out["demand"].sum()),
-            "withdrawn_from_storGroundwater_mm": 1000.0 * float(out["gwabs"].sum()),
+            "withdrawn_from_storGroundwater_mm": float(pumped.sum()),
             "unmet_mm": 1000.0 * float(out["unmet"].sum()),
+            "rows_pumping_with_zero_abstr": int(np.sum((raw <= 0.0) & (pumped > 0.0))),
+            "largest_cumulative_withdrawn_minus_prescribed_mm": float(np.max(np.abs(np.cumsum(pumped) - np.cumsum(fed)))),
         }
     else:
         notes["water_demand"] = "off: the forcing has no abstr column, so the settings are those of every other probe"

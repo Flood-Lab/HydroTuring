@@ -54,7 +54,7 @@ asked fail as VIOLATION, and they are not alike.
 | `mass/resolution-invariance` | VIOLATION: runoff differs by 52.1 % of the rain between PT1H and PT1D (38.6–52.1 %), evaporation by 0.6 % | CWatM has no dt (below); its groundwater reservoir releases `recessionCoeff × storage` per step, so at PT1H it drains 24 times too fast |
 | `mass/response-nonnegativity` | VIOLATION: runoff 0.29 mm/day below the control on 2002-02-12, eight days after 120 mm was added (seed 1713476937; the other two never dip) | on wetter soil preferential flow takes a larger share of a later storm, and its interflow part replaces surface runoff; runoff concentration releases interflow through a slower kernel than surface runoff, so the next day carries less (below). **A packaging choice**: with `preferentialFlow = False` it passes (largest dip 0.048 mm/day, within tolerance), and the verdict also moves with land cover and with the slope that sets the lag |
 | `mass/catchment-closure` | PASS | residual 0.029 % of the rain; `mrso` within 320 mm; ET 0.43–0.48 of PET |
-| `mass/human-abstraction` | PASS | the prescribed 380 mm of `abstr` leaves the budget on every seed: runoff −378.9 mm, storage −1.1 mm, evaporation −0.005 mm, a residual of 0.002–0.004 % of it (limit 5 %). CWatM's own water-demand module pumped the whole 418 mm of each record from `storGroundwater`, none of it unmet; groundwater recovers each winter, so almost all of it shows as lost baseflow (Prescribed withdrawal) |
+| `mass/human-abstraction` | PASS | the prescribed 380 mm of `abstr` leaves the budget on every seed: runoff −378.9 mm, storage −1.1 mm, evaporation −0.003 to −0.005 mm, a residual of 0.002–0.004 % of it (limit 5 %). CWatM's own water-demand module, fed each day's depth, pumped the whole 418 mm of each record from `storGroundwater`, none of it unmet and none of it early: no day with zero `abstr` pumps, and cumulative withdrawal equals the prescription on every day. Groundwater recovers each winter, so almost all of it shows as lost baseflow (Prescribed withdrawal) |
 | `mass/precipitation-counterfactual` | PASS | 20 % more or less rain on wet days is split 0.85–0.88 to runoff, 0.08–0.10 to evaporation and 0.05 to storage, accounting for 0.999–1.000 of the change; runoff returns 0.86–0.89 of the rain along the ladder; residual 0.028 % |
 | `mass/time-origin-invariance` | PASS | identical to floating point under a 28-year shift; residual 0.050 %. The shift keeps the day of year, so it cannot see CWatM's day-of-year snow terms (Parameters) |
 | `mass/area-invariance`, `mass/causality` | PASS | identical to floating point |
@@ -202,7 +202,7 @@ fraction-weighted sums.
 | --- | --- |
 | `pr` | the forcing, echoed |
 | `evspsbl` | `totalET`: transpiration, bare-soil, open-water, interception and snow evaporation |
-| `sbl` | `snowEvap`, the snow evaporation inside `totalET`: subtracted from the snow cover (`snow_frost.py:790`), whose degree-day pack holds no liquid water, and added once to `totalET` (`landcoverType.py:1017`), so it is the part of `evspsbl` that left as ice, in mm/day like `evspsbl` |
+| `sbl` | `snowEvap`, the snow evaporation inside `totalET`: subtracted from the snow cover (`snow_frost.py:790`), whose degree-day pack holds no liquid water, and added once to `totalET` (`landcoverType.py:1017`), so it is the part of `evspsbl` that left the solid snow store, in mm/day like `evspsbl`. CWatM takes it at any temperature (`snow_frost.py:788` has no temperature condition), and about two thirds of it falls on days above 0 °C on the gate runs, so it is evaporation drawn from the solid snow store rather than resolved sublimation |
 | `mrro` | `runoff`: surface runoff, interflow and baseflow after the runoff-concentration lag, i.e. what leaves the cell |
 | `dis` | the same over the catchment area, m3/s |
 | `gwex` | −`nonFossilGroundwaterAbs`: the water CWatM's own water-demand module pumped out of `storGroundwater` for a prescribed withdrawal (below); zero without one |
@@ -228,9 +228,10 @@ module; the adapter only hands it the demand and reports what CWatM took.
 | --- | --- |
 | Switch | `includeWaterDemand = True`, only when the forcing has an `abstr` column. Both variants of the probe carry it (zeros in `natural`), so both run the same configuration and differ only in the withdrawal |
 | Demand | an industrial demand map (`industryWaterDemandFile`) whose withdrawal (`indww`) and consumption (`indwc`) are both `abstr`, in metres per CWatM day (`demand_unit = True`): fully consumptive, so no return flow. The domestic map is zero and livestock is off (`uselivestock = False`) |
-| Resolution | monthly. CWatM 1.11 reads sector demand at most once a month (`industryTimeMonthly`; the reader refreshes on a new month), so each calendar month carries the mean of its `abstr`. Monthly volumes are honoured; the shape within a month is not (the probe's peak day asks 0.50 mm, the peak month gives 0.48 mm every day) |
+| Daily feed | CWatM 1.11's demand readers are monthly only: they re-read on `newStart` or a new month (`industry.py:112-147`; `timestep.py:858-859` sets both flags), and `water_demand.py:1267-1278` derives `nonIrrDemand`, `pot_nonIrrConsumption` and `nonIrrReturnFlowFraction` only then. The demand file holds one record per month, the depth of the month's first row stamped on that row's date (the start date for the first month), so CWatM's own read returns that day's depth. Before every other step the adapter writes CWatM's demand state: `industryDemand`, `pot_industryConsumption`, `nonIrrDemand` and `pot_nonIrrConsumption` become that row's depth (zero at or below CWatM's `InvCellArea` minimum, as `industry.py:132-135` does), `ind_efficiency = 1` and `nonIrrReturnFlowFraction = 0`. No other month-start computation touches this demand: `water_demand.py:1313` resets irrigation counters and environmental flow is off. CWatM's own code still removes the water: `frac_industry` and `totalDemand` every step (`water_demand.py:1281-1287`), pumping (`:2068`), withdrawal (`:2127-2131`) and the store (`groundwater.py:120`). No row's demand is known before its step, and a guard stops the run if CWatM's `nonIrrDemand` after a step differs from the row's depth |
 | Source store | `swAbstractionFrac = 0` sends the whole demand to groundwater. CWatM pumps `nonFossilGroundwaterAbs = min(storGroundwater − 0.01 mm, demand)` and subtracts it from `storGroundwater` (`groundwater.py:120`) before that day's recharge and baseflow |
 | Shortfall | `limitAbstraction = True`: what the store cannot supply stays in `unmetDemand` and is not drawn from fossil water outside the budget. The adapter never forces the prescribed amount; `run.json` reports the prescribed, demanded, withdrawn and unmet totals |
+| Negative `abstr` | CWatM's demand cannot be negative, so a net return (a negative `abstr`) is not honoured: that row's demand is zero. `run.json` reports the unclamped prescribed total and the negative total that was ignored |
 | `gwex` | −`nonFossilGroundwaterAbs`, what CWatM actually removed. Channel abstraction and return flow would leave the reported stores with routing off; the adapter stops with an error if either is ever non-zero. `evspsbl` stays `totalET`, which does not contain non-irrigation consumption |
 
 Switching the module on cannot move another probe. Without `abstr` the
@@ -240,6 +241,16 @@ also inert at zero demand: with it on, the `natural` variant of
 `mass/human-abstraction` and `mass/catchment-closure` with a column of zero
 `abstr` added reproduce the 1.11-5baaadd.2 output byte for byte in every
 column.
+
+The feed is causal. On the three gate seeds of `mass/human-abstraction` no
+day with zero `abstr` pumps, cumulative withdrawal equals the prescription on
+every day (largest gap 0 mm), the guard never fires, and the irrigated run is
+identical to the natural one, column for column, until 2000-05-02, the first
+day with `abstr` above zero. A run that starts mid-month asks CWatM for
+exactly what is prescribed: a 60-day case from 20 July with 0.1, 0.5 and
+0.2 mm/day in July, August and September demands 20.1 of 20.1 mm. It
+withdraws 14.5 mm of it, because a case without spinup starts with an empty
+groundwater store, and reports the other 5.6 mm as unmet.
 
 ## One grid cell
 
