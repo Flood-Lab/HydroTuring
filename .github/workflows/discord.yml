@@ -1,0 +1,102 @@
+name: discord
+
+# Opens a post in the matching Discord forum for every proposal:
+# probe-proposal goes to the probe forum, model-proposal and model-request
+# to the model forum, each through its own webhook.
+#
+# Triggered on `labeled`, not `opened`: the issue form applies its label just
+# after the issue is created, so it is not reliably in the `opened` payload.
+# The same trigger also catches a maintainer labelling a blank issue by hand.
+#
+# Proposals opened before this workflow existed are forwarded by hand, oldest
+# first. Nothing records what has already been posted, so forwarding an issue
+# twice opens two posts:
+#
+#   gh workflow run discord --ref main -f issues="3 7 8"
+#
+# Titles and bodies are untrusted text from anyone with a GitHub account.
+# They arrive as JSON, from the event file or the API, and are only ever
+# handled by jq, never pasted into the script. There is no checkout: the
+# webhook secrets are only ever seen by curl.
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issues:
+        description: 'Issue numbers to forward, space-separated, in posting order'
+        required: true
+
+permissions:
+  issues: read
+
+jobs:
+  post:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.label.name == 'probe-proposal' ||
+      github.event.label.name == 'model-proposal' ||
+      github.event.label.name == 'model-request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Open forum posts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROBE_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_PROBE }}
+          MODEL_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_MODEL }}
+          LABEL: ${{ github.event.label.name }}
+          ISSUES: ${{ inputs.issues }}
+        run: |
+          set -f
+          if [ -z "$PROBE_WEBHOOK" ] || [ -z "$MODEL_WEBHOOK" ]; then
+            echo "::error::set both DISCORD_WEBHOOK_PROBE and DISCORD_WEBHOOK_MODEL"
+            exit 1
+          fi
+
+          # Which forum each label posts to. Any other label posts nowhere.
+          forum='def forum: {"probe-proposal": "probe", "model-proposal": "model", "model-request": "model"}[.];'
+
+          # One issue per line, whichever event started the run.
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            for n in $ISSUES; do
+              case "$n" in *[!0-9]*) echo "::error::not an issue number: $n"; exit 1 ;; esac
+            done
+            for n in $ISSUES; do gh api "repos/$GITHUB_REPOSITORY/issues/$n"; done |
+              jq -c "$forum"' . + {forum: ([.labels[].name | forum | values] | first)}' > issues.jsonl
+          else
+            jq -c --arg label "$LABEL" "$forum"' .issue + {forum: ($label | forum)}' \
+              "$GITHUB_EVENT_PATH" > issues.jsonl
+          fi
+
+          # Refuse the whole batch before any of it is posted.
+          unrouted=$(jq -r 'select(.forum == null) | "#\(.number)"' issues.jsonl | xargs)
+          if [ -n "$unrouted" ]; then
+            echo "::error::not a probe or model proposal: $unrouted"
+            exit 1
+          fi
+
+          while IFS= read -r issue; do
+            f=$(jq -r .forum <<<"$issue")
+            if [ "$f" = probe ]; then webhook=$PROBE_WEBHOOK; else webhook=$MODEL_WEBHOOK; fi
+            jq '{
+              thread_name: ("#\(.number) \(.title)" | .[0:100]),
+              allowed_mentions: {parse: []},
+              embeds: [{
+                title: (.title | .[0:256]),
+                url: .html_url,
+                author: {name: .user.login, url: .user.html_url},
+                description: ((.body // "") as $b
+                  | if $b == "" then "(no description)"
+                    elif ($b | length) <= 3500 then $b
+                    else ($b | .[0:3500]) + "…\n\n[Read the full proposal on GitHub](\(.html_url))" end),
+                timestamp: .created_at,
+                footer: {text: ([.state] + [.labels[].name | select(. == "accepted")] | join(" · "))}
+              }]
+            }' <<<"$issue" > payload.json
+            curl --fail-with-body --retry 3 -sS -H 'Content-Type: application/json' \
+                 --data @payload.json "$webhook"
+            echo "posted #$(jq .number <<<"$issue") to the $f forum"
+            sleep 2
+          done < issues.jsonl

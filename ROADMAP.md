@@ -153,18 +153,13 @@ one, which is the deployment case the field actually cares about. The work is
 in defending where the hull boundary sits; push one attribute out at a time,
 or you generate catchments no real place resembles and fail honest models.
 
-### `mass/precipitation-counterfactual` &middot; standard &middot; **unclaimed**
-`ht init-probe --template counterfactual`
-
-The same seed twice, once wetter. The added water must appear in the
-difference between the reported budgets, split across evaporation, runoff and
-storage.
-
-*Discriminates:* closure by construction, structurally rather than
-circumstantially. A model that solves for a budget term as the residual closes
-perfectly on every seed forever, and today only its storage bounds catch it. A
-counterfactual asks where the extra water went, which construction cannot
-answer.
+### `mass/precipitation-counterfactual` &middot; **merged**
+The same seed 20% wetter, 10% wetter and 20% drier: the water added or
+removed must be partitioned among evaporation, runoff and storage, no term
+may ignore or absorb it, and runoff must rise from drier to wetter. Catches
+closure by construction: `reference_cheater` closes exactly on every seed,
+yet its evaporation does not respond to added rain.
+Contributed by Qingyi Yang (Politecnico di Milano).
 
 ### `mass/time-origin-invariance` &middot; **merged**
 By Siavash Shams. The same weather under a 28-year calendar shift that
