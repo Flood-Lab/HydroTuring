@@ -49,6 +49,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `google_flood_forecast` | Zhi Li (CU Boulder), [#1](../../issues/1) | HydroTuring maintainers |
 | `dhbv2` | Zhi Li (CU Boulder), [#2](../../issues/2) | HydroTuring maintainers |
 | `wflow_sbm` | Yuanhang Liu (Independent Researcher), [#29](../../issues/29) | HydroTuring maintainers |
+| `summa` | Yuanhang Liu (Independent Researcher), [#30](../../issues/30) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:
