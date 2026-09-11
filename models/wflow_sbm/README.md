@@ -1,7 +1,7 @@
 # wflow_sbm under HydroTuring
 
 The SBM land-hydrology model of Deltares' [Wflow.jl](https://github.com/Deltares/Wflow.jl),
-at the v1.0.4 release (commit `82df720`), requested in
+at the v1.0.4 release (commit `82df720`), requested by Yuanhang Liu (Independent Researcher) in
 [Flood-Lab/HydroTuring#29](https://github.com/Flood-Lab/HydroTuring/issues/29).
 The model paper (van Verseveld et al. 2024, *GMD*,
 [10.5194/gmd-17-3199-2024](https://doi.org/10.5194/gmd-17-3199-2024)) evaluates v0.7.3;
@@ -85,7 +85,28 @@ What the catchment names is used; nothing is derived from the forcing.
 "Moselle" is the schematisation Deltares ships to test Wflow (`staticmaps-moselle.nc`,
 wflow-artifacts v1.0.0): medians over its 50 063 active cells, or its 5 809 river cells.
 `baseflow_coefficient` and `latitude_deg` have no counterpart and are unused (the probe gives
-potential evaporation, so latitude plays no part). Every value used is written to `run.json`.
+potential evaporation, so latitude plays no part).
+
+**What `run.json` records.** Every value the adapter sets or relies on is read back from the
+model Wflow built and written to `run.json`:
+- `notes.wflow_model_options`: the model options as Wflow resolved them, defaults included,
+  among them the soil layers `[100, 300, 800]`, the kinematic-wave sub-steps and the
+  conductivity profile;
+- `notes.wflow_parameters`: every soil, vegetation, interception, snow, routing and domain
+  parameter of the cell, among them the Feddes heads, the air-entry pressure, the
+  capillary-rise parameters and the rooting depth after Wflow's cap, in the units Wflow holds
+  them for the case's step;
+- `notes.parameters.static_maps_written`: the static-map values as the adapter wrote them;
+- `notes.human_withdrawal`: whether the case prescribed a withdrawal and, if it did, what it asked
+  for, what the river and the saturated store supplied, the return flow and any shortfall.
+
+A few numbers are constants in Wflow's source rather than parameters, so they cannot be read
+back from the model. `notes.wflow_code_constants` names them with their values and files: the
+snow refreezing efficiency, the rain and snow correction factors, the stemflow share of the gap
+fraction, the 23-hour interception switch, the transpiration bounds of the Feddes h3
+interpolation, the unsaturated-flow iteration step, the largest water-table change per lateral
+sub-step, the kinematic-wave solver's tolerance and iteration cap, and the shares of river and
+subsurface storage that Wflow's allocation treats as available to a prescribed withdrawal.
 
 **Switched off**, because the probe's catchment has none of it: reservoirs and lakes,
 glaciers, paddies, irrigation and all water demand, floodplains, lateral snow transport
@@ -102,12 +123,14 @@ model follows the calendar.
 | `evspsbl` | Wflow's total actual evapotranspiration (`actevap`): interception, soil evaporation, transpiration, open water |
 | `mrro` | river `q_av` at the outlet + overland `q_av` + lateral subsurface `ssf` out of the outlet cell, as a depth rate over the cell |
 | `dis` | `mrro` over the catchment's area: `mrro × area_km2 / 86.4`, m3/s |
-| `gwex` | minus the leakage out of the saturated store; identically zero with `MaxLeakage` 0 |
+| `gwex` | minus the leakage out of the saturated store (zero with `MaxLeakage` 0), and minus what Wflow's water allocation takes when a probe prescribes a withdrawal (below) |
 | `mrso` | the SBM soil column: unsaturated store over all layers plus the saturated store |
-| `gw` | zero: the `sbm` model type has no store below the soil column |
 | `snw` | dry snow plus the liquid water held in the pack |
 | `canopy` | canopy storage |
 | `channel` | water in the land and river kinematic waves, as a depth over the cell |
+
+**`gw` is not reported.** The `sbm` model type has no store below the soil column, so there is
+nothing to report; `run.json` records that under `notes.not_reported`.
 
 **Why the saturated store is `mrso` and not `gw`.** SBM's saturated zone is the lower part of
 the same soil column, below a pseudo water table `zi`, bounded by the same thickness and
@@ -117,6 +140,44 @@ probes apply to `mrso`. The contract's `gw` is groundwater *below* the soil colu
 `sbm` type has none (Wflow's `sbm_gwf` type adds an aquifer there). Reporting the saturated
 store as `gw` would count the soil capacity twice in the dry-down and runoff bounds, which
 add the initial `gw` to the capacity.
+
+## A prescribed withdrawal
+
+`mass/human-abstraction` puts a net withdrawal in the forcing as an `abstr` column, in mm/day.
+The adapter hands it to Wflow's own water demand and allocation (`demand/water_demand.jl` in
+v1.0.4) and does not subtract anything from the outputs itself.
+
+- **Demand.** Wflow's domestic sector is switched on (`model.water_demand.domestic__flag`). Its
+  gross and net demand are both set to `abstr` from the forcing each step, as a depth per step.
+  With gross equal to net, Wflow's return-flow fraction is zero, so all the water allocated is
+  consumed.
+- **Sources.** On the one-cell domain Wflow draws from two sources, in this order:
+  1. the river of the cell, up to 0.80 of the river's storage at the start of the step, taken out
+     of the river kinematic wave as abstraction;
+  2. the saturated store, up to 0.75 of the lateral subsurface storage, taken as negative
+     recharge before the lateral subsurface kinematic wave, and so out of `mrso`.
+
+  Wflow's defaults set the order and the areas: the Moselle model has no map for either, so
+  demand goes to surface water first, in a single allocation area. There are no reservoirs, and
+  the `sbm` type has no aquifer below the soil column.
+- **Shortfall.** Each source gives no more than it holds, and whatever the two cannot supply is
+  not taken. `run.json` records the shortfall under `notes.human_withdrawal`, with the number of
+  steps it occurred on and the largest single step.
+- **`gwex`.** What the allocation took from the river and the saturated store in each step is
+  declared as negative `gwex`, together with the leakage (zero here).
+- **What it took on the gate seeds.** Nothing fell short. Each record, including its spin-up
+  year, prescribes 418 mm. The river supplied 4.7 to 5.6 mm of it and the saturated store the
+  rest, 412 to 413 mm. The saturated store's share leaves cleanly: Wflow's subsurface balance
+  closes to 8e-11 m3. The river kinematic wave puts back 3.4 to 4.3 mm of the river's share.
+  When its discharge sits at the 1e-30 m3/s floor it cannot deliver a negative lateral inflow
+  (see the budget below). Wflow's river balance error, and with it the adapter's residual, grows
+  by that much against the natural run. `gwex` still declares what the allocation recorded; the
+  put-back water is the residual that `mass/human-abstraction` reports.
+- **Other probes.** Water demand is switched on only when the forcing has an `abstr` column. Both
+  variants of `mass/human-abstraction` carry one (all zeros in `natural`), so the pair runs one
+  configuration. Switching demand on changes nothing by itself. With an all-zero column added,
+  the output tables of `mass/catchment-closure` and of `mass/dry-down` on seed 1200831778 are
+  byte for byte those of the adapter before the wiring, and without the column they are too.
 
 ## The step
 
@@ -140,11 +201,20 @@ own `Manifest.toml` at that commit, plus JSON 1.8.0, Parsers 3.0.0 and StructUti
 adapter; the committed `Manifest.toml` here records that set. The adapter is a small package
 (`src/WflowSbmAdapter.jl`) with a PrecompileTools workload that runs a daily and an hourly
 synthetic case at build time, so the Wflow code a case needs is compiled into the image:
-without it a container spent 25 to 30 seconds compiling before its first step. The depot is
-read-only at run time (`JULIA_DEPOT_PATH=/tmp/julia-depot:/opt/julia-depot`) and compiled for a
-generic CPU of the architecture; Julia writes nothing to `/tmp` under the harness's isolation.
-The adapter writes only its scratch schematisation there (static maps, forcing and TOML,
-under a megabyte for a ten-year daily case), in a temporary directory it removes after the run.
+without it a container spent 25 to 30 seconds compiling before its first step. The image's
+depot, `/opt/julia-depot`, is read-only at run time and compiled for a generic CPU of the
+architecture.
+
+Apart from `/io/output`, the only writable place in the container is `/tmp`, a 64 MB tmpfs the
+harness mounts. Two things can write there:
+- **Julia.** Its first depot is `/tmp/julia-depot`
+  (`JULIA_DEPOT_PATH=/tmp/julia-depot:/opt/julia-depot`). Julia would put compiled code or logs
+  there if the caches built into the image did not match. They do, and under the harness's
+  isolation Julia writes nothing there.
+- **The adapter.** It writes its scratch schematisation (static maps, forcing and TOML, under a
+  megabyte for a ten-year daily case) to a temporary directory on `/tmp`.
+
+The adapter removes that directory after the run, so `/tmp` is empty when the container exits.
 
 Built on aarch64 (Docker Desktop, Apple silicon); image 2.05 GB. One ten-year daily case takes
 4.9 s in the container (3.4 s inside Julia, peak RSS 548 MB), a forty-day hourly case 2.1 s.
@@ -158,7 +228,7 @@ ht run --model wflow_sbm --gate-seeds
 
 ## Result
 
-**FAIL (INCOMPLETE), 14 of 19 probes passed**, adapter `1.0.4-ht.2`, on the gate seeds, every
+**FAIL (INCOMPLETE), 15 of 20 probes passed**, adapter `1.0.4-ht.3`, on the gate seeds, every
 case on the full record (`window_days: full`).
 
 | Probe | Verdict | Reason | Detail |
@@ -173,6 +243,7 @@ case on the full record (`window_days: full`).
 | `mass/causality` | PASS | OK | identical to floating point before the storm; 1.00 of it runs off after |
 | `mass/dry-down` | FAIL | VIOLATION | on one seed runoff rises 3.6 % between weekly blocks with no rain |
 | `mass/extreme-rain` | PASS | OK | returns 1.00 of the rain added at every rung |
+| `mass/human-abstraction` | PASS | OK | the prescribed 380 mm leave the budget to within 0.8 to 1.1 % of it; on the worst seed evaporation −124 mm, runoff −270 mm, storage +18 mm |
 | `mass/phase-counterfactual` | PASS | OK | snow as rain moves the volumes by 0.6 to 3.8 % of the rain |
 | `mass/precipitation-counterfactual` | PASS | OK | rain 20 % wetter, 10 % wetter or 20 % drier: evaporation takes 0.20 to 0.22 of the change, runoff 0.75 to 0.78, storage 0.02, summing to 1.0001; runoff rises on every rung |
 | `mass/resolution-invariance` | PASS | OK | PT1D against PT1H: 0.4 to 1.1 % of the rain |
@@ -185,6 +256,12 @@ case on the full record (`window_days: full`).
 
 The three energy-flux probes are INCOMPLETE because wflow_sbm computes no latent, sensible
 or ground heat flux; that is the model declining to be asked, not a failure.
+
+`mass/human-abstraction` passes because the adapter now takes the prescribed withdrawal through
+Wflow's own water demand and allocation (see [A prescribed withdrawal](#a-prescribed-withdrawal)).
+At `1.0.4-ht.2` it did not read `abstr` and failed by the whole 380 mm. The 3.1 to 4.1 mm that
+remain over the scored window match the water the river kinematic wave puts back from the
+river's share of the withdrawal (3.4 to 4.3 mm over the whole record).
 
 **What the geometry change moved**, from `1.0.4-ht.1` (one cell with the catchment's area) to
 `1.0.4-ht.2` (this representative cell), on the same gate seeds:
@@ -202,7 +279,9 @@ Everything else passes in both.
 **The budget.** Wflow's own land, overland and subsurface mass balances close to 2e-13 mm,
 3e-16 m3/s and 9e-11 m3 per step. The adapter's budget over the reported stores closes to
 1.8e-4 to 2.1e-4 of the rain on the closure probe and 2.7e-4 to 3.2e-4 on the time-origin
-control, and all of that is the river kinematic wave. Its lateral inflow is rain on the river
+control, and all of that is the river kinematic wave. Wflow's river balance error summed over
+the record (`wflow_river_balance_error_cumulative_mm` in `run.json`) equals the adapter's residual.
+Its lateral inflow is rain on the river
 surface minus open-water evaporation from it, which is negative on 2 877 of the 4 015 days of
 the closure probe's first seed; the wave floors its discharge at 1e-30 m3/s rather than drying
 the channel, and the water that creates, 1.71 mm over the record, is exactly the adapter's
@@ -291,6 +370,11 @@ scored with the harness's criteria:
 The land roughness and horizontal-conductivity settings tried on ht.1 moved neither remaining
 violation there and were not repeated.
 
+The rows marked ht.2 were computed before `1.0.4-ht.3`. That version drops the `gw` column, adds
+to `run.json`, and takes a prescribed withdrawal through Wflow's water demand. Without a
+withdrawal it changes no output value: on the gate seeds, its archive rows for the nineteen
+probes other than `mass/human-abstraction` match the ht.2 rows in verdict and detail.
+
 `momentum/routing-conservation`, channel over its bound (limit 1), seeds 417694852,
 924646966, 1431599080:
 
@@ -334,6 +418,7 @@ runoff cv must reach 0.1):
 | roots 0.99 × thickness | pass | pass | pass (0.002 mm drains) |
 | Moselle thickness | pass | pass | fail: runoff rises 7.6 % |
 
-The mapping of the saturated store to `mrso` rather than `gw` moves no result: `mrso` stays
-inside its bound on every closure seed, and the dry-down and runoff bounds, which would add an
-initial `gw` to the capacity, pass or fail here for reasons that do not involve it.
+Putting the saturated store in `mrso` moves no result: `mrso` stays inside its bound on every
+closure seed. The dry-down and runoff bounds would add an initial `gw` to the capacity if one
+were reported. None is, so they are held to the stated capacities, and they pass or fail here
+for reasons that do not involve it.
