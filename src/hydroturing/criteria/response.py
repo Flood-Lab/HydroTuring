@@ -15,6 +15,9 @@ The three failure modes this separates:
   the shares do not sum   the model invents or destroys water in the
                           difference between the two runs, even though each
                           run closes on its own
+
+A probe may pair several perturbed variants with one control, and a variant
+may remove water as well as add it; each pair is scored on its own.
 """
 
 from __future__ import annotations
@@ -33,9 +36,8 @@ from hydroturing.protocol import RunResult
 from hydroturing.spec import ProbeSpec
 
 
-def pick(runs: dict[str, RunResult], params: dict, key: str, default: str) -> RunResult:
-    """Resolve a variant named in the probe to the run the model produced for it."""
-    name = str(params.get(key, default))
+def lookup(runs: dict[str, RunResult], name: str, key: str) -> RunResult:
+    """The run the model produced for a variant named under `key` in the probe."""
     if name not in runs:
         raise ValueError(
             f"variant '{name}' is not one of this probe's variants "
@@ -45,90 +47,130 @@ def pick(runs: dict[str, RunResult], params: dict, key: str, default: str) -> Ru
     return runs[name]
 
 
+def pick(runs: dict[str, RunResult], params: dict, key: str, default: str) -> RunResult:
+    """Resolve a variant named in the probe to the run the model produced for it."""
+    return lookup(runs, str(params.get(key, default)), key)
+
+
 @criterion("counterfactual_response", paired=True)
 def counterfactual_response(
     runs: dict[str, RunResult], probe: ProbeSpec, params: dict
 ) -> CriterionResult:
-    """Added water must be partitioned, and no single term may take it all."""
+    """Added or removed water must be partitioned, and no single term may take it all.
+
+    `perturbed` names one variant or a list of them. Each is scored against
+    the control on its own, with the same three checks, and any failing pair
+    fails the criterion; the value reported is the pair whose accounted sum
+    sits farthest from one. A variant that removes water divides by a
+    negative change in the driver, so the shares keep their meaning: the
+    fraction of the removed water each term gave up. The minimum is signed,
+    so a term that moves against the change fails it; the largest share is
+    compared in magnitude.
+    """
     driver = str(params.get("driver", "pr"))
     terms = list(params.get("terms", ["evspsbl", "mrro"]))
     min_share = float(params.get("min_share", 0.05))
     max_share = float(params.get("max_share", 0.90))
     sum_tolerance = float(params.get("sum_tolerance", 0.10))
+    names = params.get("perturbed", "perturbed")
+    if isinstance(names, str):
+        names = [names]
+    if not names:
+        raise ValueError("counterfactual_response needs at least one variant under 'perturbed'")
+    several = len(names) > 1
 
     control = make_window(pick(runs, params, "control", "control"), probe)
-    perturbed = make_window(pick(runs, params, "perturbed", "perturbed"), probe)
-
     if driver not in control.forcing.columns:
         raise ValueError(f"counterfactual_response needs '{driver}' in the forcing")
-
-    added = float(
-        perturbed.volume(perturbed.forcing[driver]).sum()
-        - control.volume(control.forcing[driver]).sum()
-    )
-    if added <= 0:
-        raise ValueError(
-            f"the perturbed variant adds no {driver} ({added:.4g} mm); the "
-            "generator has to make the two variants actually differ"
-        )
-
-    shares: dict[str, float] = {}
     for var in terms:
         if var not in control.table.columns:
             raise ValueError(f"counterfactual_response needs '{var}' in the model result")
-        change = float(
-            perturbed.volume(perturbed.table[var]).sum()
-            - control.volume(control.table[var]).sum()
-        )
-        shares[var] = change / added
-
     states = reported_states(control, probe)
-    if states:
-        def storage_change(w):
-            return float(w.storage(states)[-1]) - w.storage_initial(states)
 
-        shares["storage"] = (storage_change(perturbed) - storage_change(control)) / added
+    def storage_change(w):
+        return float(w.storage(states)[-1]) - w.storage_initial(states)
 
-    failures = []
-    for var, share in shares.items():
-        if var == "storage":
-            continue
-        if abs(share) < min_share:
-            failures.append(
-                f"{var} barely responds ({share:+.3f} of the added {driver}, "
-                f"minimum {min_share:g})"
+    def sign_word(mm):
+        return "added" if mm > 0 else "removed"
+
+    # The control side of every difference, summed once.
+    control_driver = control.volume(control.forcing[driver]).sum()
+    control_terms = {var: control.volume(control.table[var]).sum() for var in terms}
+    control_storage = storage_change(control) if states else 0.0
+
+    per_variant: dict[str, dict] = {}
+    failures: list[str] = []
+    for name in names:
+        perturbed = make_window(lookup(runs, name, "perturbed"), probe)
+        if len(perturbed.table) != len(control.table):
+            raise ValueError(
+                f"variant '{name}' produced a window of a different length "
+                f"({len(perturbed.table)} against {len(control.table)}); a "
+                "perturbation must preserve the number of steps"
             )
+        added = float(perturbed.volume(perturbed.forcing[driver]).sum() - control_driver)
+        if abs(added) < 1e-9:
+            raise ValueError(
+                f"variant '{name}' does not change {driver} ({added:.4g} mm); the "
+                "generator has to make the variants actually differ"
+            )
+        word = sign_word(added)
 
-    hog, hog_share = max(shares.items(), key=lambda kv: abs(kv[1]))
-    if abs(hog_share) > max_share:
-        failures.append(
-            f"{hog} absorbs {abs(hog_share):.3f} of the added {driver} "
-            f"(limit {max_share:g})"
-        )
+        shares = {
+            var: float(perturbed.volume(perturbed.table[var]).sum() - control_terms[var]) / added
+            for var in terms
+        }
+        if states:
+            shares["storage"] = (storage_change(perturbed) - control_storage) / added
 
-    accounted = float(sum(shares.values()))
-    if abs(accounted - 1.0) > sum_tolerance:
-        failures.append(
-            f"the responses account for {accounted:.3f} of the added {driver}, "
-            f"not 1.000 (tolerance {sum_tolerance:g})"
-        )
-
-    ok = not failures
-    detail = ", ".join(f"{k} {v:+.3f}" for k, v in shares.items())
-    return CriterionResult(
-        name="counterfactual_response",
-        status=PASS if ok else FAIL,
-        value=accounted,
-        threshold=1.0 + sum_tolerance,
-        message=(
-            f"added {driver} is partitioned ({detail})" if ok else "; ".join(failures)
-        ),
-        diagnostics={
+        prefix = f"{name}: " if several else ""
+        for var, share in shares.items():
+            if var != "storage" and share < min_share:
+                verdict = "moves the wrong way" if share < 0 else "barely responds"
+                failures.append(
+                    f"{prefix}{var} {verdict} ({share:+.3f} of the {word} {driver}, "
+                    f"minimum {min_share:g})"
+                )
+        hog, hog_share = max(shares.items(), key=lambda kv: abs(kv[1]))
+        if abs(hog_share) > max_share:
+            failures.append(
+                f"{prefix}{hog} absorbs {abs(hog_share):.3f} of the {word} {driver} "
+                f"(limit {max_share:g})"
+            )
+        accounted = float(sum(shares.values()))
+        if abs(accounted - 1.0) > sum_tolerance:
+            failures.append(
+                f"{prefix}the responses account for {accounted:.3f} of the {word} {driver}, "
+                f"not 1.000 (tolerance {sum_tolerance:g})"
+            )
+        per_variant[name] = {
             "added_mm": added,
-            "shares": {k: float(v) for k, v in shares.items()},
+            "shares": shares,
             "largest_share": hog,
             "accounted": accounted,
-        },
+        }
+
+    worst = max(per_variant.values(), key=lambda v: abs(v["accounted"] - 1.0))
+
+    def describe(v):
+        return ", ".join(f"{k} {s:+.3f}" for k, s in v["shares"].items())
+
+    if several:
+        headline = f"changes in {driver} are partitioned"
+        detail = "; ".join(
+            f"{name} ({v['added_mm']:+.0f} mm): {describe(v)}" for name, v in per_variant.items()
+        )
+    else:
+        headline = f"{sign_word(worst['added_mm'])} {driver} is partitioned"
+        detail = describe(worst)
+    diagnostics = {**worst, "variants": per_variant} if several else worst
+    return CriterionResult(
+        name="counterfactual_response",
+        status=FAIL if failures else PASS,
+        value=worst["accounted"],
+        threshold=1.0 + sum_tolerance,
+        message=f"{headline} ({detail})" if not failures else "; ".join(failures),
+        diagnostics=diagnostics,
     )
 
 
