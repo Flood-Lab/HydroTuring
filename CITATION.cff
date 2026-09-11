@@ -7,6 +7,16 @@ authors:
     family-names: Li
     affiliation: University of Colorado Boulder
     email: chrimerss@gmail.com
+  # Probe authors, in order of first merged probe. One merged probe is
+  # co-authorship (CONTRIBUTING.md#credit); tests/test_docs_in_sync.py checks
+  # that every probe author appears here.
+  - given-names: Changming
+    family-names: Li
+    affiliation: South China University of Technology
+    orcid: "https://orcid.org/0000-0003-1793-1824"
+  - given-names: Siavash
+    family-names: Shams
+    # affiliation and orcid requested from the author, 2026-09-11
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

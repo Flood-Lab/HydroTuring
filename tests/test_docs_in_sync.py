@@ -13,10 +13,19 @@ import csv
 import re
 
 import pytest
+import yaml
 
 from hydroturing.spec import FLUX_VARS, REPO_ROOT, STATE_VARS, load_model, load_probe
 
-PROBE_IDS = sorted(load_probe(p).id for p in REPO_ROOT.glob("probes/*/*/probe.yaml"))
+PROBES = {p.id: p for p in (load_probe(x) for x in REPO_ROOT.glob("probes/*/*/probe.yaml"))}
+PROBE_IDS = sorted(PROBES)
+
+# Probes merged before the proposal form asked for an affiliation. Each entry
+# is a request outstanding with the author; remove it when the answer lands
+# in probe.yaml. Nothing merged after this list was written may be added to it.
+AFFILIATION_PENDING = {
+    "mass/time-origin-invariance",  # asked 2026-09-11
+}
 EVALUATED_MODELS = sorted(
     load_model(p).name
     for p in REPO_ROOT.glob("models/*/model.yaml")
@@ -40,6 +49,38 @@ def test_contributors_credit_the_probe(probe_id):
     assert f"| `{probe_id}` |" in read("CONTRIBUTORS.md"), (
         f"{probe_id} has no row in CONTRIBUTORS.md; a merged probe earns co-authorship"
     )
+
+
+@pytest.mark.parametrize("probe_id", PROBE_IDS)
+def test_probe_authors_carry_an_affiliation(probe_id):
+    """A merged probe is co-authorship, and a paper needs more than a handle."""
+    if probe_id in AFFILIATION_PENDING:
+        pytest.xfail(f"{probe_id}: affiliation requested from the author, not yet supplied")
+    for author in PROBES[probe_id].authors:
+        assert author.get("affiliation", "").strip(), (
+            f"{probe_id}: author {author.get('name')!r} has no affiliation in probe.yaml; "
+            "CONTRIBUTORS.md, CITATION.cff and the paper's author list are built from it"
+        )
+
+
+def _cff_authors() -> set[tuple[str, str]]:
+    cff = yaml.safe_load(read("CITATION.cff"))
+    return {
+        (a.get("given-names", "").strip(), a.get("family-names", "").strip())
+        for a in cff.get("authors", [])
+    }
+
+
+@pytest.mark.parametrize("probe_id", PROBE_IDS)
+def test_citation_lists_every_probe_author(probe_id):
+    """CITATION.cff is the software's author list; a probe author belongs on it."""
+    listed = _cff_authors()
+    for author in PROBES[probe_id].authors:
+        given, _, family = author["name"].strip().rpartition(" ")
+        assert (given, family) in listed, (
+            f"{probe_id}: author {author['name']!r} is not in CITATION.cff "
+            f"(expected given-names {given!r}, family-names {family!r})"
+        )
 
 
 @pytest.mark.parametrize("probe_id", PROBE_IDS)
