@@ -3,8 +3,13 @@
 # The model is compiled here from the pinned release and nothing is fetched
 # at run time: the container runs with no network. SUMMA is GPL-3.0; the
 # licence text is copied into the image beside the adapter.
+#
+# Both stages start from the same bookworm-slim index, pinned by digest (it
+# covers amd64 and arm64). The apt packages still resolve from the bookworm
+# archive at build time, so a Debian point release can move their patch
+# versions; README.md lists the versions the archived evaluation ran with.
 
-FROM debian:bookworm-slim AS build
+FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS build
 # CH-Earth/summa, release v4.0.0 (2026-09-04), the revision named in issue #30.
 ARG SUMMA_REPO=https://github.com/CH-Earth/summa.git
 ARG SUMMA_TAG=v4.0.0
@@ -13,20 +18,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates git cmake make gfortran gcc g++ \
       libnetcdff-dev libnetcdf-dev libopenblas-dev liblapack-dev \
  && rm -rf /var/lib/apt/lists/*
-# The tag is fetched so SUMMA's build stamps its own version string, and the
-# checkout is refused unless the tag still points at the pinned commit.
+# The build is refused unless the tag still points at the pinned commit.
 RUN git init -q /src/summa && cd /src/summa \
  && git remote add origin "${SUMMA_REPO}" \
  && git fetch -q --depth 1 origin "refs/tags/${SUMMA_TAG}:refs/tags/${SUMMA_TAG}" \
  && git checkout -q "${SUMMA_TAG}" \
  && test "$(git rev-parse HEAD)" = "${SUMMA_COMMIT}"
 # The release's default build: CMake, Release flags, no SUNDIALS (the
-# homegrown backward-Euler solver needs none), no NextGen, no OpenWQ.
+# homegrown backward-Euler solver needs none), no NextGen, no OpenWQ. CMake
+# stamps SUMMA's version banner by calling git in its working directory, so it
+# runs from inside the checkout, where the fetched tag names the release.
+WORKDIR /src/summa/build
 RUN cmake -B /src/cmake_build -S /src/summa/build -DCMAKE_BUILD_TYPE=Release \
  && cmake --build /src/cmake_build --target all -j4 \
  && /src/summa/bin/summa.exe -v
 
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171
 ENV PYTHONUNBUFFERED=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libgfortran5 libnetcdff7 libopenblas0-serial \

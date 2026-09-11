@@ -17,12 +17,20 @@ analytic derivatives, mixed-form Richards' equation with free drainage into a
 big-bucket aquifer, Ball-Berry stomata, Beer's-law canopy radiation, monthly
 LAI and SAI from the vegetation table, a time-delay histogram for within-GRU
 routing, enthalpy-form energy equations. Its catchment attributes are kept
-wherever the probe says nothing (USGS mixed forest, ROSETTA loam, 10 m
-measurement height, 16 m canopy top, flat for radiation). From static.json,
-only what maps onto a SUMMA quantity directly:
+wherever the probe says nothing (USGS mixed forest, ROSETTA loam, flat for
+radiation). Canopy top and bottom are the heights SUMMA's own vegetation
+table gives the class (MPTABLE HVT and HVB, which pOverwrite makes the
+defaults): 16 and 10 m for mixed forest, 0 m for the bare class. The
+measurement height written is the one SUMMA applies: the shipped 10 m, raised
+to the canopy top plus the 1 m clearance derivforce enforces when the canopy
+reaches above it, so 17 m over the forest and 10 m over bare ground.
+From static.json, only what maps onto a SUMMA quantity directly:
 
-* latitude and area;
-* `snow_threshold_degC` -> `tempCritRain`;
+* latitude (required) and area;
+* `snow_threshold_degC` -> `tempCritRain`. SUMMA compares it with the
+  wet-bulb temperature, not the air temperature, over a ramp of
+  `tempRangeTimestep` (2 K, shipped); the wet bulb comes from the humidity
+  mock below, so snow falls at air temperatures up to about 3 C;
 * `soil_capacity_mm` -> the depth of the soil column, capacity / theta_sat,
   so the most water the column can hold is the capacity; the shipped layer
   thicknesses are kept down to that depth (a remainder under half the layer
@@ -42,20 +50,27 @@ Forcing SUMMA needs that the probes do not generate is mocked from each row
 alone, with no calendar and nothing from another row (README.md has what
 every choice moves):
 
-* the net radiation a row carries: the probe's `rn` where it supplies one,
-  otherwise what Priestley-Taylor (alpha 1.26) needs to produce the row's
-  `pet` at the row's temperature;
+* the net radiation a row carries: the probe's `rn` where it supplies one;
+  otherwise the row's `pet` times the Priestley-Taylor (alpha 1.26)
+  conversion from potential evaporation to net radiation, evaluated at one
+  fixed reference temperature, 20 C (FAO-56's standard temperature for its
+  latent heat of 2.45 MJ/kg), so that it is linear in `pet`. Evaluated at
+  each row's own temperature, as the first version did, the factor falls as
+  the air warms, and the same day given as 24 hourly rows received 7 to 9
+  percent less energy than as one daily row;
 * shortwave and longwave: split so that a reference surface at air
   temperature, with albedo 0.23 and SUMMA's soil emissivity 0.96, would have
   exactly that net radiation and no longwave deficit. Downwelling longwave is
   the reference surface's own emission, plus the net radiation where that is
   negative; shortwave carries a positive net radiation through the albedo.
-  The split is linear in the net radiation, so a day of hourly rows delivers
-  the same radiant energy as the same day as one row. SUMMA then computes its
-  own net radiation with its own albedo, emissivity and surface temperature,
-  which is not the probe's `rn`; run.json records how far apart they are;
-* humidity: 70 percent relative humidity at air temperature; pressure: a
-  standard atmosphere at sea level; wind: 2 m/s at the measurement height.
+  The shortwave is linear in the net radiation; the longwave carries the
+  air's own emission, which is not linear in temperature. SUMMA then computes
+  its own net radiation with its own albedo, emissivity and surface
+  temperature, which is not the probe's `rn`; run.json records how far apart
+  they are;
+* humidity: 70 percent relative humidity at the row's air temperature;
+  pressure: a standard atmosphere at sea level; wind: 2 m/s, applied at the
+  measurement height SUMMA uses.
 
 Time
 ----
@@ -88,9 +103,10 @@ Fluxes are step means, as rates in mm/day or W m-2; states are end of step.
 * `hfg`      scalarGroundNetNrgFlux: the net energy flux into the snow-soil
              column through its top. With no snow that is the soil surface;
              with snow it is the snow surface, so snowpack heat storage and
-             melt are inside it, as the correction rule for storage above the
-             soil surface requires. The canopy's net energy flux is not in it
-             (the canopy is not ground); run.json reports its size
+             melt are inside it. The canopy's heat storage and the phase
+             change of intercepted water are also above the soil surface and
+             are in no column: SUMMA's scalarCanopyNetNrgFlux is left out of
+             `hfg`, and run.json reports its size
 * `mrso`     scalarTotalSoilWat (liquid plus ice) plus the water SUMMA stores
              by compressing the soil matrix, the cumulative scalarSoilCompress
              since the cold state. SUMMA's soil balance carries that term
@@ -108,6 +124,7 @@ Developer switches: SUMMA_HT_DIAG=1 writes SUMMA's raw series next to the
 request (only possible where that directory is writable, never under the
 harness); SUMMA_HT_EXTRA_VARS adds variables to SUMMA's output file;
 SUMMA_HT_ALBEDO, SUMMA_HT_RH, SUMMA_HT_WIND, SUMMA_HT_SPLIT (neutral|clear),
+SUMMA_HT_PT_TREF (degrees C, or "row" for the row's own temperature),
 SUMMA_HT_VEG and SUMMA_HT_DAILY_END_HOUR reproduce the README's sensitivity
 table. None is set in the evaluated image.
 """
@@ -129,7 +146,7 @@ from pathlib import Path
 import netCDF4
 import numpy as np
 
-MODEL = {"name": "summa", "version": "4.0.0-f787fa5.1"}
+MODEL = {"name": "summa", "version": "4.0.0-f787fa5.2"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "sbl", "hfls", "hfss", "hfg",
            "mrso", "snw", "canopy", "gw", "channel"]
 
@@ -143,14 +160,14 @@ SECONDS_PER_DAY = 86400.0
 MISSING = -9000.0  # SUMMA writes -9999 where a diagnostic does not apply
 
 # The shipped test case's catchment (attributes_tiled_by_hru.nc,
-# trialParams_default_tiled_by_hru.nc, coldstate_tiled_by_hru.nc).
+# coldstate_tiled_by_hru.nc).
 VEG_TYPE = int(os.environ.get("SUMMA_HT_VEG", "15"))        # USGS mixed forest
 BARE_VEG_TYPE = 19                                            # USGS barren
 SOIL_TYPE = 3                                                 # ROSETTA loam
-MEASUREMENT_HEIGHT_M = 10.0
+SHIPPED_MEASUREMENT_HEIGHT_M = 10.0
+MIN_CLEARANCE_M = 1.0  # derivforce.f90: minMeasHeight above the canopy top
 TAN_SLOPE = 0.1
 CONTOUR_LENGTH_M = 100.0
-CANOPY_TOP_M = 16.0
 SHIPPED_LAYERS_M = [0.025, 0.075, 0.15, 0.25, 0.5, 0.5, 1.0, 1.5]
 COLD_TEMPERATURE_K = 283.16
 COLD_THETA = 0.3
@@ -162,6 +179,7 @@ ALBEDO_REF = float(os.environ.get("SUMMA_HT_ALBEDO", "0.23"))
 RH_REF = float(os.environ.get("SUMMA_HT_RH", "0.70"))
 WIND_M_S = float(os.environ.get("SUMMA_HT_WIND", "2.0"))
 SPLIT = os.environ.get("SUMMA_HT_SPLIT", "neutral")
+PT_TREF = os.environ.get("SUMMA_HT_PT_TREF", "20")
 DAILY_END_HOUR = int(os.environ.get("SUMMA_HT_DAILY_END_HOUR", "23"))
 PT_ALPHA = 1.26
 SIGMA = 5.670374419e-8
@@ -176,7 +194,7 @@ OUTPUT_VARS = [
     "scalarGroundAdvectiveHeatFlux", "scalarCanopyAdvectiveHeatFlux",
     "scalarSWE", "scalarSfcMeltPond", "scalarCanopyLiq", "scalarCanopyIce",
     "scalarTotalSoilWat", "scalarSoilCompress", "scalarAquiferStorage", "scalarSurfaceTemp",
-    "scalarCosZenith", "scalarLAI", "scalarSAI",
+    "scalarCosZenith", "scalarLAI", "scalarSAI", "scalarAdjMeasHeight",
     "balanceCasNrg", "balanceVegNrg", "balanceSnowNrg", "balanceSoilNrg",
     "balanceVegMass", "balanceSnowMass", "balanceSoilMass", "balanceAqMass",
     "averageInstantRunoff", "averageRoutedRunoff",
@@ -197,18 +215,37 @@ def rosetta_soil(soil_type: int) -> dict[str, float]:
     raise ValueError(f"soil type {soil_type} not in the ROSETTA table")
 
 
-def monthly_vai(veg_type: int) -> np.ndarray:
-    """LAI + SAI by month for a USGS vegetation class (TBL_MPTABLE.TBL)."""
+def usgs_table(name: str, rows: int) -> np.ndarray:
+    """A USGS-block table from TBL_MPTABLE.TBL, rows x 27 classes."""
     block = (SHIPPED / "TBL_MPTABLE.TBL").read_text().split("MODIFIED_IGBP_MODIS_NOAH")[0]
+    match = re.search(rf"^\s*{name}\s*=\s*(.*?)(?=\n\s*\n|\n\s*[A-Z][A-Z0-9_]*\s*=)", block, re.S | re.M)
+    values = [float(v) for v in re.findall(r"-?\d+\.?\d*", match.group(1))]
+    table = np.array(values).reshape(rows, -1)
+    if table.shape[1] != 27:
+        raise ValueError(f"{name} in TBL_MPTABLE.TBL has {table.shape[1]} USGS classes, expected 27")
+    return table
 
-    def table(name: str) -> np.ndarray:
-        match = re.search(rf"\b{name}\s*=\s*(.*?)(?:\n\s*\n)", block, re.S)
-        return np.array([float(v) for v in re.findall(r"-?\d+\.?\d*", match.group(1))]).reshape(12, -1)
 
-    return table("LAIM")[:, veg_type - 1] + table("SAIM")[:, veg_type - 1]
+def monthly_vai(veg_type: int) -> np.ndarray:
+    """LAI + SAI by month for a USGS vegetation class."""
+    return usgs_table("LAIM", 12)[:, veg_type - 1] + usgs_table("SAIM", 12)[:, veg_type - 1]
+
+
+def canopy_top_m(veg_type: int) -> float:
+    """The canopy-top height SUMMA's pOverwrite takes from the table (HVT)."""
+    return float(usgs_table("HVT", 1)[0, veg_type - 1])
 
 
 # --- mock atmosphere -----------------------------------------------------------
+
+
+def priestley_taylor_w_per_mm_day(tc: np.ndarray, pressure: np.ndarray) -> np.ndarray:
+    """Net radiation (W m-2) that Priestley-Taylor turns into 1 mm/day of evaporation."""
+    es_kpa = 0.6108 * np.exp(17.27 * tc / (tc + 237.3))
+    slope = 4098.0 * es_kpa / (tc + 237.3) ** 2
+    gamma = 0.000665 * pressure / 1000.0
+    lam = 2.501e6 - 2361.0 * tc
+    return lam * (slope + gamma) / (PT_ALPHA * slope) / SECONDS_PER_DAY
 
 
 def mock_atmosphere(tas: np.ndarray, pet: np.ndarray, rn: np.ndarray | None,
@@ -219,17 +256,14 @@ def mock_atmosphere(tas: np.ndarray, pet: np.ndarray, rn: np.ndarray | None,
     ea = RH_REF * 611.2 * np.exp(17.67 * tas / (tas + 243.5))
     spechum = 0.622 * ea / (pressure - 0.378 * ea)
     if rn is None:
-        es_kpa = 0.6108 * np.exp(17.27 * tas / (tas + 237.3))
-        slope = 4098.0 * es_kpa / (tas + 237.3) ** 2
-        gamma = 0.000665 * pressure / 1000.0
-        lam = 2.501e6 - 2361.0 * tas
-        target = pet / SECONDS_PER_DAY * lam * (slope + gamma) / (PT_ALPHA * slope)
+        reference = tas if PT_TREF == "row" else np.full_like(tas, float(PT_TREF))
+        target = pet * priestley_taylor_w_per_mm_day(reference, pressure)
     else:
         target = rn.copy()
     emitted = SIGMA * tk ** 4
     if SPLIT == "clear":
         # Sensitivity only: Brutsaert (1975) clear-sky longwave where the
-        # target is positive. Not linear in the target, so not step-consistent.
+        # target is positive. Not linear in the target.
         lw_clear = 1.24 * (ea / 100.0 / tk) ** (1.0 / 7.0) * emitted
         positive = target > 0.0
         sw = np.where(positive, (target - SOIL_EMISSIVITY * (lw_clear - emitted)) / (1.0 - ALBEDO_REF), 0.0)
@@ -286,7 +320,7 @@ def write_forcing(path: Path, stamps, reference, step_s, pr, tas, atmos) -> None
                     [(k, "f8", ("time", "hru"), v[:, None]) for k, v in series.items()])
 
 
-def write_attributes(path: Path, static: dict, veg_type: int) -> None:
+def write_attributes(path: Path, static: dict, veg_type: int, measurement_height_m: float) -> None:
     with netCDF4.Dataset(path, "w") as nc:
         nc.createDimension("hru", 1)
         nc.createDimension("gru", 1)
@@ -294,14 +328,14 @@ def write_attributes(path: Path, static: dict, veg_type: int) -> None:
             ("hruId", "i4", ("hru",), 1), ("gruId", "i4", ("gru",), 1),
             ("hru2gruId", "i4", ("hru",), 1), ("downHRUindex", "i4", ("hru",), 0),
             ("longitude", "f8", ("hru",), 0.0),
-            ("latitude", "f8", ("hru",), float(static.get("latitude_deg", 40.0))),
+            ("latitude", "f8", ("hru",), float(static["latitude_deg"])),
             ("elevation", "f8", ("hru",), float(static.get("elevation_m", 0.0))),
             ("HRUarea", "f8", ("hru",), float(static["area_km2"]) * 1.0e6),
             ("tan_slope", "f8", ("hru",), TAN_SLOPE),
             ("contourLength", "f8", ("hru",), CONTOUR_LENGTH_M),
             ("slopeTypeIndex", "i4", ("hru",), 1), ("soilTypeIndex", "i4", ("hru",), SOIL_TYPE),
             ("vegTypeIndex", "i4", ("hru",), veg_type),
-            ("mHeight", "f8", ("hru",), MEASUREMENT_HEIGHT_M),
+            ("mHeight", "f8", ("hru",), measurement_height_m),
         ])
 
 
@@ -360,6 +394,9 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
     started = time.monotonic()
     step_s = STEP_SECONDS[timestep]
     dt_days = step_s / SECONDS_PER_DAY
+    if "latitude_deg" not in static:
+        raise SystemExit("static.json has no latitude_deg; SUMMA's solar geometry needs one "
+                         "and the adapter does not invent it")
     pr = np.array([float(r["pr"]) for r in rows])
     tas = np.array([float(r["tas"]) for r in rows])
     pet = np.array([float(r["pet"]) for r in rows])
@@ -378,9 +415,10 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
     canopy_capacity = float(static.get("canopy_capacity_mm", 0.0))
     veg_type = VEG_TYPE if canopy_capacity > 0.0 else BARE_VEG_TYPE
     vai_max = float(monthly_vai(veg_type).max())
+    top_m = canopy_top_m(veg_type)
+    measurement_height_m = max(SHIPPED_MEASUREMENT_HEIGHT_M, top_m + MIN_CLEARANCE_M)
     params = {
         "tempCritRain": float(static.get("snow_threshold_degC", 0.0)) + 273.15,
-        "heightCanopyTop": CANOPY_TOP_M,
         "rootingDepth": min(DEFAULT_ROOTING_DEPTH_M, depth_m),
     }
     if canopy_capacity > 0.0 and vai_max > 0.0:
@@ -400,7 +438,7 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
         "outputPrecision | double\n" + "".join(f"{v} | 1\n" for v in OUTPUT_VARS + extra))
     (WORK / "settings" / "forcingFileList.txt").write_text("'forcing.nc'\n")
     write_forcing(WORK / "forcing" / "forcing.nc", stamps, reference, step_s, pr, tas, atmos)
-    write_attributes(WORK / "settings" / "attributes.nc", static, veg_type)
+    write_attributes(WORK / "settings" / "attributes.nc", static, veg_type, measurement_height_m)
     write_trial_params(WORK / "settings" / "trialParams.nc", params)
     write_cold_state(WORK / "settings" / "coldState.nc", layers, step_s)
     write_file_manager(WORK / "settings" / "fileManager.txt", stamps[0], stamps[-1])
@@ -448,15 +486,23 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
         if not np.isfinite(values).all():
             raise RuntimeError(f"SUMMA produced non-finite {name} on {int((~np.isfinite(values)).sum())} steps")
 
-    notes = describe(result, out, atmos, pr, dt_days, timestep, veg_type, layers, depth_m, params,
-                     rn is not None)
+    catchment = {
+        "vegetation_type_usgs": veg_type, "soil_type_rosetta": SOIL_TYPE,
+        "soil_depth_m": round(depth_m, 4), "soil_layers_m": [round(x, 4) for x in layers],
+        "canopy_top_m_from_table": top_m,
+        "measurement_height_m_written": measurement_height_m,
+        "measurement_height_m_applied_by_summa": [float(np.nanmin(out["scalarAdjMeasHeight"])),
+                                                  float(np.nanmax(out["scalarAdjMeasHeight"]))],
+        "trial_parameters": {k: round(v, 6) for k, v in params.items()},
+    }
+    notes = describe(result, out, atmos, pr, dt_days, timestep, catchment, rn is not None)
     notes["seconds"] = {"stage": round(staged - started, 2), "summa": round(ran - staged, 2)}
     diag = {**out, "rn_target": atmos["target"], "SWRadAtm": atmos["SWRadAtm"],
             "LWRadAtm": atmos["LWRadAtm"], "spechum": atmos["spechum"]}
     return result, notes, diag
 
 
-def describe(result, out, atmos, pr, dt_days, timestep, veg_type, layers, depth_m, params, has_rn):
+def describe(result, out, atmos, pr, dt_days, timestep, catchment, has_rn):
     """What run.json says about a case: the mapping, and the budgets as SUMMA kept them."""
     storage = sum(result[k] for k in ("mrso", "snw", "canopy", "gw", "channel"))
     fluxes = (pr - result["evspsbl"] - result["mrro"]) * dt_days
@@ -470,6 +516,8 @@ def describe(result, out, atmos, pr, dt_days, timestep, veg_type, layers, depth_
                  "balanceVegMass", "balanceSnowMass", "balanceSoilMass", "balanceAqMass"):
         values = out[name][np.isfinite(out[name]) & (np.abs(out[name]) < -MISSING)]
         balance[name] = float(np.abs(values).max()) if values.size else 0.0
+    precipitation = out["scalarRainfall"] + out["scalarSnowfall"]
+    snow_share = float(out["scalarSnowfall"].sum() / precipitation.sum()) if precipitation.sum() > 0 else 0.0
 
     return {
         "summa": {"release": "v4.0.0", "commit": "f787fa5e63d3c67030721a85f2f244d22a8d691e",
@@ -480,24 +528,22 @@ def describe(result, out, atmos, pr, dt_days, timestep, veg_type, layers, depth_
         "forcing_stamps": ("period-ending, a day stamped at 23:00 (a 24:00 stamp makes SUMMA's "
                            "CLRSKY_RAD return a zero zenith cosine and discard all shortwave)"
                            if dt_days == 1.0 else "period-ending"),
-        "catchment": {
-            "vegetation_type_usgs": veg_type, "soil_type_rosetta": SOIL_TYPE,
-            "soil_depth_m": round(depth_m, 4), "soil_layers_m": [round(x, 4) for x in layers],
-            "trial_parameters": {k: round(v, 6) for k, v in params.items()},
-            "measurement_height_m": MEASUREMENT_HEIGHT_M,
-        },
+        "catchment": catchment,
         "mock_inputs": {
             "net_radiation": "the probe's rn" if has_rn else
-                             f"Priestley-Taylor (alpha {PT_ALPHA}) inverted from pet",
+                             (f"pet times the Priestley-Taylor (alpha {PT_ALPHA}) conversion at "
+                              + ("each row's temperature" if PT_TREF == "row" else f"a fixed {PT_TREF} C")),
             "radiation_split": (f"{SPLIT}: reference surface at air temperature, albedo {ALBEDO_REF}, "
                                 f"emissivity {SOIL_EMISSIVITY}"),
             "SWRadAtm": "positive net radiation / (1 - albedo)" if SPLIT != "clear" else
                         "positive net radiation minus the clear-sky longwave deficit, / (1 - albedo)",
             "LWRadAtm": "reference emission plus negative net radiation / emissivity" if SPLIT != "clear" else
                         "Brutsaert clear sky where net radiation is positive",
-            "spechum": f"relative humidity {RH_REF}",
+            "spechum": f"relative humidity {RH_REF} at the row's air temperature",
             "airpres": "standard atmosphere at sea level",
-            "windspd": f"{WIND_M_S} m/s at the measurement height",
+            "windspd": f"{WIND_M_S} m/s at the measurement height SUMMA applies",
+            "rain_snow": ("tempCritRain from snow_threshold_degC, compared by SUMMA with the wet-bulb "
+                          "temperature over a 2 K ramp (tempRangeTimestep, shipped)"),
         },
         "states": {
             "mrso": "scalarTotalSoilWat (liquid + ice) + cumulative scalarSoilCompress (elastic storage "
@@ -511,13 +557,15 @@ def describe(result, out, atmos, pr, dt_days, timestep, veg_type, layers, depth_
             "evspsbl": "-(scalarTotalET + scalarSnowSublimation + scalarCanopySublimation)",
             "sbl": "-(scalarSnowSublimation + scalarCanopySublimation); negative is deposition",
             "mrro": "averageRoutedRunoff", "hfls": "-scalarLatHeatTotal", "hfss": "-scalarSenHeatTotal",
-            "hfg": "scalarGroundNetNrgFlux (top of the snow-soil column; canopy energy not included)",
+            "hfg": "scalarGroundNetNrgFlux (top of the snow-soil column); the canopy's net energy "
+                   "flux is in no column",
         },
         "diagnostics_whole_record": {
             "water_max_abs_step_residual_mm": float(np.abs(step_residual).max()) if step_residual.size else 0.0,
             "water_cumulative_residual_mm": float(step_residual.sum()),
             "water_input_mm": float((pr * dt_days).sum()),
             "soil_elastic_storage_change_mm": float(np.sum(out["scalarSoilCompress"]) * dt_days * SECONDS_PER_DAY),
+            "snowfall_share_of_precipitation": snow_share,
             "mean_target_net_radiation_w_m2": float(target.mean()),
             "mean_summa_net_radiation_w_m2": float(summa_rn.mean()),
             "mean_abs_target_minus_summa_net_radiation_w_m2": float(np.abs(target - summa_rn).mean()),
