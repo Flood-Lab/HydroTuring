@@ -162,6 +162,7 @@ def test_missing_forcing_is_reported_as_incompatible(probe):
         needs_forcing=("pr", "unavailable_driver"),
     )
     outcome = run_probe(model, probe, [11])
+    assert outcome.verdict == NOT_SCORED
     assert outcome.reason == INCOMPATIBLE
     assert "unavailable_driver" in outcome.incompatible[0]
 
@@ -170,12 +171,74 @@ def test_paired_probe_requires_declared_perturbation_support(probe):
     paired = replace(probe, variants=("control", "perturbed"))
     model = replace(registry.find_model("reference_bucket"), supports_perturbation=False)
     outcome = run_probe(model, paired, [11])
+    assert outcome.verdict == NOT_SCORED
     assert outcome.reason == INCOMPATIBLE
     assert "perturbation" in outcome.incompatible[0]
 
 
+def test_a_seed_the_model_cannot_consume_stops_the_probe_before_any_run(probe, monkeypatch):
+    """N/A has to mean the probe asked the model nothing. A case found
+    unusable on a later seed must stop the probe before the model runs on any
+    seed; otherwise failures already measured on the earlier seeds would be
+    discarded, and a failing model could pass."""
+    from hydroturing import harness
+
+    leaky = registry.find_model("reference_leaky")
+    seeds = gate_seeds(probe.id, 2)
+    assert run_probe(leaky, probe, seeds).verdict == FAIL
+
+    real_issues, real_runner = harness.compatibility_issues, harness.get_runner
+    ran = []
+
+    def issues(model, probe, case=None, **kwargs):
+        if case is not None and case.seed == seeds[1]:
+            return ["this seed's case cannot be consumed"]
+        return real_issues(model, probe, case, **kwargs)
+
+    class Counting:
+        def __init__(self, inner):
+            self.inner = inner
+
+        def run(self, model, probe, case, io_dir):
+            ran.append(case.seed)
+            return self.inner.run(model, probe, case, io_dir)
+
+    monkeypatch.setattr(harness, "compatibility_issues", issues)
+    monkeypatch.setattr(harness, "get_runner", lambda model: Counting(real_runner(model)))
+    outcome = run_probe(leaky, probe, seeds)
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert ran == []
+
+
+def test_an_exception_without_a_message_is_still_an_error(probe, monkeypatch):
+    """A bare assert or an exhausted next() carries no message. It is still
+    the machinery failing, so the reason is ERROR, not a FAIL with reason OK."""
+    from hydroturing import harness
+
+    class Broken:
+        def run(self, model, probe, case, io_dir):
+            raise AssertionError()
+
+    monkeypatch.setattr(harness, "get_runner", lambda model: Broken())
+    outcome = run_probe(registry.find_model("reference_bucket"), probe, [11])
+    assert (outcome.verdict, outcome.reason, outcome.error) == (FAIL, ERROR, "AssertionError")
+
+
+def test_run_exits_2_when_an_error_sits_beside_unscored_probes(monkeypatch):
+    """Unscored probes must not hide an error: ERROR still exits 2."""
+    from hydroturing import cli
+    from hydroturing.scoring import ModelReport, ProbeOutcome
+
+    report = ModelReport("m", "1", "0.1.0", [
+        ProbeOutcome("mass/a", "mass", NOT_SCORED, INCOMPLETE),
+        ProbeOutcome("mass/b", "mass", FAIL, ERROR, error="adapter crashed"),
+    ])
+    monkeypatch.setattr(cli, "run_model", lambda *args, **kwargs: report)
+    assert cli.main(["run", "--model", "reference_bucket", "--probe", "mass/catchment-closure"]) == 2
+
+
 def test_adapter_verification_runs_an_incomplete_model(probe):
-    """A scientific INCOMPLETE verdict must not skip the contract smoke test."""
+    """A probe that is N/A (INCOMPLETE) must not skip the contract smoke test."""
     model = registry.find_model("reference_streamflow_only")
     result = verify_adapter_contract(model, probe, gate_seeds(probe.id, 1)[0])
     assert len(result.table) == result.case.n_steps
@@ -779,6 +842,9 @@ def test_an_unscored_probe_reads_as_neither_pass_nor_fail(monkeypatch):
     text = report.to_text(unscored)
     assert "FAIL" not in text
     assert "  N/A   mass/catchment-closure" in text
+
+    rows = report.to_csv_rows(unscored, "2026-09-11")
+    assert (rows[0]["verdict"], rows[0]["reason"]) == ("N/A", "INCOMPLETE")
 
 
 def test_marks_are_dropped_when_the_stream_cannot_carry_them(monkeypatch):

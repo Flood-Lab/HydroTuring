@@ -254,7 +254,7 @@ def test_cli_window_and_csv_flags(probe, tmp_path, capsys):
 
 
 def test_models_that_never_ran_are_labelled_so(probe):
-    """An INCOMPLETE verdict is issued before the container starts. The
+    """An N/A (INCOMPLETE) outcome is decided before the container starts. The
     archive must not say the model was scored on a record it never saw."""
     from hydroturing.report import to_csv_rows, window_label
 
