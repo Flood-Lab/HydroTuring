@@ -1,0 +1,45 @@
+name: lisflood
+version: "5.0.0-onecell.2"
+description: >
+  LISFLOOD, the distributed rainfall-runoff model the European Commission's
+  Joint Research Centre operates behind the European and Global Flood
+  Awareness Systems, at release 5.0.0 (ec-jrc/lisflood-code, 025cff0, the
+  PyPI release lisflood-model 5.0.0). The adapter drives LISFLOOD's own
+  Python framework step by step on the smallest valid domain for a lumped
+  catchment: one square cell of the catchment's area, draining to a pit that
+  carries a channel. It reads every store the water balance module counts
+  (snow, interception, three soil layers, the upper and lower groundwater
+  zones, overland flow and channel water) and the evaporation and outflow
+  that module counts, so the budget is LISFLOOD's own. Water use, lakes,
+  reservoirs, polders, transmission loss, open-water evaporation and split
+  routing are switched off because no probe prescribes them; README.md lists
+  every switch, every parameter and where it came from.
+authors:
+  - "A. De Roo, E. Gelati, P. Burek, J. van der Knijff, N. Wanders, S. Grimaldi, C. Russo et al. (European Commission Joint Research Centre and contributors)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://ec-jrc.github.io/lisflood/"
+license: "EUPL-1.2"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# LISFLOOD's step is a setting (DtSec), used as given. One day and one hour
+# are the steps this package has been checked at.
+timestep: [PT1D, PT1H]
+
+# `gw` is the upper plus lower groundwater zone, `channel` the overland flow
+# and channel water not yet past the outlet. `gwex` is LISFLOOD's loss from
+# the lower zone to deep groundwater, declared negative; it is zero at the
+# model's documented default (GwLoss = 0, a closed lower boundary).
+emits:
+  fluxes: [pr, evspsbl, mrro, dis, gwex]
+  states: [mrso, snw, canopy, gw, channel]
+
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 2, gpu: false}
+
+# Default flood-event window (30 days behind a year of spinup). Probes that
+# ask for the whole record get it. Under amd64 emulation a 395-row daily case
+# takes about 10 s and a ten-year record about 50 s, inside the 60 s budget of
+# the probes that score it; README.md says which settings that took.
