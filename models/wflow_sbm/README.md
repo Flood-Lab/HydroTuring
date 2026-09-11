@@ -158,21 +158,22 @@ ht run --model wflow_sbm --gate-seeds
 
 ## Result
 
-**FAIL (INCOMPLETE), 14 of 19 probes passed**, adapter `1.0.4-ht.2`, on the gate seeds, every
+**FAIL (VIOLATION), 14 of 20 probes passed**, adapter `1.0.4-ht.2`, on the gate seeds, every
 case on the full record (`window_days: full`).
 
 | Probe | Verdict | Reason | Detail |
 | --- | --- | --- | --- |
-| `energy/evaporative-partition` | FAIL | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
-| `energy/latent-heat-et-consistency` | FAIL | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
+| `energy/evaporative-partition` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
+| `energy/latent-heat-et-consistency` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
 | `energy/pet-consistency` | PASS | OK | evaporation 0.96 of demand when the soil is wettest, 0.15 when driest |
-| `energy/surface-energy-closure` | FAIL | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
+| `energy/surface-energy-closure` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
 | `mass/antecedent-monotonicity` | FAIL | VIOLATION | a wet month before the storm adds almost no runoff (0.0013 and 0.0005 of the storm on 2 of 3 seeds, where 0.02 is asked) |
 | `mass/area-invariance` | PASS | OK | identical to floating point at ten times the area |
 | `mass/catchment-closure` | PASS | OK | residual 1.8e-4 to 2.1e-4 of the rain; runoff ratio 0.45 to 0.52; ET 0.53 to 0.63 of demand |
 | `mass/causality` | PASS | OK | identical to floating point before the storm; 1.00 of it runs off after |
 | `mass/dry-down` | FAIL | VIOLATION | on one seed runoff rises 3.6 % between weekly blocks with no rain |
 | `mass/extreme-rain` | PASS | OK | returns 1.00 of the rain added at every rung |
+| `mass/human-abstraction` | FAIL | VIOLATION | never reads the prescribed withdrawal: evaporation, runoff and storage account for none of the 380 mm, while its own budget still closes |
 | `mass/phase-counterfactual` | PASS | OK | snow as rain moves the volumes by 0.6 to 3.8 % of the rain |
 | `mass/precipitation-counterfactual` | PASS | OK | rain 20 % wetter, 10 % wetter or 20 % drier: evaporation takes 0.20 to 0.22 of the change, runoff 0.75 to 0.78, storage 0.02, summing to 1.0001; runoff rises on every rung |
 | `mass/resolution-invariance` | PASS | OK | PT1D against PT1H: 0.4 to 1.1 % of the rain |
@@ -183,8 +184,8 @@ case on the full record (`window_days: full`).
 | `mass/warming-response` | PASS | OK | runoff falls by 0.27 to 0.31 per unit of added demand |
 | `momentum/routing-conservation` | PASS | OK | the channel holds at most 0.17 of what a 15-day hydrograph of recent runoff allows |
 
-The three energy-flux probes are INCOMPLETE because wflow_sbm computes no latent, sensible
-or ground heat flux; that is the model declining to be asked, not a failure.
+The three energy-flux probes are N/A (INCOMPLETE) because wflow_sbm computes no latent,
+sensible or ground heat flux; that is the model declining to be asked, not a failure.
 
 **What the geometry change moved**, from `1.0.4-ht.1` (one cell with the catchment's area) to
 `1.0.4-ht.2` (this representative cell), on the same gate seeds:

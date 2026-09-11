@@ -13,7 +13,7 @@ entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1D
 
 # Declare only what the model genuinely produces. Padding this list to avoid
-# an INCOMPLETE verdict turns an honest limitation into a false claim, and the
+# N/A (INCOMPLETE) turns an honest limitation into a false claim, and the
 # budget will not close anyway.
 emits:
   fluxes: [pr, evspsbl, mrro]

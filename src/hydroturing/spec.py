@@ -260,9 +260,9 @@ class ModelManifest:
     def missing_for(self, probe: ProbeSpec) -> list[str]:
         """Variables the probe needs that this model never reports.
 
-        A non-empty result means the verdict is FAIL with reason INCOMPLETE:
-        the model cannot demonstrate conservation because it never says
-        enough to be checked.
+        A non-empty result means the probe is not scored, N/A with reason
+        INCOMPLETE: the model cannot demonstrate conservation because it never
+        says enough to be checked, and it has not violated it either.
         """
         return [v for v in probe.required_vars if v not in self.emitted]
 

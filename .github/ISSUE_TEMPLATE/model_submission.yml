@@ -185,5 +185,5 @@ body:
       options:
         - label: I have identified a reproducible code revision and have permission to use the linked code and weights for this evaluation.
           required: true
-        - label: I understand that HydroTuring may report PASS, VIOLATION, INCOMPLETE, INCOMPATIBLE, or ERROR.
+        - label: I understand that HydroTuring may report PASS, FAIL or N/A on each probe, with a reason of VIOLATION, INCOMPLETE, INCOMPATIBLE or ERROR.
           required: true
