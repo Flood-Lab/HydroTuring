@@ -1,0 +1,20 @@
+name: reference_diurnal_bias
+version: "1.0.0"
+description: >
+  The coupled reference's water and energy account with only sensible heat
+  biased: the residual is +20 W m-2 from 06:00 to 18:00 local-solar time,
+  and -20 W m-2 otherwise. Complete day/night cycles cancel in a signed
+  cumulative energy budget while every phase has a large absolute error.
+  This is the declared negative control for energy/surface-energy-closure.
+authors: ["Han Wang"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1H]
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet, rn]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

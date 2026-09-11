@@ -1,0 +1,61 @@
+id: energy/surface-energy-closure
+title: Hourly surface budgets cannot hide cancelling energy errors
+law: energy
+track: synthetic
+version: 1
+
+authors:
+  - name: Han Wang
+    affiliation: >-
+      Department of Civil and Environmental Engineering,
+      The Hong Kong University of Science and Technology, Hong Kong, China
+    orcid: "0000-0001-9771-1324"
+    github: cehw
+
+description: >
+  The energy budget of a homogeneous, snow-free bare surface with a
+  zero-capacity skin must close within each contiguous solar day or night.
+  Absolute hourly residuals are averaged before comparing with the allowance,
+  so opposite errors cannot cancel across phases or within one phase. Net
+  radiation is prescribed; ground heat is evaluated at the actual soil
+  surface. The case excludes canopy heat storage, unreported phase-change
+  storage and lateral energy transport. Passing establishes temporal budget
+  consistency, not a realistic partition or a thermal-inertia response.
+
+requires:
+  fluxes: [hfls, hfss, hfg]
+  states: []
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1H
+  period_days: 14
+  spinup_days: 2
+  # The usual hourly model window is seven days. Keep all 28 complete phases.
+  min_window_days: 14
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+criteria:
+  - energy_closure_by_phase:
+      driver: rn
+      sinks: [hfls, hfss, hfg]
+      # Compare mean(abs(residual)) with 5% of mean(abs(Rn)) in each block.
+      # A 2 W/m2 allowance handles weak radiation; both values are engineering
+      # conventions carried from energy_closure, not observational calibration.
+      threshold: 0.05
+      floor: 2.0
+      segment_column: _regime
+
+baselines:
+  must_pass: [reference_coupled]
+  must_fail:
+    reference_diurnal_bias: energy_closure_by_phase
+
+provenance: >
+  Synthetic, generated at run time from the recorded seed. Hourly cloud
+  attenuation, daily shortwave amplitude and longwave cooling vary by seed.
+  Timestamps are local-solar interval starts. Hidden day/night annotations
+  are stripped before staging model inputs. Proposal and agreed scope:
+  https://github.com/Flood-Lab/HydroTuring/issues/15.

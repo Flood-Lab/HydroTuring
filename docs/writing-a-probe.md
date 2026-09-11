@@ -111,6 +111,7 @@ Every one is binary.
 | `antecedent_monotonicity` | the same storm after more rain runs off more, and no more than the extra rain | paired runs |
 | `phase_invariance` | the same water as rain instead of snow leaves the integrated volumes within a share of the rain | paired runs |
 | `demand_consistency` | evaporation reaches demand when the model's own soil is wettest, never exceeds it, and falls when driest | one run |
+| `energy_closure_by_phase` | the mean absolute surface-energy residual in each contiguous day or night stays within the larger of the relative radiation tolerance and the absolute flux floor | one run, contiguous day/night blocks |
 | `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff | one run |
 
 Picking a denominator for `closure` and `regime_transfer`:
@@ -255,6 +256,7 @@ The reference models available today:
 | `reference_sublimation_blind` | converts snow sublimation at the latent heat of vaporisation instead of sublimation | `flux_identity` |
 | `reference_energy_leak` | discards 15% of net radiation | `energy_closure` |
 | `reference_ground_dodge` | coherent and closed, but its sensible flux never reads the soil, so the ground flux absorbs a drydown's whole shift | `partition_shift` |
+| `reference_diurnal_bias` | shifts sensible heat to leave opposite day and night energy residuals that cancel over the full record | `energy_closure_by_phase` |
 
 If your probe needs a broken model that does not exist yet, add it under
 `models/` alongside the probe. A criterion with nothing that trips it is

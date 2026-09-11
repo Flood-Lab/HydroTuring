@@ -21,8 +21,9 @@ SCHEMA_DIR = REPO_ROOT / "schemas"
 # Canonical variable names. Water fluxes are mm per timestep-day; states are
 # mm. `dis` is m3 s-1, because that is what models report. The surface energy
 # fluxes are W m-2, positive away from the surface for the turbulent terms and
-# positive into the ground for `hfg`, which is the surface energy budget's
-# storage term: a model that reports it does not also need an energy state.
+# positive into the ground at the actual soil surface for `hfg`. Adapters
+# must correct a deeper-boundary flux for heat storage above that depth;
+# subsurface storage is not also subtracted from the surface budget.
 # `sbl` is a component of `evspsbl`, never an addition to it.
 FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "sbl", "hfls", "hfss", "hfg")
 STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
@@ -72,6 +73,7 @@ FULL_WINDOW = "full"
 TRUSTED_SUBPROCESS_MODELS = {
     "reference_bucket",
     "reference_coupled",
+    "reference_diurnal_bias",
     "reference_two_head",
     "reference_constant_lambda",
     "reference_sublimation_blind",

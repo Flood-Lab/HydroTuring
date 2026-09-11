@@ -184,12 +184,14 @@ the normalization used to compare outputs.
 ### `energy/pet-consistency` &middot; **merged**
 Evaporation follows demand when the model's own soil is wettest and water when it is driest; no energy flux needed.
 
-### `energy/surface-energy-closure` &middot; starter &middot; **unclaimed**
-Net radiation minus sensible minus latent minus ground heat flux, minus the
-change in stored energy.
-*Note:* the denominator is accumulated |Rn|, which crosses zero every night,
-so this probe **must** set an absolute floor as well as the 5 percent rule.
-The canonical energy probe and the natural first one.
+### `energy/surface-energy-closure` &middot; **merged**
+Hourly net radiation minus sensible, latent and ground heat flux must close
+within each contiguous day or night, without errors cancelling across hours
+or phases. The mean absolute residual is bounded by the larger of 5 percent
+of mean absolute net radiation and 2 W/m2. The boundary is a snow-free bare
+surface with negligible heat capacity; ground heat flux is measured at that
+surface, so no separate soil-storage term is subtracted.
+Contributed by Han Wang ([@cehw](https://github.com/cehw)).
 
 ### `energy/snowpack-cold-content` &middot; hard &middot; **unclaimed**
 The full snowpack energy budget including cold content and phase change. Melt

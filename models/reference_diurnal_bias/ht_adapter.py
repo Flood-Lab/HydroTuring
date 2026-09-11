@@ -2,19 +2,20 @@
 """HydroTuring adapter. Standard library only, to show that the /io contract
 needs no scientific Python stack and could be written in any language.
 
-The exact model for the coherence probe: one evaporation, reported twice.
+A correct water/energy account with equal and opposite hourly sensible-heat errors.
+Only H changes: the cumulative residual cancels over complete 24-hour cycles.
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
+from datetime import datetime
 import json
 import sys
 from pathlib import Path
 
-MODE = "coupled"
-MODEL = {"name": "reference_coupled", "version": "1.1.0"}
+MODEL = {"name": "reference_diurnal_bias", "version": "1.0.0"}
 
 COLUMNS = [
     "time", "pr", "evspsbl", "mrro", "sbl", "hfls", "hfss", "hfg",
@@ -28,10 +29,7 @@ GROUND_SHARE = 0.10  # share of net radiation conducted into the ground
 # Latent heat of vaporisation as A + B*T (T in degC) and of fusion, J kg-1.
 LAMBDA_A, LAMBDA_B = 2.501e6, -2361.0
 LAMBDA_F = 3.337e5
-LAMBDA_CONST = 2.45e6  # the constant a careless model would use
-CLIMATOLOGICAL_EF = 0.65  # evaporative fraction of a model whose heads never meet
-CLIMATOLOGICAL_H_SHARE = 0.25  # sensible share of a model whose H never reads the soil
-ENERGY_LEAK = 0.15
+DIURNAL_BIAS_W_M2 = 20.0
 SECONDS_PER_DAY = 86400.0
 
 TIMESTEP_DAYS = {
@@ -44,44 +42,13 @@ TIMESTEP_DAYS = {
 
 
 def partition_energy(rn, tas, liquid_mm, sublimated_mm, dt_days):
-    """Turn the water that left the surface into the energy that carried it.
-
-    `reference_coupled` is exact: every kilogram is converted at the latent
-    heat of the phase change it actually underwent, and the sensible flux is
-    what net radiation has left once the latent and ground fluxes are taken.
-    Solving for H that way is the physical statement that the surface has no
-    other place to put the energy, and it is why this model closes the energy
-    budget by construction, exactly as `reference_bucket` closes the water
-    budget by construction. The discrimination lives in the other four.
-    """
+    """The exact coupled account before the deliberate temporal bias in H."""
     seconds = dt_days * SECONDS_PER_DAY
     lam_v = LAMBDA_A + LAMBDA_B * tas
     lam_s = LAMBDA_A + LAMBDA_F
     ground = GROUND_SHARE * rn
-
-    if MODE == "constant_lambda":
-        latent = LAMBDA_CONST * (liquid_mm + sublimated_mm) / seconds
-    elif MODE == "sublimation_blind":
-        latent = lam_v * (liquid_mm + sublimated_mm) / seconds
-    elif MODE == "two_head":
-        # An energy head that never reads the water head: the partition is a
-        # climatological evaporative fraction of the available energy, and it
-        # has no idea how much water actually left.
-        latent = CLIMATOLOGICAL_EF * (rn - ground)
-    else:
-        latent = (lam_v * liquid_mm + lam_s * sublimated_mm) / seconds
-
-    if MODE == "ground_dodge":
-        # A sensible heat flux that is a fixed share of net radiation and never
-        # reads the soil, with the ground flux left to absorb whatever the
-        # latent flux gives up. Coherent, and both budgets close.
-        sensible = CLIMATOLOGICAL_H_SHARE * rn
-        return latent, sensible, rn - latent - sensible
-
-    sensible = rn - ground - latent
-    if MODE == "energy_leak":
-        sensible -= ENERGY_LEAK * rn
-    return latent, sensible, ground
+    latent = (lam_v * liquid_mm + lam_s * sublimated_mm) / seconds
+    return latent, rn - ground - latent, ground
 
 
 def simulate(forcing, static, dt_days=1.0):
@@ -140,6 +107,12 @@ def simulate(forcing, static, dt_days=1.0):
 
         liquid = canopy_evap + soil_evap
         latent, sensible, ground = partition_energy(rn, tas, liquid, sublimation, dt_days)
+
+        # Timestamps are interval starts in this probe's local-solar clock.
+        # Use only the present input, never hidden phase labels or the run horizon.
+        hour = datetime.fromisoformat(str(step["time"])).hour
+        residual = DIURNAL_BIAS_W_M2 if 6 <= hour < 18 else -DIURNAL_BIAS_W_M2
+        sensible -= residual
 
         rows.append({
             "time": step["time"],
