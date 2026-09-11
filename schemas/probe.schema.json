@@ -94,6 +94,12 @@
             "type": "string"
           },
           "uniqueItems": true
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true,
+          "description": "Optional non-water variables such as layer temperature; excluded from water-storage sums."
         }
       }
     },

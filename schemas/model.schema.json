@@ -39,6 +39,10 @@
         "states": {
           "type": "array", "items": {"type": "string"}, "uniqueItems": true,
           "description": "Absolute storage values, never tendencies. The harness differences them."
+        },
+        "diagnostics": {
+          "type": "array", "items": {"type": "string"}, "uniqueItems": true,
+          "description": "Optional non-water variables such as layer temperature; excluded from water-storage sums."
         }
       }
     },

@@ -25,8 +25,10 @@ SCHEMA_DIR = REPO_ROOT / "schemas"
 # must correct a deeper-boundary flux for heat storage above that depth;
 # subsurface storage is not also subtracted from the surface budget.
 # `sbl` is a component of `evspsbl`, never an addition to it.
-FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "sbl", "hfls", "hfss", "hfg")
+FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "sbl", "hfls", "hfss", "hfg", "hfg_bottom")
 STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
+# Diagnostics have their own units and must never enter water-storage sums.
+DIAGNOSTIC_VARS = ("tsoil_layer",)
 
 UNITS = {
     "pr": "mm day-1",
@@ -41,6 +43,8 @@ UNITS = {
     "hfls": "W m-2",
     "hfss": "W m-2",
     "hfg": "W m-2",
+    "hfg_bottom": "W m-2",
+    "tsoil_layer": "K",
     "mrso": "mm",
     "snw": "mm",
     "canopy": "mm",
@@ -75,6 +79,9 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_coupled",
     "reference_diurnal_bias",
     "reference_abstraction_blind",
+    "reference_soil_heat",
+    "reference_frozen_soil",
+    "reference_half_soil",
     "reference_two_head",
     "reference_constant_lambda",
     "reference_sublimation_blind",
@@ -169,10 +176,11 @@ class ProbeSpec:
     # or a dry-down; such a probe asks for at least a year, and a submitted
     # model's window is widened to it.
     min_window_days: int = 0
+    requires_diagnostics: tuple[str, ...] = ()
 
     @property
     def required_vars(self) -> tuple[str, ...]:
-        return self.requires_fluxes + self.requires_states
+        return self.requires_fluxes + self.requires_states + self.requires_diagnostics
 
     @property
     def slug(self) -> str:
@@ -265,6 +273,7 @@ class ModelManifest:
     # FULL_WINDOW for the whole record, or None to take the default for the
     # kind of model (see DEFAULT_WINDOW_DAYS).
     window_days: int | str | None = None
+    emits_diagnostics: tuple[str, ...] = ()
 
     @property
     def timestep(self) -> str:
@@ -276,7 +285,7 @@ class ModelManifest:
 
     @property
     def emitted(self) -> tuple[str, ...]:
-        return self.emits_fluxes + self.emits_states
+        return self.emits_fluxes + self.emits_states + self.emits_diagnostics
 
     def missing_for(self, probe: ProbeSpec) -> list[str]:
         """Variables the probe needs that this model never reports.
@@ -366,6 +375,17 @@ def load_probe(path: str | Path) -> ProbeSpec:
             )
 
     requires = raw.get("requires", {})
+    unknown_diagnostics = [
+        v for v in requires.get("diagnostics", []) if v not in DIAGNOSTIC_VARS
+    ]
+    if unknown_diagnostics:
+        raise SpecError(f"{spec_file}: unknown diagnostics in requires: {unknown_diagnostics}")
+    misplaced = [
+        v for group in ("fluxes", "states") for v in requires.get(group, [])
+        if v in DIAGNOSTIC_VARS
+    ]
+    if misplaced:
+        raise SpecError(f"{spec_file}: {misplaced} belong in requires.diagnostics")
     return ProbeSpec(
         id=raw["id"],
         title=raw["title"],
@@ -376,6 +396,7 @@ def load_probe(path: str | Path) -> ProbeSpec:
         citation=raw.get("citation", ""),
         requires_fluxes=tuple(requires.get("fluxes", [])),
         requires_states=tuple(requires.get("states", [])),
+        requires_diagnostics=tuple(requires.get("diagnostics", [])),
         generator=case["generator"],
         n_seeds=case["n_seeds"],
         timestep=case["timestep"],
@@ -448,6 +469,9 @@ def load_model(path: str | Path) -> ModelManifest:
 
     unknown = [v for v in raw["emits"]["fluxes"] if v not in FLUX_VARS]
     unknown += [v for v in raw["emits"]["states"] if v not in STATE_VARS]
+    unknown += [
+        v for v in raw["emits"].get("diagnostics", []) if v not in DIAGNOSTIC_VARS
+    ]
     if unknown:
         raise SpecError(f"{spec_file}: unknown variables in emits: {unknown}")
 
@@ -463,6 +487,7 @@ def load_model(path: str | Path) -> ModelManifest:
         timesteps=timesteps,
         emits_fluxes=tuple(raw["emits"]["fluxes"]),
         emits_states=tuple(raw["emits"]["states"]),
+        emits_diagnostics=tuple(raw["emits"].get("diagnostics", [])),
         runner=runner,
         needs_forcing=tuple(raw.get("needs_forcing", [])),
         supports_perturbation=bool(raw.get("supports", {}).get("perturbation", False)),

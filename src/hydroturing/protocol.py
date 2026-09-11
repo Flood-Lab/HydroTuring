@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from hydroturing.spec import TIMESTEP_DAYS, ModelManifest, ProbeSpec, UNITS
@@ -128,6 +129,7 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
             # invariant across probes and prevents it identifying the criterion.
             "fluxes": list(model.emits_fluxes),
             "states": list(model.emits_states),
+            "diagnostics": list(model.emits_diagnostics),
         },
         "input": {"forcing": FORCING_FILE, "static": STATIC_FILE},
         "output": {"table": RESULT_CSV, "run": RUN_FILE},
@@ -230,8 +232,12 @@ def read_result(io_dir: Path, case: Case, probe: ProbeSpec, wall_seconds: float)
 
     for var in probe.required_vars:
         col = pd.to_numeric(table[var], errors="coerce")
-        if col.isna().any():
-            n_bad = int(col.isna().sum())
+        # Existing flux/state criteria handle infinities and retain the full
+        # scorecard. Keep that behavior; new diagnostics require finite values
+        # at the contract boundary, including interval-end temperatures.
+        invalid = ~np.isfinite(col) if var in probe.requires_diagnostics else col.isna()
+        if invalid.any():
+            n_bad = int(invalid.sum())
             raise ProtocolError(f"column '{var}' has {n_bad} non-finite values")
         table[var] = col
 

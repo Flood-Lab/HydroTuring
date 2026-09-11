@@ -34,6 +34,7 @@ long.
 | `energy/latent-heat-et-consistency` | Changming Li (SCUT) |
 | `energy/evaporative-partition` | Changming Li (SCUT) |
 | `energy/surface-energy-closure` | Han Wang (The Hong Kong University of Science and Technology) |
+| `energy/soil-heat-storage-consistency` | Han Wang (The Hong Kong University of Science and Technology) |
 | `momentum/routing-conservation` | Zhi Li (CU Boulder) |
 
 ## Models

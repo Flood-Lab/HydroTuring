@@ -112,6 +112,7 @@ Every one is binary.
 | `phase_invariance` | the same water as rain instead of snow leaves the integrated volumes within a share of the rain | paired runs |
 | `demand_consistency` | evaporation reaches demand when the model's own soil is wettest, never exceeds it, and falls when driest | one run |
 | `energy_closure_by_phase` | the mean absolute surface-energy residual in each contiguous day or night stays within the larger of the relative radiation tolerance and the absolute flux floor | one run, contiguous day/night blocks |
+| `soil_heat_storage` | interval boundary heat input agrees with fixed-layer temperature change and prescribed heat capacity | one run, separate heating/recovery phases |
 | `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff | one run |
 
 Picking a denominator for `closure` and `regime_transfer`:
