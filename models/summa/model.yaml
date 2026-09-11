@@ -1,0 +1,37 @@
+name: summa
+version: "4.0.0-f787fa5.1"
+description: >
+  SUMMA, the Structure for Unifying Multiple Modeling Alternatives (Clark et
+  al. 2015): a land model that solves coupled conservation equations for
+  water and energy in the canopy, the snowpack, the soil column and an
+  aquifer with a common implicit solver. Built from CH-Earth/summa release
+  v4.0.0 (f787fa5) with its default homegrown backward-Euler solver, and run
+  as one lumped HRU with the decisions, default parameter tables and Noah-MP
+  lookup tables of the only complete setup the release ships (CAMELS basin
+  01073000). It reports its water stores and its latent, sensible and ground
+  heat fluxes. The shortwave, longwave, humidity, wind and pressure it needs
+  and the probes do not generate are mocked from each forcing row alone;
+  README.md says how, and how much each choice moves.
+authors:
+  - "M. P. Clark, B. Nijssen, J. D. Lundquist, D. Kavetski et al. (SUMMA); CH-Earth maintainers"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1002/2015WR017198"
+license: "GPL-3.0-or-later (SUMMA)"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# SUMMA is forced at whatever data step its forcing file declares. The daily
+# step is native here because almost every probe is daily; the hourly step is
+# the one its solver and test cases are most often run at.
+timestep: [PT1D, PT1H]
+
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy, gw, channel]
+
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 2, gpu: false}
+
+window_days: full
