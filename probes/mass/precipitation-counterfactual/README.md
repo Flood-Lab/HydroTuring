@@ -37,7 +37,7 @@ R_delta / delta P = 1 - (f_E + f_Q + f_S + f_X)                            [-]
 | `max_share` | 0.95 | template default 0.90, raised here; see below |
 | `monotone_response` 0.1 / 1.05 / 0.01 | as in `mass/extreme-rain` | criterion defaults; `0 <= dQ/dP <= 1` follows from Budyko [R6] and the budget |
 | `forcing_fidelity` `rtol`, `state_bounds` capacities | 1e-6, `static.json` | numerical, physical |
-| `min_window_days` | 3650 | measured, window table below |
+| `min_window_days` | 3650 | conservative; 1825 days also passes every baseline, window table below |
 
 **Margins.** At +20% on the worst seed, evaporation reaches 0.140 against 0.03, runoff 0.839 against 0.95, and the sum 0.994 against 0.10. Seeds differ by at most 0.02 in any share.
 
@@ -69,17 +69,17 @@ The runoff share rises smoothly with amplitude and model differences exceed seed
 
 The response is monotone but not symmetric: `reference_bucket` returns 0.593 of the removed water as runoff at −20% and 0.754 of the added water at +20%. [R5] find the same asymmetry on 353 observed catchments, so the probe asks only for monotonicity. Across the whole ladder the baselines return 0.69 to 0.82 of the added rain as runoff.
 
-**The scoring window is the whole record.** A submitted daily model is scored by default on the largest 30-day flood event. A short window counts only the rain added inside it, while its runoff carries increment stored earlier:
+**The scoring window is the whole record.** A submitted daily model is scored by default on the largest 30-day flood event. A short window counts only the rain added inside it, while its runoff carries increment stored earlier. Verdicts with the shipped settings (`max_share` 0.95, all three pairs, gate seeds), naming the share that breaks:
 
-| Window | reference_bucket (E, Q, S) | sacsma_snow17 | Verdict |
-| --- | --- | --- | --- |
-| 30 days (default) | 0.000, 2.870, −1.870 | 0.000, 1.909, −0.911 | FAIL both |
-| 365 days | 0.164, 0.897, −0.061 | 0.158, 0.533, 0.308 | PASS, runoff 0.003 from the 0.90 limit |
-| 730 days | 0.168, 0.911, −0.079 | 0.108, 0.917, −0.030 | FAIL both, `max_share` |
-| 1825 days | passes | passes | PASS |
-| 3650 days (full) | 0.219, 0.754, 0.028 | 0.151, 0.803, 0.042 | PASS |
+| Window | reference_bucket | flex_lumped | flex_topo | sacsma_snow17 |
+| --- | --- | --- | --- | --- |
+| 30 days (default) | FAIL, runoff 2.870, storage −1.870 | FAIL, runoff 1.308 | FAIL, evaporation 0.013 | FAIL, runoff 1.053 |
+| 365 days | FAIL, `drier20` runoff 0.961 | PASS | PASS | PASS |
+| 730 days | PASS | PASS | PASS | FAIL, `wetter20` runoff 0.996 |
+| 1825 days | PASS | PASS | PASS | PASS |
+| 3650 days (full) | PASS | PASS | PASS | PASS |
 
-The window follows the largest flood, so the sequence is not monotone in length. Sensitivity depends on aggregation time through storage [R4]; ten years is this probe's measured requirement, not a universal one. `mass/phase-counterfactual` uses the same mechanism at 1095 days.
+The window follows the largest flood, so the sequence is not monotone in length: 365 days fails `reference_bucket` and 730 days fails `sacsma_snow17`. Sensitivity depends on aggregation time through storage [R4]. 1825 days passes all four baselines, so the full record is the conservative choice rather than the shortest window that works. `mass/phase-counterfactual` uses the same mechanism at 1095 days.
 
 **Spinup.** One year is enough. Prepending 365 or 1460 days of independent weather moves the shares by at most 0.001, or 0.009 for `flex_topo`. Lengthening `SPINUP_DAYS` instead changes the scored weather and moves them by up to 0.05.
 

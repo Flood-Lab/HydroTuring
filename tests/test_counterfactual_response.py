@@ -3,7 +3,8 @@
 The probe mass/precipitation-counterfactual pairs three perturbed variants
 with one control. These tests pin the single-name behaviour, score every
 variant when a list is given, isolate a failure to the variant that caused
-it, and refuse a variant that changes nothing.
+it, fail a term that moves against the change, and refuse an empty list or
+a variant that changes nothing.
 """
 
 from __future__ import annotations
@@ -77,6 +78,33 @@ def test_an_unresponsive_variant_fails_alone(runs, probe, params):
     assert not result.passed
     assert "drier20" in result.message
     assert "wetter20" not in result.message and "wetter10" not in result.message
+
+
+@pytest.mark.parametrize("name, factor", [("wetter20", 0.95), ("drier20", 1.05)])
+def test_a_term_moving_against_the_change_fails(runs, probe, params, name, factor):
+    # Evaporation ends 5% below the control's when rain is added, or 5% above
+    # it when rain is removed. The water it trades sits in storage, so only
+    # the signed minimum has anything to object to, alone or in the list.
+    w, c = runs[name], runs["control"]
+    spinup = w.case.spinup_steps
+    table = w.table.copy()
+    moved = (table["evspsbl"] - factor * c.table["evspsbl"]).iloc[spinup:]
+    table.loc[spinup:, "evspsbl"] -= moved
+    table.loc[table.index[-1], "mrso"] += moved.sum()
+    against = dict(runs)
+    against[name] = RunResult(w.case, table, w.meta, 0.0)
+    alone = score(against, probe, params, perturbed=name)
+    assert not alone.passed
+    assert alone.diagnostics["shares"]["evspsbl"] < 0
+    assert alone.message.startswith("evspsbl moves the wrong way") and ";" not in alone.message
+    listed = score(against, probe, params)
+    assert listed.message.startswith(f"{name}: evspsbl moves the wrong way")
+    assert ";" not in listed.message
+
+
+def test_an_empty_list_of_variants_raises(runs, probe, params):
+    with pytest.raises(ValueError, match="at least one variant"):
+        score(runs, probe, params, perturbed=[])
 
 
 def test_a_variant_that_changes_nothing_raises(runs, probe, params):

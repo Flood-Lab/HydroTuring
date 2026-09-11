@@ -33,7 +33,8 @@ case:
   spinup_days: 365
   max_output_mb: 2.0
   max_runtime_s: 60
-  # 30- and 730-day windows fail the exact physical models (README, window table).
+  # 30-, 365- and 730-day windows each fail a physical model; 1825 passes all
+  # four, and the full record is the conservative choice (README, window table).
   min_window_days: 3650
   # The first name is the control.
   variants: [control, wetter20, wetter10, drier20]

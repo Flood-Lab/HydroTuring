@@ -63,7 +63,9 @@ def counterfactual_response(
     fails the criterion; the value reported is the pair whose accounted sum
     sits farthest from one. A variant that removes water divides by a
     negative change in the driver, so the shares keep their meaning: the
-    fraction of the removed water each term gave up.
+    fraction of the removed water each term gave up. The minimum is signed,
+    so a term that moves against the change fails it; the largest share is
+    compared in magnitude.
     """
     driver = str(params.get("driver", "pr"))
     terms = list(params.get("terms", ["evspsbl", "mrro"]))
@@ -73,6 +75,8 @@ def counterfactual_response(
     names = params.get("perturbed", "perturbed")
     if isinstance(names, str):
         names = [names]
+    if not names:
+        raise ValueError("counterfactual_response needs at least one variant under 'perturbed'")
     several = len(names) > 1
 
     control = make_window(pick(runs, params, "control", "control"), probe)
@@ -121,9 +125,10 @@ def counterfactual_response(
 
         prefix = f"{name}: " if several else ""
         for var, share in shares.items():
-            if var != "storage" and abs(share) < min_share:
+            if var != "storage" and share < min_share:
+                verdict = "moves the wrong way" if share < 0 else "barely responds"
                 failures.append(
-                    f"{prefix}{var} barely responds ({share:+.3f} of the {word} {driver}, "
+                    f"{prefix}{var} {verdict} ({share:+.3f} of the {word} {driver}, "
                     f"minimum {min_share:g})"
                 )
         hog, hog_share = max(shares.items(), key=lambda kv: abs(kv[1]))

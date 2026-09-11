@@ -8,7 +8,12 @@ import numpy as np
 import pytest
 
 from hydroturing import registry
-from hydroturing.harness import build_case, load_generator, resolve_window_days, run_probe
+from hydroturing.harness import (
+    build_case,
+    load_generator,
+    resolve_window_days,
+    run_probe,
+)
 from hydroturing.scoring import FAIL, PASS
 from hydroturing.seeds import gate_seeds
 
