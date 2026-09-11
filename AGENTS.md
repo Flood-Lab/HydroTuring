@@ -216,9 +216,18 @@ For a merged probe:
    variable the physical models do not report, their standing changes from
    "PASS, N of N" to "N of N+1, INCOMPLETE on ..." and the sentence above the
    table that says what they must pass changes with it.
-2. `CONTRIBUTORS.md`: a row in the probes table naming the author. A merged
-   probe earns co-authorship, so this row is the record of that.
-3. `ROADMAP.md`: the entry moves from unclaimed to `**merged**`, under the
+2. `CONTRIBUTORS.md`: a row in the probes table naming the author with
+   their affiliation, as `Name (Institution)`. A merged probe earns
+   co-authorship, so this row is the record of that. The affiliation comes
+   from `authors` in the probe's `probe.yaml`; if it is missing there, ask
+   the author before merging rather than after, because the test that
+   checks it (`test_probe_authors_carry_an_affiliation`) fails the build.
+3. `CITATION.cff`: an `authors` entry for every probe author not already
+   listed, with `given-names`, `family-names`, `affiliation` and `orcid` as
+   a full `https://orcid.org/` URL. This is the software's author list and
+   the paper's starting point. Contact emails stay out of the repository;
+   ask for one privately at merge time.
+4. `ROADMAP.md`: the entry moves from unclaimed to `**merged**`, under the
    id the probe actually took, with the author named. Rewrite the paragraph
    above it if it counted the unclaimed entries.
 4. `site/index.html`, three times, once per language block: the row in

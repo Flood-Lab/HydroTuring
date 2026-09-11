@@ -58,6 +58,24 @@ it that way.
 are named in every report that runs the probe and in each Zenodo release.
 Nobody's contribution disappears into a commit log.
 
+**What we need from you.** Authorship on a paper needs more than a GitHub
+handle, and gathering it after the fact is how names end up wrong. So the
+proposal forms ask for it up front, and a probe pull request is expected to
+carry it in `authors` in `probe.yaml`:
+
+| Field | Required | Where it ends up |
+| --- | --- | --- |
+| `name`, as it should be printed | yes | `probe.yaml`, every report, CONTRIBUTORS.md, CITATION.cff, the paper |
+| `affiliation`, with department and city, or "independent" | yes | CONTRIBUTORS.md, CITATION.cff, the paper |
+| `orcid` | if you have one | CITATION.cff, the paper |
+| `github` | optional | the repository only |
+
+A contact email is not asked for in a public file or issue. The maintainer
+asks for one privately when a probe merges or when model proposals cross the
+line, and it is kept out of the repository. `tests/test_docs_in_sync.py`
+checks that every merged probe's authors carry an affiliation, so a pull
+request without one fails the build rather than the paper.
+
 **On the benchmark paper.** The threshold for co-authorship is:
 
 | Contribution | Counts as |

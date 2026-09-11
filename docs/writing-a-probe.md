@@ -52,6 +52,12 @@ probes/<law>/<slug>/
   README.md      the physics in prose
 ```
 
+`authors` in `probe.yaml` is the record the paper's author list is built
+from, so fill it in as it should be printed: `name` and `affiliation`
+(department and city, or "independent") for every author, and `orcid` where
+you have one. The build checks that every merged probe's authors carry an
+affiliation. See [CONTRIBUTING.md](../CONTRIBUTING.md#credit).
+
 `probes/mass/catchment-closure/` is the reference implementation. Read it
 before you start.
 
