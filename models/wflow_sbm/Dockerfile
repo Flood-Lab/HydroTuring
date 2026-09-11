@@ -5,8 +5,11 @@
 # Manifest at that commit plus JSON, for the adapter). The adapter and the Wflow code it
 # calls are compiled here, into a depot that is read-only at run time; the container runs
 # with no network and never installs or compiles anything.
+#
+# Both stages use julia:1.12.6 pinned by the digest of its multi-architecture index, so the
+# operating-system layer cannot change under the tag.
 
-FROM julia:1.12.6 AS source
+FROM julia:1.12.6@sha256:3688355d393347055ab3fe866dbb4231e5840ab9808382618996958f6f4a2489 AS source
 # Deltares/Wflow.jl tag v1.0.4.
 ARG WFLOW_REVISION=82df72031511339d50fd9142fa159d0ec13e73c5
 RUN apt-get update \
@@ -19,7 +22,7 @@ RUN git init -q /src \
  && git checkout -q FETCH_HEAD \
  && test "$(git rev-parse HEAD)" = "${WFLOW_REVISION}"
 
-FROM julia:1.12.6
+FROM julia:1.12.6@sha256:3688355d393347055ab3fe866dbb4231e5840ab9808382618996958f6f4a2489
 COPY --from=source /src/Wflow /opt/wflow/Wflow
 COPY --from=source /src/LICENSE /opt/wflow/LICENSE
 

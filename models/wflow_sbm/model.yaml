@@ -1,15 +1,16 @@
 name: wflow_sbm
-version: "1.0.4-ht.1"
+version: "1.0.4-ht.2"
 description: >
   wflow_sbm, the distributed hydrological model of Deltares' Wflow.jl at v1.0.4
   (van Verseveld et al. 2024, GMD, which evaluates v0.7.3): the SBM soil column
   with an unsaturated and a saturated store, Gash or Rutter interception, HBV
   snow, and kinematic waves for lateral subsurface, overland and river flow.
-  Run through Wflow's own time loop on the smallest valid schematisation of a
-  lumped catchment, one active cell that is land, river and outlet at once,
-  with the catchment's soil and canopy capacities and snow parameters from
-  static.json and every other parameter from the median of Wflow's Moselle
-  test model. The adapter is written in Julia. README.md lists every choice.
+  Run through Wflow's own time loop on one representative cell at the
+  resolution of Wflow's Moselle test model, land, river and outlet at once,
+  every depth per unit area, with the catchment's soil and canopy capacities
+  and snow parameters from static.json and every other parameter from the
+  Moselle model's medians. The catchment's area enters only the discharge.
+  The adapter is written in Julia. README.md lists every choice.
 authors:
   - "Deltares and contributors (Wflow.jl); van Verseveld et al. (2024)"
   - "HydroTuring maintainers (adapter)"

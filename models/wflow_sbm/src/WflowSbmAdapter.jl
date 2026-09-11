@@ -8,14 +8,21 @@ through Wflow's own time loop and reads what it needs from the model after every
 The catchment
 -------------
 Wflow is a distributed model: a TOML configuration, a netCDF of static maps and a netCDF of
-forcing. The smallest valid schematisation of a lumped catchment is a single active cell, a
-square whose area is `area_km2`, that is a land cell, a river cell and the outlet (local
-drain direction 5, a pit) at once. It sits in a 2 x 2 grid with the other three cells
-inactive, because Wflow reads the cell size from the spacing of the coordinates and drops
-dimensions of length one. The grid is in metres (`cell_length_in_meter__flag`), so the cell
-area is the catchment area exactly. Wflow gives a pit cell the diagonal as its flow length
-and the matching flow width, so the land and subsurface kinematic waves drain a hillslope of
-sqrt(2) times the cell side; the river is given the same length.
+forcing. A lumped catchment is given to it as one representative cell, every flux and store
+a depth over that cell, so the catchment's area enters nothing but the conversion of runoff
+to discharge. The cell is a land cell, a river cell and the outlet (local drain direction 5,
+a pit) at once. It sits in a 2 x 2 grid in metres (`cell_length_in_meter__flag`) with the
+other three cells inactive, because Wflow reads the cell size from the spacing of the
+coordinates and drops dimensions of length one.
+
+Hillslope length has no lumped definition, so like every other parameter the catchment does
+not name it comes from the model Deltares ships to test Wflow: the cell is the square with
+the mean cell area of the Moselle schematisation as Wflow computes it (0.00833 degrees,
+562 446 m2, a side of 749.96 m). Wflow gives a pit cell its diagonal as flow length and the
+matching flow width, so the land and subsurface kinematic waves drain a hillslope of 1061 m.
+The river runs the same length and is as wide as makes it cover the share of the cell that
+the Moselle model's rivers cover of its catchment (length times width over its river cells,
+over its active area: 1.183 %), 6.27 m. Neither changes with the catchment's area.
 
 What the catchment names is used: the soil store's capacity, the canopy's, the snow
 threshold and the degree-day factor. Wflow's soil water capacity is defined in its code as
@@ -25,12 +32,12 @@ maximum canopy storage is `canopy_capacity_mm`; the snowfall and melt thresholds
 `snow_threshold_degC`; the degree-day factor is `degree_day_factor_mm_per_C_day`. Nothing is
 derived from the forcing.
 
-Every other parameter has no lumped counterpart and comes from the model Deltares ships to
-test Wflow: the median over the 50 063 active cells (river parameters: the 5 809 river
-cells) of the Moselle schematisation `staticmaps-moselle.nc` (wflow-artifacts v1.0.0), with
-the canopy gap fraction as the median over cells of Wflow's own exp(-Kext * LAI) at each
-cell's annual-mean LAI, held constant so that nothing follows the calendar. Where the test
-model has no value, Wflow's documented default applies.
+Every other parameter has no lumped counterpart and comes from the Moselle schematisation
+`staticmaps-moselle.nc` (wflow-artifacts v1.0.0): the median over its 50 063 active cells
+(river parameters: its 5 809 river cells), with the canopy gap fraction as the median over
+cells of Wflow's own exp(-Kext * LAI) at each cell's annual-mean LAI, held constant so that
+nothing follows the calendar. Where the test model has no value, Wflow's documented default
+applies.
 
 Switched off, each because the probe's catchment has none of it: reservoirs and lakes,
 glaciers, paddies, irrigation and all water demand, floodplains, lateral snow transport
@@ -54,14 +61,14 @@ Fluxes, as rates in mm per day unless stated:
 * `pr`       the forcing, echoed as the text it was given
 * `evspsbl`  Wflow's total actual evapotranspiration (`actevap`: interception, soil
              evaporation, transpiration, open water)
-* `mrro`     everything that leaves the catchment as flow over the step: the river's
-             discharge at the outlet, plus the overland and lateral subsurface flow out of
-             the outlet cell, which Wflow passes out of the map rather than into the river
-             because the outlet has no cell downstream of it
-* `dis`      the same outflow in m3/s
+* `mrro`     everything that leaves the cell as flow over the step, as a depth: the
+             river's discharge at the outlet, plus the overland and lateral subsurface flow
+             out of the outlet cell, which Wflow passes out of the map rather than into the
+             river because the outlet has no cell downstream of it
+* `dis`      `mrro` over the catchment's area, in m3/s
 * `gwex`     minus the leakage out of the saturated store (zero: `MaxLeakage` is 0)
 
-States, absolute, in mm over the catchment:
+States, absolute, in mm:
 
 * `mrso`     the whole SBM soil column: the unsaturated store over all layers plus the
              saturated store. SBM's saturated zone is the lower part of the same column
@@ -75,8 +82,11 @@ States, absolute, in mm over the catchment:
              yet released at the outlet
 
 The budget closes over these by construction of the mapping, and run.json records both the
-adapter's per-step residual and Wflow's own mass-balance errors for each component.
-Wflow is deterministic; the request seed is recorded and otherwise unused.
+adapter's per-step residual and Wflow's own mass-balance errors for each component. The
+schematisation (static maps, forcing and TOML, well under a megabyte for a ten-year daily
+case) is written to a temporary directory on /tmp and removed after the run; nothing else is
+written outside /io/output. Wflow is deterministic; the request seed is recorded and
+otherwise unused.
 """
 module WflowSbmAdapter
 
@@ -88,7 +98,7 @@ using PrecompileTools: @compile_workload, @setup_workload
 using TOML: TOML
 using Wflow: Wflow
 
-const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.1")
+const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.2")
 const WFLOW = Dict{String, Any}(
     "package" => "Wflow.jl", "version" => "1.0.4",
     "commit" => "82df72031511339d50fd9142fa159d0ec13e73c5", "model_type" => "sbm",
@@ -98,16 +108,20 @@ const STEP_SECONDS = Dict("PT1D" => 86400, "PT1H" => 3600, "PT15M" => 900, "PT5M
 const FILL = -9999.0
 const TIME_UNITS = "seconds since 1900-01-01 00:00:00"
 
-# Medians of Wflow's Moselle test schematisation (staticmaps-moselle.nc, wflow-artifacts
-# v1.0.0) over its active cells, or its river cells where marked. The file stores Float32;
-# six significant digits are kept.
+# Wflow's Moselle test schematisation (staticmaps-moselle.nc, wflow-artifacts v1.0.0).
+# Parameters are medians over its active cells, or its river cells where marked; the file
+# stores Float32 and six significant digits are kept. The geometry is computed as Wflow
+# computes it for that grid (cell lengths from the 0.00833-degree spacing through its
+# `lattometres`).
 const MOSELLE = (
+    cell_side_m = 749.964,                       # side of the square with the mean cell area, 562 446 m2
+    river_area_share = 0.0118307,                # sum over river cells of length * width, over the active area
     theta_s = 0.435808,                          # thetaS, saturated water content
     theta_r = 0.165628,                          # thetaR, residual water content
     kv_0 = 256.983,                              # KsatVer, mm/day at the soil surface
     f = 0.00335494,                              # f, 1/mm, decline of KsatVer with depth
     c = (9.38966, 9.70355, 10.0999, 10.0956),   # c, Brooks-Corey exponent per layer
-    soil_thickness = 2000.0,                     # SoilThickness, mm (only without a capacity)
+    soil_thickness = 2000.0,                     # SoilThickness, mm (only without a capacity, or as a sensitivity)
     rooting_depth = 387.0,                       # RootingDepth, mm
     khfrac = 100.0,                              # KsatHorFrac
     slope = 0.0741422,                           # Slope, land surface
@@ -123,7 +137,7 @@ const MOSELLE = (
     gap_fraction = 0.305933,                     # median of exp(-Kext * annual-mean LAI)
     n_river = 0.03,                              # N_River (river cells)
     river_slope = 0.0017048,                     # RiverSlope (river cells)
-    river_width = 30.0,                          # wflow_riverwidth, m (river cells)
+    river_width = 30.0,                          # wflow_riverwidth, m (river cells); only the one-cell sensitivity uses it
     river_depth = 1.0,                           # RiverDepth, bankfull, m (river cells)
 )
 const WFLOW_DEFAULTS = (cmax = 1.0, cfmax = 3.75)  # documented defaults, used only as fallbacks
@@ -197,11 +211,14 @@ end
 
 # --- the catchment -------------------------------------------------------------------------
 
-"Cell side in metres and the static maps' values for the one active cell."
+"River width that makes a river along the pit cell's diagonal cover the Moselle river-area share."
+river_width_for_share(cell::Float64) = MOSELLE.river_area_share * cell^2 / (sqrt(2.0) * cell)
+
+"The representative cell's side in metres, the soil capacity, and the static maps' values."
 function catchment(static::AbstractDict)
     area_km2 = Float64(static["area_km2"])
     area_km2 > 0 || error("area_km2 must be positive, not $area_km2")
-    cell = sqrt(area_km2 * 1.0e6)
+    cell = MOSELLE.cell_side_m
     theta_e = MOSELLE.theta_s - MOSELLE.theta_r
     capacity = haskey(static, "soil_capacity_mm") ? Float64(static["soil_capacity_mm"]) :
         MOSELLE.soil_thickness * theta_e
@@ -234,12 +251,51 @@ function catchment(static::AbstractDict)
         "Cmax" => Float64(get(static, "canopy_capacity_mm", WFLOW_DEFAULTS.cmax)),
         "WaterFrac" => 0.0,
         "wflow_riverlength" => sqrt(2.0) * cell,
-        "wflow_riverwidth" => MOSELLE.river_width,
+        "wflow_riverwidth" => river_width_for_share(cell),
         "RiverSlope" => MOSELLE.river_slope,
         "N_River" => MOSELLE.n_river,
         "RiverDepth" => MOSELLE.river_depth,
     )
     return cell, capacity, maps
+end
+
+const GEOMETRY_OVERRIDES = ("one_cell_sqrt_area", "cell_side_m", "moselle_thickness", "rooting_depth_fraction")
+
+"""
+    apply_overrides!(maps, cell, static, capacity, overrides) -> cell
+
+Sensitivity settings for the tables in README.md; empty on the contract path. Applied in
+this order: `one_cell_sqrt_area` (the geometry of adapter version ht.1: one cell with the
+catchment's own area, its river 30 m wide along the diagonal), `cell_side_m` (a
+representative cell of another side, river share kept), `moselle_thickness` (the Moselle
+model's 2000 mm soil thickness, with theta_s lowered so that the column still holds the
+stated capacity), `rooting_depth_fraction` (rooting depth as that fraction of the soil
+thickness), then any static-map value by its name.
+"""
+function apply_overrides!(maps::AbstractDict, cell::Float64, static::AbstractDict, capacity::Float64,
+                          overrides::AbstractDict)
+    if Float64(get(overrides, "one_cell_sqrt_area", 0.0)) != 0.0
+        cell = sqrt(Float64(static["area_km2"]) * 1.0e6)
+        maps["wflow_riverlength"] = sqrt(2.0) * cell
+        maps["wflow_riverwidth"] = MOSELLE.river_width
+    end
+    if haskey(overrides, "cell_side_m")
+        cell = Float64(overrides["cell_side_m"])
+        maps["wflow_riverlength"] = sqrt(2.0) * cell
+        maps["wflow_riverwidth"] = river_width_for_share(cell)
+    end
+    if Float64(get(overrides, "moselle_thickness", 0.0)) != 0.0
+        maps["SoilThickness"] = MOSELLE.soil_thickness
+        maps["thetaS"] = MOSELLE.theta_r + capacity / MOSELLE.soil_thickness
+    end
+    if haskey(overrides, "rooting_depth_fraction")
+        maps["RootingDepth"] = Float64(overrides["rooting_depth_fraction"]) * maps["SoilThickness"]
+    end
+    for (name, value) in overrides
+        name in GEOMETRY_OVERRIDES && continue
+        maps[name] = value
+    end
+    return cell
 end
 
 coordinates(cell) = ([0.5 * cell, 1.5 * cell], [1.5 * cell, 0.5 * cell])
@@ -343,23 +399,16 @@ end
     simulate(forcing, static, timestep, workdir; overrides)
 
 Run one case. `overrides` exists for the sensitivity tables in README.md and is empty on
-the contract path: static-map values by name, and `cell_side_m` to change the cell without
-changing anything else.
+the contract path (see `apply_overrides!`).
 """
 function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractString,
                   workdir::AbstractString; overrides::AbstractDict = Dict{String, Any}())
     dt = STEP_SECONDS[timestep]
     dt_days = dt / 86400
     n = length(forcing.time)
+    area_km2 = Float64(static["area_km2"])
     cell, capacity, maps = catchment(static)
-    for (name, value) in overrides
-        if name == "cell_side_m"
-            cell = Float64(value)
-            maps["wflow_riverlength"] = sqrt(2.0) * cell
-        else
-            maps[name] = value
-        end
-    end
+    cell = apply_overrides!(maps, cell, static, capacity, overrides)
 
     stamps = [parse_time(t) + Second(dt) for t in forcing.time]
     write_static_maps(joinpath(workdir, "staticmaps.nc"), cell, maps)
@@ -395,11 +444,11 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
 
     for i in 1:n
         Wflow.run_timestep!(model; write_model_output = false)
-        outflow = river.q_av[1] + overland.q_av[1] + lateral.ssf[1] / 86400.0  # m3/s
+        outflow = river.q_av[1] + overland.q_av[1] + lateral.ssf[1] / 86400.0  # m3/s out of the cell
         leakage = soil.actleakage[1]
         columns[i, 1] = soil.actevap[1] / dt_days
         columns[i, 2] = mm(outflow * 86400.0)
-        columns[i, 3] = outflow
+        columns[i, 3] = columns[i, 2] * area_km2 / 86.4
         columns[i, 4] = -leakage / dt_days
         columns[i, 5] = soil.ustoredepth[1] + soil.satwaterdepth[1]
         columns[i, 6] = snow.snow_storage[1] + snow.snow_water[1]
@@ -429,13 +478,18 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         "timestep" => timestep,
         "interception" => interception,
         "domain" => Dict{String, Any}(
-            "cells" => "one active cell in a 2 x 2 metre grid: land, river and outlet (ldd 5)",
+            "cells" => "one representative cell in a 2 x 2 metre grid: land, river and outlet (ldd 5)",
+            "cell_source" => "square with the mean cell area of Wflow's Moselle test model (0.00833 degrees, Wflow's lattometres)",
             "cell_side_m" => cell,
-            "area_m2" => area,
+            "cell_area_m2" => area,
             "flow_length_m" => land.flow_length[1],
             "flow_width_m" => land.flow_width[1],
             "surface_flow_width_m" => land.surface_flow_width[1],
+            "river_length_m" => maps["wflow_riverlength"],
+            "river_width_m" => maps["wflow_riverwidth"],
             "river_fraction" => land.river_fraction[1],
+            "catchment_area_km2" => area_km2,
+            "catchment_area_enters" => "only dis = mrro * area_km2 / 86.4",
         ),
         "parameters" => Dict{String, Any}(
             "from_static_json" => Dict{String, Any}(
@@ -445,7 +499,7 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
                 "TT_TTM_degC" => maps["TT"],
                 "Cfmax_mm_per_degC_day" => maps["Cfmax"],
             ),
-            "from_moselle_test_model_medians" => Dict{String, Any}(String(k) => v for (k, v) in pairs(MOSELLE)),
+            "from_moselle_test_model" => Dict{String, Any}(String(k) => v for (k, v) in pairs(MOSELLE)),
             "effective_rooting_depth_mm" => model.land.vegetation_parameters.rootingdepth[1],
             "static_attributes_unused" => sort([String(k) for k in keys(static) if !(k in (
                 "area_km2", "soil_capacity_mm", "canopy_capacity_mm", "snow_threshold_degC",
@@ -458,14 +512,14 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         ],
         "reported" => Dict{String, Any}(
             "evspsbl" => "actevap: interception + soil evaporation + transpiration + open water",
-            "mrro" => "river q_av at the outlet + overland q_av + lateral subsurface flow out of the outlet cell",
-            "dis" => "the same outflow in m3/s",
+            "mrro" => "river q_av at the outlet + overland q_av + lateral subsurface flow out of the outlet cell, as a depth over the cell",
+            "dis" => "mrro over the catchment's area, m3/s",
             "gwex" => "minus the leakage from the saturated store (identically zero, MaxLeakage 0)",
             "mrso" => "unsaturated store (all layers) + saturated store: the SBM soil column",
             "gw" => "identically zero: the sbm model type has no store below the soil column",
             "snw" => "dry snow + liquid water in the pack",
             "canopy" => "canopy storage",
-            "channel" => "land and river kinematic-wave storage, over the catchment area",
+            "channel" => "land and river kinematic-wave storage, as a depth over the cell",
         ),
         "budget" => Dict{String, Any}(
             "adapter_max_step_residual_mm" => worst_residual,
@@ -477,6 +531,7 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
             "min_river_lateral_inflow_m3s" => min_river_inflow,
         ),
     )
+    isempty(overrides) || (notes["overrides"] = Dict{String, Any}(String(k) => v for (k, v) in overrides))
     return columns, notes
 end
 
@@ -498,6 +553,8 @@ function main(args::Vector{String})
         error("request asks for $(request["n_steps"]) steps; the forcing has $(length(forcing.time)) rows")
     end
 
+    # The schematisation Wflow reads (static maps, forcing, TOML) goes to a scratch directory
+    # on /tmp and is removed afterwards.
     workdir = mktempdir()
     columns, notes = try
         with_logger(ConsoleLogger(stderr, Logging.Warn)) do
