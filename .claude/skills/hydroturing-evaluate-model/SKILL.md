@@ -129,6 +129,9 @@ places where following it took judgement.
 - `ht validate`, `ht gate`, `ht list`, `pytest -q` must all be green before a
   push; `ht run` exit 1 is a scientific FAIL, or N/A for a model no probe
   could score (both fine), exit 2 is a harness ERROR (not fine).
+  `ht verify-adapter` uses the same codes: 1 when the check is N/A because
+  the model cannot consume the named probe, or any probe, so the adapter was
+  not run; 2 when the adapter broke the contract. A crash exits 2 from either.
 - Every probe must pass four physical models (`reference_bucket`,
   `flex_lumped`, `flex_topo`, `sacsma_snow17`) and fail its named broken one; a probe PR is
   gated on the physical models first. The seven merged probes and what each
