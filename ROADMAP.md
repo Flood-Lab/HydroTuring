@@ -166,15 +166,16 @@ perfectly on every seed forever, and today only its storage bounds catch it. A
 counterfactual asks where the extra water went, which construction cannot
 answer.
 
-### `mass/time-origin-invariance` &middot; starter &middot; **unclaimed**
-`ht init-probe --template invariance`
+### `mass/time-origin-invariance` &middot; **merged**
+By Siavash Shams. The same weather under a 28-year calendar shift that
+preserves seasons and leap days: evaporation, runoff and water stores agree
+to a relative tolerance of 1e-9. The control budget must close and its runoff
+and evaporation must respond to the forcing.
 
-The same weather under different dates. Nothing may move.
-
-*Discriminates:* date features and trend terms that survived from training. The
-cheapest probe in the suite and the hardest to tune towards, because there is
-no tolerance worth arguing about: the two runs agree to floating point or they
-do not. A good first contribution.
+*Discriminates:* calendar-year dependence through `reference_calendar`, whose
+recession changes with the year even while its water budget closes. See the
+[probe](probes/mass/time-origin-invariance) for the fixed calendar window and
+the normalization used to compare outputs.
 
 ---
 
