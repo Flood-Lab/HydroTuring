@@ -209,7 +209,14 @@ ht run --model <model-name>              # the actual evaluation
 
 `verify-adapter` runs a single seed, on the same window the evaluation will
 use, and checks the shape of what came back. Get that green before looking
-at any residual. Both commands take `--csv models/result.csv` to append what
+at any residual. Without `--probe` it checks the closure probe, or the first
+probe the model can consume when it cannot consume that one: a step it does
+not declare, a forcing the probe does not generate, or a window that drops a
+stretch the probe scores makes a probe N/A (INCOMPATIBLE) for the model.
+When that is true of the probe named with `--probe`, or of every probe, the
+adapter is not run and the command exits 1, as `ht run` does for a model no
+probe could score. Exit 2 means the adapter broke the contract or the
+harness failed. Both commands take `--csv models/result.csv` to append what
 they found to the archive, and `--window DAYS|full` to override the
 manifest.
 

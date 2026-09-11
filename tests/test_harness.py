@@ -15,6 +15,7 @@ import pytest
 
 from hydroturing import registry
 from hydroturing.harness import (
+    IncompatibleError,
     build_case,
     run_model,
     run_probe,
@@ -237,12 +238,48 @@ def test_run_exits_2_when_an_error_sits_beside_unscored_probes(monkeypatch):
     assert cli.main(["run", "--model", "reference_bucket", "--probe", "mass/catchment-closure"]) == 2
 
 
+def test_a_command_that_crashes_exits_2(monkeypatch, capsys):
+    """Python exits 1 on an uncaught exception, and CI accepts exit 1 as a
+    FAIL or an N/A. A crash nothing anticipated, such as a model.yaml that is
+    not YAML, is the harness failing and must exit 2 with its traceback."""
+    import yaml
+
+    from hydroturing import cli
+
+    def unreadable(name):
+        raise yaml.YAMLError(f"{name}/model.yaml is not YAML")
+
+    monkeypatch.setattr(cli.registry, "find_model", unreadable)
+    assert cli.main(["verify-adapter", "--model", "reference_bucket"]) == 2
+    assert cli.main(["run", "--model", "reference_bucket"]) == 2
+    assert "reference_bucket/model.yaml is not YAML" in capsys.readouterr().err
+
+
 def test_adapter_verification_runs_an_incomplete_model(probe):
     """A probe that is N/A (INCOMPLETE) must not skip the contract smoke test."""
     model = registry.find_model("reference_streamflow_only")
     result = verify_adapter_contract(model, probe, gate_seeds(probe.id, 1)[0])
     assert len(result.table) == result.case.n_steps
     assert {"time", "mrro", "dis"} <= set(result.table.columns)
+
+
+def test_adapter_verification_does_not_run_a_probe_the_model_cannot_consume(probe, monkeypatch):
+    """A model needing a forcing the probe does not generate cannot be put to
+    it. That is the probe's N/A (INCOMPATIBLE), decided before the adapter is
+    invoked, and must not surface as the adapter breaking the contract."""
+    from hydroturing import harness
+
+    def no_runner(model):
+        raise AssertionError(f"the adapter of {model.name} was run")
+
+    monkeypatch.setattr(harness, "get_runner", no_runner)
+    model = replace(
+        registry.find_model("reference_bucket"),
+        needs_forcing=("pr", "unavailable_driver"),
+    )
+    with pytest.raises(IncompatibleError) as refused:
+        verify_adapter_contract(model, probe, gate_seeds(probe.id, 1)[0])
+    assert refused.value.issues == ["forcing does not provide unavailable_driver"]
 
 
 def test_all_seeds_must_pass(probe):

@@ -17,7 +17,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from hydroturing.scoring import NOT_SCORED, PASS, ModelReport, ProbeOutcome
+from hydroturing.scoring import (
+    ERROR,
+    FAIL,
+    INCOMPATIBLE,
+    NOT_SCORED,
+    OK,
+    PASS,
+    ModelReport,
+    ProbeOutcome,
+)
 
 PASS_MARK, FAIL_MARK, NOT_SCORED_MARK = "\u2705", "\u274c", "\u2796"
 # Same width as each other, so columns line up whichever set is in use.
@@ -263,6 +272,7 @@ def contract_row(
     *,
     result=None,
     error: str | None = None,
+    incompatible: list[str] | None = None,
     run_date: str | None = None,
 ) -> dict[str, str]:
     """The adapter contract check as one archive row.
@@ -270,16 +280,22 @@ def contract_row(
     For a model that reports only discharge this is the only line saying
     that it was actually built and run on a budget probe: that probe is
     N/A (INCOMPLETE) before the container is ever started.
+
+    A check on a probe the model cannot consume is N/A (INCOMPATIBLE), not
+    an ERROR: the adapter was never invoked, and the row says why.
     """
     run_date = run_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     if error is not None:
-        verdict, reason, window, detail = "FAIL", "ERROR", "not run", error.splitlines()[0][:160]
+        verdict, reason, window, detail = FAIL, ERROR, "not run", error.splitlines()[0][:160]
+    elif incompatible:
+        verdict, reason, window = NOT_SCORED, INCOMPATIBLE, "not run"
+        detail = "; ".join(incompatible)[:400]
     else:
         case = result.case
         window = (
             f"{case.window['days']}-day flood event" if case.window else "full record"
         )
-        verdict, reason = "PASS", "OK"
+        verdict, reason = PASS, OK
         detail = (
             f"adapter contract OK: {len(result.table)} rows in {result.wall_seconds:.1f}s, "
             f"columns {', '.join(c for c in result.table.columns if c != 'time')}"

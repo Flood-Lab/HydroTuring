@@ -35,7 +35,8 @@ in the message closes the submission issue on push.
 - `model` workflow: manual only since 2026-09-05,
   `gh workflow run model --ref main -f model=<name>` (blank = every model); 45-minute limit;
   builds the image without secrets, `ht verify-adapter`, then `ht run` with
-  fresh seeds; exit 1 (FAIL) is green, exit 2 (ERROR) is red; scorecard in
+  fresh seeds; exit 1 is green (a FAIL or N/A from `run`, an N/A from
+  `verify-adapter`) and exit 2 (an ERROR, or any crash) is red; scorecard in
   the log and `results/` as an artifact. δHBV on the full record took ~10
   minutes; Google on 30-day windows could not finish within 45 minutes on
   4 cores before the CPU cap fix and has not been re-run there since.

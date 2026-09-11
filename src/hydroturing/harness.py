@@ -13,7 +13,7 @@ import pandas as pd
 
 from hydroturing import SUITE_VERSION, criteria as criteria_mod
 from hydroturing.criteria.base import CriterionResult
-from hydroturing.protocol import Case, ProtocolError, RunResult
+from hydroturing.protocol import Case, RunResult
 from hydroturing.runner import get_runner
 from hydroturing.scoring import (
     FAIL,
@@ -42,6 +42,18 @@ WINDOW_DRIVER = "pr"
 
 class WindowError(ValueError):
     """A window cannot be cut from this case without breaking the probe."""
+
+
+class IncompatibleError(Exception):
+    """The model cannot consume this probe, which is N/A (INCOMPATIBLE) for it.
+
+    Raised before the adapter runs, so that a check that never put the probe
+    to the model is not mistaken for an adapter that broke the contract.
+    """
+
+    def __init__(self, issues: list[str]):
+        super().__init__("; ".join(issues))
+        self.issues = list(issues)
 
 
 def resolve_window_days(
@@ -369,6 +381,12 @@ def verify_adapter_contract(
     probe needs variables the model does not produce. That limitation belongs
     to the probe's later N/A (INCOMPLETE), not to this smoke test.
 
+    A probe the model cannot consume is another matter: a step it does not
+    declare, a forcing it needs and the probe does not generate, a window
+    that drops a stretch the probe scores. There is nothing to run the
+    adapter on, so IncompatibleError is raised before it is invoked, on the
+    same grounds that make `run_probe` call the probe N/A (INCOMPATIBLE).
+
     The case is cut to the model's evaluation window, as it will be in the
     real run, so a model that only fits its time budget on the window is
     smoke-tested under the same conditions it is scored under.
@@ -378,11 +396,15 @@ def verify_adapter_contract(
     case = build_case(probe, seed, select_variants(model, probe)[0])
     issues = compatibility_issues(model, probe, case, check_perturbation=False)
     if issues:
-        raise ProtocolError("; ".join(issues))
+        raise IncompatibleError(issues)
 
     days = resolve_window_days(model, probe, window)
     if days is not None:
-        case = window_case(case, select_window(case, probe, days))
+        bounds = select_window(case, probe, days)
+        try:
+            case = window_case(case, bounds)
+        except WindowError as exc:
+            raise IncompatibleError([str(exc)]) from exc
 
     smoke_probe = replace(
         probe,

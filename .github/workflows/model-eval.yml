@@ -56,11 +56,24 @@ jobs:
       - name: Verify the adapter contract
         if: steps.select.outputs.models != ''
         run: |
+          status=0
           for model in ${{ steps.select.outputs.models }}; do
             echo "::group::verify $model"
-            ht verify-adapter --model "$model"
+            if ht verify-adapter --model "$model"; then
+              code=0
+            else
+              code=$?
+            fi
             echo "::endgroup::"
+            # Exit 1 is a check that was N/A: no probe the model can consume,
+            # so its adapter was never run, and `ht run` will say the same.
+            # Exit 2 is an adapter that broke the contract, or the harness
+            # failing, and must make the workflow fail.
+            if [ "$code" -ne 0 ] && [ "$code" -ne 1 ]; then
+              status=1
+            fi
           done
+          exit "$status"
 
       - name: Evaluate
         if: steps.select.outputs.models != ''
