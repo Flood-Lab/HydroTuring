@@ -1,0 +1,21 @@
+name: reference_abstraction_blind
+version: "1.0.0"
+description: >
+  The exact bucket, blind to a prescribed human abstraction. It conserves
+  water perfectly — over the water it knows about. A forcing column naming a
+  withdrawal is not read, so a run with irrigation and a run without it come
+  out identical, and the abstracted water is missing from nothing it reports.
+  Broken in exactly one way, so the human_abstraction criterion has a named
+  model to catch: an unaccounted sink that no single-run budget can see.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
