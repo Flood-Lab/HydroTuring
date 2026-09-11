@@ -422,24 +422,30 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
     <h3 data-i18n="example.h">One model through the suite</h3>
     <div data-i18n-html="example.intro"></div>
 <pre><span class="p">ht</span> run --model google_flood_forecast --gate-seeds
-google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (INCOMPLETE)  [2/7 probes passed]
-  ❌ FAIL  mass/catchment-closure
+google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (VIOLATION)  [2/7 probes passed, 1 INCOMPLETE]
+  ➖ N/A   mass/catchment-closure
           missing: pr, evspsbl, mrso, snw, canopy
   ❌ FAIL  mass/resolution-invariance
-        ❌  resolution_invariance mrro differs by 65.9% of pr between PT1H and PT1D (limit 5%)
+          window: 30-day flood event after spinup (seed 746687816: 2000-04-11 to 2000-05-10; seed 1253639930: 2000-04-11 to 2000-05-10; seed 1760592044: 2000-04-11 to 2000-05-10)
+        ❌  resolution_invariance mrro differs by 65.9% of pr between PT1H and PT1D (limit 10%)
         ✅  non_degenerate     partition and variability are non-trivial
   ❌ FAIL  mass/warming-response
+          window: 365-day flood event after spinup (seed 732983943: 2003-02-11 to 2004-02-10; seed 1239936057: 2009-09-03 to 2010-09-02; seed 1746888171: 2001-06-01 to 2002-05-31; seed 106356638: 2009-03-01 to 2010-02-28; seed 613308752: 2001-04-05 to 2002-04-04)
         ❌  response_sign      warmer (more pet): mrro fell by 12.5 mm, -0.088 per unit of demand; a decrease of at least 0.1 per unit is expected
         ✅  non_degenerate     partition and variability are non-trivial
   ✅ PASS  mass/causality
+          window: 730-day flood event after spinup (seed 1016628858: 2000-12-31 to 2002-12-30; seed 1523580972: 2000-12-31 to 2002-12-30; seed 2030533086: 2000-12-31 to 2002-12-30)
         ✅  causality          nothing moves before the storm of 2002-02-04 (worst 0.0e+00 relative) and mrro answers it afterwards (+0.318 of the added rain)
         ✅  non_degenerate     partition and variability are non-trivial
   ❌ FAIL  mass/dry-down
+          window: 730-day flood event after spinup (seed 186927550: 2000-12-31 to 2002-12-30; seed 693879664: 2000-12-31 to 2002-12-30; seed 1200831778: 2000-12-31 to 2002-12-30)
         ✅  dry_down           drains without rain: 224 mm over 730 dry days against a 322 mm bound, and nothing rises
         ❌  non_degenerate     mrro is nearly constant (cv 0.0192 &lt; 0.1)
   ✅ PASS  mass/steady-state
+          window: 1095-day flood event after spinup (seed 1815845244: 2000-12-31 to 2003-12-30; seed 175313711: 2000-12-31 to 2003-12-30; seed 682265825: 2000-12-31 to 2003-12-30)
         ✅  steady_state       settles: runoff 0.630 mm/day under 2.500 mm/day of rain, nothing varies by more than 0.00% (mrro) in the last 365 days
   ❌ FAIL  mass/extreme-rain
+          window: 1095-day flood event after spinup (seed 154098211: 2000-12-31 to 2003-12-30; seed 661050325: 2000-12-31 to 2003-12-30; seed 1168002439: 2000-12-31 to 2003-12-30)
         ❌  monotone_response  scaling the storm to 'x10' added 526 mm of rain and only 35 mm of mrro (0.07); a catchment cannot absorb that much
         ✅  non_degenerate     partition and variability are non-trivial</pre>
     <div data-i18n-html="example.reading"></div>
@@ -650,7 +656,7 @@ en: {
   "seeds.body":`<p>Forcing is generated at run time from a recorded seed. Nothing is committed as data, so there is nothing to memorise, and a reviewer reviews a short deterministic script instead of a binary file.</p>
 <p>Every probe runs five seeds and all of them must pass, so no model gets through on a lucky draw. Any run reproduces exactly, because the seed is written into the report.</p>`,
   "example.h":"One model through the suite",
-  "example.intro":`<p>This is the report for the Google Flood Hub model, run through the open-source OpenHydroNet package with its published weights, on the first seven mass probes with the gate seeds. It is the output of one command, unedited.</p>`,
+  "example.intro":`<p>This is the report for the Google Flood Hub model, run through the open-source OpenHydroNet package with its published weights, on the first seven mass probes with the gate seeds. It is the harness's report for those seven probes, unedited.</p>`,
   "example.reading":`<p>How to read it:</p>
 <ul>
 <li>The verdict is <code>FAIL</code>, and the reason beside it, <code>VIOLATION</code>, is the worst reason among the probes that could be scored. The closure probe is <code>N/A</code> with reason <code>INCOMPLETE</code>: it never ran, because the model reports runoff and nothing else, so it counts neither for the model nor against it.</li>
@@ -851,7 +857,7 @@ es: {
   "seeds.body":`<p>El forzamiento se genera en tiempo de ejecución a partir de una semilla registrada. No se versiona ningún dato, así que no hay nada que memorizar, y quien revisa lee un script corto y determinista en lugar de un archivo binario.</p>
 <p>Cada prueba se ejecuta con cinco semillas y todas deben aprobar, de modo que ningún modelo pasa por suerte. Cualquier ejecución se reproduce de forma exacta, porque la semilla queda escrita en el informe.</p>`,
   "example.h":"Un modelo a través de la batería",
-  "example.intro":`<p>Este es el informe del modelo de Google Flood Hub, ejecutado con el paquete de código abierto OpenHydroNet y sus pesos publicados, sobre las primeras siete pruebas de masa con las semillas de la compuerta. Es la salida de un solo comando, sin editar.</p>`,
+  "example.intro":`<p>Este es el informe del modelo de Google Flood Hub, ejecutado con el paquete de código abierto OpenHydroNet y sus pesos publicados, sobre las primeras siete pruebas de masa con las semillas de la compuerta. Es el informe del arnés para esas siete pruebas, sin editar.</p>`,
   "example.reading":`<p>Cómo leerlo:</p>
 <ul>
 <li>El veredicto es <code>FAIL</code>, y la razón que lo acompaña, <code>VIOLATION</code>, es la peor entre las pruebas que pudieron puntuarse. La prueba de cierre es <code>N/A</code> con razón <code>INCOMPLETE</code>: nunca se ejecutó, porque el modelo reporta escorrentía y nada más, así que no cuenta ni a favor ni en contra del modelo.</li>
@@ -1052,7 +1058,7 @@ zh: {
   "seeds.body":`<p>强迫数据在运行时由记录下来的随机种子现场生成。仓库中不提交任何数据，因此没有可供记忆的对象；评审人读到的是一段简短且确定性的脚本，而不是一个二进制文件。</p>
 <p>每个检验项运行五个种子，全部通过才算通过，所以没有模型能靠运气蒙混过关。由于种子会写入报告，任何一次运行都可以精确复现。</p>`,
   "example.h":"一个模型走完整套检验",
-  "example.intro":`<p>这是 Google Flood Hub 模型的报告：通过开源的 OpenHydroNet 及其公开权重运行，在最初七项质量检验项上使用闸门种子。它是一条命令的原始输出，未经编辑。</p>`,
+  "example.intro":`<p>这是 Google Flood Hub 模型的报告：通过开源的 OpenHydroNet 及其公开权重运行，在最初七项质量检验项上使用闸门种子。它是评测框架对这七项检验给出的报告，未经编辑。</p>`,
   "example.reading":`<p>如何解读：</p>
 <ul>
 <li>判定结果是 <code>FAIL</code>，旁边的原因 <code>VIOLATION</code> 是能够计分的检验项中最严重的一个。闭合检验记为 <code>N/A</code>，原因是 <code>INCOMPLETE</code>：它根本没有运行，因为模型只报告径流，别无其他，因此不计入模型的判定。</li>
