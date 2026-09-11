@@ -27,6 +27,7 @@ long.
 | `mass/response-nonnegativity` | Zhi Li (CU Boulder) |
 | `mass/antecedent-monotonicity` | Zhi Li (CU Boulder) |
 | `mass/phase-counterfactual` | Zhi Li (CU Boulder) |
+| `mass/time-origin-invariance` | Siavash Shams |
 | `energy/pet-consistency` | Zhi Li (CU Boulder) |
 | `energy/latent-heat-et-consistency` | Changming Li (SCUT) |
 | `energy/evaporative-partition` | Changming Li (SCUT) |
