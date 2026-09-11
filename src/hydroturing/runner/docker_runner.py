@@ -12,6 +12,7 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+import uuid
 from pathlib import Path
 
 from hydroturing.runner.base import Runner, RunnerError
@@ -25,9 +26,21 @@ IMAGE_PREFIX = "hydroturing"
 # build that never exits, not a budget for a slow one.
 BUILD_TIMEOUT_S = 1800
 
+# How long `docker kill`, and then `docker rm -f`, may take to end a container
+# that ran past its budget. Either normally returns within seconds; the limit
+# is for a daemon that has stopped answering, so the budget error still
+# reaches the caller instead of a second hang.
+KILL_TIMEOUT_S = 30
+
 
 def image_tag(model: ModelManifest) -> str:
     return f"{IMAGE_PREFIX}/{model.name}:{model.version}"
+
+
+def container_name(model: ModelManifest) -> str:
+    """A name unique to one run, so two sessions running the same model on
+    one daemon never collide."""
+    return f"{IMAGE_PREFIX}-{model.name}-{uuid.uuid4().hex}"
 
 
 def require_docker() -> str:
@@ -101,6 +114,27 @@ def build(
     return tag
 
 
+def kill_container(docker: str, name: str) -> None:
+    """End a container whose `docker run` was cut off.
+
+    `docker kill` stops a running container, and --rm then removes it. A
+    container the client created but never got to start is not running, so
+    the kill fails on it and `docker rm -f` removes it instead. If neither
+    finds the container, it has already gone or was never created, and there
+    is nothing left to end.
+    """
+    for argv in ([docker, "kill", name], [docker, "rm", "-f", name]):
+        try:
+            done = subprocess.run(
+                argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=KILL_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired:
+            continue
+        if done.returncode == 0:
+            return
+
+
 class DockerRunner(Runner):
     name = "docker"
 
@@ -115,14 +149,16 @@ class DockerRunner(Runner):
         return ["--user", f"{os.getuid()}:{os.getgid()}"]
 
     @staticmethod
-    def command(docker: str, tag: str, model: ModelManifest, io_dir: Path) -> list[str]:
+    def command(docker: str, tag: str, model: ModelManifest, io_dir: Path, name: str) -> list[str]:
         """Build the run command.
 
         Isolation is part of the benchmark, not an operational detail, so this
         is asserted by the test suite rather than trusted. Inputs and the
         request are mounted read-only; only the output directory is writable.
         The image's own working directory is preserved so a relative entrypoint
-        resolves exactly as it did when the image was built.
+        resolves exactly as it did when the image was built. The container
+        takes the caller's `name`, so a run cut off at its time budget can be
+        found and killed.
         """
         resources = model.resources or {}
         request_path = (io_dir / "request.json").resolve()
@@ -142,6 +178,7 @@ class DockerRunner(Runner):
         # wants a cache directory has one that vanishes with the container.
         return [
             docker, "run", "--rm",
+            "--name", name,
             *DockerRunner.user_flags(),
             "--env", "HOME=/tmp",
             "--network", "none",
@@ -164,12 +201,19 @@ class DockerRunner(Runner):
         if self._tag is None:
             self._tag = build(model, docker=docker)
         tag = self._tag
-        argv = self.command(docker, tag, model, io_dir)
+        name = container_name(model)
+        argv = self.command(docker, tag, model, io_dir, name)
         try:
             proc = subprocess.run(
                 argv, capture_output=True, text=True, timeout=probe.max_runtime_s
             )
         except subprocess.TimeoutExpired:
+            # The timeout ends the docker client, not the container, which
+            # runs on in the daemon until it finishes by itself; --rm removes
+            # it only then. On a shared host that load pushes the next cases
+            # over their budgets too, so the container is killed by name
+            # before the budget error is raised.
+            kill_container(docker, name)
             raise RunnerError(
                 f"{model.name}: container exceeded the time budget for {probe.id}"
             ) from None
