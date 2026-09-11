@@ -21,7 +21,7 @@ from hydroturing.harness import (
     verify_adapter_contract,
 )
 from hydroturing.protocol import ProtocolError, read_result, stage
-from hydroturing.scoring import FAIL, INCOMPATIBLE, INCOMPLETE, PASS, VIOLATION
+from hydroturing.scoring import ERROR, FAIL, INCOMPATIBLE, INCOMPLETE, NOT_SCORED, OK, PASS, VIOLATION
 from hydroturing.spec import SpecError
 from hydroturing.seeds import gate_seeds
 
@@ -103,9 +103,10 @@ def test_degenerate_model_is_caught(probe):
 
 def test_missing_variables_report_incomplete_not_violation(probe):
     """A streamflow-only model has not violated conservation. It has failed to
-    say enough to be checked, and the report must not conflate the two."""
+    say enough to be checked, and the report must not conflate the two: the
+    probe is not scored, so it is neither a pass nor a fail."""
     outcome = run_probe(registry.find_model("reference_streamflow_only"), probe, [11])
-    assert outcome.verdict == FAIL
+    assert outcome.verdict == NOT_SCORED
     assert outcome.reason == INCOMPLETE
     assert "evspsbl" in outcome.missing
 
@@ -113,9 +114,46 @@ def test_missing_variables_report_incomplete_not_violation(probe):
 def test_incompatible_timestep_is_reported_before_execution(probe):
     model = replace(registry.find_model("reference_bucket"), timesteps=("PT1H",))
     outcome = run_probe(model, probe, [11])
-    assert outcome.verdict == FAIL
+    assert outcome.verdict == NOT_SCORED
     assert outcome.reason == INCOMPATIBLE
     assert "timestep" in outcome.incompatible[0]
+
+
+def _rolled_up(*outcomes):
+    """The model verdict, reason and summary over probes with these outcomes."""
+    from hydroturing.scoring import ModelReport, ProbeOutcome
+
+    probes = [ProbeOutcome(f"mass/p{i}", "mass", v, r) for i, (v, r) in enumerate(outcomes)]
+    report = ModelReport("m", "1", "0.1.0", probes)
+    return report.verdict, report.reason, report.summary
+
+
+def test_a_probe_that_cannot_be_put_to_the_model_counts_neither_way():
+    """An N/A probe asked the model nothing. It must not fail a model that
+    passes everything else, and must not mask a violation or an error."""
+    assert _rolled_up((PASS, OK), (NOT_SCORED, INCOMPLETE)) == (
+        PASS, OK, "1/2 probes passed, 1 INCOMPLETE"
+    )
+    assert _rolled_up(
+        (FAIL, VIOLATION), (PASS, OK), (NOT_SCORED, INCOMPLETE), (NOT_SCORED, INCOMPATIBLE)
+    ) == (FAIL, VIOLATION, "1/4 probes passed, 1 INCOMPLETE, 1 INCOMPATIBLE")
+    assert _rolled_up((FAIL, ERROR), (FAIL, VIOLATION), (NOT_SCORED, INCOMPLETE))[:2] == (FAIL, ERROR)
+
+
+def test_a_model_no_probe_could_score_has_not_passed():
+    """Reporting nothing checkable must not earn a PASS."""
+    assert _rolled_up((NOT_SCORED, INCOMPATIBLE), (NOT_SCORED, INCOMPLETE))[:2] == (NOT_SCORED, INCOMPLETE)
+    assert _rolled_up((NOT_SCORED, INCOMPATIBLE))[:2] == (NOT_SCORED, INCOMPATIBLE)
+    assert _rolled_up()[:2] == (FAIL, ERROR)
+
+
+def test_run_exits_1_for_a_model_no_probe_could_score(capsys):
+    """N/A is not a PASS, so CI keeps it in the scorecard beside the FAILs;
+    only ERROR exits 2."""
+    from hydroturing.cli import main
+
+    assert main(["run", "--model", "reference_streamflow_only", "--probe", "mass/catchment-closure"]) == 1
+    assert "N/A (INCOMPLETE)" in capsys.readouterr().out
 
 
 def test_missing_forcing_is_reported_as_incompatible(probe):
@@ -683,9 +721,9 @@ def test_every_template_discriminates_out_of_the_box(kind, tmp_path, monkeypatch
 
 
 # --- report marks -----------------------------------------------------------
-# The verdict is a bit, so the report should read as one at a glance. The
-# marks are decoration over the words, never a replacement for them: a log
-# someone greps for FAIL has to keep finding it.
+# A scored verdict is a bit, so the report should read as one at a glance,
+# and N/A as neither value. The marks are decoration over the words, never a
+# replacement for them: a log someone greps for FAIL has to keep finding it.
 
 
 def _report(model_name):
@@ -722,6 +760,25 @@ def test_ht_ascii_drops_the_marks_without_doubling_the_word(monkeypatch):
     assert "FAIL FAIL" not in text
     assert text.startswith("reference_leaky v1.0.0  ->  FAIL (VIOLATION)")
     assert "  FAIL  mass/catchment-closure" in text
+
+
+def test_an_unscored_probe_reads_as_neither_pass_nor_fail(monkeypatch):
+    """N/A is not a FAIL, so neither its mark nor its word may read as one,
+    and the summary says why the probe was not scored."""
+    from hydroturing import report
+
+    monkeypatch.setattr(report, "use_emoji", lambda: True)
+    unscored = _report("reference_streamflow_only")
+    text = report.to_text(unscored)
+    assert report.FAIL_MARK not in text and report.PASS_MARK not in text
+    assert text.count(report.NOT_SCORED_MARK) == 2  # model and probe
+    assert "N/A (INCOMPLETE)  [0/1 probes passed, 1 INCOMPLETE]" in text
+    assert f"{report.NOT_SCORED_MARK} **N/A** (INCOMPLETE)" in report.to_markdown(unscored)
+
+    monkeypatch.setattr(report, "use_emoji", lambda: False)
+    text = report.to_text(unscored)
+    assert "FAIL" not in text
+    assert "  N/A   mass/catchment-closure" in text
 
 
 def test_marks_are_dropped_when_the_stream_cannot_carry_them(monkeypatch):

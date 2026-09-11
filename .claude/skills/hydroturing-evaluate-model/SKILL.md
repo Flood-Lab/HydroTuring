@@ -112,9 +112,12 @@ places where following it took judgement.
 
 ## Harness facts a model evaluation depends on
 
-- Verdict = worst reason across probes: `OK < VIOLATION < INCOMPATIBLE <
-  INCOMPLETE < ERROR`. INCOMPLETE is decided by `ModelManifest.missing_for`
-  against `requires` in `probe.yaml`; INCOMPATIBLE only on single-step probes.
+- INCOMPLETE and INCOMPATIBLE are not failures. A probe stopped by either is
+  N/A, not scored: INCOMPLETE is decided by `ModelManifest.missing_for`
+  against `requires` in `probe.yaml`, INCOMPATIBLE only on single-step
+  probes. The model's verdict comes from the scored probes, PASS only if all
+  of them pass, with the worst reason of `OK < VIOLATION < ERROR`; a model no
+  probe could score is N/A with the worse of `INCOMPATIBLE < INCOMPLETE`.
 - Submitted models are scored on a flood-event window (`window_days` in
   `model.yaml`; default 30 d daily / 7 d hourly; `full` for the whole record;
   probes may set `min_window_days`). Reference models always see the full

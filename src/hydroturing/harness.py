@@ -17,6 +17,7 @@ from hydroturing.protocol import Case, ProtocolError, RunResult
 from hydroturing.runner import get_runner
 from hydroturing.scoring import (
     FAIL,
+    NOT_SCORED,
     PASS,
     CriterionOutcome,
     ModelReport,
@@ -415,7 +416,7 @@ def run_probe(
         return ProbeOutcome(
             probe_id=probe.id,
             law=probe.law,
-            verdict=FAIL,
+            verdict=NOT_SCORED,
             reason=reason_for([], missing, None, incompatible),
             missing=missing,
             incompatible=incompatible,
@@ -443,7 +444,7 @@ def run_probe(
         return ProbeOutcome(
             probe_id=probe.id,
             law=probe.law,
-            verdict=FAIL,
+            verdict=NOT_SCORED,
             reason=reason_for([], [], None, issues),
             incompatible=issues,
             seeds=seeds,
