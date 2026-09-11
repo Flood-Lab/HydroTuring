@@ -100,13 +100,13 @@ The first version wrote a 10 m height with a 16 m canopy top for every class.
 SUMMA therefore used 17 m everywhere, including the bare hourly surface probe,
 while the attributes and this page said 10 m.
 
-From `static.json`, only quantities with a direct SUMMA counterpart are used:
+From `static.json`, only quantities with a SUMMA counterpart are used:
 
 | Probe attribute | SUMMA quantity | How |
 | --- | --- | --- |
 | `latitude_deg` | `latitude` | as given; required, and the adapter stops if it is missing rather than invent one (it drives SUMMA's solar geometry) |
 | `area_km2` | `HRUarea` | as given |
-| `snow_threshold_degC` | `tempCritRain` | + 273.15 K; a wet-bulb threshold in SUMMA, see below |
+| `snow_threshold_degC` | `tempCritRain` | translated from an air temperature to the wet-bulb temperature SUMMA compares it with; see below |
 | `soil_capacity_mm` | soil column depth | See the soil note below the table. |
 | `canopy_capacity_mm` | `refInterceptCapRain`, `refInterceptCapSnow` | capacity divided by the largest monthly LAI + SAI of the class (5.0 for mixed forest, so 0.4 kg m-2 per unit area); zero is a bare surface, USGS class 19, which SUMMA gives no leaves or stems |
 
@@ -118,34 +118,98 @@ depth, and a remainder under half the layer above is merged into it.
 - 180 mm: 0.451 m in 4 layers.
 - 120 mm: 0.301 m in 3 layers.
 
-**Rain and snow.** SUMMA does not compare `tempCritRain` with the air
-temperature. `derivforce.f90` compares it with the wet-bulb temperature and
-splits linearly over a ramp of `tempRangeTimestep`. That ramp is 2 K in the
-shipped `localParamInfo.txt`, and it is kept as shipped. The wet bulb comes
-from the humidity mock below (70 percent). So the probe's air-temperature
-threshold becomes a wet-bulb threshold with a 2 K ramp, and SUMMA makes snow
-at air temperatures up to 2.9 C.
-
-On the probes with a snow season, snow is 0.32 to 0.46 of SUMMA's
-precipitation. The probe's own rule (air below the threshold) gives 0.25 to
-0.37 on the same forcing, so SUMMA gets 1.22 to 1.41 times as much snow. On
-the five latent-heat seeds, snow falls on 126 to 155 days with the air at or
-above 0 C, 678 to 860 mm in all. Humidity moves the share. On the five
-runoff-bounds seeds it is:
-- 0.38 to 0.43 at the evaluated 70 percent;
-- 0.45 to 0.49 at 50 percent;
-- 0.33 to 0.37 at 90 percent;
-- 0.30 to 0.34 under the probe's rule.
-
-Where the probe's rule gives no snow at all, SUMMA still makes a little: up to
-4.4 percent of the precipitation on dry-down. `run.json` reports the share for
-every case.
-
 The probes give no elevation, so the HRU sits at sea level. The cold state is
 the test case's (283.16 K, 0.3 volumetric water, no snow, an empty canopy)
 except the aquifer, which starts empty. Under the shipped
 `aquiferBaseflowRate`, the shipped 0.4 m would drain within hours and put
 400 mm of runoff into the spinup.
+
+### Rain and snow
+
+The probes define their snow threshold as an air temperature: precipitation
+on a day below it is snow. SUMMA's `tempCritRain` is not an air temperature.
+`derivforce.f90` compares it with each row's wet-bulb temperature and splits
+linearly over a ramp of `tempRangeTimestep` (2 K, shipped and kept) centred
+there.
+
+The adapter therefore translates the definition. `tempCritRain` is the
+wet-bulb temperature SUMMA itself computes for air at the probe's threshold,
+under this adapter's own humidity mock (70 percent) and standard pressure.
+The adapter ports the two routines SUMMA uses:
+- `SPHM2RELHM`, capped at saturation as `derivforce.f90` caps it;
+- `WETBULBTMP` from `convert_funcs.f90`, a Newton iteration with SUMMA's own
+  starting value, step, tolerance and iteration limit, and SUMMA's constants
+  (610.8 Pa, 0.622, 273.16 K).
+
+On every row of both variants of a four-year case, the port reproduces SUMMA's
+own `scalarTwetbulb` to 3.5e-7 K. For the 0 C threshold every probe uses,
+`tempCritRain` is **271.4656 K**, a wet bulb of -1.68 C.
+
+The value is a constant for a case, so the mock stays row-only and
+calendar-free. Every row carries the same relative humidity, so a row's wet
+bulb falls below `tempCritRain` when its air falls below the threshold. What
+remains is SUMMA's own 2 K ramp around it: a row at the threshold gets half
+rain and half snow. Changing the humidity mock moves the translation with it,
+as the definition requires: 270.297 K at 50 percent, 272.602 K at 90 percent.
+`SUMMA_HT_THRESHOLD=air` restores the first two versions' direct mapping,
+threshold + 273.15 K, for the sensitivity table.
+
+What the translation changes, on the evaluated runs:
+- **Snow share.** On the probes with a snow season, snow is 0.25 to 0.36 of
+  SUMMA's precipitation, against 0.25 to 0.37 under the probe's own rule:
+  0.93 to 1.03 times the rule's share. The direct mapping gave 1.22 to 1.41
+  times, with snow at air temperatures up to 2.9 C.
+- **Phase-counterfactual `warm` variant.** This variant lifts every day below
+  the threshold to 1 C above it. SUMMA's snow falls from 0.27 to 0.36 of the
+  control's precipitation to 0.021 to 0.027, so 90 to 93 percent of the
+  control snow becomes rain. Under the direct mapping, `warm` kept 0.32 to
+  0.41 of its precipitation as snow, 0.91 of the control's, so that probe did
+  not test SUMMA's response to the phase change.
+- **No snow where the probe's rule gives none.** The second version said SUMMA
+  makes only a little snow there. That was wrong: under the direct mapping,
+  `warm` kept 0.32 to 0.41 as snow, and hourly resolution-invariance rows made
+  0.04 to 0.25. With the translation, the ramp still gives some snow to rows
+  just above the threshold: 0.021 to 0.027 in `warm`, and 0.008 to 0.13 at the
+  hourly step of resolution-invariance, where the daily step makes none.
+
+### Rain on a freezing canopy
+
+Centring the ramp on the probe's threshold also puts rain on days whose air is
+a little below freezing, which the direct mapping had kept as snow. SUMMA's
+canopy then accumulates ice without any limit.
+
+**How.** `vegLiqFlux.f90` lets rain through in proportion to the canopy's
+liquid store over its liquid capacity. On a canopy below 0 C, the intercepted
+liquid freezes, so the liquid store stays near empty and nearly all the rain
+is intercepted and frozen. `scalarCanopyIceMax` (exposed LAI + SAI times
+`refInterceptCapSnow`, 0.96 mm in February) caps snow interception. It does
+not cap ice that forms from frozen liquid.
+
+**Traced** on latent-heat seed 788749541 with SUMMA's canopy fluxes written
+out:
+- On 2002-02-11 the air is -0.01 C and the canopy -0.20 C. Of 30.7 mm of rain,
+  SUMMA intercepts 30.67 mm and freezes 30.4 mm; of 31.2 mm of snow, it
+  intercepts 0.53 mm.
+- Canopy ice reaches 26.8 mm, 27.9 times `scalarCanopyIceMax`.
+- The ice sublimates at 2.3 to 4.2 mm/day for four days, then melts, drains
+  and unloads when the air warms.
+- Over that record, freezing of intercepted liquid adds 234 mm of canopy ice
+  on the days ice grows, and intercepted snow adds 111 mm.
+
+**Across the archive** the canopy peaks at:
+- 14.3 to 27.0 mm on latent-heat, on 23 to 36 days above capacity per seed;
+- 13.4 to 20.3 mm on catchment-closure, on 30 to 42 days;
+- 14.5 to 23.0 mm on the precipitation counterfactual, on 20 to 63 days;
+- 5.3 to 18.9 mm on evaporative-partition, on 2 to 5 days.
+
+Every peak falls on a day within 0.7 C of freezing with 25 to 71 mm of
+precipitation, and most days above capacity are within 1 C of freezing.
+Under the direct mapping, the largest excess was 0.10 mm of liquid.
+
+This is SUMMA's canopy physics, not an adapter mistake: freezing rain does
+accrete on trees, and no SUMMA parameter here bounds the accretion. But this
+packaging is what reaches it, through a threshold that is now faithful to the
+probe's definition.
 
 ## Forcing the probes do not generate
 
@@ -169,9 +233,10 @@ page and its commit message said the mock was step-consistent. It was not.
 The factor falls as the air warms: 48.2 W/m2 per mm/day at 5 C, 41.4 at 10 C,
 28.5 at 30 C. Hourly `pet` peaks in the warm hours. On resolution-invariance
 the daily step therefore received 7 to 8 percent more net radiation and
-shortwave than the same days given hourly: 79.6 against 74.1 W/m2 of target
-net radiation on the first gate seed. With the fixed reference the two are
-identical, 64.2 and 64.2 W/m2.
+shortwave than the same days given hourly. Over the first gate seed's full
+record that was 79.6 against 74.0 W/m2 of target net radiation. With the fixed
+reference the two are identical: 64.2 W/m2 over the full record, 64.7 over the
+scored window.
 
 **Shortwave and longwave.** They are split so that a reference surface at
 air temperature, with albedo 0.23 and SUMMA's soil emissivity 0.96, would
@@ -214,8 +279,8 @@ the day the routine integrates, finds no daylight and returns zero, and
 
 With 24:00 stamps every day of the ten-year closure record had a zero zenith
 cosine, and SUMMA absorbed no shortwave:
-- on the closure probe, evaporation fell from 0.65 to 0.42 of demand;
-- on the latent-heat probe, the energy residual rose from 4.8 to 97 percent of
+- on the closure probe, evaporation fell from 0.68 to 0.45 of demand;
+- on the latent-heat probe, the energy residual rose from 4.5 to 97 percent of
   the net radiation.
 
 Stamped at 23:00 the window covers the day's daylight. This is a limitation of
@@ -260,10 +325,18 @@ are inside `hfg`.
 The canopy is treated differently, and plainly so. Its heat storage and the
 phase change of water intercepted on it are also energy held above the soil
 surface, but they are in no column. SUMMA's `scalarCanopyNetNrgFlux` is not
-added to `hfg`, which stays the flux SUMMA itself calls ground heat. That term
-is 0.03 to 0.07 percent of the net radiation over the energy probes' records,
-and about 1 W/m2 at most on a single day. It moves no verdict, and `run.json`
-reports it.
+added to `hfg`, which stays the flux SUMMA itself calls ground heat.
+
+With the canopy freezing rain, that term is no longer small on single days:
+- On the traced latent-heat record it reaches -117 W/m2 on the day 30 mm of
+  rain froze there, as the canopy gives up the fusion heat.
+- It exceeds 5 W/m2 in size on 49 days of that record, and averages
+  -0.17 W/m2.
+- Over the energy probes' records it is -0.27 to -0.07 percent of the net
+  radiation.
+
+No verdict moves with it: the daily closure criteria pass by 0.39 to 0.77
+points. `run.json` reports the term.
 
 `scalarSfcMeltPond` is not added to `snw`: it records melt SUMMA has already
 passed to the soil in the same step. There is no ponded surface store in these
@@ -272,23 +345,24 @@ decisions.
 ## The budgets as SUMMA keeps them
 
 **Water.** The archived run has 120 cases. Recomputed from the reported
-columns, their residual is at most 1.1e-6 mm on any step and 2.7e-6 mm over
-any record, with two exceptions:
-- On one day of one latent-heat seed, a trace of snowfall (4.3e-5 mm/day at
-  -3.8 C) never reaches the pack. The record is short by 4.1e-5 mm.
-- On one melt day of one variant of the precipitation counterfactual, with
-  406 mm of snow on the ground, the step is off by 8e-6 mm.
+columns, every step of every case closes to 7.3e-6 mm and every record to
+8.6e-6 mm, with four exceptions. Each exception is a single step, off by
+2.6e-5 to 7.9e-5 mm, on a day with only a trace of precipitation (4.3e-5 to
+0.0023 mm/day):
+- one latent-heat seed;
+- two `warm` phase-counterfactual cases;
+- one runoff-bounds seed.
 
 The `closure` criterion reports 0.0000 percent on every seed of every probe
-that asks. SUMMA's own per-step balance diagnostics stay below 3.2e-9 for soil
-mass, 9.7e-10 for aquifer mass and 3.5e-4 for the energy of any domain, in
+that asks. SUMMA's own per-step balance diagnostics stay below 3.5e-9 for soil
+mass, 1.0e-9 for aquifer mass and 2.8e-4 for the energy of any domain, in
 SUMMA's units.
 
 **Energy.** SUMMA's own net radiation minus `hfls + hfss + hfg` is,
 algebraically, the canopy's net energy flux minus the heat carried by
 precipitation at the wet-bulb temperature (SUMMA's advective heat flux). With
 no canopy only the precipitation term remains. Against its own net radiation,
-the surface budget closes to 0.09 to 0.24 percent on every seed of every
+the surface budget closes to 0.04 to 0.15 percent on every seed of every
 energy probe.
 
 ## The energy probes: SUMMA's net radiation is not the probe's
@@ -299,16 +373,17 @@ Each energy criterion is then given twice: as scored, against the probe's
 
 | Probe (seeds) | Mean `rn` | SUMMA's net radiation | Mean abs gap | As scored, against `rn` | Against SUMMA's own net radiation |
 | --- | --- | --- | --- | --- | --- |
-| latent-heat-et-consistency (5) | 89.2 to 91.1 W/m2 | 85.2 to 86.9 | 5.3 to 5.5 | `energy_closure` 4.68 to 4.84 %, passes | 0.18 to 0.19 % |
-| evaporative-partition (3) | 75.7 to 80.4 | 72.3 to 76.9 | 5.0 to 5.2 | `energy_closure` 4.41 to 4.70 %, passes; `partition_shift` sums to -174, -262, -341 W m-2 day against limits of 141, 204, 267, fails | SUMMA's own net radiation fell by 183, 272, 352 W m-2 day over the drought window, all of it longwave; what remains is the precipitation heat term, +9 to +11 |
+| latent-heat-et-consistency (5) | 89.2 to 91.1 W/m2 | 85.2 to 86.9 | 5.3 to 5.5 | `energy_closure` 4.37 to 4.61 %, passes | 0.04 to 0.13 % |
+| evaporative-partition (3) | 75.7 to 80.4 | 72.4 to 76.9 | 4.9 to 5.2 | `energy_closure` 4.23 to 4.52 %, passes; `partition_shift` sums to -174, -262, -341 W m-2 day against limits of 141, 204, 267, fails | 0.05 to 0.10 %; SUMMA's own net radiation fell by 183, 272, 352 W m-2 day over the drought window, all of it longwave, and what remains is the precipitation heat term, +9 to +11 |
 | surface-energy-closure (5) | 77.2 to 81.3 | 83.9 to 89.0 | 7.0 to 8.2 | `energy_closure_by_phase`: 17 to 22 of 28 blocks fail | 0 of 28 blocks fail on every seed; the worst block's residual is 0.7 to 1.6 W/m2 against a 2 W/m2 allowance |
 
-The daily closure passes against `rn` by 0.16 to 0.59 percentage points. That
+The daily closure passes against `rn` by 0.39 to 0.77 percentage points. That
 margin depends on the mock (see the sensitivity table).
 
-The hourly phase test fails on the gap alone, now at the 10 m measurement
-height SUMMA applies over bare soil. It failed 16 to 22 blocks when SUMMA
-applied 17 m.
+The hourly phase test fails on the gap alone, at the 10 m measurement height
+SUMMA applies over bare soil. It failed 16 to 22 blocks in the first version,
+when SUMMA applied 17 m. The probe is warm, so the threshold translation does
+not touch it.
 - By day the bare loam's albedo is 0.145 to 0.148 against the reference 0.23,
   so SUMMA absorbs more shortwave than the reference surface. Its skin averages
   1.1 to 1.3 K above the air over the sunlit hours, and emits more.
@@ -331,123 +406,134 @@ of the surface, that SUMMA does not share.
 water at `LH_vap` = 2.501e6 J/kg, the latent heat of vaporisation at 0 C,
 whatever the temperature. It converts sublimated water at `LH_sub` = 2.8347e6,
 which is exactly the probe's value. The reported latent heat equals
-`LH_vap * E_liquid + LH_sub * E_ice` to 8.4e-4 W/m2. The probe asks for
+`LH_vap * E_liquid + LH_sub * E_ice` to 9.1e-4 W/m2. The probe asks for
 2.501e6 - 2361 T, so every liquid-evaporation step with the air more than
 about 5 C from freezing leaves the 0.5 percent tolerance:
-- 970 to 1018 of 3650 days on the latent-heat probe;
+- 966 to 1013 of 3650 days on the latent-heat probe;
 - 151 to 183 of 1095 on the partition probe;
 - every one of them above 5.3 C in absolute temperature.
 
 That is what `reference_constant_lambda` is built to show. The harness
 message leads with two further findings about `sbl`:
-- SUMMA's net sublimation is negative on 34 to 230 days, when frost deposits
-  on the pack.
-- It is non-zero on 3 to 33 days when the criterion's snow test (ground `snw`
-  only) sees no snow. Some of those days are canopy ice sublimating after the
-  ground snow has gone, and a few follow snow that the wet-bulb split let fall
-  above 0 C.
+- SUMMA's net sublimation is negative on 25 to 193 days, when frost deposits.
+- It is non-zero on 3 to 36 days when the criterion's snow test sees no
+  snow. That test reads ground `snw` only, while SUMMA's `sbl` also carries
+  sublimation from the canopy.
 
 ## Verdict
 
 ```
-### HydroTuring `summa` v4.0.0-f787fa5.2
+### HydroTuring `summa` v4.0.0-f787fa5.3
 
 FAIL (VIOLATION) · 8/19 probes passed · suite 0.1.0
 ```
 
 It passes eight probes:
-- `pet-consistency`, with wet-soil evaporation 0.82 to 0.94 of demand against
+- `pet-consistency`, with wet-soil evaporation 0.93 to 0.99 of demand against
   0.7;
 - `area-invariance`, `causality`, `extreme-rain` and `response-nonnegativity`;
 - `time-origin-invariance`, bit for bit;
 - `warming-response` and `routing-conservation`.
 
-Against `4.0.0-f787fa5.1` no verdict changed. The count is now out of 19
-because the suite gained `mass/precipitation-counterfactual`, which SUMMA
-fails on its canopy alone.
+The threshold translation flipped no probe verdict against
+`4.0.0-f787fa5.2`. It moved one failure inside a probe and changed the size
+and mechanism of another:
+- **Phase-counterfactual.** `phase_invariance` now fails on seed 25625370, and
+  the `non_degenerate` failure on seed 1039529598 now passes.
+- **Canopy `state_bounds`.** On four probes the excess grew from hundredths of
+  a millimetre of liquid to 4 to 25 mm of ice.
 
 For each failure: the mechanism, and whether it is the model or a choice the
 packaging had to make.
 
 | Probe | Failing criterion (worst seed) | Mechanism | Model or packaging |
 | --- | --- | --- | --- |
-| `energy/latent-heat-et-consistency` | `flux_identity` (5 of 5 seeds); `state_bounds` canopy up to 2.09 mm on 4 days (5 of 5) | a latent heat of vaporisation held at its 0 C value; deposition and canopy-ice sublimation as above. The canopy: liquid above capacity drains at `canopyDrainageCoeff` (0.005 s-1), so a wet day ends a few hundredths of a mm above it | model (constants, drainage law); the canopy capacity is mapped from `static.json` |
-| `energy/evaporative-partition` | `partition_shift` (3 of 3); `flux_identity` (3 of 3); `state_bounds` canopy (2 of 3) | SUMMA's net radiation responds to the drought through its surface temperature; constant latent heat; finite canopy drainage | model; the size of the shift residual depends on the wind mock |
+| `energy/latent-heat-et-consistency` | `flux_identity` (5 of 5 seeds); `state_bounds` canopy 12.3 to 25.0 mm above the 2 mm capacity (5 of 5) | a latent heat of vaporisation held at its 0 C value; deposition and canopy-ice sublimation as above. The canopy: rain frozen on it near 0 C, up to 27.0 mm of ice (section on the freezing canopy); a few warm days also end a few hundredths of a mm above capacity as liquid drains at 0.005 s-1 | model (constants; unbounded canopy freezing; drainage law), reached through the translated threshold |
+| `energy/evaporative-partition` | `partition_shift` (3 of 3); `flux_identity` (3 of 3); `state_bounds` canopy 4.1 and 16.9 mm (2 of 3) | SUMMA's net radiation responds to the drought through its surface temperature; constant latent heat; canopy ice | model; the size of the shift residual depends on the wind mock |
 | `energy/surface-energy-closure` | `energy_closure_by_phase`, 20 of 28 blocks (17 to 22 across seeds) | the gap between SUMMA's net radiation and `rn`: albedo by day, surface temperature by day and night; SUMMA's own budget passes every block | the mock cannot deliver `rn`, meeting the model's own surface temperature |
-| `mass/catchment-closure` | `state_bounds` canopy up to 2.10 mm, 7 days (5 of 5) | finite canopy drainage above capacity | model |
-| `mass/precipitation-counterfactual` | `state_bounds` canopy up to 2.07 mm on 3 days (3 of 3 seeds; up to 2.11 mm across the variants) | the same drainage law. Every day above capacity is liquid, on heavy summer or June rain (13 to 110 mm/day at 9.6 to 26.5 C), and the wetter variants overshoot more. The partition the probe is about passes: on the worst seed evaporation takes 0.23 to 0.28 of the added or removed rain, runoff 0.69 to 0.74 and storage about 0.03, summing to 1.000 in each variant, and on every seed runoff rises along the ladder, returning 0.71 to 0.75 of the rain added at the top | model (drainage law); the bare surface passes |
+| `mass/catchment-closure` | `state_bounds` canopy 11.4 to 18.3 mm above capacity (5 of 5) | rain frozen on a sub-zero canopy: peaks of 13.4 to 20.3 mm on days of 31 to 45 mm at 0.1 to 0.5 C, on 30 to 42 days a seed | model (unbounded canopy freezing), reached through the translated threshold; 0.02 mm under the direct mapping |
+| `mass/precipitation-counterfactual` | `state_bounds` canopy 15.7 to 16.7 mm above capacity (3 of 3 seeds; up to 21 mm across the variants) | canopy ice as above, more in the wetter variants. The partition the probe is about passes: on the worst seed evaporation takes 0.24 to 0.30 of the added or removed rain, runoff 0.67 to 0.73 and storage 0.03, summing to 1.000 in each variant; on every seed runoff rises along the ladder, returning 0.70 to 0.73 of the rain added at the top | model (unbounded canopy freezing); the bare surface passes |
 | `mass/steady-state` | `steady_state`: soil water 10.2 %, canopy 10.6 %, runoff 1.1 %; -0.029 mm/day unplaced (3 of 3) | under constant weather the phenology still cycles LAI and SAI through the year, so transpiration, soil water and interception cycle with it; the forest evaporates 2.53 of the 2.5 mm/day rain, runoff is 0.0008 mm/day and the soil is still drying 10.7 mm a year in the third year, which is the unplaced residual | model (its phenology keys on the day of year); the bare surface passes |
-| `mass/resolution-invariance` | runoff differs by 21.0 % of the rain (18.0 to 21.0 across seeds) | at the hourly step Green-Ampt infiltration excess makes 54.1 mm of surface runoff from bursts up to 43 mm/h, against 0.5 mm at the daily step. The daily step, fed a daily-mean temperature and humidity, draws 33 W/m2 of sensible heat from the air into evaporation, where the hourly step returns 4 W/m2 to it, so ET is 41 mm lower hourly. Both steps now receive the same net radiation (64.7 W/m2 target, 66.1 in SUMMA); under the first version's per-row factor the daily step received 7 to 8 percent more and the deviation was 22.0 % | model (intensity-dependent infiltration, step-dependent turbulent exchange); how large depends on the humidity and wind mocks |
+| `mass/resolution-invariance` | runoff differs by 20.9 % of the rain (17.1 to 20.9 across seeds) | at the hourly step Green-Ampt infiltration excess makes 54.2 mm of surface runoff from bursts up to 43 mm/h, against 0.5 mm at the daily step. The daily step, fed a daily-mean temperature and humidity, draws 33 W/m2 of sensible heat from the air into evaporation, where the hourly step returns 5 W/m2 to it, so ET is 41 mm lower hourly. Both steps receive the same net radiation (64.7 W/m2 target, 66.0 in SUMMA). The hourly step also makes some snow the daily step does not: 0.008, 0.13 and 0.029 of its precipitation on the three seeds against none daily (0.04 to 0.25 against 0 to 0.009 under the direct mapping), from sub-zero April hours and SUMMA's ramp. Retained snow lowers hourly runoff, against the direction of the deviation, so it does not explain the failure | model (intensity-dependent infiltration, step-dependent turbulent exchange); how large depends on the humidity and wind mocks |
 | `mass/antecedent-monotonicity` | +0.0002 to +0.0013 of the storm (0.02 needed) | the wetter month's extra 120 mm is evaporated before the storm: 137 to 156 mm of ET in those 30 days against 19 to 42 mm in the drier run, on 131 to 157 mm of demand. Both runs meet the storm with soil water within 2 to 5 mm of each other (120 to 132 mm in an 802 mm-deep column), and neither drains within the month | model at this demand; passes with 90 percent humidity or a bare surface |
 | `mass/dry-down` | runoff rises 8.2 % between weeks 1 and 2 (1 of 3 seeds) | a delayed drainage pulse: after the last rains the column's free drainage keeps rising for four weeks, from 0.0022 to 0.0028 mm/day, on a runoff of a few thousandths of a mm. At the first version SUMMA's layer water showed the bottom layer wetting while the top dried | model (Richards redistribution) |
-| `mass/runoff-bounds` | `non_degenerate`: runoff/rain correlation 0.019 (1 of 5 seeds; 0.08 to 0.20 on the others) | 92 percent of that seed's runoff leaves in March to May as melt drains through the loam column and the aquifer. The wet-bulb split gives that seed 0.43 of its precipitation as snow, where the probe's rule gives 0.34 | the humidity mock decides it, through the wet-bulb snow split and evaporation: at 90 percent humidity the seed passes (0.065) and at 50 percent it fails further (0.014); the bounds themselves pass |
-| `mass/phase-counterfactual` | `non_degenerate`: correlation 0.039 (1 of 3 seeds) | the same melt-season release: 95 percent of that seed's runoff in March to May, snow 0.46 of its precipitation against 0.37 under the probe's rule; `phase_invariance` itself passes, 2.4 to 3.3 percent | the humidity mock decides it, the same way: 0.093 at 90 percent humidity, 0.041 at 50 percent |
-
-The first version attributed the last two failures to "model and
-configuration (soil class, vegetation)". The per-seed runs below show that
-both turn on the humidity mock.
+| `mass/runoff-bounds` | `non_degenerate`: runoff/rain correlation 0.014 (1 of 5 seeds; 0.12 to 0.21 on the others) | 90 percent of that seed's runoff leaves in March to May as melt drains through the loam column and the aquifer. Its snow is now the probe's own: 0.340 of the precipitation against the rule's 0.343 | the humidity mock decides it, now through evaporation alone: at 90 percent humidity the seed passes (0.071), at 50 percent it fails further (0.007); under the direct mapping it failed at 0.019; the bounds themselves pass |
+| `mass/phase-counterfactual` | `phase_invariance`: runoff changes by -5.2 % of the rain when snow falls as rain (1 of 3 seeds; 3.5 and 4.4 % on the others; limit 5 %) | the `warm` variant now turns 93 percent of that seed's control snow into rain (snow 0.286 to 0.021 of precipitation), and SUMMA's runoff responds by just over the limit. `non_degenerate` passes on every seed (0.085 to 0.206) | model, close to the limit: the seed passes at 90 percent humidity (4.9 %) and 1 m/s wind (5.0 %) and fails at 50 percent humidity (10.0 %) or 4 m/s (7.1 %). Under the direct mapping `warm` kept 0.91 of the snow and the criterion passed at 2.4 to 3.3 %, testing nothing |
 
 ## Sensitivity
 
 The first gate seed of each probe was rerun, changing one choice at a time
-from the evaluated configuration with the `SUMMA_HT_*` variables the adapter
+from the evaluated configuration, with the `SUMMA_HT_*` variables the adapter
 documents. P is pass and F fail for the whole probe; the number is the
-quantity that moves. The three Priestley-Taylor columns change only the
-probes without `rn` and are left blank for the three that supply it.
+quantity that moves. The Priestley-Taylor columns change only the probes
+without `rn` and are left blank for the three that supply it. "Direct
+threshold" is the first two versions' mapping, `tempCritRain` = threshold +
+273.15 K.
 
-| Probe, quantity | evaluated (20 C) | PT at row temperature | PT at 10 C | PT at 30 C | clear-sky split | RH 0.5 | RH 0.9 | wind 1 | wind 4 | albedo 0.15 | albedo 0.30 | bare surface | 24:00 stamp |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| latent-heat, energy residual % | F 4.8 | | | | F 9.5 | F 4.6 | F 5.4 | F 6.1 | F 3.7 | F 13.4 | F 4.4 | F 8.3 | F 97.0 |
-| surface-energy-closure, blocks failing of 28 | F 20 | | | | F 26 | F 23 | F 21 | F 12 | F 18 | F 15 | F 28 | F 20 | F 20 |
-| evaporative-partition, shift residual (limit 0.05) | F 0.064 | | | | F 0.065 | F 0.063 | F 0.065 | F 0.104 | F 0.043 | F 0.064 | F 0.064 | F 0.347 | F 0.064 |
-| pet-consistency, wet-soil ET / demand; runoff-rain r (min 0.05) | P 0.87; 0.062 | P 0.93; 0.060 | P 0.92; 0.059 | P 0.85; 0.063 | F 0.84; 0.019 | F 0.98; 0.014 | F 0.54; 0.153 | P 0.74; 0.081 | F 0.98; 0.043 | P 0.86; 0.063 | P 0.89; 0.061 | F 0.48; 0.121 | F 0.62; 0.087 |
-| catchment-closure, canopy overshoot mm | F 0.024 | F 0.023 | F 0.023 | F 0.024 | F 0.024 | F 0.013 | F 2.15 | F 0.030 | F 0.016 | F 0.024 | F 0.023 | F 0 | F 0.027 |
-| precipitation-counterfactual, canopy overshoot mm | F 0.071 | F 0.070 | F 0.070 | F 0.071 | F 0.071 | F 0.061 | F 3.65 | F 0.076 | F 0.064 | F 0.071 | F 0.070 | P 0 | F 0.074 |
-| steady-state, largest variation | F 10.6 % | F 14.3 % | F 16.1 % | F 10.7 % | F 10.9 % | F 14.3 % | F 36.0 % | F 16.0 % | F 7.3 % | F 10.7 % | F 12.2 % | P 0.0 % | F 14.7 % |
-| resolution-invariance, % of rain | F 21.0 | F 22.0 | F 21.4 | F 20.7 | F 20.8 | F 31.2 | P 6.4 | F 11.9 | F 30.8 | F 20.8 | F 21.1 | P 1.8 | F 10.6 |
-| antecedent-monotonicity, share of storm | F 0.000 | F 0.000 | F 0.000 | F 0.000 | F 0.000 | F 0.000 | P 0.043 | F 0.000 | F 0.000 | F 0.000 | F 0.000 | P 0.155 | F 0.017 |
-| runoff-bounds, runoff / rain; r | P 0.43; 0.20 | P 0.42; 0.21 | P 0.42; 0.20 | P 0.44; 0.20 | P 0.43; 0.11 | P 0.38; 0.16 | P 0.59; 0.26 | P 0.48; 0.22 | P 0.38; 0.19 | P 0.44; 0.21 | P 0.43; 0.20 | P 0.60; 0.24 | P 0.63; 0.23 |
-| phase-counterfactual, % of rain; r | P 3.3; 0.12 | P 3.7; 0.12 | P 3.3; 0.12 | P 3.3; 0.12 | P 3.3; 0.07 | P 0.8; 0.08 | P 4.9; 0.19 | P 3.4; 0.13 | P 3.5; 0.11 | P 3.2; 0.12 | P 3.2; 0.12 | P 2.8; 0.17 | P 3.3; 0.12 |
-| warming-response | P | P | P | P | P | P | P | P | P | P | P | P | P |
+| Probe, quantity | evaluated | direct threshold | PT at row temperature | PT at 10 C | PT at 30 C | clear-sky split | RH 0.5 | RH 0.9 | wind 1 | wind 4 | albedo 0.15 | albedo 0.30 | bare surface | 24:00 stamp |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| latent-heat, energy residual % | F 4.5 | F 4.8 | | | | F 9.3 | F 4.1 | F 5.3 | F 6.0 | F 3.4 | F 13.1 | F 4.6 | F 7.4 | F 96.7 |
+| surface-energy-closure, blocks failing of 28 | F 20 | F 20 | | | | F 26 | F 23 | F 21 | F 12 | F 18 | F 15 | F 28 | F 20 | F 20 |
+| evaporative-partition, shift residual (limit 0.05) | F 0.064 | F 0.064 | | | | F 0.065 | F 0.063 | F 0.065 | F 0.104 | F 0.043 | F 0.064 | F 0.064 | F 0.347 | F 0.064 |
+| pet-consistency, wet-soil ET / demand; runoff-rain r (min 0.05) | P 0.94; 0.090 | P 0.87; 0.062 | P 0.99; 0.089 | P 0.99; 0.087 | P 0.91; 0.092 | F 0.86; 0.038 | F 1.13; 0.045 | F 0.56; 0.169 | P 0.79; 0.114 | F 1.05; 0.064 | P 0.92; 0.091 | P 0.96; 0.088 | F 0.49; 0.170 | F 0.68; 0.125 |
+| catchment-closure, canopy excess mm | F 17.4 | F 0.024 | F 17.2 | F 17.3 | F 17.7 | F 17.3 | F 23.8 | F 5.9 | F 14.3 | F 19.7 | F 17.5 | F 17.3 | F 0 | F 20.8 |
+| precipitation-counterfactual, canopy excess mm | F 15.7 | F 0.071 | F 13.3 | F 15.4 | F 15.8 | F 15.8 | F 17.2 | F 8.7 | F 11.5 | F 18.5 | F 15.7 | F 15.7 | P 0 | F 17.5 |
+| steady-state, largest variation | F 10.6 % | F 10.6 % | F 14.3 % | F 16.1 % | F 10.7 % | F 10.9 % | F 14.3 % | F 36.0 % | F 16.0 % | F 7.3 % | F 10.7 % | F 12.2 % | P 0.0 % | F 14.7 % |
+| resolution-invariance, % of rain | F 20.9 | F 21.0 | F 21.9 | F 21.3 | F 20.7 | F 20.7 | F 32.6 | P 6.4 | F 11.9 | F 30.7 | F 20.8 | F 21.0 | P 1.2 | F 10.6 |
+| antecedent-monotonicity, share of storm | F 0.000 | F 0.000 | F 0.000 | F 0.000 | F 0.000 | F 0.000 | F 0.000 | P 0.043 | F 0.000 | F 0.000 | F 0.000 | F 0.000 | P 0.155 | F 0.017 |
+| runoff-bounds, runoff / rain; r | P 0.41; 0.21 | P 0.43; 0.20 | P 0.40; 0.21 | P 0.40; 0.21 | P 0.42; 0.21 | P 0.41; 0.13 | P 0.33; 0.19 | P 0.59; 0.27 | P 0.46; 0.23 | P 0.36; 0.20 | P 0.42; 0.21 | P 0.40; 0.21 | P 0.59; 0.24 | P 0.61; 0.25 |
+| phase-counterfactual, % of rain; r | F 5.2; 0.17 | P 3.3; 0.12 | F 5.6; 0.16 | F 5.2; 0.17 | F 5.2; 0.17 | F 5.9; 0.05 | F 10.0; 0.13 | P 4.9; 0.20 | P 5.0; 0.18 | F 7.1; 0.16 | F 5.1; 0.17 | F 5.3; 0.17 | F 6.6; 0.18 | F 5.9; 0.18 |
+| warming-response | P | P | P | P | P | P | P | P | P | P | P | P | P | P |
 
-The first seed of runoff-bounds and of phase-counterfactual passes in every
-column, so the humidity columns were also run on every gate seed of both. The
-seeds that fail in the evaluated configuration:
+Because the evaluated failures of runoff-bounds and phase-counterfactual sit
+on seeds other than the first, the threshold and humidity columns were also
+run on every gate seed of both probes. The seeds that fail in either mapping:
 
-| Failing gate seed, quantity | RH 0.7 (evaluated) | RH 0.5 | RH 0.9 |
-| --- | --- | --- | --- |
-| runoff-bounds 607076768, runoff-rain r (min 0.05) | F 0.019 | F 0.014 | P 0.065 |
-| snow share of precipitation (probe's rule 0.343) | 0.432 | 0.488 | 0.369 |
-| share of runoff in March to May | 0.92 | 0.96 | 0.79 |
-| runoff / rain | 0.44 | 0.40 | 0.58 |
-| phase-counterfactual 1039529598, runoff-rain r | F 0.039 | F 0.041 | P 0.093 |
-| snow share of precipitation (probe's rule 0.372) | 0.456 | 0.516 | 0.392 |
-| share of runoff in March to May | 0.95 | 0.97 | 0.83 |
+| Gate seed, quantity | evaluated (RH 0.7) | direct threshold | RH 0.5 | RH 0.9 |
+| --- | --- | --- | --- | --- |
+| runoff-bounds 607076768, runoff-rain r (min 0.05) | F 0.014 | F 0.019 | F 0.007 | P 0.071 |
+| snow share of precipitation (probe's rule 0.343) | 0.340 | 0.432 | 0.340 | 0.340 |
+| share of runoff in March to May | 0.90 | 0.92 | 0.94 | 0.77 |
+| runoff / rain | 0.41 | 0.44 | 0.33 | 0.58 |
+| phase-counterfactual 25625370, runoff change % of rain (limit 5) | F 5.2 | P 3.3 | F 10.0 | P 4.9 |
+| control snow share (probe's rule 0.307) | 0.286 | 0.388 | 0.285 | 0.286 |
+| phase-counterfactual 1039529598, runoff-rain r (min 0.05) | P 0.085 | F 0.039 | F 0.040 | P 0.112 |
+| runoff change % of rain | 4.4 | 2.8 | F 13.4 | 3.7 |
 
-Every other gate seed of the two probes passes in all three columns.
+Every other gate seed of the two probes passes in all four columns.
 
-Moister air gives both failing seeds less snow, closer to the probe's own
-rule, and less of their runoff in spring. It also evaporates less, so more of
-the rain runs off; these runs cannot separate the two channels. Either way the
-two verdicts are set by the humidity mock, not by the soil class or the
-vegetation.
+With the translated threshold, the snow share no longer moves with humidity,
+so the humidity columns now act through evaporation alone. Runoff-bounds'
+failing seed still fails with the probe's own snowpack, and passes only when
+moist air leaves more rain to run off.
 
 What the table says:
 
-- **Model findings.** `flux_identity` fails in every column, on 901 to 1169
-  days wherever shortwave reaches SUMMA and 424 under the midnight stamp. The
+- **Model findings.** `flux_identity` fails in every column, on 892 to 1175
+  days wherever shortwave reaches SUMMA and 423 under the midnight stamp. The
   hourly phase test fails in every column too. Both are the model.
-- **The daily energy residual** passes or fails on the mock, between 3.7 and
-  13.4 percent, so its pass in the evaluated configuration is not robust.
+- **The threshold mapping.** It moves the canopy excess by three orders of
+  magnitude on the closure probes, from 0.02 to 0.07 mm to 16 to 17 mm. It
+  decides phase-counterfactual on the first seed: 5.2 percent evaluated
+  against 3.3 percent direct. It changes no other verdict in the table.
+- **The canopy excess** under the translated threshold also depends on the
+  mocks. Moist air cuts it to a third (5.9 mm at 90 percent humidity), dry air or
+  strong wind raises it (23.8 mm, 19.7 mm), and a bare surface removes it.
+- **The daily energy residual** passes or fails on the mock, between 3.4 and
+  13.1 percent, so its pass in the evaluated configuration is not robust.
 - **The Priestley-Taylor reference** flips no verdict at 10 C, 30 C or the
-  row's own temperature. It moves resolution-invariance between 20.7 and 22.0
-  percent, steady state between 10.6 and 16.1 percent, and pet-consistency's
-  wet-soil ratio between 0.85 and 0.93.
-- **`pet-consistency`** passes in 7 of 13 columns and fails on either side:
-  - with a clear-sky split, dry air or strong wind, runoff barely follows the
-    rain (r under 0.05);
-  - with moist air, no leaves or the midnight stamp, the forest evaporates too
-    little.
+  row's own temperature. It moves resolution-invariance between 20.7 and 21.9
+  percent, steady state between 10.6 and 16.1 percent, pet-consistency's
+  wet-soil ratio between 0.91 and 0.99, and the phase response between 5.2
+  and 5.6 percent.
+- **`pet-consistency`** passes in 8 of 14 columns and fails on either side:
+  - with a clear-sky split or dry air, runoff barely follows the rain (r under
+    0.05);
+  - with dry air or strong wind, the forest evaporates more than the demand;
+  - with moist air, no leaves or the midnight stamp, it evaporates too little.
+- **The phase response** sits at the 5 percent limit on the first seed in most
+  columns. It passes with moist air or light wind and fails with dry air,
+  strong wind, a bare surface, a clear-sky split or a midnight stamp.
 - **The step dependence and the missing antecedent response** fall below their
   limits only with humid air or a bare surface, because both remove the
   evaporation that erases the difference.
@@ -455,18 +541,49 @@ What the table says:
   precipitation counterfactual (it has no canopy). In exchange it evaporates
   too little, condenses more than it evaporates on some days (negative ET),
   and leaves a third of the drought shift uncancelled.
-- **At 90 percent humidity the canopy** holds up to 3.65 mm on the
-  precipitation counterfactual and 2.15 mm on the closure probe. Those days
-  have heavy precipitation within a few tenths of a degree of freezing, with
-  snow on the ground; this was not traced further. In the evaluated
-  configuration every overshoot is liquid, on a warm day.
 - **How the evaluated values were chosen.** Each was fixed before any table was
   made.
   - The albedo is FAO-56's reference-grass value.
   - The wind is a round 2 m/s, not a height-corrected reference.
   - The humidity is the value this repository's other radiation mock uses.
   - The 20 C reference is FAO-56's standard temperature.
+  - The threshold translation follows from the probes' definition and SUMMA's
+    own wet-bulb routine.
   - The split was changed once, for the reason below.
+
+## What changed in 4.0.0-f787fa5.3
+
+A second review found that the adapter mistranslated the rain-snow threshold,
+which the second version had documented but not corrected. It also found two
+smaller faults. Each fault, the change made and its effect:
+
+- **The threshold was an air temperature written into a wet-bulb parameter.**
+  - Change: `tempCritRain` is now the wet-bulb temperature SUMMA computes for
+    air at the threshold under the adapter's humidity mock (271.4656 K), as
+    described under Rain and snow. The direct mapping is kept as a sensitivity
+    column.
+  - Effect on snow: SUMMA's snow share went from 1.22–1.41 to 0.93–1.03 times
+    the probe's rule. The `warm` phase-counterfactual variant now removes 90
+    to 93 percent of SUMMA's control snow instead of 9 percent.
+  - Effect on phase-counterfactual: the verdict is unchanged, but
+    `phase_invariance` now fails on one seed (5.2 percent) and
+    `non_degenerate` now passes on every seed.
+  - Effect on runoff-bounds: the failing seed's correlation went from 0.019 to
+    0.014.
+  - Effect on the canopy: rain now falls on sub-zero days, and SUMMA's canopy
+    freezes it without limit. Canopy `state_bounds` on four probes fails by 4
+    to 25 mm where it failed by 0.06 to 0.10 mm.
+  - Effect on energy: daily closure against `rn` fell to 4.23–4.61 percent,
+    from 4.41–4.84.
+- **This page said SUMMA made only a little snow where the probe's rule makes
+  none.** The claim is withdrawn, with the numbers under Rain and snow.
+- **The steady-state figure in the second version's change log was wrong**
+  (12.4 percent). It is corrected below to 14.3 percent.
+- **The resolution-invariance row now gives the step-dependent snow share.**
+- **The branch merged main again** (wflow_sbm). `models/result.csv` is main's
+  file byte for byte, with summa's rows appended.
+
+No probe verdict changed. The count is 8 of 19, as it was.
 
 ## What changed in 4.0.0-f787fa5.2
 
@@ -478,9 +595,10 @@ change made and its effect:
   under Forcing.
   - Change: the conversion is evaluated at a fixed 20 C.
   - Effect: no verdict moved. The resolution-invariance deviation went from
-    22.0 to 21.0 percent. The steady-state variation went from 12.4 to 10.6
-    percent. pet-consistency's wet-soil ratios went from 0.87-0.99 to 0.82-0.94 of demand. The
-    dry-down rise went from 7.2 to 8.2 percent on its one failing seed.
+    22.0 to 21.0 percent. The steady-state variation went from 14.3 to 10.6
+    percent. pet-consistency's wet-soil ratios went from 0.87-0.99 to
+    0.82-0.94 of demand. The dry-down rise went from 7.2 to 8.2 percent on its
+    one failing seed.
 - **SUMMA applied 17 m where the attributes said 10 m**, bare soil included.
   - Change: the heights now come from SUMMA's vegetation table, the attributes
     carry the height SUMMA applies, and `run.json` records
@@ -489,10 +607,9 @@ change made and its effect:
     against `rn` where it failed 16 to 22, and still none against SUMMA's own
     net radiation.
 - **The rain-snow split is on the wet bulb.**
-  - Change: this is now documented with its numbers. The runoff-bounds and
-    phase-counterfactual attributions name the humidity mock, and the
-    sensitivity section has the per-seed humidity runs above. The shipped
-    `tempRangeTimestep` is unchanged.
+  - Change: this was documented, and the runoff-bounds and
+    phase-counterfactual attributions named the humidity mock. The threshold
+    itself was translated only in the third version.
 - **Canopy storage** is stated plainly to be outside `hfg`; the mapping is
   unchanged.
 - **`latitude_deg` is required** instead of defaulting to 40 N. Every probe
@@ -530,6 +647,8 @@ fixed and re-run.
   only, rain on a dry column left a residual of up to 3.3 mm that day. The
   two rainless years of the dry-down left a drift of -3.9 mm. Both equal
   `scalarSoilCompress` over the step to rounding, and it is now inside `mrso`.
+* **The snow threshold as an air temperature**, as described under What
+  changed in 4.0.0-f787fa5.3.
 
 ## Running it
 
@@ -538,11 +657,13 @@ ht verify-adapter --model summa
 ht run --model summa --gate-seeds --csv models/result.csv
 ```
 
-One ten-year daily case (4015 rows) takes about 9 s in the container, most
-of it in SUMMA; the hourly surface case (384 rows) about 0.4 s. Every probe
+One ten-year daily case (4015 rows) takes about 10 s in the container, most
+of it in SUMMA; the hourly surface case (384 rows) about 0.5 s. Every probe
 is evaluated on its full record. `run.json` carries, for every case:
 - the mapping and the mocks;
 - the heights from the table and the height SUMMA applied;
+- the translated `tempCritRain`;
 - the water residual and the soil's elastic storage change;
-- the snow share of precipitation and the canopy's net energy flux;
+- SUMMA's snow share against the probe rule's, and the canopy's net energy
+  flux;
 - SUMMA's balance diagnostics and the net-radiation gap.

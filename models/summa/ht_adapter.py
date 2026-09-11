@@ -24,13 +24,20 @@ defaults): 16 and 10 m for mixed forest, 0 m for the bare class. The
 measurement height written is the one SUMMA applies: the shipped 10 m, raised
 to the canopy top plus the 1 m clearance derivforce enforces when the canopy
 reaches above it, so 17 m over the forest and 10 m over bare ground.
-From static.json, only what maps onto a SUMMA quantity directly:
+From static.json, only what maps onto a SUMMA quantity:
 
 * latitude (required) and area;
-* `snow_threshold_degC` -> `tempCritRain`. SUMMA compares it with the
-  wet-bulb temperature, not the air temperature, over a ramp of
-  `tempRangeTimestep` (2 K, shipped); the wet bulb comes from the humidity
-  mock below, so snow falls at air temperatures up to about 3 C;
+* `snow_threshold_degC` -> `tempCritRain`, translated. The probe's threshold
+  is an air temperature; SUMMA compares `tempCritRain` with each row's
+  wet-bulb temperature, over a ramp of `tempRangeTimestep` (2 K, shipped).
+  `tempCritRain` is therefore the wet-bulb temperature SUMMA itself computes
+  for air at the threshold under this adapter's humidity mock and pressure
+  (derivforce's SPHM2RELHM and WETBULBTMP from convert_funcs.f90, ported
+  below). Every row carries the same relative humidity, so a row's wet bulb
+  is below that value when its air is below the threshold; what remains is
+  SUMMA's own ramp. The first two versions wrote the threshold directly,
+  which made SUMMA snow at air temperatures up to about 3 C;
+  SUMMA_HT_THRESHOLD=air restores that mapping;
 * `soil_capacity_mm` -> the depth of the soil column, capacity / theta_sat,
   so the most water the column can hold is the capacity; the shipped layer
   thicknesses are kept down to that depth (a remainder under half the layer
@@ -56,7 +63,7 @@ every choice moves):
   fixed reference temperature, 20 C (FAO-56's standard temperature for its
   latent heat of 2.45 MJ/kg), so that it is linear in `pet`. Evaluated at
   each row's own temperature, as the first version did, the factor falls as
-  the air warms, and the same day given as 24 hourly rows received 7 to 9
+  the air warms, and the same day given as 24 hourly rows received 7 to 8
   percent less energy than as one daily row;
 * shortwave and longwave: split so that a reference surface at air
   temperature, with albedo 0.23 and SUMMA's soil emissivity 0.96, would have
@@ -125,8 +132,10 @@ request (only possible where that directory is writable, never under the
 harness); SUMMA_HT_EXTRA_VARS adds variables to SUMMA's output file;
 SUMMA_HT_ALBEDO, SUMMA_HT_RH, SUMMA_HT_WIND, SUMMA_HT_SPLIT (neutral|clear),
 SUMMA_HT_PT_TREF (degrees C, or "row" for the row's own temperature),
-SUMMA_HT_VEG and SUMMA_HT_DAILY_END_HOUR reproduce the README's sensitivity
-table. None is set in the evaluated image.
+SUMMA_HT_THRESHOLD (wetbulb|air), SUMMA_HT_VEG and SUMMA_HT_DAILY_END_HOUR
+reproduce the README's sensitivity table. SUMMA_HT_RH moves the translated
+threshold with the humidity, as the definition requires. None is set in the
+evaluated image.
 """
 
 from __future__ import annotations
@@ -134,6 +143,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import os
 import re
 import shutil
@@ -146,7 +156,7 @@ from pathlib import Path
 import netCDF4
 import numpy as np
 
-MODEL = {"name": "summa", "version": "4.0.0-f787fa5.2"}
+MODEL = {"name": "summa", "version": "4.0.0-f787fa5.3"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "sbl", "hfls", "hfss", "hfg",
            "mrso", "snw", "canopy", "gw", "channel"]
 
@@ -180,10 +190,17 @@ RH_REF = float(os.environ.get("SUMMA_HT_RH", "0.70"))
 WIND_M_S = float(os.environ.get("SUMMA_HT_WIND", "2.0"))
 SPLIT = os.environ.get("SUMMA_HT_SPLIT", "neutral")
 PT_TREF = os.environ.get("SUMMA_HT_PT_TREF", "20")
+THRESHOLD = os.environ.get("SUMMA_HT_THRESHOLD", "wetbulb")
 DAILY_END_HOUR = int(os.environ.get("SUMMA_HT_DAILY_END_HOUR", "23"))
 PT_ALPHA = 1.26
 SIGMA = 5.670374419e-8
 SOIL_EMISSIVITY = 0.96  # vegNrgFlux.f90
+
+# SUMMA's constants for its humidity conversions (multiconst.f90, convert_funcs.f90).
+SUMMA_TFREEZE = 273.16
+SUMMA_SATVPFRZ = 610.8
+SUMMA_W_RATIO = 0.622
+SUMMA_WETBULB_K = 6.54e-4  # WETBULBTMP's normalising factor (C-1)
 
 OUTPUT_VARS = [
     "scalarTotalET", "scalarSnowSublimation", "scalarCanopySublimation",
@@ -194,7 +211,7 @@ OUTPUT_VARS = [
     "scalarGroundAdvectiveHeatFlux", "scalarCanopyAdvectiveHeatFlux",
     "scalarSWE", "scalarSfcMeltPond", "scalarCanopyLiq", "scalarCanopyIce",
     "scalarTotalSoilWat", "scalarSoilCompress", "scalarAquiferStorage", "scalarSurfaceTemp",
-    "scalarCosZenith", "scalarLAI", "scalarSAI", "scalarAdjMeasHeight",
+    "scalarCosZenith", "scalarLAI", "scalarSAI", "scalarAdjMeasHeight", "scalarTwetbulb",
     "balanceCasNrg", "balanceVegNrg", "balanceSnowNrg", "balanceSoilNrg",
     "balanceVegMass", "balanceSnowMass", "balanceSoilMass", "balanceAqMass",
     "averageInstantRunoff", "averageRoutedRunoff",
@@ -239,6 +256,20 @@ def canopy_top_m(veg_type: int) -> float:
 # --- mock atmosphere -----------------------------------------------------------
 
 
+def standard_pressure(elevation_m: float) -> float:
+    return 101325.0 * (1.0 - 2.25577e-5 * elevation_m) ** 5.25588
+
+
+def mock_vapour_pressure(tas):
+    """Vapour pressure (Pa) at RH_REF of the air temperature (C)."""
+    return RH_REF * 611.2 * np.exp(17.67 * tas / (tas + 243.5))
+
+
+def mock_spechum(tas, pressure):
+    ea = mock_vapour_pressure(tas)
+    return 0.622 * ea / (pressure - 0.378 * ea)
+
+
 def priestley_taylor_w_per_mm_day(tc: np.ndarray, pressure: np.ndarray) -> np.ndarray:
     """Net radiation (W m-2) that Priestley-Taylor turns into 1 mm/day of evaporation."""
     es_kpa = 0.6108 * np.exp(17.27 * tc / (tc + 237.3))
@@ -252,9 +283,9 @@ def mock_atmosphere(tas: np.ndarray, pet: np.ndarray, rn: np.ndarray | None,
                     elevation_m: float) -> dict[str, np.ndarray]:
     """SUMMA's missing forcing, from each row alone. See the module docstring."""
     tk = tas + 273.15
-    pressure = np.full_like(tas, 101325.0 * (1.0 - 2.25577e-5 * elevation_m) ** 5.25588)
-    ea = RH_REF * 611.2 * np.exp(17.67 * tas / (tas + 243.5))
-    spechum = 0.622 * ea / (pressure - 0.378 * ea)
+    pressure = np.full_like(tas, standard_pressure(elevation_m))
+    ea = mock_vapour_pressure(tas)
+    spechum = mock_spechum(tas, pressure)
     if rn is None:
         reference = tas if PT_TREF == "row" else np.full_like(tas, float(PT_TREF))
         target = pet * priestley_taylor_w_per_mm_day(reference, pressure)
@@ -273,6 +304,46 @@ def mock_atmosphere(tas: np.ndarray, pet: np.ndarray, rn: np.ndarray | None,
         lw = emitted + np.minimum(target, 0.0) / SOIL_EMISSIVITY
     return {"SWRadAtm": np.maximum(sw, 0.0), "LWRadAtm": np.maximum(lw, 0.0), "airpres": pressure,
             "spechum": spechum, "windspd": np.full_like(tas, WIND_M_S), "target": target}
+
+
+# --- the rain-snow threshold -----------------------------------------------------
+
+
+def summa_satvpress(tc: float) -> float:
+    """convert_funcs.f90 SATVPRESS: saturation vapour pressure (Pa) over water, Tetens."""
+    return SUMMA_SATVPFRZ * math.exp(17.27 * tc / (237.30 + tc))
+
+
+def summa_wetbulb_k(tair_k: float, spechum: float, pressure: float) -> float:
+    """The wet-bulb temperature (K) derivforce.f90 computes for one forcing row.
+
+    Relative humidity from specific humidity by SPHM2RELHM, capped at
+    saturation as derivforce does, then WETBULBTMP's Newton iteration on the
+    psychrometric equation, with its starting value, finite-difference step,
+    tolerance and iteration limit.
+    """
+    tc = tair_k - SUMMA_TFREEZE
+    relhum = (spechum * pressure) / (summa_satvpress(tc) * (SUMMA_W_RATIO + spechum * (1.0 - SUMMA_W_RATIO)))
+    relhum = min(relhum, 1.0)
+    pvp = relhum * summa_satvpress(tc)
+    tw, xoff, xtol = tc - 5.0, 1.0e-5, 1.0e-8
+    for _ in range(15):
+        f0 = tc - (summa_satvpress(tw) - pvp) / (SUMMA_WETBULB_K * pressure) - tw
+        f1 = tc - (summa_satvpress(tw + xoff) - pvp) / (SUMMA_WETBULB_K * pressure) - (tw + xoff)
+        tw += f0 / ((f0 - f1) / xoff)
+        if abs(f0) < xtol:
+            return tw + SUMMA_TFREEZE
+    raise RuntimeError("the wet-bulb iteration did not converge, as SUMMA's would not")
+
+
+def temp_crit_rain_k(threshold_c: float, pressure: float) -> float:
+    """tempCritRain for the probe's air-temperature threshold (module docstring)."""
+    tair_k = threshold_c + 273.15
+    if THRESHOLD == "air":
+        return tair_k
+    if THRESHOLD != "wetbulb":
+        raise SystemExit(f"SUMMA_HT_THRESHOLD must be wetbulb or air, not {THRESHOLD!r}")
+    return summa_wetbulb_k(tair_k, float(mock_spechum(threshold_c, pressure)), pressure)
 
 
 # --- SUMMA files -----------------------------------------------------------------
@@ -417,14 +488,16 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
     vai_max = float(monthly_vai(veg_type).max())
     top_m = canopy_top_m(veg_type)
     measurement_height_m = max(SHIPPED_MEASUREMENT_HEIGHT_M, top_m + MIN_CLEARANCE_M)
+    elevation_m = float(static.get("elevation_m", 0.0))
+    threshold_c = float(static.get("snow_threshold_degC", 0.0))
     params = {
-        "tempCritRain": float(static.get("snow_threshold_degC", 0.0)) + 273.15,
+        "tempCritRain": temp_crit_rain_k(threshold_c, standard_pressure(elevation_m)),
         "rootingDepth": min(DEFAULT_ROOTING_DEPTH_M, depth_m),
     }
     if canopy_capacity > 0.0 and vai_max > 0.0:
         params["refInterceptCapRain"] = canopy_capacity / vai_max
         params["refInterceptCapSnow"] = canopy_capacity / vai_max
-    atmos = mock_atmosphere(tas, pet, rn, float(static.get("elevation_m", 0.0)))
+    atmos = mock_atmosphere(tas, pet, rn, elevation_m)
 
     if WORK.exists():
         shutil.rmtree(WORK)
@@ -493,16 +566,18 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
         "measurement_height_m_written": measurement_height_m,
         "measurement_height_m_applied_by_summa": [float(np.nanmin(out["scalarAdjMeasHeight"])),
                                                   float(np.nanmax(out["scalarAdjMeasHeight"]))],
+        "snow_threshold_air_degC": threshold_c,
+        "tempCritRain_K": round(params["tempCritRain"], 6),
         "trial_parameters": {k: round(v, 6) for k, v in params.items()},
     }
-    notes = describe(result, out, atmos, pr, dt_days, timestep, catchment, rn is not None)
+    notes = describe(result, out, atmos, pr, tas, threshold_c, dt_days, timestep, catchment, rn is not None)
     notes["seconds"] = {"stage": round(staged - started, 2), "summa": round(ran - staged, 2)}
     diag = {**out, "rn_target": atmos["target"], "SWRadAtm": atmos["SWRadAtm"],
             "LWRadAtm": atmos["LWRadAtm"], "spechum": atmos["spechum"]}
     return result, notes, diag
 
 
-def describe(result, out, atmos, pr, dt_days, timestep, catchment, has_rn):
+def describe(result, out, atmos, pr, tas, threshold_c, dt_days, timestep, catchment, has_rn):
     """What run.json says about a case: the mapping, and the budgets as SUMMA kept them."""
     storage = sum(result[k] for k in ("mrso", "snw", "canopy", "gw", "channel"))
     fluxes = (pr - result["evspsbl"] - result["mrro"]) * dt_days
@@ -518,6 +593,17 @@ def describe(result, out, atmos, pr, dt_days, timestep, catchment, has_rn):
         balance[name] = float(np.abs(values).max()) if values.size else 0.0
     precipitation = out["scalarRainfall"] + out["scalarSnowfall"]
     snow_share = float(out["scalarSnowfall"].sum() / precipitation.sum()) if precipitation.sum() > 0 else 0.0
+    rule_share = float(pr[tas < threshold_c].sum() / pr.sum()) if pr.sum() > 0 else 0.0
+
+    if THRESHOLD == "air":
+        rain_snow = ("tempCritRain = snow_threshold_degC + 273.15 (the direct mapping of versions .1 and .2), "
+                     "compared by SUMMA with each row's wet-bulb temperature over a 2 K ramp "
+                     "(tempRangeTimestep, shipped)")
+    else:
+        rain_snow = ("tempCritRain = the wet-bulb temperature SUMMA computes for air at snow_threshold_degC "
+                     f"under this humidity mock (relative humidity {RH_REF}) and pressure (derivforce "
+                     "SPHM2RELHM and convert_funcs WETBULBTMP, ported); SUMMA compares it with each row's "
+                     "wet-bulb temperature over a 2 K ramp (tempRangeTimestep, shipped)")
 
     return {
         "summa": {"release": "v4.0.0", "commit": "f787fa5e63d3c67030721a85f2f244d22a8d691e",
@@ -542,8 +628,7 @@ def describe(result, out, atmos, pr, dt_days, timestep, catchment, has_rn):
             "spechum": f"relative humidity {RH_REF} at the row's air temperature",
             "airpres": "standard atmosphere at sea level",
             "windspd": f"{WIND_M_S} m/s at the measurement height SUMMA applies",
-            "rain_snow": ("tempCritRain from snow_threshold_degC, compared by SUMMA with the wet-bulb "
-                          "temperature over a 2 K ramp (tempRangeTimestep, shipped)"),
+            "rain_snow": rain_snow,
         },
         "states": {
             "mrso": "scalarTotalSoilWat (liquid + ice) + cumulative scalarSoilCompress (elastic storage "
@@ -566,6 +651,7 @@ def describe(result, out, atmos, pr, dt_days, timestep, catchment, has_rn):
             "water_input_mm": float((pr * dt_days).sum()),
             "soil_elastic_storage_change_mm": float(np.sum(out["scalarSoilCompress"]) * dt_days * SECONDS_PER_DAY),
             "snowfall_share_of_precipitation": snow_share,
+            "snowfall_share_under_probe_rule": rule_share,
             "mean_target_net_radiation_w_m2": float(target.mean()),
             "mean_summa_net_radiation_w_m2": float(summa_rn.mean()),
             "mean_abs_target_minus_summa_net_radiation_w_m2": float(np.abs(target - summa_rn).mean()),
