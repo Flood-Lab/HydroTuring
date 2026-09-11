@@ -40,7 +40,7 @@ density diagnostics, and the user-specified melt-factor curve.
 | Choice | Why |
 | --- | --- |
 | Snow-17 `SCF = 1.0` | the gauge-catch multiplier manufactures snow above one; a physical reference is fed what fell |
-| SAC-SMA `SIDE = 0.02`, declared as `gwex` | deep baseflow leaves the catchment for good; declared as a negative exchange so the budget closes over what the model says it did |
+| SAC-SMA `SIDE = 0.02`, declared as `gwex` | deep baseflow leaves the catchment for good; declared as a negative exchange so the budget closes over what the model says it did. When the forcing carries `abstr`, the prescribed withdrawal is removed from the SAC stores and the day's runoff and added to `gwex` the same way |
 | `RIVA = 0.02` in `evspsbl` | riparian evaporation from channel inflow is evaporation, as the Fortran counts it |
 | `UZTWM + UZFWM + LZTWM` = the catchment's soil capacity | a physical model is told its catchment; the three tension/upper stores are rescaled from the default set keeping their ratios, lower-zone free water keeps its defaults |
 | `PXTEMP`, `MBASE` = the catchment's snow threshold | same reason |
@@ -58,7 +58,8 @@ components: `mrso` = UZTWC + UZFWC + LZTWC (+ ADIMC on its area), `gw` =
 LZFSC + LZFPC, `snw` = Snow-17's total water equivalent (pack plus liquid
 plus lagged excess plus storage), `channel` = channel inflow generated but
 not yet released by the hydrograph, `gwex` = minus the non-channel
-baseflow. Steps: PT1D and PT1H, the whole hours Snow-17 is defined on.
+baseflow, plus any prescribed human withdrawal removed this step. Steps:
+PT1D and PT1H, the whole hours Snow-17 is defined on.
 
 ## Result
 

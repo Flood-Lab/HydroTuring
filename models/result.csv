@@ -221,3 +221,8 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,all criteria pass
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,mass/precipitation-counterfactual,PASS,OK,full record,872466880 1379418994 1886371108,residual 0.019% of driver
+2026-09-11,flex_lumped,1.0.0,0.1.0,subprocess,mass/human-abstraction,PASS,OK,full record,1129545695 1636497809 2143449923,residual 0.000% of driver
+2026-09-11,flex_topo,1.0.0,0.1.0,subprocess,mass/human-abstraction,PASS,OK,full record,1129545695 1636497809 2143449923,residual 0.000% of driver
+2026-09-11,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/human-abstraction,PASS,OK,full record,1129545695 1636497809 2143449923,residual 0.000% of driver
+2026-09-11,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/human-abstraction,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
+2026-09-11,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/human-abstraction,FAIL,VIOLATION,full record,1129545695 1636497809 2143449923,"human_abstraction: of the prescribed 380 mm of abstr, the budget difference accounts for all but +380.0 mm (100.00%, limit 5%): evspsbl +0.0 mm, mrro +0.0 mm, storage +0.0 mm; state_bounds: mrso leaves [0, 320] on 3650 steps (range 526 to 735)"
