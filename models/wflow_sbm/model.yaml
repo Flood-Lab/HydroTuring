@@ -1,0 +1,40 @@
+name: wflow_sbm
+version: "1.0.4-ht.2"
+description: >
+  wflow_sbm, the distributed hydrological model of Deltares' Wflow.jl at v1.0.4
+  (van Verseveld et al. 2024, GMD, which evaluates v0.7.3): the SBM soil column
+  with an unsaturated and a saturated store, Gash or Rutter interception, HBV
+  snow, and kinematic waves for lateral subsurface, overland and river flow.
+  Run through Wflow's own time loop on one representative cell at the
+  resolution of Wflow's Moselle test model, land, river and outlet at once,
+  every depth per unit area, with the catchment's soil and canopy capacities
+  and snow parameters from static.json and every other parameter from the
+  Moselle model's medians. The catchment's area enters only the discharge.
+  The adapter is written in Julia. README.md lists every choice.
+authors:
+  - "Deltares and contributors (Wflow.jl); van Verseveld et al. (2024)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.5194/gmd-17-3199-2024"
+license: MIT
+
+runner: docker
+entrypoint: ["julia", "--project=/opt/wflow_sbm", "--startup-file=no", "/opt/wflow_sbm/ht_adapter.jl"]
+# Wflow takes its step as timestepsecs; the resolution probe runs the next finer step too.
+timestep: [PT1D, PT1H]
+
+# Everything the sbm model type carries. `mrso` is the whole soil column, unsaturated and
+# saturated stores; `gw` is zero because the sbm type has no store below that column;
+# `channel` is the water in the land and river kinematic waves; `gwex` is the leakage out of
+# the saturated store, zero in the test model and here.
+emits:
+  fluxes: [pr, evspsbl, mrro, dis, gwex]
+  states: [mrso, snw, canopy, gw, channel]
+
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 2, gpu: false}
+
+# A physical model with slow soil and snow stores, and the budget probes are defined over
+# the whole record; a ten-year daily record runs in seconds, so nothing is gained by cutting it.
+window_days: full
