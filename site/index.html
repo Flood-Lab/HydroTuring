@@ -241,6 +241,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
         .infra .mono-small-accent{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:9px; fill:var(--accent)}
         .infra .tag-pass{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:11px; font-weight:600; fill:var(--pass)}
         .infra .tag-fail{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:11px; font-weight:600; fill:var(--fail)}
+        .infra .tag-na{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:11px; font-weight:600; fill:var(--muted)}
       </style>
       <defs><marker id="infra-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs>
       <rect x="16" y="160" width="144" height="212" rx="8" fill="var(--surface)" stroke="var(--line-strong)"/>
@@ -353,10 +354,12 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <rect x="650" y="160" width="134" height="212" rx="8" fill="var(--surface)" stroke="var(--line-strong)"/>
       <text x="717" y="144" class="mono-accent" text-anchor="middle">$ ht run --model</text>
       <text x="717" y="184" class="eyebrow" data-i18n="infra.out.eyebrow" text-anchor="middle">VERDICT</text>
-      <rect x="664" y="196" width="48" height="20" rx="4" fill="var(--pass-soft)"/>
-      <text x="688" y="210" class="tag-pass" text-anchor="middle">PASS</text>
-      <rect x="722" y="196" width="48" height="20" rx="4" fill="var(--fail-soft)"/>
-      <text x="746" y="210" class="tag-fail" text-anchor="middle">FAIL</text>
+      <rect x="662" y="196" width="36" height="20" rx="4" fill="var(--pass-soft)"/>
+      <text x="680" y="210" class="tag-pass" text-anchor="middle">PASS</text>
+      <rect x="703" y="196" width="36" height="20" rx="4" fill="var(--fail-soft)"/>
+      <text x="721" y="210" class="tag-fail" text-anchor="middle">FAIL</text>
+      <rect x="744" y="196" width="36" height="20" rx="4" fill="var(--surface-2)"/>
+      <text x="762" y="210" class="tag-na" text-anchor="middle">N/A</text>
       <text x="717" y="234" class="note" data-i18n="infra.out.reason" text-anchor="middle">with its reason</text>
       <text x="717" y="249" class="mono-small" text-anchor="middle">OK</text>
       <text x="717" y="261" class="mono-small" text-anchor="middle">VIOLATION</text>
@@ -650,7 +653,7 @@ en: {
   "example.intro":`<p>This is the report for the Google Flood Hub model, run through the open-source OpenHydroNet package with its published weights, on the first seven mass probes with the gate seeds. It is the output of one command, unedited.</p>`,
   "example.reading":`<p>How to read it:</p>
 <ul>
-<li>The verdict is one bit, and it is <code>FAIL</code>. The reason beside it, <code>INCOMPLETE</code>, is the worst reason among the probes: the closure probe never ran, because the model reports runoff and nothing else.</li>
+<li>The verdict is <code>FAIL</code>, and the reason beside it, <code>VIOLATION</code>, is the worst reason among the probes that could be scored. The closure probe is <code>N/A</code> with reason <code>INCOMPLETE</code>: it never ran, because the model reports runoff and nothing else, so it counts neither for the model nor against it.</li>
 <li>Two probes pass, and they pass exactly. Nothing the model reports changes before an added storm, and under constant weather it settles to a constant. A model can be causal and settle and still not conserve.</li>
 <li>Where it fails, the number says how. Runoff that differs by 66% of the rain between hourly and daily runs of the same month. A tenfold storm of which 0.07 runs off. A runoff floor that does not decay through two rainless years.</li>
 <li>The dry-down line deserves a second look. The model stays inside the storage bound and never rises, so that criterion passes; the variability criterion is what catches the flat floor. Two criteria, one probe, one bit.</li>
@@ -666,9 +669,9 @@ en: {
   "models.th5":"Verdict",
   "models.intro":"<p>Every model that has been run against the suite. A submitted model is evaluated in an isolated container on a flood-event window of each probe's generated record. A physical model is one the acceptance gate requires every probe to pass; it is evaluated the same way, and a probe that fails one is examined before the model is.</p>",
   "models.legend":"<p>Every evaluation is appended to <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>, with the probe, the window, the seeds and the worst criterion. The verdict is one bit and its reason; the numbers under it are in the archive and in each model's README. To submit a model, open a <a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">model submission</a>.</p>",
-  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>submitted</td><td>Google Flood Hub's mean-embedding forecast LSTM, through OpenHydroNet with the published weights. Discharge only.</td><td>5 / 20</td><td><span class="tag incomplete">FAIL (INCOMPLETE)</span></td></tr>
+  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>submitted</td><td>Google Flood Hub's mean-embedding forecast LSTM, through OpenHydroNet with the published weights. Discharge only.</td><td>5 / 20</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">dhbv2</td><td>submitted</td><td>δHBV 2.0, the MHPI differentiable HBV: networks write the parameters of a bucket model that reports its stores, its evaporation and, declared, its regional groundwater exchange.</td><td>11 / 20</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
-<tr><td class="mono">wflow_sbm</td><td>submitted</td><td>Deltares' Wflow.jl SBM, adapted in Julia: a soil column with unsaturated and saturated stores, interception, snow and kinematic-wave routing, run on one representative cell at the resolution of Wflow's Moselle model.</td><td>14 / 20</td><td><span class="tag incomplete">FAIL (INCOMPLETE)</span></td></tr>
+<tr><td class="mono">wflow_sbm</td><td>submitted</td><td>Deltares' Wflow.jl SBM, adapted in Julia: a soil column with unsaturated and saturated stores, interception, snow and kinematic-wave routing, run on one representative cell at the resolution of Wflow's Moselle model.</td><td>14 / 20</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>physical</td><td>Lumped FLEX/HBV from chrimerss/HydrologicModels: interception, beta-partitioned soil, fast and slow reservoirs, a lag.</td><td>17 / 20</td><td><span class="tag merged">PASS</span><br><small>INCOMPLETE on the three energy-flux probes</small></td></tr>
 <tr><td class="mono">flex_topo</td><td>physical</td><td>FLEX-Topo: plateau, hillslope and wetland units on the Wark catchment's real fractions, sharing one groundwater store.</td><td>17 / 20</td><td><span class="tag merged">PASS</span><br><small>INCOMPLETE on the three energy-flux probes</small></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>17 / 20</td><td><span class="tag merged">PASS</span><br><small>INCOMPLETE on the three energy-flux probes</small></td></tr>
@@ -713,10 +716,10 @@ en: {
 <tr><td class="mono">momentum/wave-celerity-bounds</td><td>momentum</td><td>Kinematic wave celerity must be positive and near the Manning expectation.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">momentum/froude-regime</td><td>momentum</td><td>Flow in a mild-sloped reach must stay subcritical.</td><td><span class="tag wanted">wanted</span></td></tr>`,
   "verdict.h":"Verdicts",
-  "verdict.body":`<p>Binary, with the reason recorded separately, because these mean very different things.</p>
-<ul><li><strong>VIOLATION</strong> — the model reported its budget and the budget did not close.</li>
-<li><strong>INCOMPLETE</strong> — the model never reported enough to be checked. Every streamflow-only model lands here today. It has not violated conservation; it has declined to be falsifiable.</li></ul>
-<p>The verdict is one bit. Everything under it stays quantitative, so a paper can show that one model leaks 6% and another 40% long before anyone crosses the line.</p>`,
+  "verdict.body":`<p>A probe that can ask the model something passes or fails it, with the reason recorded separately, because these mean very different things. A probe that cannot ask it anything is <strong>N/A</strong>: not scored, and neither a pass nor a fail.</p>
+<ul><li><strong>VIOLATION</strong> — the model reported its budget and the budget did not close. The probe fails.</li>
+<li><strong>INCOMPLETE</strong> — the model never reported enough to be checked. Every streamflow-only model lands here on the budget probes. It has not violated conservation; it has declined to be falsifiable. The probe is N/A.</li></ul>
+<p>A model passes when every probe that could be put to it passes. A scored verdict is one bit. Everything under it stays quantitative, so a paper can show that one model leaks 6% and another 40% long before anyone crosses the line.</p>`,
   "flow.h":"How a contribution moves",
   "flow.intro":`<p>Two very different kinds of contribution live here, and <strong>we are asking for both</strong>. A probe is a test of a conservation law. A model is something to be tested. The route is the same three steps either way.</p>`,
   "flow.steps":`<li><strong>Open an issue</strong> — a probe proposal or a model proposal. A maintainer labels it accepted and assigns it.</li>
@@ -850,7 +853,7 @@ es: {
   "example.intro":`<p>Este es el informe del modelo de Google Flood Hub, ejecutado con el paquete de código abierto OpenHydroNet y sus pesos publicados, sobre las primeras siete pruebas de masa con las semillas de la compuerta. Es la salida de un solo comando, sin editar.</p>`,
   "example.reading":`<p>Cómo leerlo:</p>
 <ul>
-<li>El veredicto es un bit, y es <code>FAIL</code>. La razón que lo acompaña, <code>INCOMPLETE</code>, es la peor entre las pruebas: la prueba de cierre nunca se ejecutó, porque el modelo reporta escorrentía y nada más.</li>
+<li>El veredicto es <code>FAIL</code>, y la razón que lo acompaña, <code>VIOLATION</code>, es la peor entre las pruebas que pudieron puntuarse. La prueba de cierre es <code>N/A</code> con razón <code>INCOMPLETE</code>: nunca se ejecutó, porque el modelo reporta escorrentía y nada más, así que no cuenta ni a favor ni en contra del modelo.</li>
 <li>Dos pruebas aprueban, y aprueban exactamente. Nada de lo que reporta el modelo cambia antes de una tormenta añadida, y bajo un clima constante se asienta en una constante. Un modelo puede ser causal y asentarse, y aun así no conservar.</li>
 <li>Donde falla, la cifra dice cómo. Una escorrentía que difiere en un 66% de la lluvia entre las ejecuciones horaria y diaria del mismo mes. Una tormenta diez veces mayor de la que escurre 0,07. Un piso de escorrentía que no decae en dos años sin lluvia.</li>
 <li>La línea del secado merece una segunda mirada. El modelo se mantiene dentro del límite de almacenamiento y nunca sube, así que ese criterio aprueba; el criterio de variabilidad es el que atrapa el piso plano. Dos criterios, una prueba, un bit.</li>
@@ -866,9 +869,9 @@ es: {
   "models.th5":"Veredicto",
   "models.intro":"<p>Todos los modelos que se han ejecutado contra la batería. Un modelo enviado se evalúa en un contenedor aislado sobre una ventana de crecida del registro generado de cada prueba. Un modelo físico es uno que la compuerta de aceptación exige que toda prueba supere; se evalúa igual, y una prueba que lo falla se examina antes que el modelo.</p>",
   "models.legend":"<p>Cada evaluación se añade a <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>, con la prueba, la ventana, las semillas y el peor criterio. El veredicto es un bit y su razón; los números están en el archivo y en el README de cada modelo. Para enviar un modelo, abre un <a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">envío de modelo</a>.</p>",
-  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>enviado</td><td>El LSTM de pronóstico de Google Flood Hub, vía OpenHydroNet con los pesos publicados. Solo caudal.</td><td>5 / 20</td><td><span class="tag incomplete">FALLA (INCOMPLETO)</span></td></tr>
+  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>enviado</td><td>El LSTM de pronóstico de Google Flood Hub, vía OpenHydroNet con los pesos publicados. Solo caudal.</td><td>5 / 20</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">dhbv2</td><td>enviado</td><td>δHBV 2.0, el HBV diferenciable de MHPI: redes que escriben los parámetros de un modelo de cubetas que reporta sus almacenes, su evaporación y, declarado, su intercambio regional de agua subterránea.</td><td>11 / 20</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
-<tr><td class="mono">wflow_sbm</td><td>enviado</td><td>El SBM de Wflow.jl de Deltares, adaptado en Julia: una columna de suelo con almacenes no saturado y saturado, intercepción, nieve y tránsito por onda cinemática, en una celda representativa a la resolución del modelo del Mosela de Wflow.</td><td>14 / 20</td><td><span class="tag incomplete">FALLA (INCOMPLETO)</span></td></tr>
+<tr><td class="mono">wflow_sbm</td><td>enviado</td><td>El SBM de Wflow.jl de Deltares, adaptado en Julia: una columna de suelo con almacenes no saturado y saturado, intercepción, nieve y tránsito por onda cinemática, en una celda representativa a la resolución del modelo del Mosela de Wflow.</td><td>14 / 20</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>físico</td><td>FLEX/HBV agregado de chrimerss/HydrologicModels: intercepción, suelo con partición beta, embalses rápido y lento, un retardo.</td><td>17 / 20</td><td><span class="tag merged">PASA</span><br><small>INCOMPLETO en las tres pruebas de flujos de energía</small></td></tr>
 <tr><td class="mono">flex_topo</td><td>físico</td><td>FLEX-Topo: unidades de meseta, ladera y humedal con las fracciones reales de la cuenca Wark, un solo almacén subterráneo.</td><td>17 / 20</td><td><span class="tag merged">PASA</span><br><small>INCOMPLETO en las tres pruebas de flujos de energía</small></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>17 / 20</td><td><span class="tag merged">PASA</span><br><small>INCOMPLETO en las tres pruebas de flujos de energía</small></td></tr>
@@ -913,10 +916,10 @@ es: {
 <tr><td class="mono">momentum/wave-celerity-bounds</td><td>momento</td><td>La celeridad de la onda cinemática debe ser positiva y cercana a la esperada por Manning.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">momentum/froude-regime</td><td>momento</td><td>El flujo en un tramo de pendiente suave debe mantenerse subcrítico.</td><td><span class="tag wanted">se busca</span></td></tr>`,
   "verdict.h":"Veredictos",
-  "verdict.body":`<p>Binarios, con el motivo registrado por separado, porque significan cosas muy distintas.</p>
-<ul><li><strong>VIOLATION</strong> — el modelo informó su balance y el balance no cerró.</li>
-<li><strong>INCOMPLETE</strong> — el modelo nunca informó lo suficiente para poder verificarse. Hoy, todo modelo que solo predice caudal termina aquí. No ha violado la conservación: ha renunciado a ser falsable.</li></ul>
-<p>El veredicto es un bit. Todo lo que hay debajo sigue siendo cuantitativo, de modo que un artículo puede mostrar que un modelo pierde un 6% y otro un 40% mucho antes de que alguien cruce el umbral.</p>`,
+  "verdict.body":`<p>Una prueba que puede preguntarle algo al modelo lo aprueba o lo reprueba, con el motivo registrado por separado, porque significan cosas muy distintas. Una prueba que no puede preguntarle nada es <strong>N/A</strong>: no se puntúa, y no es ni un aprobado ni un fallo.</p>
+<ul><li><strong>VIOLATION</strong> — el modelo informó su balance y el balance no cerró. La prueba falla.</li>
+<li><strong>INCOMPLETE</strong> — el modelo nunca informó lo suficiente para poder verificarse. Todo modelo que solo predice caudal termina aquí en las pruebas de balance. No ha violado la conservación: ha renunciado a ser falsable. La prueba es N/A.</li></ul>
+<p>Un modelo aprueba cuando aprueba toda prueba que se le pudo aplicar. Un veredicto puntuado es un bit. Todo lo que hay debajo sigue siendo cuantitativo, de modo que un artículo puede mostrar que un modelo pierde un 6% y otro un 40% mucho antes de que alguien cruce el umbral.</p>`,
   "flow.h":"Cómo avanza una contribución",
   "flow.intro":`<p>Aquí conviven dos tipos de contribución muy distintos, y <strong>pedimos ambos</strong>. Una prueba verifica una ley de conservación. Un modelo es aquello que se verifica. El recorrido es el mismo en los dos casos.</p>`,
   "flow.steps":`<li><strong>Abre una incidencia</strong>: una propuesta de prueba o una propuesta de modelo. Una persona mantenedora la etiqueta como aceptada y la asigna.</li>
@@ -1050,7 +1053,7 @@ zh: {
   "example.intro":`<p>这是 Google Flood Hub 模型的报告：通过开源的 OpenHydroNet 及其公开权重运行，在最初七项质量检验项上使用闸门种子。它是一条命令的原始输出，未经编辑。</p>`,
   "example.reading":`<p>如何解读：</p>
 <ul>
-<li>判定只有一位，结果是 <code>FAIL</code>。旁边的原因 <code>INCOMPLETE</code> 是各检验项中最严重的一个：闭合检验根本没有运行，因为模型只报告径流，别无其他。</li>
+<li>判定结果是 <code>FAIL</code>，旁边的原因 <code>VIOLATION</code> 是能够计分的检验项中最严重的一个。闭合检验记为 <code>N/A</code>，原因是 <code>INCOMPLETE</code>：它根本没有运行，因为模型只报告径流，别无其他，因此不计入模型的判定。</li>
 <li>两项检验通过，而且是精确通过：在加入一场暴雨之前，模型报告的任何量都没有变化；在恒定天气下，它收敛到常数。一个模型可以满足因果性、可以收敛，却仍然不守恒。</li>
 <li>在失败之处，数字说明失败的方式：同一个月的逐小时与逐日运行，径流相差降雨的 66%；十倍暴雨只有 0.07 化为径流；两年无雨，径流底流却不衰减。</li>
 <li>无雨退水那一行值得再看一眼。模型始终处于蓄水上限之内、从不上升，所以该判据通过；抓住这条平坦底流的是变率判据。两条判据，一项检验，一位判定。</li>
@@ -1066,9 +1069,9 @@ zh: {
   "models.th5":"结论",
   "models.intro":"<p>所有已在本套件上运行过的模型。提交模型在隔离容器中，于每个检验项生成记录的洪水事件窗口上评估。物理模型是验收闸门要求每个检验项都必须通过的模型，以同样方式评估；若某检验项未能通过物理模型，先检查检验项，再检查模型。</p>",
   "models.legend":"<p>每次评估都会追加到 <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>，记录检验项、窗口、种子与最差准则。结论是一个比特及其原因；其下的数字在归档和各模型的 README 中。提交模型请打开<a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">模型提交</a>。</p>",
-  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>提交模型</td><td>Google Flood Hub 的均值嵌入预报 LSTM，经 OpenHydroNet 以公开权重运行。仅输出流量。</td><td>5 / 20</td><td><span class="tag incomplete">未通过（信息不全）</span></td></tr>
+  "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>提交模型</td><td>Google Flood Hub 的均值嵌入预报 LSTM，经 OpenHydroNet 以公开权重运行。仅输出流量。</td><td>5 / 20</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">dhbv2</td><td>提交模型</td><td>δHBV 2.0，MHPI 的可微 HBV：神经网络写出水桶模型的参数，模型报告蓄水、蒸发，并申报其区域地下水交换。</td><td>11 / 20</td><td><span class="tag violation">未通过（违反）</span></td></tr>
-<tr><td class="mono">wflow_sbm</td><td>提交模型</td><td>Deltares 的 Wflow.jl SBM，以 Julia 适配：含非饱和与饱和蓄水的土壤柱、截留、积雪与运动波汇流，以 Wflow 莫泽尔河模型分辨率的单个代表性网格运行。</td><td>14 / 20</td><td><span class="tag incomplete">未通过（信息不全）</span></td></tr>
+<tr><td class="mono">wflow_sbm</td><td>提交模型</td><td>Deltares 的 Wflow.jl SBM，以 Julia 适配：含非饱和与饱和蓄水的土壤柱、截留、积雪与运动波汇流，以 Wflow 莫泽尔河模型分辨率的单个代表性网格运行。</td><td>14 / 20</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>物理模型</td><td>来自 chrimerss/HydrologicModels 的集总 FLEX/HBV：截留、beta 分配的土壤、快慢水库与滞时。</td><td>17 / 20</td><td><span class="tag merged">通过</span><br><small>三项能量通量检验为 INCOMPLETE</small></td></tr>
 <tr><td class="mono">flex_topo</td><td>物理模型</td><td>FLEX-Topo：台地、坡地与湿地单元按 Wark 流域的真实面积比共享一个地下水库。</td><td>17 / 20</td><td><span class="tag merged">通过</span><br><small>三项能量通量检验为 INCOMPLETE</small></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>17 / 20</td><td><span class="tag merged">通过</span><br><small>三项能量通量检验为 INCOMPLETE</small></td></tr>
@@ -1113,10 +1116,10 @@ zh: {
 <tr><td class="mono">momentum/wave-celerity-bounds</td><td>动量</td><td>运动波波速必须为正，且接近曼宁公式的预期。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">momentum/froude-regime</td><td>动量</td><td>缓坡河段的水流必须保持缓流。</td><td><span class="tag wanted">征集中</span></td></tr>`,
   "verdict.h":"判定结果",
-  "verdict.body":`<p>结论是二值的，但失败原因单独记录，因为两者的科学含义完全不同。</p>
-<ul><li><strong>VIOLATION</strong>（违反）——模型上报了自己的收支，而收支没有闭合。</li>
-<li><strong>INCOMPLETE</strong>（不完整）——模型上报的信息根本不足以接受检验。今天几乎所有只预测流量的模型都落在这一类。它并没有违反守恒，而是放弃了可证伪性。</li></ul>
-<p>结论只有一个比特，其下的全部诊断量仍然是连续的。这样，在还没有模型跨过阈值之前，论文就已经可以说明：某个模型漏损 6%，另一个漏损 40%。</p>`,
+  "verdict.body":`<p>能够向模型提出问题的检验项给出通过或未通过的结论，失败原因单独记录，因为两者的科学含义完全不同。无法向模型提出任何问题的检验项记为 <strong>N/A</strong>：不计分，既不算通过，也不算未通过。</p>
+<ul><li><strong>VIOLATION</strong>（违反）——模型上报了自己的收支，而收支没有闭合。该检验项未通过。</li>
+<li><strong>INCOMPLETE</strong>（不完整）——模型上报的信息根本不足以接受检验。几乎所有只预测流量的模型在收支类检验项上都落在这一类。它并没有违反守恒，而是放弃了可证伪性。该检验项记为 N/A。</li></ul>
+<p>模型只有在所有能够施加于它的检验项上都通过，才算通过。计分的结论只有一个比特，其下的全部诊断量仍然是连续的。这样，在还没有模型跨过阈值之前，论文就已经可以说明：某个模型漏损 6%，另一个漏损 40%。</p>`,
   "flow.h":"一份贡献如何推进",
   "flow.intro":`<p>这里有两类很不一样的贡献，<strong>两类我们都在征集</strong>。检验项用来检验一条守恒律，模型则是被检验的对象。两者的流程完全相同。</p>`,
   "flow.steps":`<li><strong>先提 issue</strong>：检验项提案，或模型提案。维护者会标记为 accepted 并指派负责人。</li>

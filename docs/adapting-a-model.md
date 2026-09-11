@@ -31,10 +31,11 @@ emits:
   states: []
 ```
 
-and is scored `FAIL (INCOMPLETE)`. That is the correct outcome, and it is a
-different statement from `FAIL (VIOLATION)`. Inventing an evapotranspiration
-column to escape `INCOMPLETE` converts an honest limitation into a false
-claim, and the budget will not close anyway.
+and is `N/A (INCOMPLETE)` on every probe that needs more than discharge: not
+scored, so those probes count neither for it nor against it. That is the
+correct outcome, and it is a different statement from `FAIL (VIOLATION)`.
+Inventing an evapotranspiration column to escape `INCOMPLETE` converts an
+honest limitation into a false claim, and the budget will not close anyway.
 
 ## 2. Write the adapter
 
@@ -153,8 +154,9 @@ ht run --model my-model --gate-seeds --csv models/result.csv
 `models/result.csv` is the archive of every evaluation: one dated row per
 probe, plus one for the adapter contract check when `verify-adapter` is
 given the same `--csv`. For a model that reports only discharge, the
-contract row is the only line saying it was actually built and run, because
-its scientific verdict is INCOMPLETE before the container is started.
+contract row is the only line saying it was actually built and run on a
+budget probe, because that probe is N/A (INCOMPLETE) before the container is
+started.
 
 ## 6. Submit it
 
@@ -162,11 +164,12 @@ Push to your fork and open a pull request titled `[MODEL] <name>`, linking the
 proposal issue so it closes on merge. Paste the `--markdown` report into the
 template.
 
-**A FAIL is not a reason to hold the pull request back.** `INCOMPLETE` is the
-current state of nearly every published rainfall-runoff model, and recording
-that honestly is a large part of what the benchmark is for. Review is on the
-contract — does the adapter honour `/io`, is `emits` honest, is the image
-reproducible — never on the verdict.
+**A FAIL is not a reason to hold the pull request back, and nor is an N/A.**
+`INCOMPLETE` is the current state of nearly every published rainfall-runoff
+model on the budget probes, and recording that honestly is a large part of
+what the benchmark is for. Review is on the contract — does the adapter
+honour `/io`, is `emits` honest, is the image reproducible — never on the
+verdict.
 
 ## Common failures
 
