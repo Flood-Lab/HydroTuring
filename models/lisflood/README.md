@@ -335,17 +335,22 @@ that was also evaluating other models (load average 15 to 16):
 | `mass/catchment-closure`, whole ten-year record | 4015 | 5.2 s | 91.7 s | 23 ms |
 
 A ten-year daily record takes 97 s there. That is over the 60 s budget of
-`mass/precipitation-counterfactual` and `mass/human-abstraction`.
+`mass/precipitation-counterfactual` and `mass/human-abstraction`. With the
+host nearly idle (load average 4 to 7), the archive run's ten-year cases still
+took 88 and 96 s.
 
 ## Result
 
-**FAIL (ERROR), 14 of 20 probes passed.** These are the rows of the full
-gate-seed run of `5.0.0-onecell.3`, made on the emulated host described under
-"Native re-run".
+**FAIL (ERROR), 14 of 20 probes passed, 3 N/A (INCOMPLETE).** These are the
+rows of the full gate-seed run of `5.0.0-onecell.3`, made on the emulated host
+described under "Native re-run". The verdict is ERROR because two probes ran
+out of time on that host. Any ERROR among the scored probes makes the verdict
+FAIL (ERROR), whatever the other probes score.
 
-- **INCOMPLETE, 3:** `energy/evaporative-partition`,
+- **N/A (INCOMPLETE), 3, not scored:** `energy/evaporative-partition`,
   `energy/latent-heat-et-consistency` and `energy/surface-energy-closure`.
   LISFLOOD reports no heat fluxes, so these probes cannot ask it anything.
+  They are neither a pass nor a fail, and do not decide the verdict.
 - **ERROR, 2:** `mass/precipitation-counterfactual` and
   `mass/human-abstraction`. The container exceeded the 60 s budget, because a
   ten-year record takes 97 s under emulation. These rows come from the
@@ -356,8 +361,8 @@ gate-seed run of `5.0.0-onecell.3`, made on the emulated host described under
     withdraws about 17% of the prescription, which leaves a residual of about
     83% against a 5% limit; `closure` and `state_bounds` pass.
   - On a host fast enough for the budget, the first should PASS and the second
-    be VIOLATION. The model's verdict would then be FAIL (INCOMPLETE), with 15
-    of 20 probes passed.
+    be VIOLATION. The model's verdict would then be FAIL (VIOLATION), with 15
+    of 20 probes passed and 3 N/A.
 - **VIOLATION, 1:** `mass/resolution-invariance`. Rain that falls within an
   hour runs off, so `mrro` differs by 13.0% of `pr` between PT1H and PT1D,
   against a 10% limit.
@@ -381,6 +386,8 @@ Against the `.2` rows:
 - `mass/resolution-invariance` is VIOLATION in both (13.1% then, 13.0% now).
 - `mass/precipitation-counterfactual` is ERROR on this host in both.
 - `mass/human-abstraction` is new since `.2`.
+- The three energy-flux probes were FAIL (INCOMPLETE) under the earlier
+  roll-up and are N/A (INCOMPLETE) under main's.
 - No other probe's verdict moved.
 
 ## Mechanisms checked with targeted runs
@@ -451,7 +458,8 @@ sub-step effect.
 daily record (4015 rows with spinup) in a container with a 60 s budget, and the
 harness stops a probe at its first timeout.
 - Run outside the limit on this host, each variant took 87 to 104 s.
-- The host's load average was between 15 and 230 during the full run.
+- In the archive run, with the host's load average between 4 and 7, the first
+  ten-year cases still took 88 and 96 s.
 - Per step, a ten-year record runs at the speed of a 30-day case (21 to 23 ms).
 
 Nothing in the model slows down; ten years of LISFLOOD's Python framework

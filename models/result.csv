@@ -248,11 +248,11 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-11,summa,4.0.0-f787fa5.4,0.1.0,docker,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.000% of driver
 2026-09-11,summa,4.0.0-f787fa5.4,0.1.0,docker,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
 2026-09-11,summa,4.0.0-f787fa5.4,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,all criteria pass
-2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,30-day flood event,598896396,"adapter contract OK: 395 rows in 18.6s, columns pr, evspsbl, mrro, dis, gwex, mrso, snw, canopy, gw, channel"
-2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,energy/evaporative-partition,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,30-day flood event,598896396,"adapter contract OK: 395 rows in 17.9s, columns pr, evspsbl, mrro, dis, gwex, mrso, snw, canopy, gw, channel"
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,energy/evaporative-partition,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,energy/latent-heat-et-consistency,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
 2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,energy/pet-consistency,PASS,OK,3650-day flood event,770619041 1277571155 1784523269,all criteria pass
-2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
 2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/antecedent-monotonicity,PASS,OK,730-day flood event,1295520324 1802472438 161940905,all criteria pass
 2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/area-invariance,PASS,OK,365-day flood event,66780378 573732492 1080684606,all criteria pass
 2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/catchment-closure,PASS,OK,30-day flood event,598896396 1105848510 1612800624 2119752738 479221205,residual 0.000% of driver
