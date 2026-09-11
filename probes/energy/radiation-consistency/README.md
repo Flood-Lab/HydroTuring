@@ -63,8 +63,8 @@ mode; tests verify that only `rlus` differs from the positive control.
 A wrong Ts paired with longwave computed from that Ts can pass. This checks
 output consistency, not temperature accuracy, energy balance or thermal
 inertia. Adapters must expose native model outputs, not manufacture `rlus`
-from `ts`. Missing either output yields INCOMPLETE, as for all five archived
-physical/submitted models on this probe.
+from `ts`. Missing either output yields INCOMPLETE, as for every archived
+physical and submitted model on this probe.
 
 Around 290 K under a 300 W m-2 sky, temperature differences below about
 0.4 K can pass; resolution is coarser at warmer temperatures. Unit tests

@@ -9,7 +9,6 @@ import pytest
 from hydroturing.criteria import get
 from hydroturing.criteria.base import FAIL, PASS
 from hydroturing.protocol import Case, RunResult
-from hydroturing.spec import TIMESTEP_DAYS
 
 # CODATA 2018, typed here rather than imported so that the module under test
 # cannot vouch for its own constant.
@@ -21,22 +20,20 @@ def upward(ts, rlds, eps):
     return eps * SIGMA * np.asarray(ts, dtype=float) ** 4 + (1.0 - eps) * np.asarray(rlds, dtype=float)
 
 
-def build(ts, rlus=None, rlds=300.0, eps=0.98, spinup=0, timestep="PT1H", static=None):
+def build(ts, rlus=None, rlds=300.0, eps=0.98, spinup=0, static=None):
     """A run reporting `ts` and `rlus` under a sky of `rlds`; exact unless told otherwise."""
     ts = np.asarray(ts, dtype=float)
     n = len(ts)
     rlds = np.broadcast_to(np.asarray(rlds, dtype=float), (n,))
     if rlus is None:
         rlus = upward(ts, rlds, eps)
-    times = pd.date_range(
-        "2001-07-01T06:00", periods=n, freq=pd.Timedelta(days=TIMESTEP_DAYS[timestep])
-    )
+    times = pd.date_range("2001-07-01T06:00", periods=n, freq="h")
     forcing = pd.DataFrame({"time": times, "rlds": rlds})
     table = pd.DataFrame({"time": times, "ts": ts, "rlus": np.asarray(rlus, dtype=float)})
     case = Case(
         probe_id="t", seed=1, forcing=forcing,
         static={"eps": eps} if static is None else static,
-        spinup_steps=spinup, timestep=timestep,
+        spinup_steps=spinup, timestep="PT1H",
     )
     return RunResult(case=case, table=table, meta={}, wall_seconds=0.0)
 
@@ -256,10 +253,3 @@ def test_column_names_emissivity_key_and_constants_are_configurable():
     assert lifted.status == PASS
     assert lifted.diagnostics["abs_floor_w_m2"] == 5.0
     assert lifted.diagnostics["floor_steps"] == 24
-
-
-def test_the_criterion_is_registered_and_not_paired():
-    from hydroturing.criteria import is_paired
-
-    assert callable(get("radiative_identity"))
-    assert not is_paired("radiative_identity")

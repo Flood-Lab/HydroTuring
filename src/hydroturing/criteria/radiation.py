@@ -156,7 +156,6 @@ def radiative_identity(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
                 "downward_w_m2": float(rlds[worst]),
             },
             "max_abs_residual_w_m2": float(np.abs(residual).max()),
-            "mean_abs_residual_w_m2": float(np.abs(residual).mean()),
             # Identify weak fluxes where the absolute floor sets the bound.
             "floor_steps": int((rel_tol * np.abs(rlus) < abs_floor).sum()),
             "emissivity": eps,
