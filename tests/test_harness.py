@@ -388,6 +388,89 @@ def test_missing_daemon_is_reported_as_such(monkeypatch):
         docker_runner.require_docker()
 
 
+def fake_docker(tmp_path, script):
+    """Write `script` as an executable `docker`, so build() runs without a daemon."""
+    import os
+    import shutil
+
+    sh = shutil.which("sh")
+    if os.name != "posix" or sh is None:
+        pytest.skip("the fake docker is a POSIX shell script")
+    docker = tmp_path / "docker"
+    docker.write_text(f"#!{sh}\n{script}\n")
+    docker.chmod(0o755)
+    return str(docker)
+
+
+def test_image_build_returns_when_docker_exits_not_when_its_output_closes(tmp_path):
+    """On Docker Desktop, `docker build` starts `docker-credential-desktop
+    get`, and that helper can be orphaned still holding the stderr it
+    inherited. Reading the build's output through a pipe then waits for an
+    end of file that never comes: `ht run` sat for seven minutes after the
+    image was built. This docker exits 0 at once and leaves such a child."""
+    import os
+    import shlex
+    import signal
+    import threading
+    import time
+
+    from hydroturing.runner import docker_runner
+
+    model = registry.find_model("reference_bucket")
+    pidfile = tmp_path / "helper.pid"
+    docker = fake_docker(tmp_path, f"sleep 30 &\necho $! > {shlex.quote(str(pidfile))}\nexit 0")
+
+    def end_helper():
+        # Once only, so a pid the system has since reused is never signalled.
+        try:
+            pid = int(pidfile.read_text())
+            pidfile.unlink()
+            os.kill(pid, signal.SIGTERM)
+        except (OSError, ValueError):
+            pass
+
+    # A regression blocks until the helper exits. The watchdog ends it after
+    # ten seconds, so the test fails on the assertion rather than hanging.
+    watchdog = threading.Timer(10, end_helper)
+    watchdog.start()
+    started = time.monotonic()
+    try:
+        tag = docker_runner.build(model, docker=docker)
+    finally:
+        elapsed = time.monotonic() - started
+        watchdog.cancel()
+        watchdog.join()
+        end_helper()
+
+    assert tag == docker_runner.image_tag(model)
+    assert elapsed < 5, f"build() returned after {elapsed:.1f} s, waiting on the orphan"
+
+
+def test_image_build_that_never_exits_names_the_image_and_the_credential_helper(tmp_path):
+    """A build can also stall inside docker, waiting on a credential helper
+    that never answers. It ends at the timeout with a reason, not silently."""
+    from hydroturing.runner import docker_runner
+    from hydroturing.runner.base import RunnerError
+
+    model = registry.find_model("reference_bucket")
+    docker = fake_docker(tmp_path, "exec sleep 30")
+    with pytest.raises(RunnerError, match="docker-credential-desktop") as raised:
+        docker_runner.build(model, docker=docker, timeout=0.5)
+    assert docker_runner.image_tag(model) in str(raised.value)
+
+
+def test_failed_image_build_still_reports_the_end_of_its_log(tmp_path):
+    """The build log is no longer read from a pipe; a failed build must
+    still say why it failed."""
+    from hydroturing.runner import docker_runner
+    from hydroturing.runner.base import RunnerError
+
+    model = registry.find_model("reference_bucket")
+    docker = fake_docker(tmp_path, "echo 'step 1/1: pip install failed' >&2\nexit 1")
+    with pytest.raises(RunnerError, match="image build failed\n    step 1/1: pip install failed"):
+        docker_runner.build(model, docker=docker)
+
+
 def test_submitted_model_cannot_request_host_subprocess_access(tmp_path):
     import shutil
 

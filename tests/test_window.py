@@ -233,6 +233,8 @@ def test_csv_archive_appends_one_row_per_probe(probe, tmp_path):
     assert rows[1]["seeds"] == str(seeds[0])
     # One header, however many appends.
     assert archive.read_text().count("run_date,") == 1
+    # LF on the header and the appended rows, not the csv module's CRLF.
+    assert b"\r\n" not in archive.read_bytes()
 
 
 def test_cli_window_and_csv_flags(probe, tmp_path, capsys):
