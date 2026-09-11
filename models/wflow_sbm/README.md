@@ -158,7 +158,7 @@ ht run --model wflow_sbm --gate-seeds
 
 ## Result
 
-**FAIL (VIOLATION), 14 of 20 probes passed**, adapter `1.0.4-ht.2`, on the gate seeds, every
+**FAIL (VIOLATION), 14 of 17 probes passed**, adapter `1.0.4-ht.2`, on the gate seeds, every
 case on the full record (`window_days: full`).
 
 | Probe | Verdict | Reason | Detail |

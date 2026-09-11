@@ -131,19 +131,20 @@ def _rolled_up(*outcomes):
 
 def test_a_probe_that_cannot_be_put_to_the_model_counts_neither_way():
     """An N/A probe asked the model nothing. It must not fail a model that
-    passes everything else, and must not mask a violation or an error."""
-    assert _rolled_up((PASS, OK), (NOT_SCORED, INCOMPLETE)) == (
-        PASS, OK, "1/2 probes passed, 1 INCOMPLETE"
-    )
+    passes everything else, must not mask a violation or an error, and is not
+    in the total the passes are counted out of."""
+    assert _rolled_up((PASS, OK), (NOT_SCORED, INCOMPLETE)) == (PASS, OK, "1/1 probes passed")
     assert _rolled_up(
         (FAIL, VIOLATION), (PASS, OK), (NOT_SCORED, INCOMPLETE), (NOT_SCORED, INCOMPATIBLE)
-    ) == (FAIL, VIOLATION, "1/4 probes passed, 1 INCOMPLETE, 1 INCOMPATIBLE")
+    ) == (FAIL, VIOLATION, "1/2 probes passed")
     assert _rolled_up((FAIL, ERROR), (FAIL, VIOLATION), (NOT_SCORED, INCOMPLETE))[:2] == (FAIL, ERROR)
 
 
 def test_a_model_no_probe_could_score_has_not_passed():
-    """Reporting nothing checkable must not earn a PASS."""
-    assert _rolled_up((NOT_SCORED, INCOMPATIBLE), (NOT_SCORED, INCOMPLETE))[:2] == (NOT_SCORED, INCOMPLETE)
+    """Reporting nothing checkable must not earn a PASS, nor a count out of nothing."""
+    assert _rolled_up((NOT_SCORED, INCOMPATIBLE), (NOT_SCORED, INCOMPLETE)) == (
+        NOT_SCORED, INCOMPLETE, "no probe could be scored"
+    )
     assert _rolled_up((NOT_SCORED, INCOMPATIBLE))[:2] == (NOT_SCORED, INCOMPATIBLE)
     assert _rolled_up()[:2] == (FAIL, ERROR)
 
@@ -863,8 +864,9 @@ def test_ht_ascii_drops_the_marks_without_doubling_the_word(monkeypatch):
 
 
 def test_an_unscored_probe_reads_as_neither_pass_nor_fail(monkeypatch):
-    """N/A is not a FAIL, so neither its mark nor its word may read as one,
-    and the summary says why the probe was not scored."""
+    """N/A is not a FAIL, so neither its mark nor its word may read as one.
+    The reason says why the probe was not scored, and the summary does not
+    count the model out of a probe that asked it nothing."""
     from hydroturing import report
 
     monkeypatch.setattr(report, "use_emoji", lambda: True)
@@ -872,7 +874,7 @@ def test_an_unscored_probe_reads_as_neither_pass_nor_fail(monkeypatch):
     text = report.to_text(unscored)
     assert report.FAIL_MARK not in text and report.PASS_MARK not in text
     assert text.count(report.NOT_SCORED_MARK) == 2  # model and probe
-    assert "N/A (INCOMPLETE)  [0/1 probes passed, 1 INCOMPLETE]" in text
+    assert "N/A (INCOMPLETE)  [no probe could be scored]" in text
     assert f"{report.NOT_SCORED_MARK} **N/A** (INCOMPLETE)" in report.to_markdown(unscored)
 
     monkeypatch.setattr(report, "use_emoji", lambda: False)
