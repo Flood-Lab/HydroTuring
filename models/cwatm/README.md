@@ -104,8 +104,9 @@ runs off 4.63 mm against the control's 4.92, a dip of 0.29 mm/day despite
 0.37 mm/day more baseflow. More water arrived, less left that day.
 
 The kernels explain the variants in the sensitivity table. With preferential
-flow off nothing moves between kernels, and with runoff concentration off
-both components leave on the day they are generated; both pass. At the
+flow off almost nothing moves between kernels (one seed still dips
+0.048 mm/day, within tolerance), and with runoff concentration off both
+components leave on the day they are generated; both pass. At the
 10th-percentile slope the surface kernels are clamped to 3.0 days and
 interflow's to 4.0, the same shift costs the next day only 0.08 mm, the
 extra baseflow outweighs it, and the probe passes. At the 90th-percentile
@@ -154,8 +155,9 @@ transpiration, bare-soil and interception evaporation are capped at
 `crop_correct × cropKC × ETRef`, 0.689 of `pet` with the global medians.
 Snow evaporation, up to `snowEvapFactor` (0.4) × `minCropKC` (0.2) ×
 `ETRef`, is added to `totalET` for the whole cell on top of that cap
-(`landcoverType.py:1017`). On the three gate seeds, wet-soil evaporation is
-0.682–0.686 of demand on snow-free days and 0.721–0.759 on days with snow,
+(`landcoverType.py:1017`). On the three gate seeds, on the criterion's own wet-soil days and counting
+a day as snowy when `snw` is above zero at its end, evaporation is
+0.684–0.686 of demand on snow-free days and 0.718–0.763 on days with snow,
 and the largest daily ratio is 0.769, which is 0.689 + 0.08: the excess over
 the cap is snow evaporation. An upstream slip sits next to it:
 `snow_frost.py:789` subtracts `self.var.snowEvap`, still zero inside the
@@ -255,8 +257,8 @@ Four attributes of `static.json` have an unambiguous counterpart in CWatM:
   CWatM's smallest column (a 5 cm top layer and the 5 cm minimum it allows
   the other two) holds 67.9 mm at saturation with these medians, so a
   catchment with `soil_capacity_mm` below about 68 mm stops the adapter with
-  an error, which the harness records as ERROR. The merged probes use 120
-  and 320 mm, and the code is left as it is.
+  an error, which the harness records as ERROR. The merged probes use 120,
+  180 and 320 mm, and the code is left as it is.
 
 Everything else has no counterpart in the probe. Five calibration factors
 take the neutral values the [CALIBRATION] comments of the 30′ templates
@@ -372,7 +374,8 @@ so this is what lets the image run on arm64 as well), and installs numpy,
 scipy, netCDF4, pandas and rasterio. The base image is pinned by digest
 (`python:3.11-slim@sha256:9534e5a8…`, Python 3.11.16 on Debian trixie), the
 one the archived evaluation was built on: rebuilt with the pin, every
-filesystem layer is identical and the output is byte-identical. g++ and the
+filesystem layer but the adapter copy (whose file changed only in comments)
+is identical, and the output is byte-identical. g++ and the
 transitive Python dependencies are not pinned. It is 847 MB. In the container
 at one CPU a three-year record (1,095 rows) takes about 2.5 s and a ten-year
 record
