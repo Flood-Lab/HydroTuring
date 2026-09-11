@@ -25,6 +25,9 @@ over the cell; land-cover variables are its own fraction-weighted sums):
 * `mrro`     runoff: surface runoff, interflow and baseflow after CWatM's
              runoff-concentration lag, i.e. what leaves the cell
 * `dis`      the same over the catchment area, m3/s
+* `gwex`     minus nonFossilGroundwaterAbs: the water CWatM's own
+             water-demand module pumped out of storGroundwater to meet a
+             prescribed withdrawal (`abstr`), zero without one
 * `mrso`     sum_soil = sum_w1 + sum_w2 + sum_w3 (+ sum_topwater, zero
              without paddy fields)
 * `snw`      SnowCover (the degree-day snow store; it holds no liquid water)
@@ -33,16 +36,38 @@ over the cell; land-cover variables are its own fraction-weighted sums):
 * `channel`  gridcell_storage, runoff generated but still inside the
              runoff-concentration lag
 
-CWatM has no exchange with the outside in this configuration (no MODFLOW,
-no abstraction, no inflow), so `gwex` is not emitted. The budget
-P - ET - Q = d(tws) that CWatM itself defines (tws = storGroundwater +
-totalSto + gridcell_storage) is checked every step and its largest residual
-is recorded in run.json.
+Without a prescribed withdrawal CWatM has no exchange with the outside in
+this configuration (no MODFLOW, no abstraction, no inflow) and `gwex` is
+zero. With one, the water-demand module removes it (below) and `gwex` is
+what it removed. The budget P - ET - Q + gwex = d(stores) is checked every
+step against the reported stores, and against CWatM's own total water
+storage tws = storGroundwater + totalSto + gridcell_storage; the largest
+residuals are recorded in run.json.
+
+Prescribed withdrawal
+---------------------
+A forcing with an `abstr` column (mm/day, net of return flow) switches on
+CWatM's water-demand module (includeWaterDemand) and nothing else changes:
+a forcing without the column writes the same settings, byte for byte, as
+before, so no other probe can be touched. The withdrawal is given to CWatM
+as an industrial demand map whose withdrawal and consumption are both
+`abstr`, so it is fully consumptive and returns nothing; the domestic map is
+zero and livestock is off. CWatM 1.11 reads sector demand at most monthly
+(industryTimeMonthly; the reader refreshes on a new month), so each calendar
+month of CWatM's calendar carries the mean of that month's `abstr`: monthly
+volumes are honoured, the shape within a month is not. swAbstractionFrac = 0
+sends the whole demand to groundwater, where CWatM pumps
+nonFossilGroundwaterAbs = min(storGroundwater - 0.01 mm, demand) out of
+storGroundwater (groundwater.py:120). limitAbstraction = True leaves any
+demand the store cannot meet unmet (unmetDemand) instead of supplying it
+from fossil water outside the budget; run.json reports prescribed,
+demanded, withdrawn and unmet totals.
 
 Configuration
 -------------
-Switched off because no probe prescribes them: irrigation and water demand
-(so abstraction, return flows and paddy fields do not exist), lakes and
+Switched off because no probe prescribes them: irrigation, and water demand
+unless the forcing carries `abstr` (so paddy fields, irrigation return flows
+and, without `abstr`, abstraction do not exist), lakes and
 reservoirs, MODFLOW groundwater, inflow hydrographs, environmental flow,
 water quality, glaciers, pySnowClim, and kinematic-wave routing (a single
 cell has no river network to route along; the within-cell lag CWatM does
@@ -118,8 +143,8 @@ from pathlib import Path
 import numpy as np
 from netCDF4 import Dataset
 
-MODEL = {"name": "cwatm", "version": "1.11-5baaadd.2"}
-COLUMNS = ["time", "pr", "evspsbl", "sbl", "mrro", "dis", "mrso", "snw", "canopy", "gw", "channel"]
+MODEL = {"name": "cwatm", "version": "1.11-5baaadd.3"}
+COLUMNS = ["time", "pr", "evspsbl", "sbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0, "PT15M": 1.0 / 96.0, "PT5M": 1.0 / 288.0, "PT1M": 1.0 / 1440.0}
 
 CELL_DEG = 0.5  # size of the one-cell domain in degrees; its area is set by CellArea
@@ -324,7 +349,8 @@ def parameter_maps(med: dict, forest: float, depth1: float, depth2: float) -> di
     return values
 
 
-def settings_text(work: Path, start: dt.date, n_steps: int, lat: float, static: dict, forest: float) -> str:
+def settings_text(work: Path, start: dt.date, n_steps: int, lat: float, static: dict, forest: float,
+                  demand: bool = False) -> str:
     p = {**TEMPLATE, **CALIBRATION_DEFAULTS}
     if "snow_threshold_degC" in static:
         p["TempSnow"] = float(static["snow_threshold_degC"])
@@ -341,7 +367,7 @@ def settings_text(work: Path, start: dt.date, n_steps: int, lat: float, static: 
         f"{prefix}{name}{layer} = {m(prefix + name + str(layer))}"
         for layer in (1, 2, 3) for name, _ in SOIL_NAMES for prefix in ("", "forest_")
     )
-    return f"""[OPTIONS]
+    text = f"""[OPTIONS]
 TemperatureInKelvin = False
 gridSizeUserDefined = True
 calc_evaporation = False
@@ -530,6 +556,30 @@ chanDepth = {m('chanDepth')}
 [OUTPUT]
 OUT_Dir = {root}/out
 """
+    if not demand:
+        return text
+    # A prescribed withdrawal: CWatM's water-demand module, fed an industrial
+    # demand whose withdrawal and consumption are both the prescribed net
+    # rate, drawn from groundwater only, never from fossil water.
+    text = text.replace("includeWaterDemand = False", "includeWaterDemand = True", 1)
+    return text + f"""
+[WATERDEMAND]
+demand_unit = True
+domesticWaterDemandFile = {root}/demand_domestic.nc
+domesticTimeMonthly = True
+domesticWithdrawalvarname = domww
+domesticConsuptionvarname = domwc
+industryWaterDemandFile = {root}/demand_industry.nc
+industryTimeMonthly = True
+industryWithdrawalvarname = indww
+industryConsuptionvarname = indwc
+uselivestock = False
+irrNonPaddy_efficiency = 1.0
+irrPaddy_efficiency = 1.0
+irrigation_returnfraction = 0.0
+use_environflow = False
+swAbstractionFrac = 0.0
+"""
 
 
 def build_case(work: Path, forcing: list[dict], static: dict, dt_days: float,
@@ -558,6 +608,36 @@ def build_case(work: Path, forcing: list[dict], static: dict, dt_days: float,
     write_grid(work / "etref.nc", lat, {"ETRef": pet}, days, units)
     write_grid(work / "ewref.nc", lat, {"EWRef": pet}, days, units)
 
+    demand = None
+    if "abstr" in forcing[0]:
+        # CWatM's calendar advances one day per forcing row, so a row's month is
+        # the month CWatM reads its demand for. Each month carries the mean net
+        # withdrawal of its rows, as depth per CWatM day (demand_unit = True).
+        want = np.array([r["abstr"] for r in forcing]) * dt_days / 1000.0
+        rows_by_month: dict[dt.date, list[int]] = {}
+        for i in range(n):
+            rows_by_month.setdefault((start + dt.timedelta(days=i)).replace(day=1), []).append(i)
+        months = sorted(rows_by_month)
+        depth = np.array([max(0.0, float(want[rows_by_month[k]].mean())) for k in months])
+        month_days = np.array([(k - months[0]).days for k in months], dtype=float)
+        month_units = f"days since {months[0].isoformat()} 00:00:00"
+        write_grid(work / "demand_industry.nc", lat, {"indww": depth, "indwc": depth}, month_days, month_units)
+        zero = np.zeros(len(months))
+        write_grid(work / "demand_domestic.nc", lat, {"domww": zero, "domwc": zero}, month_days, month_units)
+        below = [k.isoformat()[:7] for k, d in zip(months, depth) if 0.0 < d <= 1.0 / area_m2]
+        demand = {
+            "option": "includeWaterDemand = True, limitAbstraction = True, swAbstractionFrac = 0",
+            "maps": "demand_industry.nc: indww = indwc = the month's mean abstr (m per CWatM day, demand_unit = True); "
+                    "demand_domestic.nc: zero; uselivestock = False",
+            "resolution": "monthly: CWatM 1.11 reads sector demand at most once a month (industryTimeMonthly)",
+            "source_store": "storGroundwater: nonFossilGroundwaterAbs = min(storGroundwater - 0.01 mm, demand), "
+                            "subtracted in groundwater.py:120 before recharge and baseflow",
+            "shortfall": "limitAbstraction = True: demand the store cannot meet stays unmet (unmetDemand); "
+                         "no fossil water is supplied",
+            "gwex": "gwex = -nonFossilGroundwaterAbs, what CWatM removed; return flow is zero (consumption = withdrawal)",
+            "months_below_cwatm_minimum": below,
+        }
+
     write_grid(work / "ldd.nc", lat, {"ldd": 5.0})
     write_grid(work / "cellarea.nc", lat, {"cellarea": area_m2})
     write_grid(work / "dzrel.nc", lat, {name: med["dzRel"][name] for name in DZREL_NAMES})
@@ -574,13 +654,14 @@ def build_case(work: Path, forcing: list[dict], static: dict, dt_days: float,
     (work / "out").mkdir(exist_ok=True)
     import cwatm
     shutil.copy(Path(cwatm.__file__).parent / "metaNetcdf.xml", work / "metaNetcdf.xml")
-    (work / "settings.ini").write_text(settings_text(work, start, n, lat, static, forest))
+    (work / "settings.ini").write_text(settings_text(work, start, n, lat, static, forest, demand=demand is not None))
     return {
         "soil_depths_m": {"StorDepth1": depth1, "StorDepth2": depth2},
         "soil_saturated_storage_mm": 1000.0 * saturated_storage(depth1, depth2, forest, med),
         "forest_fraction": forest,
         "interception_capacity_mm": 1000.0 * icap if icap is not None else None,
         "calendar_start": start.isoformat(),
+        **({"water_demand": demand} if demand is not None else {}),
     }
 
 
@@ -612,7 +693,8 @@ def run_cwatm(settings: Path, n_steps: int) -> tuple[dict[str, np.ndarray], dict
     frame.initialize_run()
     v = model.var
 
-    names = ("P", "ET", "sbl", "Q", "soil", "snow", "canopy", "gw", "channel", "tws")
+    names = ("P", "ET", "sbl", "Q", "soil", "snow", "canopy", "gw", "channel", "tws",
+             "gwabs", "demand", "unmet", "surface", "returnflow")
     out = {k: np.zeros(n_steps) for k in names}
     previous = scalar(v.totalSto) + scalar(v.storGroundwater) + scalar(v.gridcell_storage)
     worst = 0.0
@@ -629,16 +711,28 @@ def run_cwatm(settings: Path, n_steps: int) -> tuple[dict[str, np.ndarray], dict
         out["gw"][i] = scalar(v.storGroundwater)
         out["channel"][i] = scalar(v.gridcell_storage)
         out["tws"][i] = scalar(v.tws)
+        # Zero unless the water-demand module is on (groundwater.py initialises it).
+        out["gwabs"][i] = scalar(v.nonFossilGroundwaterAbs)
+        out["demand"][i] = scalar(getattr(v, "nonIrrDemand", 0.0))
+        out["unmet"][i] = scalar(getattr(v, "unmetDemand", 0.0))
+        out["surface"][i] = scalar(getattr(v, "act_SurfaceWaterAbstract", 0.0))
+        out["returnflow"][i] = scalar(getattr(v, "returnFlow", 0.0))
         now = out["soil"][i] + out["snow"][i] + out["canopy"][i] + out["gw"][i] + out["channel"][i]
-        worst = max(worst, abs(now - previous - (out["P"][i] - out["ET"][i] - out["Q"][i])))
+        worst = max(worst, abs(now - previous - (out["P"][i] - out["ET"][i] - out["Q"][i] - out["gwabs"][i])))
         previous = now
         i += 1
     if i != n_steps:
         raise RuntimeError(f"CWatM ran {i} steps for {n_steps} forcing rows")
+    # With routing off, channel storage and return flow are outside the reported
+    # stores; the configuration must keep both at zero or gwex would be wrong.
+    if np.max(np.abs(out["surface"])) > 0.0 or np.max(np.abs(out["returnflow"])) > 0.0:
+        raise RuntimeError("CWatM abstracted surface water or produced return flow, "
+                           "which this configuration does not report")
     reported = out["soil"] + out["snow"] + out["canopy"] + out["gw"] + out["channel"]
     check = {
         "largest_step_residual_mm": 1000.0 * worst,
         "largest_tws_minus_reported_stores_mm": 1000.0 * float(np.max(np.abs(out["tws"] - reported))),
+        "budget": "P - ET - Q + gwex = change in mrso + snw + canopy + gw + channel",
     }
     return out, check
 
@@ -647,8 +741,9 @@ def read_forcing(path: Path) -> list[dict]:
     with open(path, newline="") as fh:
         rows = list(csv.DictReader(fh))
     for row in rows:
-        for key in ("pr", "tas", "pet"):
-            row[key] = float(row[key])
+        for key in ("pr", "tas", "pet", "abstr"):
+            if key in row:
+                row[key] = float(row[key])
     return rows
 
 
@@ -673,6 +768,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str, med: dict | None 
             "sbl": out["sbl"][i] * 1000.0 / dt_days,
             "mrro": mrro,
             "dis": mrro / 1000.0 * area_m2 / 86400.0,
+            "gwex": -out["gwabs"][i] * 1000.0 / dt_days,
             "mrso": out["soil"][i] * 1000.0,
             "snw": out["snow"][i] * 1000.0,
             "canopy": out["canopy"][i] * 1000.0,
@@ -687,6 +783,8 @@ def simulate(forcing: list[dict], static: dict, timestep: str, med: dict | None 
         "water_balance_check": check,
         "fluxes": {
             "evspsbl": "totalET = transpiration + bare-soil + open-water + interception evaporation + snowEvap",
+            "gwex": ("-nonFossilGroundwaterAbs: water CWatM's water-demand module pumped out of storGroundwater "
+                     "for a prescribed withdrawal (abstr); zero when the forcing has no abstr column"),
             "sbl": ("snowEvap = min(SnowCoverS, snowEvapFactor x potBareSoilEvap), subtracted from the snow cover "
                     "(snow_frost.py:788-790) and added once to totalET (landcoverType.py:1017); the degree-day "
                     "pack holds no liquid water, so it leaves as ice. A component of evspsbl, not an addition"),
@@ -698,8 +796,17 @@ def simulate(forcing: list[dict], static: dict, timestep: str, med: dict | None 
             "gw": "storGroundwater",
             "channel": "gridcell_storage: runoff inside CWatM's runoff-concentration lag",
         },
-        "not_emitted": {"gwex": "no exchange with the outside in this configuration"},
     }
+    if "water_demand" in notes:
+        notes["water_demand"] = {
+            **notes["water_demand"],
+            "prescribed_mm": float(sum(max(0.0, r["abstr"]) for r in forcing) * dt_days),
+            "demanded_by_cwatm_mm": 1000.0 * float(out["demand"].sum()),
+            "withdrawn_from_storGroundwater_mm": 1000.0 * float(out["gwabs"].sum()),
+            "unmet_mm": 1000.0 * float(out["unmet"].sum()),
+        }
+    else:
+        notes["water_demand"] = "off: the forcing has no abstr column, so the settings are those of every other probe"
     return rows, notes
 
 

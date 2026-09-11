@@ -4,7 +4,7 @@ The Community Water Model of IIASA's Water Security group (Burek et al.
 2020, *GMD*, [10.5194/gmd-13-3267-2020](https://doi.org/10.5194/gmd-13-3267-2020)),
 the ISIMIP global hydrological model, packaged from
 [iiasa/CWatM](https://github.com/iiasa/CWatM) at release 1.11 (`5baaadd`).
-Proposed by [@kawh1111](https://github.com/kawh1111) in
+Proposed by Yuanhang Liu (Independent Researcher) in
 [Flood-Lab/HydroTuring#28](https://github.com/Flood-Lab/HydroTuring/issues/28).
 
 CWatM is a daily grid model driven by one settings file and netCDF maps:
@@ -18,7 +18,7 @@ adapter can read rather than reconstruct.
 
 ## Verdict
 
-**FAIL (INCOMPLETE)**, 13 of 19 probes passed, on the gate seeds and the full
+**FAIL (INCOMPLETE)**, 14 of 20 probes passed, on the gate seeds and the full
 record of every probe (`ht run --model cwatm --gate-seeds`). INCOMPLETE is
 the worst reason: CWatM reports no energy fluxes. Three probes it can be
 asked fail as VIOLATION, and they are not alike.
@@ -54,6 +54,7 @@ asked fail as VIOLATION, and they are not alike.
 | `mass/resolution-invariance` | VIOLATION: runoff differs by 52.1 % of the rain between PT1H and PT1D (38.6–52.1 %), evaporation by 0.6 % | CWatM has no dt (below); its groundwater reservoir releases `recessionCoeff × storage` per step, so at PT1H it drains 24 times too fast |
 | `mass/response-nonnegativity` | VIOLATION: runoff 0.29 mm/day below the control on 2002-02-12, eight days after 120 mm was added (seed 1713476937; the other two never dip) | on wetter soil preferential flow takes a larger share of a later storm, and its interflow part replaces surface runoff; runoff concentration releases interflow through a slower kernel than surface runoff, so the next day carries less (below). **A packaging choice**: with `preferentialFlow = False` it passes (largest dip 0.048 mm/day, within tolerance), and the verdict also moves with land cover and with the slope that sets the lag |
 | `mass/catchment-closure` | PASS | residual 0.029 % of the rain; `mrso` within 320 mm; ET 0.43–0.48 of PET |
+| `mass/human-abstraction` | PASS | the prescribed 380 mm of `abstr` leaves the budget on every seed: runoff −378.9 mm, storage −1.1 mm, evaporation −0.005 mm, a residual of 0.002–0.004 % of it (limit 5 %). CWatM's own water-demand module pumped the whole 418 mm of each record from `storGroundwater`, none of it unmet; groundwater recovers each winter, so almost all of it shows as lost baseflow (Prescribed withdrawal) |
 | `mass/precipitation-counterfactual` | PASS | 20 % more or less rain on wet days is split 0.85–0.88 to runoff, 0.08–0.10 to evaporation and 0.05 to storage, accounting for 0.999–1.000 of the change; runoff returns 0.86–0.89 of the rain along the ladder; residual 0.028 % |
 | `mass/time-origin-invariance` | PASS | identical to floating point under a 28-year shift; residual 0.050 %. The shift keeps the day of year, so it cannot see CWatM's day-of-year snow terms (Parameters) |
 | `mass/area-invariance`, `mass/causality` | PASS | identical to floating point |
@@ -204,16 +205,41 @@ fraction-weighted sums.
 | `sbl` | `snowEvap`, the snow evaporation inside `totalET`: subtracted from the snow cover (`snow_frost.py:790`), whose degree-day pack holds no liquid water, and added once to `totalET` (`landcoverType.py:1017`), so it is the part of `evspsbl` that left as ice, in mm/day like `evspsbl` |
 | `mrro` | `runoff`: surface runoff, interflow and baseflow after the runoff-concentration lag, i.e. what leaves the cell |
 | `dis` | the same over the catchment area, m3/s |
+| `gwex` | −`nonFossilGroundwaterAbs`: the water CWatM's own water-demand module pumped out of `storGroundwater` for a prescribed withdrawal (below); zero without one |
 | `mrso` | `sum_soil` = `sum_w1 + sum_w2 + sum_w3` (+ `sum_topwater`, zero without paddy fields) |
 | `snw` | `SnowCover`; the degree-day scheme holds no liquid water in the pack |
 | `canopy` | `sum_interceptStor` |
 | `gw` | `storGroundwater` |
 | `channel` | `gridcell_storage`: runoff generated but still inside the runoff-concentration lag |
 
-With abstraction, inflow and MODFLOW off, CWatM exchanges no water with the
-outside, so there is no `gwex`. Every step the adapter checks
-P − ET − Q against the change in the reported stores, and that CWatM's own
-total water storage `tws` equals their sum; both numbers go to `run.json`.
+With inflow and MODFLOW off, the only exchange with the outside is a
+prescribed withdrawal, reported as `gwex`. Every step the adapter checks
+P − ET − Q + `gwex` against the change in the reported stores, and that
+CWatM's own total water storage `tws` equals their sum; both numbers go to
+`run.json`.
+
+## Prescribed withdrawal
+
+`mass/human-abstraction` prescribes a net withdrawal in the forcing (`abstr`,
+mm/day, net of return flow). CWatM removes it with its own water-demand
+module; the adapter only hands it the demand and reports what CWatM took.
+
+| | |
+| --- | --- |
+| Switch | `includeWaterDemand = True`, only when the forcing has an `abstr` column. Both variants of the probe carry it (zeros in `natural`), so both run the same configuration and differ only in the withdrawal |
+| Demand | an industrial demand map (`industryWaterDemandFile`) whose withdrawal (`indww`) and consumption (`indwc`) are both `abstr`, in metres per CWatM day (`demand_unit = True`): fully consumptive, so no return flow. The domestic map is zero and livestock is off (`uselivestock = False`) |
+| Resolution | monthly. CWatM 1.11 reads sector demand at most once a month (`industryTimeMonthly`; the reader refreshes on a new month), so each calendar month carries the mean of its `abstr`. Monthly volumes are honoured; the shape within a month is not (the probe's peak day asks 0.50 mm, the peak month gives 0.48 mm every day) |
+| Source store | `swAbstractionFrac = 0` sends the whole demand to groundwater. CWatM pumps `nonFossilGroundwaterAbs = min(storGroundwater − 0.01 mm, demand)` and subtracts it from `storGroundwater` (`groundwater.py:120`) before that day's recharge and baseflow |
+| Shortfall | `limitAbstraction = True`: what the store cannot supply stays in `unmetDemand` and is not drawn from fossil water outside the budget. The adapter never forces the prescribed amount; `run.json` reports the prescribed, demanded, withdrawn and unmet totals |
+| `gwex` | −`nonFossilGroundwaterAbs`, what CWatM actually removed. Channel abstraction and return flow would leave the reported stores with routing off; the adapter stops with an error if either is ever non-zero. `evspsbl` stays `totalET`, which does not contain non-irrigation consumption |
+
+Switching the module on cannot move another probe. Without `abstr` the
+adapter writes the settings file of 1.11-5baaadd.2 byte for byte (checked by
+generating both), so every other probe runs exactly as before. The module is
+also inert at zero demand: with it on, the `natural` variant of
+`mass/human-abstraction` and `mass/catchment-closure` with a column of zero
+`abstr` added reproduce the 1.11-5baaadd.2 output byte for byte in every
+column.
 
 ## One grid cell
 
@@ -228,7 +254,8 @@ each step. No CWatM code is changed.
 | Switch | Setting | Why |
 | --- | --- | --- |
 | `calc_evaporation` | False | CWatM reads reference ET (`ETMaps`) and open-water evaporation (`E0Maps`) directly instead of computing Penman–Monteith; both are the probe's `pet` |
-| `includeWaterDemand`, `includeIrrigation` | False | no probe prescribes abstraction; paddy and irrigated fractions are zero |
+| `includeIrrigation` | False | paddy and irrigated fractions are zero |
+| `includeWaterDemand` | False; True with `abstr` | on only for a forcing that prescribes a withdrawal, which it then removes from groundwater (Prescribed withdrawal) |
 | `includeWaterBodies` | False | no lakes or reservoirs in a lumped case |
 | `modflow_coupling` | False | CWatM's own linear groundwater reservoir instead |
 | `includeRouting` | False | one cell has no river network to route along; CWatM still initialises the routing module, so the channel geometry and `lakeEvaFactor` are written as placeholders no flux reads |

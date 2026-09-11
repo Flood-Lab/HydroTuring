@@ -1,5 +1,5 @@
 name: cwatm
-version: "1.11-5baaadd.2"
+version: "1.11-5baaadd.3"
 description: >
   CWatM, the Community Water Model of IIASA's Water Security group (Burek et
   al. 2020), the ISIMIP global hydrological model, at release 1.11 (commit
@@ -8,9 +8,10 @@ description: >
   Genuchten soil with an Arno infiltration curve, preferential flow and
   capillary rise, a linear groundwater reservoir, and a triangular
   runoff-concentration lag. The adapter runs it on one grid cell whose area
-  is the catchment's, with water demand, lakes, reservoirs, MODFLOW and
-  kinematic routing switched off and reference evapotranspiration read from
-  the probe's pet. Parameters without a counterpart in static.json are the
+  is the catchment's, with lakes, reservoirs, MODFLOW and kinematic routing
+  switched off, water demand on only when the forcing prescribes a withdrawal
+  (which CWatM then pumps from groundwater), and reference evapotranspiration
+  read from the probe's pet. Parameters without a counterpart in static.json are the
   land-cell medians of CWatM's own 30-arcminute input maps; README.md lists
   every choice and what it moves.
 authors:
@@ -24,13 +25,15 @@ entrypoint: ["python3", "ht_adapter.py"]
 # CWatM 1.11 fixes DtSec at 86400 s; it has no other step.
 timestep: PT1D
 
-# Every store the configured model carries. CWatM has no exchange with the
-# outside once abstraction, inflow and MODFLOW are off, so there is no gwex.
+# Every store the configured model carries. gwex is the water CWatM's own
+# water-demand module pumps out of storGroundwater when the forcing prescribes
+# a withdrawal (abstr), and zero otherwise: with inflow and MODFLOW off there
+# is no other exchange with the outside.
 # sbl is snowEvap: CWatM subtracts it from the snow cover (snow_frost.py:790),
 # whose degree-day pack holds no liquid water, and adds it once to totalET
 # (landcoverType.py:1017), so it is the share of evspsbl that left as ice.
 emits:
-  fluxes: [pr, evspsbl, sbl, mrro, dis]
+  fluxes: [pr, evspsbl, sbl, mrro, dis, gwex]
   states: [mrso, snw, canopy, gw, channel]
 
 needs_forcing: [pr, tas, pet]
