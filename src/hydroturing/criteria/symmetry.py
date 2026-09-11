@@ -16,9 +16,7 @@ Two kinds of expectation, declared per variable:
   scaled      it must move by exactly the declared factor
 
 Comparison is relative to the mean magnitude of the expected run, with a
-positive normalization floor in each variable's native units. A probe can
-declare that floor to keep a legitimately near-zero variable from being
-judged against its own noise; the default remains 1e-12.
+1e-12 denominator minimum for an empty store.
 """
 
 from __future__ import annotations
@@ -37,20 +35,13 @@ from hydroturing.protocol import RunResult
 from hydroturing.spec import ProbeSpec
 
 
-def _deviation(
-    control: np.ndarray, other: np.ndarray, factor: float,
-    normalization_floor: float = 1e-12,
-) -> float:
+def _deviation(control: np.ndarray, other: np.ndarray, factor: float) -> float:
     """Worst relative departure of `other` from `factor` times `control`."""
-    if (
-        not np.isfinite(control).all()
-        or not np.isfinite(other).all()
-        or not np.isfinite(factor)
-    ):
-        raise ValueError("invariance needs finite values in both variants and a finite factor")
+    if not np.isfinite(factor):
+        raise ValueError("invariance needs a finite scaled factor")
     with np.errstate(over="ignore", invalid="ignore"):
         expected = factor * control
-        scale = max(float(np.abs(expected).mean()), normalization_floor)
+        scale = max(float(np.abs(expected).mean()), 1e-12)
         deviation = float(np.abs(other - expected).max() / scale)
     # Finite inputs can still overflow the expectation or its mean. An
     # infinite denominator would otherwise turn a real departure into zero.
@@ -67,26 +58,8 @@ def _deviation(
 def invariance(
     runs: dict[str, RunResult], probe: ProbeSpec, params: dict
 ) -> CriterionResult:
-    """The transformed run must reproduce the control, up to the declared factor.
-
-    ``normalization_floor`` is a positive finite value in each variable's
-    native units. With ``unchanged`` variables and a floor of 1, ``rtol``
-    bounds max(abs(transformed - control)) / max(mean(abs(control)), 1).
-    Omitting the floor preserves the original 1e-12 denominator minimum.
-    """
+    """The transformed run must reproduce the control, up to the declared factor."""
     rtol = float(params.get("rtol", 1e-6))
-    raw_floor = params.get("normalization_floor", 1e-12)
-    floor_error = "invariance normalization_floor must be a positive finite number"
-    try:
-        normalization_floor = float(raw_floor)
-    except (TypeError, ValueError, OverflowError):
-        raise ValueError(floor_error) from None
-    if (
-        isinstance(raw_floor, bool)
-        or not np.isfinite(normalization_floor)
-        or normalization_floor <= 0
-    ):
-        raise ValueError(floor_error)
     unchanged = list(params.get("unchanged", []))
     scaled = dict(params.get("scaled", {}))
     # Variables the transform must not move *if the model reports them*: a
@@ -122,12 +95,22 @@ def invariance(
     for var, factor in expectations:
         if var not in control.table.columns or var not in transformed.table.columns:
             raise ValueError(f"invariance needs '{var}' in the model result")
-        deviation = _deviation(
-            np.asarray(control.table[var], dtype=float),
-            np.asarray(transformed.table[var], dtype=float),
-            factor,
-            normalization_floor,
-        )
+        a = np.asarray(control.table[var], dtype=float)
+        b = np.asarray(transformed.table[var], dtype=float)
+        for role, default, values in (
+            ("control", "control", a), ("transformed", "transformed", b),
+        ):
+            n_bad = int((~np.isfinite(values)).sum())
+            if n_bad:
+                variant = str(params.get(role, default))
+                return CriterionResult(
+                    name="invariance", status=FAIL, threshold=rtol,
+                    message=f"'{var}' has {n_bad} non-finite values in variant '{variant}'",
+                    diagnostics={
+                        "variable": var, "variant": variant, "nonfinite_count": n_bad,
+                    },
+                )
+        deviation = _deviation(a, b, factor)
         deviations[var] = deviation
         if deviation > worst:
             worst_var, worst = var, deviation
@@ -150,7 +133,6 @@ def invariance(
         diagnostics={
             "worst_variable": worst_var,
             "deviations": deviations,
-            "normalization_floor": normalization_floor,
         },
     )
 

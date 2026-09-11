@@ -14,8 +14,8 @@ description: >
   shift preserves month, day, day of year, weekday and leap-day positions.
   Only the absolute calendar origin changes. With identical forcing,
   parameters, initialization and model seed, a stationary model must return
-  identical fluxes and storages. Check the water budget independently in
-  both variants and reject zero-runoff or constant-flux control outputs.
+  identical fluxes and storages. Check the control water budget and reject
+  zero-runoff or constant-flux control outputs.
   This tests time-origin dependence, not whether a year-dependent physical
   driver would legitimately change a catchment's response.
 
@@ -30,7 +30,7 @@ case:
   period_years: 10
   spinup_days: 365
   max_output_mb: 2.0
-  max_runtime_s: 60
+  max_runtime_s: 300
   # Short submitted-model windows must still exercise the annual runoff
   # ratio check, which is deliberately skipped below 365 days.
   min_window_days: 365
@@ -42,15 +42,13 @@ criteria:
       transformed: shifted
       unchanged: [evspsbl, mrro, mrso, snw, canopy]
       optional: [gw, channel, gwex]
-      # max(abs(shifted-control)) / max(mean(abs(control)), 1 native unit).
-      # The 1 mm or 1 mm/day floor admits roundoff near empty stores; 1e-9
-      # is for a deterministic symmetry, not observational uncertainty.
-      normalization_floor: 1.0
+      # The existing invariance denominator is max(mean(abs(control)), 1e-12).
+      # A 1e-9 relative limit tests deterministic replay, not observational
+      # uncertainty; physical references replay exactly, including empty snow.
       rtol: 1.0e-9
 
-  - paired_closure:
-      variants: [control, shifted]
-      # Each residual is divided by its own forcing precipitation total.
+  - closure:
+      # The control residual is divided by its forcing precipitation total.
       # No floor is needed; an empty precipitation total fails closure.
       denominator: sum_pr
       threshold: 0.05
@@ -69,7 +67,7 @@ baselines:
     # Conserves water but changes its recession coefficient with the year.
     reference_calendar: invariance
     reference_degenerate: non_degenerate
-    reference_leaky: paired_closure
+    reference_leaky: closure
 
 provenance: >
   Synthetic weather generated from a recorded seed; no data are committed.

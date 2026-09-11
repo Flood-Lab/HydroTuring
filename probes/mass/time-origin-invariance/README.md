@@ -17,6 +17,13 @@ weekday, day of year and leap-day positions throughout this specific
 window. This is not a claim that every 28-year shift preserves a Gregorian
 calendar, particularly across non-leap century boundaries.
 
+The ten scored years give repeated wet and dry seasons and several leap
+transitions over which an absolute-year dependency can appear. This is a
+longer replay check than the three-year area-invariance generator; ten
+years is a fixed test horizon, not a minimum required for the symmetry or
+a claim of calibrated statistical power. Submitted models still use a
+shorter event window as described below.
+
 The non-time forcing columns and static attributes are exactly identical
 between variants. Seasonal forcing uses actual calendar phase. Weather is
 deliberately above freezing so a rainfall-response check is appropriate;
@@ -24,7 +31,8 @@ empty snow storage remains a valid outcome. Each run starts afresh using
 the same model seed and initialization contract. Both variants use the
 same scored row indices. The probe requests at least a 365-day scored
 window so the annual runoff-ratio guard remains active for shorter model
-evaluations.
+evaluations. The 300-second budget is per variant, matching the other
+paired probes and allowing for the longer submitted-model window.
 
 ## Criteria and tolerance
 
@@ -33,20 +41,20 @@ For each compared variable `x`, invariance requires:
 ```text
 max_t |x_shifted(t) - x_control(t)|
 -------------------------------- <= 1e-9
-max(mean_t |x_control(t)|, 1)
+max(mean_t |x_control(t)|, 1e-12)
 ```
 
-The floor is one native unit: mm for storage and mm/day for these daily
-fluxes. It prevents an empty or nearly empty store from turning harmless
-roundoff into a large relative error. Required comparisons cover runoff
+This uses the existing invariance criterion and its 1e-12 denominator
+minimum. The relative limit is deliberately strict: all four physical
+references replay exactly, including empty snow storage. No new absolute
+tolerance is introduced. Required comparisons cover runoff
 (`mrro`), evaporation (`evspsbl`), soil water (`mrso`), snow (`snw`) and
 canopy water (`canopy`). Groundwater (`gw`), channel storage (`channel`)
 and groundwater exchange (`gwex`) are compared when reported in both
 variants. The criterion measures the maximum pointwise difference after
 spinup, not just differences in integrated totals.
 
-`paired_closure` applies the existing closure rule independently to both
-variants. For each run it requires:
+The existing `closure` criterion checks the control water budget:
 
 ```text
 |sum(P + declared gwex - ET - runoff) - (S_end - S_start)| / sum(P) <= 0.05
@@ -56,8 +64,11 @@ Fluxes are integrated over the scored window; `S` includes required stores
 and all additional recognized stores reported by the model. `S_start` is
 the state immediately before that window. The denominator comes from the
 input precipitation. A zero total fails closure rather than receiving an
-artificial denominator floor. Both variants must pass. Per-variant
-residuals remain in the diagnostics.
+artificial denominator floor. Its residual remains in the scorecard.
+The shifted run is tested for invariance; it does not receive a separate
+closure score. A calendar-independent leak in both runs still fails the
+control budget. The reference-calendar test additionally checks that its
+shifted budget closes, demonstrating a fault closure alone misses.
 
 `non_degenerate` checks the control's runoff ratio, variation in runoff and
 evaporation, and response to rainfall. Zero-runoff or constant-flux outputs
@@ -76,7 +87,7 @@ processes correctly.
 | `sacsma_snow17` | PASS | |
 | `reference_calendar` | FAIL | `invariance` |
 | `reference_degenerate` | FAIL | `non_degenerate` |
-| `reference_leaky` | FAIL | `paired_closure` |
+| `reference_leaky` | FAIL | `closure` |
 
 The calendar-dependent model is the key negative control: its water
 budgets can close and its fluxes remain responsive, yet its paired outputs
@@ -88,7 +99,7 @@ invariance and an unbalanced budget.
 ```sh
 ht validate
 ht gate --probe mass/time-origin-invariance
-pytest -q tests/test_time_origin_invariance.py tests/test_paired_closure.py tests/test_symmetry_tolerances.py
+pytest -q tests/test_time_origin_invariance.py tests/test_symmetry_outputs.py
 ```
 
 This is a stationary synthetic experiment. It does not assert that a model

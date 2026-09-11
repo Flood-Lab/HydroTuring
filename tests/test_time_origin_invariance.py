@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from hydroturing import registry
+from hydroturing.criteria.closure import closure
 from hydroturing.harness import (
     build_case,
     load_generator,
@@ -89,20 +90,27 @@ def test_physical_models_pass_a_separate_validation_seed(probe, model_name):
 
 
 @pytest.mark.parametrize("seed", [11, 99, 20260908])
-def test_calendar_dependence_is_detected_despite_closing_both_budgets(probe, seed):
+def test_calendar_dependence_is_detected_despite_closing_both_budgets(probe, seed, tmp_path):
     outcome = run_probe(registry.find_model("reference_calendar"), probe, [seed])
     assert outcome.verdict == FAIL and outcome.reason == VIOLATION, outcome.error
     assert outcome.failing == ["invariance"]
     results = {criterion.name: criterion for criterion in outcome.criteria}
     assert results["invariance"].value > 1e-3  # Large separation from the 1e-9 limit.
-    assert results["paired_closure"].passed
-    assert set(results["paired_closure"].diagnostics["variants"]) == {"control", "shifted"}
+    assert results["closure"].passed
     assert results["non_degenerate"].passed
+    # The scored closure is the control budget. Check the shifted reference
+    # separately to demonstrate why closure alone misses calendar dependence.
+    model = registry.find_model("reference_calendar")
+    shifted = get_runner(model).run(
+        model, probe, build_case(probe, seed, "shifted"), tmp_path / "shifted"
+    )
+    params = next(c.params for c in probe.criteria if c.name == "closure")
+    assert closure(shifted, probe, dict(params)).passed
 
 
 @pytest.mark.parametrize(
     ("model_name", "expected"),
-    [("reference_degenerate", "non_degenerate"), ("reference_leaky", "paired_closure")],
+    [("reference_degenerate", "non_degenerate"), ("reference_leaky", "closure")],
 )
 def test_invariant_but_invalid_outputs_fail_the_guards(probe, model_name, expected):
     outcome = run_probe(registry.find_model(model_name), probe, [20260908])
@@ -136,3 +144,6 @@ def test_event_window_preserves_pairing_and_annual_guard(probe):
         assert outcome.verdict == expected, outcome.error or outcome.failing
         if name == "reference_calendar":
             assert outcome.failing == ["invariance"]
+        else:
+            guard = next(c for c in outcome.criteria if c.name == "non_degenerate")
+            assert "runoff_ratio_check" not in guard.diagnostics
