@@ -8,14 +8,22 @@ It cannot fetch the probe definition, read the tolerance, or phone home.
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 from hydroturing.runner.base import Runner, RunnerError
 from hydroturing.spec import ModelManifest, ProbeSpec
 
 IMAGE_PREFIX = "hydroturing"
+
+# Twice the fifteen minutes a first build of a heavy image has taken, and
+# inside the model workflow's 45-minute job, so CI reports a stuck build
+# rather than cancelling it. A cached rebuild takes seconds; this is for a
+# build that never exits, not a budget for a slow one.
+BUILD_TIMEOUT_S = 1800
 
 
 def image_tag(model: ModelManifest) -> str:
@@ -46,7 +54,12 @@ def require_docker() -> str:
     return docker
 
 
-def build(model: ModelManifest, quiet: bool = True, docker: str | None = None) -> str:
+def build(
+    model: ModelManifest,
+    quiet: bool = True,
+    docker: str | None = None,
+    timeout: float = BUILD_TIMEOUT_S,
+) -> str:
     docker = docker or require_docker()
     dockerfile = model.path / "Dockerfile"
     if not dockerfile.exists():
@@ -56,13 +69,35 @@ def build(model: ModelManifest, quiet: bool = True, docker: str | None = None) -
     argv = [docker, "build", "-t", tag, "-f", str(dockerfile), str(model.path)]
     if quiet:
         argv.insert(2, "--quiet")
-    proc = subprocess.run(argv, capture_output=True, text=True)
-    if proc.returncode != 0:
-        tail = (proc.stderr or "").strip().splitlines()[-20:]
-        raise RunnerError(
-            f"{model.name}: image build failed\n"
-            + "\n".join("    " + line for line in tail)
-        )
+    # The log goes to a file, not a pipe. On Docker Desktop the build starts
+    # `docker-credential-desktop get`, and that helper can be orphaned still
+    # holding the stderr it inherited. A pipe reaches end of file only when
+    # every holder has closed it, so reading one waited on the orphan and a
+    # run hung after its image was built. With a file the wait is on docker
+    # alone. The build keeps the caller's session: in a new one, Ctrl+C at
+    # the terminal would no longer reach docker.
+    with tempfile.TemporaryFile() as log:
+        try:
+            proc = subprocess.run(
+                argv, stdout=subprocess.DEVNULL, stderr=log, timeout=timeout
+            )
+        except subprocess.TimeoutExpired:
+            by_hand = shlex.join(["docker", "build", "-t", tag, str(model.path)])
+            raise RunnerError(
+                f"{model.name}: building {tag} did not finish in {timeout:g} s. "
+                "A credential helper that never answers stalls a build this way; "
+                "on Docker Desktop, look for a `docker-credential-desktop` process "
+                "and end it. A first build of a large image can also take this "
+                f"long: run `{by_hand}` once by hand, "
+                "and the cached rebuild here takes seconds."
+            ) from None
+        if proc.returncode != 0:
+            log.seek(0)
+            tail = log.read().decode(errors="replace").strip().splitlines()[-20:]
+            raise RunnerError(
+                f"{model.name}: image build failed\n"
+                + "\n".join("    " + line for line in tail)
+            )
     return tag
 
 
