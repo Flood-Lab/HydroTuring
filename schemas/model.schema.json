@@ -39,6 +39,10 @@
         "states": {
           "type": "array", "items": {"type": "string"}, "uniqueItems": true,
           "description": "Absolute storage values, never tendencies. The harness differences them."
+        },
+        "diagnostics": {
+          "type": "array", "items": {"type": "string"}, "uniqueItems": true,
+          "description": "Diagnostic outputs that are neither fluxes nor stores, such as a surface temperature. Read by criteria, never integrated or differenced."
         }
       }
     },

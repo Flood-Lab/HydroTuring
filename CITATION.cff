@@ -23,6 +23,13 @@ authors:
       Department of Civil and Environmental Engineering,
       The Hong Kong University of Science and Technology, Hong Kong, China
     orcid: "https://orcid.org/0000-0001-9771-1324"
+  - given-names: Xin
+    family-names: Lan
+    affiliation: >-
+      Center for Systems Integration and Sustainability, Department of
+      Fisheries and Wildlife, Michigan State University, East Lansing, MI
+      48823, USA
+    orcid: "https://orcid.org/0000-0002-0607-2270"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

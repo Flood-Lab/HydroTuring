@@ -1,0 +1,65 @@
+id: energy/radiation-consistency
+title: Surface temperature and upward longwave must describe one surface
+law: energy
+track: synthetic
+version: 1
+
+authors:
+  - name: Xin Lan
+    affiliation: >-
+      Center for Systems Integration and Sustainability, Department of
+      Fisheries and Wildlife, Michigan State University, East Lansing, MI
+      48823, USA
+    orcid: "0000-0002-0607-2270"
+    github: xinlan-technology
+
+description: >
+  For a uniform, opaque, snow-free gray surface, total upward longwave must
+  equal emission at the reported skin temperature plus reflected downward
+  longwave, using emissivity supplied in static.json. Every instantaneous
+  hourly sample must agree within 0.5 percent of reported upward flux or
+  0.5 W m-2, whichever is larger. This checks consistency, not temperature
+  accuracy. Net radiation is prescribed independently of these components.
+
+requires:
+  fluxes: [rlus]
+  states: []
+  diagnostics: [ts]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1H
+  period_days: 30
+  spinup_days: 2
+  # Keep all scored day/night cycles, including dry hours outside the
+  # default seven-day window around the largest flood event.
+  min_window_days: 30
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+criteria:
+  - radiative_identity:
+      upward: rlus
+      temperature: ts
+      downward: rlds
+      # Emissivity belongs to the case, not the model output.
+      emissivity: eps
+      # Proposal thresholds for output consistency; the floor covers weak fluxes.
+      rel_tol: 0.005
+      abs_floor: 0.5
+
+baselines:
+  must_pass: [reference_radiative]
+  must_fail:
+    reference_air_emitter: radiative_identity
+    reference_no_reflection: radiative_identity
+
+provenance: >
+  Synthetic, generated at run time from the recorded seed. Hourly cloud
+  attenuation sets both the shortwave and the sky emissivity behind the
+  downward longwave; daily shortwave amplitude, clear-sky emissivity,
+  longwave cooling and a weather offset vary by seed, as does the surface
+  emissivity drawn in [0.95, 0.99] and held fixed for the run. Timestamps
+  are local-solar instants. Proposal and agreed scope:
+  https://github.com/Flood-Lab/HydroTuring/issues/22.

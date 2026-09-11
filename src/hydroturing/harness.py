@@ -387,6 +387,7 @@ def verify_adapter_contract(
         probe,
         requires_fluxes=model.emits_fluxes,
         requires_states=model.emits_states,
+        requires_diagnostics=model.emits_diagnostics,
         variants=(),
         criteria=(),
     )

@@ -128,11 +128,13 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
 | `hfss` | sensible heat flux, positive away from the surface | W/m2 |
 | `hfg` | ground heat flux at the actual soil surface, positive into the ground; a flux taken below the surface must be corrected for heat storage above that depth | W/m2 |
+| `rlus` | total upward longwave radiation at the surface: emission plus reflected downward longwave, positive away from the surface, at the sampling instant | W/m2 |
 | `mrso` | soil water storage | mm |
 | `snw` | snow water equivalent | mm |
 | `canopy` | canopy interception storage | mm |
 | `gw` | groundwater storage below the soil column | mm |
 | `channel` | water generated as runoff but not yet released by the model's routing | mm |
+| `ts` | surface (skin) temperature at the sampling instant; a diagnostic, declared under `emits.diagnostics`, neither integrated nor differenced by any budget | K |
 
 For `hfg`, an adapter mapping a plate-depth or deeper-boundary flux must use
 `G_surface = G_depth + (E_above_end - E_above_start) / dt`, with downward
@@ -188,6 +190,10 @@ emits:
 It will be scored `FAIL` with reason `INCOMPLETE`, which is the honest
 outcome. Fabricating an `evspsbl` column to avoid `INCOMPLETE` produces
 `VIOLATION` instead, which is worse and is also dishonest.
+
+Declare diagnostic outputs under the optional key `diagnostics: [ts]`.
+Criteria read diagnostics, but budgets never integrate or difference them;
+a surface temperature must not be summed into water storage.
 
 ## Verify before you submit
 

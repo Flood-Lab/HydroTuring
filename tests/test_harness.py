@@ -220,6 +220,93 @@ def test_request_hides_probe_identity_and_generator_seed(probe, tmp_path):
     assert "spinup_steps" not in request
     assert request["request"]["fluxes"] == list(model.emits_fluxes)
     assert request["request"]["states"] == list(model.emits_states)
+    assert request["request"]["diagnostics"] == list(model.emits_diagnostics)
+
+
+# --- diagnostics ------------------------------------------------------------
+# The third output category is threaded through the probe spec, the manifest,
+# the request, the contract check and the verdict. Each join is pinned here so
+# that a later change cannot drop one of them silently.
+
+
+def test_a_required_diagnostic_the_model_lacks_is_incomplete(probe):
+    needs_ts = replace(probe, requires_diagnostics=("ts",))
+    model = registry.find_model("reference_bucket")
+    assert "ts" in needs_ts.required_vars
+    assert model.missing_for(needs_ts) == ["ts"]
+    outcome = run_probe(model, needs_ts, [11])
+    assert outcome.verdict == FAIL
+    assert outcome.reason == INCOMPLETE
+    assert outcome.missing == ["ts"]
+
+
+def test_manifest_declares_diagnostics_under_their_own_key(tmp_path):
+    import shutil
+
+    from hydroturing.spec import load_model
+
+    target = tmp_path / "skin_model"
+    shutil.copytree(registry.MODELS_DIR / "_template", target)
+    manifest = target / "model.yaml"
+    manifest.write_text(
+        manifest.read_text()
+        .replace("name: _template", "name: skin_model")
+        .replace("  states: [", "  diagnostics: [ts]\n  states: [")
+    )
+    model = load_model(target)
+    assert model.emits_diagnostics == ("ts",)
+    assert "ts" in model.emitted
+    assert "ts" not in model.emits_fluxes + model.emits_states
+
+    manifest.write_text(manifest.read_text().replace("diagnostics: [ts]", "diagnostics: [skin]"))
+    with pytest.raises(SpecError, match="unknown variables"):
+        load_model(target)
+
+
+def test_required_diagnostics_are_read_from_probe_yaml_and_emitted_ones_reach_the_request(tmp_path):
+    import shutil
+
+    from hydroturing.spec import load_probe
+
+    source = registry.PROBES_DIR / "mass" / "catchment-closure"
+    target = tmp_path / "mass" / "catchment-closure"
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__"))
+    spec_file = target / "probe.yaml"
+    spec_file.write_text(
+        spec_file.read_text().replace(
+            "  states: [mrso, snw, canopy]\n", "  states: [mrso, snw, canopy]\n  diagnostics: [ts]\n", 1
+        )
+    )
+    needs_ts = load_probe(target)
+    assert needs_ts.requires_diagnostics == ("ts",)
+    assert needs_ts.required_vars[-1] == "ts"
+
+    model = replace(registry.find_model("reference_bucket"), emits_diagnostics=("ts",))
+    request_path = stage(tmp_path / "io", build_case(needs_ts, 1), needs_ts, model)
+    request = json.loads(request_path.read_text())
+    assert request["request"]["diagnostics"] == ["ts"]
+    assert request["units"]["ts"] == "K"
+
+
+def test_adapter_verification_rejects_a_declared_but_unreported_diagnostic(probe):
+    """Declaring `ts` and not writing it is a contract breach, not INCOMPLETE."""
+    model = replace(registry.find_model("reference_bucket"), emits_diagnostics=("ts",))
+    with pytest.raises(ProtocolError, match=r"missing requested variables: \['ts'\]"):
+        verify_adapter_contract(model, probe, gate_seeds(probe.id, 1)[0])
+
+
+def test_a_diagnostic_is_never_counted_as_a_store(probe):
+    from hydroturing.criteria.base import make_window, reported_states
+    from hydroturing.protocol import RunResult
+
+    case = build_case(probe, 3)
+    table = pd.DataFrame({
+        "time": case.forcing["time"], "mrso": 100.0, "snw": 0.0, "canopy": 0.0, "ts": 290.0,
+    })
+    run = RunResult(case=case, table=table, meta={}, wall_seconds=0.0)
+    window = make_window(run, probe)
+    assert "ts" not in reported_states(window, probe)
+    assert window.storage(reported_states(window, probe))[0] == pytest.approx(100.0)
 
 
 # --- container isolation ----------------------------------------------------

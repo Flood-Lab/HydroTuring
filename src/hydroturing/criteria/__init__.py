@@ -18,6 +18,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     coherence,
     degeneracy,
     limits,
+    radiation,
     regime,
     response,
     stress,

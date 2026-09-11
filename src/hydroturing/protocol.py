@@ -128,6 +128,7 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
             # invariant across probes and prevents it identifying the criterion.
             "fluxes": list(model.emits_fluxes),
             "states": list(model.emits_states),
+            "diagnostics": list(model.emits_diagnostics),
         },
         "input": {"forcing": FORCING_FILE, "static": STATIC_FILE},
         "output": {"table": RESULT_CSV, "run": RUN_FILE},

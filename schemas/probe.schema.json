@@ -94,6 +94,14 @@
             "type": "string"
           },
           "uniqueItems": true
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Diagnostic outputs a criterion reads but no budget integrates or differences, such as a surface temperature."
         }
       }
     },

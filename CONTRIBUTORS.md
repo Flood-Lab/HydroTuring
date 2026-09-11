@@ -32,6 +32,7 @@ long.
 | `energy/latent-heat-et-consistency` | Changming Li (SCUT) |
 | `energy/evaporative-partition` | Changming Li (SCUT) |
 | `energy/surface-energy-closure` | Han Wang (The Hong Kong University of Science and Technology) |
+| `energy/radiation-consistency` | Xin Lan (Michigan State University) |
 | `momentum/routing-conservation` | Zhi Li (CU Boulder) |
 
 ## Models
