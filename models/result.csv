@@ -196,3 +196,22 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-10,flex_lumped,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
 2026-09-10,flex_topo,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
 2026-09-10,sacsma_snow17,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,full record,598896396,"adapter contract OK: 4015 rows in 4.9s, columns pr, evspsbl, mrro, dis, gwex, mrso, snw, canopy, gw, channel"
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,energy/evaporative-partition,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,energy/pet-consistency,PASS,OK,full record,770619041 1277571155 1784523269,all criteria pass
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/antecedent-monotonicity,FAIL,VIOLATION,full record,1295520324 1802472438 161940905,antecedent_monotonicity: the storm of 89 mm ran off +0.1 mm more on the wetter catchment; at least 0.02 of the storm is expected
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/area-invariance,FAIL,VIOLATION,full record,66780378 573732492 1080684606,"invariance: 'mrro' departs from its expected value by 1.391e+01 (relative, limit 1e-06)"
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/catchment-closure,PASS,OK,full record,598896396 1105848510 1612800624 2119752738 479221205,residual 0.000% of driver
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/dry-down,FAIL,VIOLATION,full record,186927550 693879664 1200831778,non_degenerate: mrro is nearly constant (cv 0.0899 < 0.1)
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/extreme-rain,PASS,OK,full record,154098211 661050325 1168002439,all criteria pass
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/phase-counterfactual,PASS,OK,full record,25625370 532577484 1039529598,all criteria pass
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/resolution-invariance,PASS,OK,full record,746687816 1253639930 1760592044,all criteria pass
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/response-nonnegativity,PASS,OK,full record,699572709 1206524823 1713476937,all criteria pass
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/runoff-bounds,PASS,OK,full record,726751959 1233704073 1740656187 100124654 607076768,all criteria pass
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/steady-state,PASS,OK,full record,1815845244 175313711 682265825,all criteria pass
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.000% of driver
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
+2026-09-11,wflow_sbm,1.0.4-ht.1,0.1.0,docker,momentum/routing-conservation,FAIL,VIOLATION,full record,417694852 924646966 1431599080,routing_conservation: the channel holds 10.7 mm on 2001-11-30 while the largest runoff of the preceding 30 days is 0.50 mm/day; a 15-day hydrograph cannot hold more than 7.9 mm of that
