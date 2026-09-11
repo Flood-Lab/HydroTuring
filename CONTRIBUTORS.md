@@ -28,6 +28,7 @@ long.
 | `mass/antecedent-monotonicity` | Zhi Li (CU Boulder) |
 | `mass/phase-counterfactual` | Zhi Li (CU Boulder) |
 | `mass/time-origin-invariance` | Siavash Shams (Columbia University) |
+| `mass/precipitation-counterfactual` | Qingyi Yang (Politecnico di Milano) |
 | `energy/pet-consistency` | Zhi Li (CU Boulder) |
 | `energy/latent-heat-et-consistency` | Changming Li (SCUT) |
 | `energy/evaporative-partition` | Changming Li (SCUT) |
