@@ -1,0 +1,93 @@
+id: mass/precipitation-counterfactual
+
+title: Added or removed precipitation must be partitioned among the budget terms
+
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Qingyi Yang
+    affiliation: Department of Civil and Environmental Engineering (D.I.C.A.), Politecnico di Milano, Milano 20133, Italy
+    orcid: 0009-0001-9836-4261
+    github: yqingypolimi
+
+description: >
+  The same seed four times after an identical spinup: as generated, with
+  every scored wet day 20% wetter, 10% wetter, and 20% drier. The water
+  added or removed between a perturbed run and the control must appear in
+  the difference between the reported budgets, split across evaporation,
+  runoff and storage: no term may ignore it, no term may absorb it, and the
+  shares must sum to what was added. Runoff must rise monotonically along
+  the ladder from drier to wetter. Scored over the full ten-year record.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 10
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 60
+  # 30- and 730-day windows fail the exact physical models (README, window table).
+  min_window_days: 3650
+  # The first name is the control.
+  variants: [control, wetter20, wetter10, drier20]
+
+criteria:
+  # Suite-wide rule; the physical baselines close to 1e-16 here.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  # Each perturbed variant is scored against the control; any pair failing
+  # fails. `storage` counts towards max_share and the sum, not min_share.
+  # min_share and sum_tolerance are template defaults (measured margins
+  # 0.140 and 0.994); max_share is raised from 0.90 because the Budyko limit
+  # of the runoff share is one, and changes no verdict here (README).
+  - counterfactual_response:
+      control: control
+      perturbed: [wetter20, wetter10, drier20]
+      driver: pr
+      terms: [evspsbl, mrro]
+      min_share: 0.03
+      max_share: 0.95
+      sum_tolerance: 0.10
+
+  # Every denominator above is the pr the model was given.
+  - forcing_fidelity:
+      variables: [pr]
+      rtol: 1.0e-6
+
+  # Criterion defaults, as in mass/extreme-rain; measured ladder returns 0.69 to 0.82.
+  - monotone_response:
+      driver: pr
+      variable: mrro
+      min_share: 0.1
+      max_share: 1.05
+      tolerance: 0.01
+
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+
+baselines:
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
+  must_fail:
+    # Evaporates everything: runoff share 0, evaporation share 1.
+    reference_degenerate: counterfactual_response
+    # Storage as the residual: evaporation does not respond to added rain.
+    reference_cheater: counterfactual_response
+    # 15% of the rain leaves unreported: the shares sum to 0.85.
+    reference_leaky: counterfactual_response
+
+provenance: >
+  Synthetic. All four variants are generated at run time from one recorded
+  seed, so they differ only in the scored precipitation. Built from the
+  upstream counterfactual template; implements accepted proposal #18.

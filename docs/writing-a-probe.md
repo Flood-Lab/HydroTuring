@@ -98,7 +98,7 @@ Every one is binary.
 | `non_degenerate` | the partition and the response are non-trivial | one run |
 | `forcing_fidelity` | the model reports back the forcing it was given | one run |
 | `regime_transfer` | closure holds out of range as well as in range | labelled stretches |
-| `counterfactual_response` | added water is partitioned, not absorbed | paired runs |
+| `counterfactual_response` | added or removed water is partitioned, not absorbed; `perturbed` may name one variant or a list, each scored against the control | paired runs |
 | `invariance` | a transform the physics ignores changes nothing | paired runs |
 | `resolution_invariance` | integrated volumes agree between the same weather at two steps | paired runs at different steps |
 | `response_sign` | perturb one driver both ways, hold the rest: each response must point the way physics says, by a real share of the change in demand | paired runs |
@@ -233,8 +233,8 @@ The reference models available today:
 | `flex_lumped` | lumped FLEX/HBV from chrimerss/HydrologicModels; conservative, nonlinear partition | nothing, it must pass |
 | `flex_topo` | FLEX-Topo, three landscape units sharing a groundwater store | nothing, it must pass |
 | `sacsma_snow17` | SAC-SMA + Snow-17 + gamma unit hydrograph, the NWS operational model | nothing, it must pass |
-| `reference_leaky` | hides a silent 15% sink | `closure` |
-| `reference_cheater` | solves for storage as whatever balances the budget; runoff is a fixed share of rain | `state_bounds`, `response_sign` |
+| `reference_leaky` | hides a silent 15% sink | `closure`, `counterfactual_response` |
+| `reference_cheater` | solves for storage as whatever balances the budget; runoff is a fixed share of rain | `state_bounds`, `response_sign`, `counterfactual_response` |
 | `reference_degenerate` | evaporates all precipitation, produces no runoff | `non_degenerate`, `counterfactual_response`, `response_sign` |
 | `reference_in_sample` | exact in range, leaks outside it | `regime_transfer` |
 | `reference_calendar` | recession drifts with the calendar year | `invariance` |
