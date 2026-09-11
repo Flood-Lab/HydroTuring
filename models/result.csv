@@ -191,6 +191,11 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-10,flex_lumped,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
 2026-09-10,flex_topo,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
 2026-09-10,sacsma_snow17,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,flex_lumped,1.0.0,0.1.0,subprocess,mass/precipitation-counterfactual,PASS,OK,full record,872466880 1379418994 1886371108,residual 0.000% of driver
+2026-09-11,flex_topo,1.0.0,0.1.0,subprocess,mass/precipitation-counterfactual,PASS,OK,full record,872466880 1379418994 1886371108,residual 0.000% of driver
+2026-09-11,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/precipitation-counterfactual,PASS,OK,full record,872466880 1379418994 1886371108,residual 0.000% of driver
+2026-09-11,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/precipitation-counterfactual,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
+2026-09-11,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/precipitation-counterfactual,FAIL,VIOLATION,full record,872466880 1379418994 1886371108,"state_bounds: mrso leaves [0, 320] on 3650 steps (range 600 to 805)"
 2026-09-11,flex_lumped,1.0.0,0.1.0,subprocess,mass/antecedent-monotonicity,PASS,OK,full record,1295520324 1802472438 161940905,all criteria pass
 2026-09-11,flex_topo,1.0.0,0.1.0,subprocess,mass/antecedent-monotonicity,PASS,OK,full record,1295520324 1802472438 161940905,all criteria pass
 2026-09-11,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/antecedent-monotonicity,PASS,OK,full record,1295520324 1802472438 161940905,all criteria pass
