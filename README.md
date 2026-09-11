@@ -112,7 +112,7 @@ hand-written conceptual models from
 [chrimerss/HydrologicModels](https://github.com/chrimerss/HydrologicModels)
 and the NWS's SAC-SMA with Snow-17 must pass every probe that can ask them
 anything, so a probe that fails one is wrong until shown otherwise. All four
-report water and no energy, so all four are INCOMPLETE on the three probes
+report water and no energy, so all four are N/A, with reason INCOMPLETE, on the three probes
 that need the latent, sensible and ground heat fluxes,
 `energy/latent-heat-et-consistency`, `energy/evaporative-partition` and
 `energy/surface-energy-closure`,
@@ -152,7 +152,7 @@ goes untested.
 | `reference_sublimating` | broken | loses 40% of every snowfall to an unreported sublimation | caught by `phase_invariance` |
 | `reference_thirsty` | broken | evaporates a fixed share of its soil store, never reading demand; conserves water exactly | caught by `demand_consistency` |
 | `reference_stuck_router` | broken | a routing kernel summing to 0.9, so a tenth of every day's runoff never leaves the channel | caught by `routing_conservation` |
-| `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | scored INCOMPLETE on budget probes; caught by `response_sign` |
+| `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | N/A (INCOMPLETE) on budget probes; caught by `response_sign` |
 | `reference_in_sample` | broken | exact in range, leaks once the forcing leaves it | waiting for a `regime_transfer` probe |
 | `reference_calendar` | broken | a recession that drifts with the calendar year | caught by `invariance` (time origin) |
 
@@ -190,10 +190,11 @@ a pass nor a fail. That happens two ways:
 - `INCOMPATIBLE` the model and probe disagree on timestep, required forcing or
   paired-perturbation support, so running them would not be meaningful.
 
-A model passes when every probe that could be put to it passes, and otherwise
-fails with the worst reason among the probes that did not pass. A model that
-no probe could be put to at all is `N/A` too, and `ht run` exits 1 for it as
-it does for a FAIL.
+A model passes when at least one probe could be put to it and every probe
+that could be put to it passes. Otherwise it fails, with the worst reason
+among the scored probes that did not pass; an unscored probe never supplies
+that reason. A model that no probe could be put to at all is `N/A` too, and
+`ht run` exits 1 for it as it does for a FAIL.
 
 A scored verdict is one bit. Everything under it stays quantitative, so a
 paper can show that one model leaks 6% and another 40% long before anyone
