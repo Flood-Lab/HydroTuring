@@ -46,10 +46,12 @@ criteria:
       # Emissivity belongs to the case, not the model output.
       emissivity: eps
       # 0.5 percent of the model's own reported upward flux, not the suite's
-      # 5 percent: two outputs of one model are held to one equation, and at
-      # eps 0.98 the reflected sky is about 1.5 percent of that flux, so a
-      # model that drops it would pass at 5 percent. The floor keeps the
-      # bound finite at weak fluxes; here the relative bound always governs.
+      # 5 percent: two outputs of one model are held to one equation. At
+      # eps 0.98, a 290 K surface under a 300 W m-2 sky reflects 6 W m-2,
+      # about 1.5 percent of its upward flux, so a model that drops the
+      # reflected sky would pass at 5 percent. The floor stops the bound
+      # shrinking towards zero at weak fluxes; at this warm surface the
+      # relative bound always governs.
       rel_tol: 0.005
       abs_floor: 0.5
 

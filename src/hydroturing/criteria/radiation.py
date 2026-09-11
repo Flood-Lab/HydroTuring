@@ -93,9 +93,12 @@ def radiative_identity(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
             diagnostics={"non_positive_kelvin_steps": n_bad},
         )
 
-    # Finite but absurd values still overflow: a huge temperature in the
-    # fourth power, a huge rel_tol in the allowance. Either would let an inf
-    # or NaN slip through the comparison below as a pass, so both are caught.
+    # Finite but absurd values still overflow. A huge rel_tol makes the
+    # allowance infinite and every slack zero, a pass; a huge temperature
+    # makes the residual infinite, and an infinite residual over an
+    # infinite allowance is NaN, which compares as a pass. An infinite
+    # slack alone would fail correctly, but reports finite diagnostics only
+    # if it is caught here.
     with np.errstate(over="ignore", invalid="ignore"):
         expected = eps * sigma * ts**4 + (1.0 - eps) * rlds
         residual = rlus - expected
@@ -156,6 +159,7 @@ def radiative_identity(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
                 "downward_w_m2": float(rlds[worst]),
             },
             "max_abs_residual_w_m2": float(np.abs(residual).max()),
+            "mean_abs_residual_w_m2": float(np.abs(residual).mean()),
             # Identify weak fluxes where the absolute floor sets the bound.
             "floor_steps": int((rel_tol * np.abs(rlus) < abs_floor).sum()),
             "emissivity": eps,
