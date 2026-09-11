@@ -141,9 +141,9 @@ The adapter ports the two routines SUMMA uses:
   starting value, step, tolerance and iteration limit, and SUMMA's constants
   (610.8 Pa, 0.622, 273.16 K).
 
-On every row of both variants of a four-year case, the port reproduces SUMMA's
-own `scalarTwetbulb` to 3.5e-7 K. For the 0 C threshold every probe uses,
-`tempCritRain` is **271.4656 K**, a wet bulb of -1.68 C.
+On every row of the 16 cases run with SUMMA's own series kept, the port
+reproduces SUMMA's `scalarTwetbulb` to 4.0e-7 K. For the 0 C threshold every probe uses,
+`tempCritRain` is **271.4656 K**, a wet bulb of -1.69 C.
 
 The value is a constant for a case, so the mock stays row-only and
 calendar-free. Every row carries the same relative humidity, so a row's wet
@@ -175,28 +175,50 @@ What the translation changes, on the evaluated runs:
 ### Rain on a freezing canopy
 
 Centring the ramp on the probe's threshold also puts rain on days whose air is
-a little below freezing, which the direct mapping had kept as snow. SUMMA's
-canopy then accumulates ice without any limit.
+a little below freezing, which the direct mapping had kept as snow. With the
+translation, SUMMA rains at air temperatures down to about -1.1 C and snows up
+to about +1.1 C. On those days SUMMA, run with the shipped setup's decisions
+and default parameters, keeps the rain on its canopy as ice without limit.
 
-**How.** `vegLiqFlux.f90` lets rain through in proportion to the canopy's
-liquid store over its liquid capacity. On a canopy below 0 C, the intercepted
-liquid freezes, so the liquid store stays near empty and nearly all the rain
-is intercepted and frozen. `scalarCanopyIceMax` (exposed LAI + SAI times
-`refInterceptCapSnow`, 0.96 mm in February) caps snow interception. It does
-not cap ice that forms from frozen liquid.
+**How.** Five steps in SUMMA's code, each set by the shipped setup:
+1. **All rain is intercepted.** The shipped `modelDecisions.txt` does not set
+   `cIntercept`, so SUMMA keeps its backwards-compatible default, `unDefined`
+   (`mDecisions.f90`). `vegLiqFlux.f90` then sets rain throughfall to zero,
+   whatever `refInterceptCapRain` is. The storage-proportional option,
+   `storageFunc`, is not active.
+2. **The water freezes on a cold canopy.** `tempAdjust.f90` splits canopy water
+   into ice and liquid by canopy temperature, so a canopy just below 0 C holds
+   its water almost entirely as ice.
+3. **Only liquid drains.** `vegLiqFlux.f90` drains liquid above
+   `scalarCanopyLiqMax`; ice does not drain.
+4. **The ice capacity bounds only snowfall.** `scalarCanopyIceMax` (exposed
+   LAI + SAI times `refInterceptCapSnow`, set in `coupled_em.f90`; 0.96 mm in
+   February) limits the interception of falling snow in `canopySnow.f90`. It
+   does not limit ice made from intercepted rain.
+5. **Nothing unloads the ice.** The shipped decisions leave `snowUnload` at its
+   default, `meltDripUnload`. That option unloads `snowUnloadingCoeff` times the
+   ice, and the shipped `snowUnloadingCoeff` is 0 (`localParamInfo.txt`; SUMMA's
+   own range runs to 1.5e-6 s-1). The ice leaves only by sublimation and, once
+   it melts, with the melt drip.
+
+A positive `snowUnloadingCoeff`, or the `windUnload` decision, would remove ice
+from the canopy. Both are SUMMA options. Neither is changed here, because the
+evaluation runs the shipped setup untuned.
 
 **Traced** on latent-heat seed 788749541 with SUMMA's canopy fluxes written
 out:
-- On 2002-02-11 the air is -0.01 C and the canopy -0.20 C. Of 30.7 mm of rain,
-  SUMMA intercepts 30.67 mm and freezes 30.4 mm; of 31.2 mm of snow, it
-  intercepts 0.53 mm.
+- On 2002-02-11 the air is -0.01 C and the canopy -0.20 C. SUMMA intercepts all
+  30.7 mm of rain and freezes 30.4 mm of it; of 31.2 mm of snow it intercepts
+  0.53 mm.
+- Ice gain, sublimation and the liquid left (26.8, 4.2 and 0.25 mm) add up to
+  31.2 mm: all of the rain plus about 0.5 mm of snow.
 - Canopy ice reaches 26.8 mm, 27.9 times `scalarCanopyIceMax`.
-- The ice sublimates at 2.3 to 4.2 mm/day for four days, then melts, drains
-  and unloads when the air warms.
-- Over that record, freezing of intercepted liquid adds 234 mm of canopy ice
-  on the days ice grows, and intercepted snow adds 111 mm.
+- The ice sublimates at 2.3 to 4.2 mm/day for four days. When the air warms it
+  melts and drains, and some ice goes with the melt drip.
+- Over that record, freezing of intercepted rain adds 234 mm of canopy ice on
+  the days ice grows, and intercepted snow adds 111 mm.
 
-**Across the archive** the canopy peaks at:
+**On the four probes that score canopy bounds**, the canopy peaks at:
 - 14.3 to 27.0 mm on latent-heat, on 23 to 36 days above capacity per seed;
 - 13.4 to 20.3 mm on catchment-closure, on 30 to 42 days;
 - 14.5 to 23.0 mm on the precipitation counterfactual, on 20 to 63 days;
@@ -206,10 +228,20 @@ Every peak falls on a day within 0.7 C of freezing with 25 to 71 mm of
 precipitation, and most days above capacity are within 1 C of freezing.
 Under the direct mapping, the largest excess was 0.10 mm of liquid.
 
-This is SUMMA's canopy physics, not an adapter mistake: freezing rain does
-accrete on trees, and no SUMMA parameter here bounds the accretion. But this
-packaging is what reaches it, through a threshold that is now faithful to the
-probe's definition.
+Cases of probes that do not score canopy bounds reach as high, and no verdict
+moves with them. The archive maximum is 28.5 mm, on pet-consistency.
+Warming-response, runoff-bounds and phase-counterfactual reach 21.6 to
+26.3 mm.
+
+**Attribution.** The failure is SUMMA with the shipped setup's decisions and
+default parameters, reached through the translated threshold. It does not
+come from the adapter's capacity mapping. Total interception ignores
+`refInterceptCapRain`, and `refInterceptCapSnow` caps only snowfall, so SUMMA's
+own default capacities would still accrete ice from frozen rain. The mocks set
+how large the ice gets (see the sensitivity table). The threshold
+translation, centred on the probe's threshold, is what brings rain to sub-zero
+days. No placement of SUMMA's 2 K ramp avoids both rain below freezing and
+snow above it.
 
 ## Forcing the probes do not generate
 
@@ -448,11 +480,11 @@ packaging had to make.
 
 | Probe | Failing criterion (worst seed) | Mechanism | Model or packaging |
 | --- | --- | --- | --- |
-| `energy/latent-heat-et-consistency` | `flux_identity` (5 of 5 seeds); `state_bounds` canopy 12.3 to 25.0 mm above the 2 mm capacity (5 of 5) | a latent heat of vaporisation held at its 0 C value; deposition and canopy-ice sublimation as above. The canopy: rain frozen on it near 0 C, up to 27.0 mm of ice (section on the freezing canopy); a few warm days also end a few hundredths of a mm above capacity as liquid drains at 0.005 s-1 | model (constants; unbounded canopy freezing; drainage law), reached through the translated threshold |
-| `energy/evaporative-partition` | `partition_shift` (3 of 3); `flux_identity` (3 of 3); `state_bounds` canopy 4.1 and 16.9 mm (2 of 3) | SUMMA's net radiation responds to the drought through its surface temperature; constant latent heat; canopy ice | model; the size of the shift residual depends on the wind mock |
+| `energy/latent-heat-et-consistency` | `flux_identity` (5 of 5 seeds); `state_bounds` canopy 12.3 to 25.0 mm above the 2 mm capacity (5 of 5) | a latent heat of vaporisation held at its 0 C value; deposition and canopy-ice sublimation as above. The canopy: rain frozen on it near 0 C, up to 27.0 mm of ice (section on the freezing canopy); a few warm days also end a few hundredths of a mm above capacity as liquid drains at 0.005 s-1 | model (constants; drainage law). The canopy ice is SUMMA with the shipped setup's decisions and default parameters (all rain intercepted, `snowUnloadingCoeff` 0), reached through the translated threshold |
+| `energy/evaporative-partition` | `partition_shift` (3 of 3); `flux_identity` (3 of 3); `state_bounds` canopy 4.1 and 16.9 mm (2 of 3) | SUMMA's net radiation responds to the drought through its surface temperature; constant latent heat; canopy ice | model; the size of the shift residual depends on the wind mock. The canopy ice is attributed as for latent-heat |
 | `energy/surface-energy-closure` | `energy_closure_by_phase`, 20 of 28 blocks (17 to 22 across seeds) | the gap between SUMMA's net radiation and `rn`: albedo by day, surface temperature by day and night; SUMMA's own budget passes every block | the mock cannot deliver `rn`, meeting the model's own surface temperature |
-| `mass/catchment-closure` | `state_bounds` canopy 11.4 to 18.3 mm above capacity (5 of 5) | rain frozen on a sub-zero canopy: peaks of 13.4 to 20.3 mm on days of 31 to 45 mm at 0.1 to 0.5 C, on 30 to 42 days a seed | model (unbounded canopy freezing), reached through the translated threshold; 0.02 mm under the direct mapping |
-| `mass/precipitation-counterfactual` | `state_bounds` canopy 15.7 to 16.7 mm above capacity (3 of 3 seeds; up to 21 mm across the variants) | canopy ice as above, more in the wetter variants. The partition the probe is about passes: on the worst seed evaporation takes 0.24 to 0.30 of the added or removed rain, runoff 0.67 to 0.73 and storage 0.03, summing to 1.000 in each variant; on every seed runoff rises along the ladder, returning 0.70 to 0.73 of the rain added at the top | model (unbounded canopy freezing); the bare surface passes |
+| `mass/catchment-closure` | `state_bounds` canopy 11.4 to 18.3 mm above capacity (5 of 5) | rain frozen on a sub-zero canopy: peaks of 13.4 to 20.3 mm on days of 31 to 45 mm at 0.1 to 0.5 C, on 30 to 42 days a seed | SUMMA with the shipped setup's decisions and default parameters, reached through the translated threshold; 0.02 mm under the direct mapping |
+| `mass/precipitation-counterfactual` | `state_bounds` canopy 15.7 to 16.7 mm above capacity (3 of 3 seeds; up to 21 mm across the variants) | canopy ice as above, more in the wetter variants. The partition the probe is about passes: on the worst seed evaporation takes 0.24 to 0.30 of the added or removed rain, runoff 0.67 to 0.73 and storage 0.03, summing to 1.000 in each variant; on every seed runoff rises along the ladder, returning 0.70 to 0.73 of the rain added at the top | SUMMA with the shipped setup's decisions and default parameters, reached through the translated threshold; the bare surface passes |
 | `mass/steady-state` | `steady_state`: soil water 10.2 %, canopy 10.6 %, runoff 1.1 %; -0.029 mm/day unplaced (3 of 3) | under constant weather the phenology still cycles LAI and SAI through the year, so transpiration, soil water and interception cycle with it; the forest evaporates 2.53 of the 2.5 mm/day rain, runoff is 0.0008 mm/day and the soil is still drying 10.7 mm a year in the third year, which is the unplaced residual | model (its phenology keys on the day of year); the bare surface passes |
 | `mass/resolution-invariance` | runoff differs by 20.9 % of the rain (17.1 to 20.9 across seeds) | at the hourly step Green-Ampt infiltration excess makes 54.2 mm of surface runoff from bursts up to 43 mm/h, against 0.5 mm at the daily step. The daily step, fed a daily-mean temperature and humidity, draws 33 W/m2 of sensible heat from the air into evaporation, where the hourly step returns 5 W/m2 to it, so ET is 41 mm lower hourly. Both steps receive the same net radiation (64.7 W/m2 target, 66.0 in SUMMA). The hourly step also makes some snow the daily step does not: 0.008, 0.13 and 0.029 of its precipitation on the three seeds against none daily (0.04 to 0.25 against 0 to 0.009 under the direct mapping), from sub-zero April hours and SUMMA's ramp. Retained snow lowers hourly runoff, against the direction of the deviation, so it does not explain the failure | model (intensity-dependent infiltration, step-dependent turbulent exchange); how large depends on the humidity and wind mocks |
 | `mass/antecedent-monotonicity` | +0.0002 to +0.0025 of the 60 mm storm (0.02 needed) | the wetter month's extra 120 mm is evaporated before the storm: 137 to 156 mm of ET in those 30 days against 19 to 42 mm in the drier run, on 131 to 157 mm of demand. Both runs meet the storm with soil water within 2 to 5 mm of each other (120 to 132 mm in an 802 mm-deep column), and neither drains within the month | model at this demand; passes with 90 percent humidity or a bare surface |
@@ -570,8 +602,9 @@ smaller faults. Each fault, the change made and its effect:
     `non_degenerate` now passes on every seed.
   - Effect on runoff-bounds: the failing seed's correlation went from 0.019 to
     0.014.
-  - Effect on the canopy: rain now falls on sub-zero days, and SUMMA's canopy
-    freezes it without limit. Canopy `state_bounds` on four probes fails by 4
+  - Effect on the canopy: rain now falls on sub-zero days. SUMMA, with the
+    shipped setup's decisions and default parameters, intercepts all of it and
+    keeps the ice that forms. Canopy `state_bounds` on four probes fails by 4
     to 25 mm where it failed by 0.06 to 0.10 mm.
   - Effect on energy: daily closure against `rn` fell to 4.23–4.61 percent,
     from 4.41–4.84.
@@ -580,6 +613,9 @@ smaller faults. Each fault, the change made and its effect:
 - **The steady-state figure in the second version's change log was wrong**
   (12.4 percent). It is corrected below to 14.3 percent.
 - **The resolution-invariance row now gives the step-dependent snow share.**
+- **The canopy-ice mechanism was first described through an inactive branch of
+  SUMMA's rain interception.** It is now traced through the options the shipped
+  setup selects, under Rain on a freezing canopy.
 - **The branch merged main twice more.** The first merge brought wflow_sbm.
   The second brought the fix that opens the antecedent-monotonicity window on
   the storm, and LF line endings.
