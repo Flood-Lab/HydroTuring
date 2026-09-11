@@ -220,3 +220,4 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.032% of driver
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,all criteria pass
+2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,mass/precipitation-counterfactual,PASS,OK,full record,872466880 1379418994 1886371108,residual 0.019% of driver

@@ -158,7 +158,7 @@ ht run --model wflow_sbm --gate-seeds
 
 ## Result
 
-**FAIL (INCOMPLETE), 13 of 18 probes passed**, adapter `1.0.4-ht.2`, on the gate seeds, every
+**FAIL (INCOMPLETE), 14 of 19 probes passed**, adapter `1.0.4-ht.2`, on the gate seeds, every
 case on the full record (`window_days: full`).
 
 | Probe | Verdict | Reason | Detail |
@@ -174,6 +174,7 @@ case on the full record (`window_days: full`).
 | `mass/dry-down` | FAIL | VIOLATION | on one seed runoff rises 3.6 % between weekly blocks with no rain |
 | `mass/extreme-rain` | PASS | OK | returns 1.00 of the rain added at every rung |
 | `mass/phase-counterfactual` | PASS | OK | snow as rain moves the volumes by 0.6 to 3.8 % of the rain |
+| `mass/precipitation-counterfactual` | PASS | OK | rain 20 % wetter, 10 % wetter or 20 % drier: evaporation takes 0.20 to 0.22 of the change, runoff 0.75 to 0.78, storage 0.02, summing to 1.0001; runoff rises on every rung |
 | `mass/resolution-invariance` | PASS | OK | PT1D against PT1H: 0.4 to 1.1 % of the rain |
 | `mass/response-nonnegativity` | PASS | OK | largest dip 7.5e-4 of the added rain (limit 1e-3) |
 | `mass/runoff-bounds` | PASS | OK | runoff 0.49 to 0.52 of the rain, inside the bounds |
