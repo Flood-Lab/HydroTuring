@@ -240,7 +240,7 @@ def test_cli_window_and_csv_flags(probe, tmp_path, capsys):
 
     archive = tmp_path / "result.csv"
     code = main([
-        "run", "--model", "reference_bucket", "--seed", "11",
+        "run", "--model", "reference_bucket", "--probe", probe.id, "--seed", "11",
         "--window", "30", "--csv", str(archive),
     ])
     assert code == 0
@@ -270,7 +270,10 @@ def test_contract_check_can_be_archived(probe, tmp_path):
     from hydroturing.cli import main
 
     archive = tmp_path / "result.csv"
-    assert main(["verify-adapter", "--model", "reference_streamflow_only", "--csv", str(archive)]) == 0
+    assert main([
+        "verify-adapter", "--model", "reference_streamflow_only",
+        "--probe", probe.id, "--csv", str(archive),
+    ]) == 0
     with open(archive, newline="") as fh:
         (row,) = list(csv.DictReader(fh))
     assert row["probe"] == "mass/catchment-closure (adapter contract)"

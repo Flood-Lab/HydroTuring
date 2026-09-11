@@ -1,0 +1,20 @@
+name: reference_constant_lambda
+version: "1.0.0"
+description: >
+  Fully coupled and correct in every other respect, except that the latent
+  heat of vaporisation is a constant instead of a function of temperature.
+  The error reaches 3.4 percent over a -20 to +35 degC record, which is why
+  flux_identity is scored per step against a tolerance far tighter than the
+  suite's 5 percent rule. It exists to prove that tolerance is necessary.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D]
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet, rn]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

@@ -68,15 +68,15 @@ not.
 
 ## The probes
 
-Fourteen: twelve under mass, one each under energy and momentum. Each was
+Sixteen: twelve under mass, three under energy and one under momentum. Each was
 merged only after the acceptance gate saw it pass four physical models, a
 bucket that conserves water exactly, two hand-written FLEX models and the
 NWS's SAC-SMA with Snow-17, and fail a purpose-built broken one on the
 named criterion. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Eleven of the fourteen can be scored on a model
+with any probe pull request. Eleven of the sixteen can be scored on a model
 that reports runoff and nothing else. `ht list` prints them;
-[ROADMAP.md](ROADMAP.md#probes-we-want) has the seventeen more we want, all
+[ROADMAP.md](ROADMAP.md#probes-we-want) has the sixteen more we want, all
 unclaimed.
 
 | Probe | Law | What it asks | The broken model it catches |
@@ -94,6 +94,8 @@ unclaimed.
 | [`mass/antecedent-monotonicity`](probes/mass/antecedent-monotonicity) | mass | The same storm after a dry month and a wet one: the wetter catchment runs off more, and no more than the extra water. | `reference_cheater` |
 | [`mass/phase-counterfactual`](probes/mass/phase-counterfactual) | mass | The same water falling as rain instead of snow: timing moves, the integrated volumes may not. | `reference_sublimating` |
 | [`energy/pet-consistency`](probes/energy/pet-consistency) | energy | Evaporation reaches demand when the model's own soil is wettest, stays below it, and falls when the soil is driest. | `reference_thirsty` |
+| [`energy/latent-heat-et-consistency`](probes/energy/latent-heat-et-consistency) | energy | The evaporation a model reports as water and the evaporation implied by the latent heat it reports: are they the same evaporation? | `reference_two_head`, `reference_constant_lambda`, `reference_sublimation_blind`, `reference_energy_leak` |
+| [`energy/evaporative-partition`](probes/energy/evaporative-partition) | energy | One summer without rain under net radiation that did not change: the latent heat a drying surface gives up has to warm the air. | `reference_two_head`, `reference_ground_dodge` |
 | [`momentum/routing-conservation`](probes/momentum/routing-conservation) | momentum | The channel store is never negative and never holds more than its hydrograph can. | `reference_stuck_router` |
 
 ## Models
@@ -104,18 +106,30 @@ physical models' runs are archived there too. A
 physical model is there to test the probes: the exact bucket, two
 hand-written conceptual models from
 [chrimerss/HydrologicModels](https://github.com/chrimerss/HydrologicModels)
-and the NWS's SAC-SMA with Snow-17 must pass every probe, so a probe that
-fails one is wrong until shown otherwise. A broken model is broken in one specific way, so that no criterion
+and the NWS's SAC-SMA with Snow-17 must pass every probe that can ask them
+anything, so a probe that fails one is wrong until shown otherwise. All four
+report water and no energy, so all four are INCOMPLETE on the two probes
+that need the latent, sensible and ground heat fluxes,
+`energy/latent-heat-et-consistency` and `energy/evaporative-partition`,
+rather than passing them: they have not
+violated conservation of energy, they have declined to be falsifiable about
+it, exactly as `reference_streamflow_only` does on the budget probes. A broken model is broken in one specific way, so that no criterion
 goes untested.
 
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |
-| [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (INCOMPLETE)**, 5 of 14 probes passed. Runoff-only, so three budget probes cannot ask it anything; of the seven that ask on runoff alone it passes the runoff bounds, memory and area, and fails step, extreme rain, phase, and a 0.18 mm/day dip after an added storm |
-| [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (VIOLATION)**, 10 of 14 probes passed. Its learned regional-groundwater term, declared as `gwex`, closes the budget to 1e-8; what remains is a learned field capacity twice the catchment's, a response to doubled rain above the rain added, a runoff depth that changes with the area it is told, and a third more runoff when snow falls as rain |
-| `reference_bucket` | exact | conserves water exactly by construction | must pass every probe |
-| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, triangular lag | must pass every probe; **PASS**, 14 of 14 |
-| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe; **PASS**, 14 of 14 |
-| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe; **PASS**, 14 of 14 |
+| [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (INCOMPLETE)**, 5 of 16 probes passed. Runoff-only, so five probes cannot ask it anything; of the eleven that ask on runoff alone it passes the runoff bounds, memory, area, causality and steady state, and fails step, extreme rain, phase, warming, dry-down, and a 0.18 mm/day dip after an added storm |
+| [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (VIOLATION)**, 10 of 16 probes passed. Its learned regional-groundwater term, declared as `gwex`, closes the budget to 1e-8; what remains is a learned field capacity twice the catchment's, a response to doubled rain above the rain added, a runoff depth that changes with the area it is told, and a third more runoff when snow falls as rain |
+| `reference_bucket` | exact | conserves water exactly by construction | must pass every probe that can ask it anything; INCOMPLETE on the two energy probes, which need fluxes it does not report |
+| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, triangular lag | must pass every probe that can ask it anything; **PASS**, 14 of 16, INCOMPLETE on the two energy probes |
+| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 14 of 16, INCOMPLETE on the two energy probes |
+| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 14 of 16, INCOMPLETE on the two energy probes |
+| `reference_coupled` | exact | the bucket with snow sublimation and a surface energy budget: every kilogram converted at the latent heat of the phase it actually underwent | must pass every criterion of `energy/latent-heat-et-consistency` |
+| `reference_two_head` | broken | a water head and an energy head that never meet: both budgets close to 1e-15 and the latent heat implies an evaporation it never reported | caught by `flux_identity` |
+| `reference_constant_lambda` | broken | coherent, but converts every kilogram at the same latent heat of vaporisation | caught by `flux_identity` |
+| `reference_sublimation_blind` | broken | coherent for liquid water, but converts snow sublimation at the latent heat of vaporisation instead of sublimation | caught by `flux_identity` |
+| `reference_ground_dodge` | broken | coherent, both budgets close, and the sensible flux never reads the soil: when the soil dries the ground flux absorbs the whole shift | caught by `partition_shift` |
+| `reference_energy_leak` | broken | discards 15% of net radiation; the energy counterpart of `reference_leaky` | caught by `energy_closure` |
 | `reference_leaky` | broken | hides a silent 15% sink | caught by `closure` |
 | `reference_cheater` | broken | solves for storage as whatever balances the budget | caught by `state_bounds` |
 | `reference_degenerate` | broken | evaporates all precipitation, produces no runoff | caught by `non_degenerate`, `response_sign` |
@@ -289,8 +303,8 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Fourteen probes, twelve mass, one energy, one momentum, synthetic track only. Energy,
-momentum and the real-data track are next. The harness runs paired cases and
+Suite `0.1.0`, pre-release. Sixteen probes, twelve mass, three energy, one momentum, synthetic track only. More
+energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes, so the generalisation probes on the roadmap —
 extrapolation in space and time, counterfactual response, invariance — are
 unblocked and unclaimed. Scores are only comparable within a suite version.

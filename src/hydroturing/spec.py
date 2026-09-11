@@ -18,9 +18,13 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_DIR = REPO_ROOT / "schemas"
 
-# Canonical variable names. Fluxes are mm per timestep-day; states are mm.
-# `dis` is the one exception and is m3 s-1, because that is what models report.
-FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex")
+# Canonical variable names. Water fluxes are mm per timestep-day; states are
+# mm. `dis` is m3 s-1, because that is what models report. The surface energy
+# fluxes are W m-2, positive away from the surface for the turbulent terms and
+# positive into the ground for `hfg`, which is the surface energy budget's
+# storage term: a model that reports it does not also need an energy state.
+# `sbl` is a component of `evspsbl`, never an addition to it.
+FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "sbl", "hfls", "hfss", "hfg")
 STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
 
 UNITS = {
@@ -29,6 +33,13 @@ UNITS = {
     "mrro": "mm day-1",
     "dis": "m3 s-1",
     "gwex": "mm day-1",
+    # The sublimating share of `evspsbl`, not a flux in addition to it. A model
+    # that reports it is stating which part of its evaporation left the surface
+    # as ice, which is the only way a criterion can know without guessing.
+    "sbl": "mm day-1",
+    "hfls": "W m-2",
+    "hfss": "W m-2",
+    "hfg": "W m-2",
     "mrso": "mm",
     "snw": "mm",
     "canopy": "mm",
@@ -60,6 +71,12 @@ FULL_WINDOW = "full"
 # container boundary. A submitted manifest cannot opt itself into host access.
 TRUSTED_SUBPROCESS_MODELS = {
     "reference_bucket",
+    "reference_coupled",
+    "reference_two_head",
+    "reference_constant_lambda",
+    "reference_sublimation_blind",
+    "reference_ground_dodge",
+    "reference_energy_leak",
     "reference_calendar",
     "reference_cheater",
     "reference_degenerate",

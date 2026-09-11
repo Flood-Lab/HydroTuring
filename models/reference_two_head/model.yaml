@@ -1,0 +1,20 @@
+name: reference_two_head
+version: "1.0.0"
+description: >
+  The honest caricature of a model with a water head and an energy head that
+  never have to agree. The water side is exactly reference_coupled. The
+  energy side partitions net radiation by a fixed climatological evaporative
+  fraction and never reads the soil. Both budgets close to floating point;
+  the latent heat it reports implies an evaporation it never reported.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D]
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet, rn]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

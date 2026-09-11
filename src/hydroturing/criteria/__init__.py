@@ -15,6 +15,7 @@ from hydroturing.criteria.base import (  # noqa: F401
 from hydroturing.criteria import (  # noqa: F401,E402
     closure,
     bounds,
+    coherence,
     degeneracy,
     limits,
     regime,

@@ -124,6 +124,10 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `mrro` | total runoff | mm/day |
 | `dis` | river discharge | m3/s |
 | `gwex` | a declared exchange with the outside: regional groundwater, inter-basin transfer; positive into the catchment | mm/day |
+| `sbl` | the sublimating share of `evspsbl`: a component of it, never an addition; report it if the model knows which kilograms left as ice | mm/day |
+| `hfls` | latent heat flux, positive away from the surface | W/m2 |
+| `hfss` | sensible heat flux, positive away from the surface | W/m2 |
+| `hfg` | ground heat flux, positive into the ground; the storage term of the surface energy budget, so no energy state is needed | W/m2 |
 | `mrso` | soil water storage | mm |
 | `snw` | snow water equivalent | mm |
 | `canopy` | canopy interception storage | mm |
@@ -195,3 +199,43 @@ manifest.
 standard library alone. Copy its structure. The model-specific part is the
 `simulate` function; everything around it is contract plumbing that does not
 change.
+
+## When a probe or a model merges: what has to move with it
+
+This section is for whoever lands the pull request, human or agent. The
+harness discovers a probe from its directory and a model from its manifest,
+but six other places describe the suite in prose and none of them are
+generated. `tests/test_docs_in_sync.py` fails when any of them is behind,
+and the probe workflow runs it on every pull request, so a merge that skips
+this list is caught before it lands rather than noticed a week later.
+
+For a merged probe:
+
+1. `README.md`: a row in the probes table, and a row in the reference-models
+   table for every reference model the probe adds. If the probe requires a
+   variable the physical models do not report, their standing changes from
+   "PASS, N of N" to "N of N+1, INCOMPLETE on ..." and the sentence above the
+   table that says what they must pass changes with it.
+2. `CONTRIBUTORS.md`: a row in the probes table naming the author. A merged
+   probe earns co-authorship, so this row is the record of that.
+3. `ROADMAP.md`: the entry moves from unclaimed to `**merged**`, under the
+   id the probe actually took, with the author named. Rewrite the paragraph
+   above it if it counted the unclaimed entries.
+4. `site/index.html`, three times, once per language block: the row in
+   `probes.rows` moves from the wanted block to the merged block under its
+   real id; every `N / M` in `models.rows` takes the new probe count; the
+   flowchart under "How it works" gains a labelled entry in the right pillar,
+   with an `infra.probe.<key>` translation in each language, measured against
+   the pillar's width. The badge count is generated and needs nothing.
+5. `models/result.csv`: one row per evaluated model on the new probe, written
+   by `ht run --model <name> --probe <id> --gate-seeds --csv models/result.csv`
+   rather than by hand. INCOMPLETE is a verdict and is archived like any
+   other.
+6. This file, if the probe introduced a variable: a row in the table above.
+   `spec.py` accepts the name the moment it is in `FLUX_VARS`; nothing tells
+   an adapter author it exists except this table.
+
+For a merged model: the README models table, the CONTRIBUTORS models table,
+the site's `models.rows` in all three languages, and the archive rows from
+`ht run` on every probe. The pages workflow redeploys the site on any push
+that touches `site/`, `probes/` or `models/`.

@@ -214,7 +214,7 @@ Snow-17, the operational model, ported from its Fortran. They are what calibrate
 tolerance: the resolution probe's limit was moved from 5 to 10 percent when
 FLEX-Topo, exactly conservative, moved 5.1 percent between an hourly and a
 daily step because its partition answers intensity. A probe pull request is
-run against these three before anything else. `must_fail` pins which criterion does
+run against these four before anything else. `must_fail` pins which criterion does
 the catching, so a probe cannot appear to work while catching things for the
 wrong reason.
 
@@ -243,6 +243,12 @@ The reference models available today:
 | `reference_sublimating` | loses 40% of every snowfall unreported | `phase_invariance` |
 | `reference_thirsty` | evaporates a fixed share of its soil store whatever the demand | `demand_consistency` |
 | `reference_stuck_router` | a routing kernel summing to 0.9 | `routing_conservation` |
+| `reference_coupled` | the bucket with snow sublimation and a surface energy budget; every kilogram converted at the latent heat of the phase it actually underwent | nothing, it must pass the energy probes |
+| `reference_two_head` | a water head and an energy head that never meet; both budgets close and the latent heat implies an evaporation it never reported | `flux_identity`, `partition_shift` |
+| `reference_constant_lambda` | converts every kilogram at one latent heat of vaporisation | `flux_identity` |
+| `reference_sublimation_blind` | converts snow sublimation at the latent heat of vaporisation instead of sublimation | `flux_identity` |
+| `reference_energy_leak` | discards 15% of net radiation | `energy_closure` |
+| `reference_ground_dodge` | coherent and closed, but its sensible flux never reads the soil, so the ground flux absorbs a drydown's whole shift | `partition_shift` |
 
 If your probe needs a broken model that does not exist yet, add it under
 `models/` alongside the probe. A criterion with nothing that trips it is

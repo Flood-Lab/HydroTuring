@@ -1,0 +1,23 @@
+name: reference_coupled
+version: "1.0.0"
+description: >
+  The bucket of reference_bucket with snow sublimation and a surface energy
+  budget. Every kilogram of water that leaves the surface is converted to
+  latent heat at the latent heat of the phase change it actually underwent,
+  so the water budget, the energy budget and the identity between them all
+  hold by construction. It is the model every criterion of
+  energy/latent-heat-et-consistency must pass. If it ever fails one, the
+  criterion has drifted past what exact physics achieves and the criterion
+  is wrong rather than the model.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D]
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet, rn]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
