@@ -1,8 +1,10 @@
 """Report rendering. One machine-readable artifact, one human-readable table.
 
-The verdict is a single bit, as designed. Everything under it stays
-quantitative so that a paper can show progress before anyone crosses the
-line, and so a failing model's author can see where the budget went.
+A scored verdict is a single bit, as designed, and a probe that could not be
+put to the model is N/A rather than either value. Everything under the
+verdict stays quantitative so that a paper can show progress before anyone
+crosses the line, and so a failing model's author can see where the budget
+went.
 """
 
 from __future__ import annotations
@@ -15,11 +17,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from hydroturing.scoring import ModelReport, ProbeOutcome
+from hydroturing.scoring import (
+    ERROR,
+    FAIL,
+    INCOMPATIBLE,
+    NOT_SCORED,
+    OK,
+    PASS,
+    ModelReport,
+    ProbeOutcome,
+)
 
-PASS_MARK, FAIL_MARK = "\u2705", "\u274c"
+PASS_MARK, FAIL_MARK, NOT_SCORED_MARK = "\u2705", "\u274c", "\u2796"
 # Same width as each other, so columns line up whichever set is in use.
-ASCII_PASS, ASCII_FAIL = "ok  ", "FAIL"
+ASCII_PASS, ASCII_FAIL, ASCII_NOT_SCORED = "ok  ", "FAIL", "n/a "
 
 
 def use_emoji() -> bool:
@@ -41,11 +52,22 @@ def use_emoji() -> bool:
     return True
 
 
-def mark(passed: bool) -> str:
-    """The pass or fail marker, for a column that carries no word of its own."""
+def mark(passed: bool | None) -> str:
+    """The pass or fail marker, for a column that carries no word of its own.
+
+    None marks a probe that was never put to the model, which neither passed
+    nor failed.
+    """
+    if passed is None:
+        return NOT_SCORED_MARK if use_emoji() else ASCII_NOT_SCORED
     if use_emoji():
         return PASS_MARK if passed else FAIL_MARK
     return ASCII_PASS if passed else ASCII_FAIL
+
+
+def _passed(verdict: str) -> bool | None:
+    """A verdict as `mark` reads it, N/A being neither."""
+    return None if verdict == NOT_SCORED else verdict == PASS
 
 
 def verdict_label(verdict: str, pad: int = 0) -> str:
@@ -53,14 +75,15 @@ def verdict_label(verdict: str, pad: int = 0) -> str:
 
     Without emoji the marker and the word are the same word, and `FAIL FAIL`
     helps nobody, so the mark is dropped rather than doubled. `pad` widens the
-    word, not the label: PASS and FAIL are the same length, so padding the word
-    is what keeps the column after it straight in either alphabet.
+    word, not the label: PASS and FAIL are the same length and N/A is one
+    shorter, so padding the word is what keeps the column after it straight in
+    either alphabet.
     """
     word = f"{verdict:<{pad}}" if pad else verdict
-    return f"{mark(verdict == 'PASS')} {word}" if use_emoji() else word
+    return f"{mark(_passed(verdict))} {word}" if use_emoji() else word
 
 
-def prefix(passed: bool) -> str:
+def prefix(passed: bool | None) -> str:
     """A leading mark for a line that already states the outcome in words."""
     return f"{mark(passed)} " if use_emoji() else ""
 
@@ -129,7 +152,7 @@ def to_markdown(report: ModelReport) -> str:
     lines = [
         f"### HydroTuring `{report.model_name}` v{report.model_version}",
         "",
-        f"{prefix(report.verdict == 'PASS')}**{report.verdict}** ({report.reason}) "
+        f"{prefix(_passed(report.verdict))}**{report.verdict}** ({report.reason}) "
         f"&middot; {report.summary} &middot; suite {report.suite_version}",
         "",
         "| Probe | Verdict | Reason | Window | Detail |",
@@ -145,7 +168,11 @@ def to_markdown(report: ModelReport) -> str:
         lines += ["", "Flags: " + ", ".join(f"`{f}`" for f in report.flags)]
     lines += [
         "",
-        "A model passes HydroTuring only when every criterion of every probe passes.",
+        (
+            "A model passes HydroTuring only when every criterion of every probe that "
+            "could be put to it passes. A probe it does not report enough for, or "
+            "cannot consume, is N/A and counts neither way."
+        ),
     ]
     return "\n".join(lines)
 
@@ -245,23 +272,30 @@ def contract_row(
     *,
     result=None,
     error: str | None = None,
+    incompatible: list[str] | None = None,
     run_date: str | None = None,
 ) -> dict[str, str]:
     """The adapter contract check as one archive row.
 
     For a model that reports only discharge this is the only line saying
-    that it was actually built and run: its scientific verdict is INCOMPLETE
-    before the container is ever started.
+    that it was actually built and run on a budget probe: that probe is
+    N/A (INCOMPLETE) before the container is ever started.
+
+    A check on a probe the model cannot consume is N/A (INCOMPATIBLE), not
+    an ERROR: the adapter was never invoked, and the row says why.
     """
     run_date = run_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     if error is not None:
-        verdict, reason, window, detail = "FAIL", "ERROR", "not run", error.splitlines()[0][:160]
+        verdict, reason, window, detail = FAIL, ERROR, "not run", error.splitlines()[0][:160]
+    elif incompatible:
+        verdict, reason, window = NOT_SCORED, INCOMPATIBLE, "not run"
+        detail = "; ".join(incompatible)[:400]
     else:
         case = result.case
         window = (
             f"{case.window['days']}-day flood event" if case.window else "full record"
         )
-        verdict, reason = "PASS", "OK"
+        verdict, reason = PASS, OK
         detail = (
             f"adapter contract OK: {len(result.table)} rows in {result.wall_seconds:.1f}s, "
             f"columns {', '.join(c for c in result.table.columns if c != 'time')}"

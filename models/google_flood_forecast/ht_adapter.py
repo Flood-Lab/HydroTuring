@@ -6,7 +6,7 @@ The model is the mean-embedding forecast LSTM behind Google Flood Hub
 2024, Nature), run through the open-source OpenHydroNet package with the
 published `google-floodhub-settings-55-epochs` weights. It predicts
 streamflow and nothing else, so it is declared as `mrro` plus `dis` and is
-scored INCOMPLETE on any budget probe. This adapter exists so that the
+N/A (INCOMPLETE) on any budget probe. This adapter exists so that the
 discharge it produces is available to probes that can use it, and so that
 the model is run as it is operated rather than approximated.
 

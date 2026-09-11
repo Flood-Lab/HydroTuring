@@ -21,7 +21,7 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-03,reference_calendar,1.0.0,0.1.0,subprocess,mass/catchment-closure,PASS,OK,full record,598896396 1105848510 1612800624 2119752738 479221205,residual 0.000% of driver
 2026-09-03,reference_calendar,1.0.0,0.1.0,subprocess,mass/resolution-invariance,FAIL,VIOLATION,full record,746687816 1253639930 1760592044,resolution_invariance: mrso_end differs by 48.7% of pr between PT1H and PT1D (limit 5%)
 2026-09-03,reference_streamflow_only,1.0.0,0.1.0,subprocess,mass/catchment-closure (adapter contract),PASS,OK,full record,598896396,"adapter contract OK: 4015 rows in 0.0s, columns mrro, dis"
-2026-09-03,reference_streamflow_only,1.0.0,0.1.0,subprocess,mass/catchment-closure,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
+2026-09-03,reference_streamflow_only,1.0.0,0.1.0,subprocess,mass/catchment-closure,N/A,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
 2026-09-03,reference_streamflow_only,1.0.0,0.1.0,subprocess,mass/resolution-invariance,FAIL,VIOLATION,full record,746687816 1253639930 1760592044,resolution_invariance: mrro differs by 18.1% of pr between PT1H and PT1D (limit 5%)
 2026-09-04,reference_bucket,1.0.0,0.1.0,subprocess,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
 2026-09-04,reference_fixed_step,1.0.0,0.1.0,subprocess,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
@@ -80,7 +80,7 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-04,reference_saturating,1.0.0,0.1.0,subprocess,mass/dry-down,PASS,OK,full record,186927550 693879664 1200831778,all criteria pass
 2026-09-04,reference_restless,1.0.0,0.1.0,subprocess,mass/dry-down,FAIL,VIOLATION,full record,186927550 693879664 1200831778,dry_down: mrro rose by 17.6% of its post-lag level between 7-day blocks 3 and 4 with no rain to raise it
 2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,30-day flood event,598896396,"adapter contract OK: 395 rows in 18.7s, columns mrro, dis"
-2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/catchment-closure,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
+2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/catchment-closure,N/A,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
 2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/resolution-invariance,FAIL,VIOLATION,30-day flood event,746687816 1253639930 1760592044,resolution_invariance: mrro differs by 65.9% of pr between PT1H and PT1D (limit 5%)
 2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/warming-response,FAIL,VIOLATION,365-day flood event,732983943 1239936057 1746888171 106356638 613308752,"response_sign: warmer (more pet): mrro fell by 12.5 mm, -0.088 per unit of demand; a decrease of at least 0.1 per unit is expected"
 2026-09-04,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/causality,PASS,OK,730-day flood event,1016628858 1523580972 2030533086,all criteria pass
@@ -118,9 +118,9 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-06,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
 2026-09-06,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,all criteria pass
 2026-09-06,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/runoff-bounds,PASS,OK,full record,726751959 1233704073 1740656187 100124654 607076768,all criteria pass
-2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,energy/pet-consistency,FAIL,INCOMPLETE,not run,,"does not report evspsbl, mrso"
+2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,energy/pet-consistency,N/A,INCOMPLETE,not run,,"does not report evspsbl, mrso"
 2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/area-invariance,PASS,OK,365-day flood event,66780378 573732492 1080684606,all criteria pass
-2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/catchment-closure,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
+2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/catchment-closure,N/A,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
 2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/causality,PASS,OK,730-day flood event,1016628858 1523580972 2030533086,all criteria pass
 2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/dry-down,FAIL,VIOLATION,730-day flood event,186927550 693879664 1200831778,non_degenerate: mrro is nearly constant (cv 0.0192 < 0.1)
 2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/extreme-rain,FAIL,VIOLATION,1095-day flood event,154098211 661050325 1168002439,monotone_response: scaling the storm to 'x10' added 526 mm of rain and only 35 mm of mrro (0.07); a catchment cannot absorb that much
@@ -130,7 +130,7 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/runoff-bounds,PASS,OK,3650-day flood event,726751959 1233704073 1740656187 100124654 607076768,all criteria pass
 2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/steady-state,PASS,OK,1095-day flood event,1815845244 175313711 682265825,all criteria pass
 2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/warming-response,FAIL,VIOLATION,365-day flood event,732983943 1239936057 1746888171 106356638 613308752,"response_sign: warmer (more pet): mrro fell by 12.5 mm, -0.088 per unit of demand; a decrease of at least 0.1 per unit is expected"
-2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,momentum/routing-conservation,FAIL,INCOMPLETE,not run,,does not report channel
+2026-09-06,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,momentum/routing-conservation,N/A,INCOMPLETE,not run,,does not report channel
 2026-09-07,flex_lumped,1.0.0,0.1.0,subprocess,energy/pet-consistency,PASS,OK,full record,770619041 1277571155 1784523269,all criteria pass
 2026-09-07,flex_lumped,1.0.0,0.1.0,subprocess,mass/area-invariance,PASS,OK,full record,66780378 573732492 1080684606,all criteria pass
 2026-09-07,flex_lumped,1.0.0,0.1.0,subprocess,mass/catchment-closure,PASS,OK,full record,598896396 1105848510 1612800624 2119752738 479221205,residual 0.000% of driver
@@ -170,37 +170,37 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-07,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/steady-state,PASS,OK,full record,1815845244 175313711 682265825,all criteria pass
 2026-09-07,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
 2026-09-07,sacsma_snow17,1.0.0,0.1.0,subprocess,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,all criteria pass
-2026-09-09,reference_bucket,1.0.0,0.1.0,subprocess,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-09,flex_lumped,1.0.0,0.1.0,subprocess,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-09,flex_topo,1.0.0,0.1.0,subprocess,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-09,sacsma_snow17,1.0.0,0.1.0,subprocess,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-09,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-09,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, hfls, hfss, hfg, mrso, snw, canopy"
-2026-09-09,flex_lumped,1.0.0,0.1.0,subprocess,energy/evaporative-partition,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-09,flex_topo,1.0.0,0.1.0,subprocess,energy/evaporative-partition,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-09,sacsma_snow17,1.0.0,0.1.0,subprocess,energy/evaporative-partition,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-09,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,energy/evaporative-partition,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-09,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,energy/evaporative-partition,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, hfls, hfss, hfg, mrso, snw, canopy"
+2026-09-09,reference_bucket,1.0.0,0.1.0,subprocess,energy/latent-heat-et-consistency,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-09,flex_lumped,1.0.0,0.1.0,subprocess,energy/latent-heat-et-consistency,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-09,flex_topo,1.0.0,0.1.0,subprocess,energy/latent-heat-et-consistency,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-09,sacsma_snow17,1.0.0,0.1.0,subprocess,energy/latent-heat-et-consistency,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-09,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,energy/latent-heat-et-consistency,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-09,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,energy/latent-heat-et-consistency,N/A,INCOMPLETE,not run,,"does not report pr, evspsbl, hfls, hfss, hfg, mrso, snw, canopy"
+2026-09-09,flex_lumped,1.0.0,0.1.0,subprocess,energy/evaporative-partition,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-09,flex_topo,1.0.0,0.1.0,subprocess,energy/evaporative-partition,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-09,sacsma_snow17,1.0.0,0.1.0,subprocess,energy/evaporative-partition,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-09,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,energy/evaporative-partition,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-09,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,energy/evaporative-partition,N/A,INCOMPLETE,not run,,"does not report pr, evspsbl, hfls, hfss, hfg, mrso, snw, canopy"
 2026-09-11,flex_lumped,1.0.0,0.1.0,subprocess,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.000% of driver
 2026-09-11,flex_topo,1.0.0,0.1.0,subprocess,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.000% of driver
 2026-09-11,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.000% of driver
-2026-09-11,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/time-origin-invariance,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
+2026-09-11,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/time-origin-invariance,N/A,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
 2026-09-11,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.000% of driver
-2026-09-10,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H"
-2026-09-10,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H"
-2026-09-10,flex_lumped,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-10,flex_topo,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-10,sacsma_snow17,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-10,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H"
+2026-09-10,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H"
+2026-09-10,flex_lumped,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-10,flex_topo,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-10,sacsma_snow17,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
 2026-09-11,flex_lumped,1.0.0,0.1.0,subprocess,mass/precipitation-counterfactual,PASS,OK,full record,872466880 1379418994 1886371108,residual 0.000% of driver
 2026-09-11,flex_topo,1.0.0,0.1.0,subprocess,mass/precipitation-counterfactual,PASS,OK,full record,872466880 1379418994 1886371108,residual 0.000% of driver
 2026-09-11,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/precipitation-counterfactual,PASS,OK,full record,872466880 1379418994 1886371108,residual 0.000% of driver
-2026-09-11,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/precipitation-counterfactual,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
+2026-09-11,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/precipitation-counterfactual,N/A,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
 2026-09-11,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/precipitation-counterfactual,FAIL,VIOLATION,full record,872466880 1379418994 1886371108,"state_bounds: mrso leaves [0, 320] on 3650 steps (range 600 to 805)"
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,full record,598896396,"adapter contract OK: 4015 rows in 5.5s, columns pr, evspsbl, mrro, dis, gwex, mrso, snw, canopy, gw, channel"
-2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,energy/evaporative-partition,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,energy/evaporative-partition,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,energy/latent-heat-et-consistency,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,energy/pet-consistency,PASS,OK,full record,770619041 1277571155 1784523269,all criteria pass
-2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,mass/area-invariance,PASS,OK,full record,66780378 573732492 1080684606,all criteria pass
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,mass/catchment-closure,PASS,OK,full record,598896396 1105848510 1612800624 2119752738 479221205,residual 0.021% of driver
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
@@ -224,7 +224,7 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-11,flex_lumped,1.0.0,0.1.0,subprocess,mass/human-abstraction,PASS,OK,full record,1129545695 1636497809 2143449923,residual 0.000% of driver
 2026-09-11,flex_topo,1.0.0,0.1.0,subprocess,mass/human-abstraction,PASS,OK,full record,1129545695 1636497809 2143449923,residual 0.000% of driver
 2026-09-11,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/human-abstraction,PASS,OK,full record,1129545695 1636497809 2143449923,residual 0.000% of driver
-2026-09-11,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/human-abstraction,FAIL,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
+2026-09-11,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/human-abstraction,N/A,INCOMPLETE,not run,,"does not report pr, evspsbl, mrso, snw, canopy"
 2026-09-11,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/human-abstraction,FAIL,VIOLATION,full record,1129545695 1636497809 2143449923,"human_abstraction: of the prescribed 380 mm of abstr, the budget difference accounts for all but +380.0 mm (100.00%, limit 5%): evspsbl +0.0 mm, mrro +0.0 mm, storage +0.0 mm; state_bounds: mrso leaves [0, 320] on 3650 steps (range 526 to 735)"
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,mass/human-abstraction,FAIL,VIOLATION,full record,1129545695 1636497809 2143449923,"human_abstraction: of the prescribed 380 mm of abstr, the budget difference accounts for all but +380.0 mm (100.00%, limit 5.00%): evspsbl +0.0 mm, mrro +0.0 mm, storage +0.0 mm"
 2026-09-11,summa,4.0.0-f787fa5.4,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,full record,598896396,"adapter contract OK: 4015 rows in 10.8s, columns pr, evspsbl, mrro, hfls, hfss, hfg, mrso, snw, canopy, gw, channel"
