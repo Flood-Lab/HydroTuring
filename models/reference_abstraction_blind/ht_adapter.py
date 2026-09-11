@@ -10,9 +10,9 @@ import json
 import sys
 from pathlib import Path
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "gwex", "mrso", "snw", "canopy", "channel"]
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso", "snw", "canopy", "channel"]
 
-MODEL = {"name": "reference_bucket", "version": "1.0.0"}
+MODEL = {"name": "reference_abstraction_blind", "version": "1.0.0"}
 
 
 EVAP_SHAPE = 0.5  # soil moisture at which evaporation reaches its potential rate
@@ -41,12 +41,6 @@ def simulate(forcing, static, dt_days=1.0):
     catchment integrates the same water whatever step the weather arrives
     at. At a daily step every factor is exactly 1.0 and the arithmetic is
     bit for bit what it was before the step was a parameter.
-
-    When the forcing carries an `abstr` column (mm/day, net of return flow),
-    the prescribed withdrawal is taken from the soil store first and any
-    remainder from the day's runoff before it leaves, and whatever was
-    actually removed is declared as a negative `gwex`. Absent the column the
-    model is bit for bit the original bucket.
     """
     soil_cap = static["soil_capacity_mm"]
     canopy_cap = static["canopy_capacity_mm"]
@@ -61,14 +55,8 @@ def simulate(forcing, static, dt_days=1.0):
 
     for step in forcing:
         pr_rate, tas, pet_rate = step["pr"], step["tas"], step["pet"]
-        abstr_rate = step.get("abstr", 0.0)
         pr = pr_rate * dt_days
         pet = pet_rate * dt_days
-
-        # The human term, first call on the store.
-        want = max(abstr_rate, 0.0) * dt_days
-        removed = min(soil, want)
-        soil -= removed
 
         snowfall = pr if tas < t_snow else 0.0
         rain = 0.0 if tas < t_snow else pr
@@ -94,22 +82,11 @@ def simulate(forcing, static, dt_days=1.0):
         soil_evap = min(soil, pet_left * min(1.0, soil / (EVAP_SHAPE * soil_cap)))
         soil -= soil_evap
 
-        # The human term, second call: the day's outflow.
-        rest = want - removed
-        divert = min(surface, rest)
-        surface -= divert
-        removed += divert
-        rest -= divert
-        divert = min(baseflow, rest)
-        baseflow -= divert
-        removed += divert
-
         rows.append({
             "time": step["time"],
             "pr": pr_rate,
             "evspsbl": (canopy_evap + soil_evap) / dt_days,
             "mrro": (surface + baseflow) / dt_days,
-            "gwex": -removed / dt_days,
             "mrso": soil,
             "snw": swe,
             "canopy": canopy,
@@ -129,7 +106,7 @@ def read_forcing(path: Path) -> list[dict]:
     with open(path, newline="") as fh:
         rows = list(csv.DictReader(fh))
     for row in rows:
-        for key in ("pr", "tas", "pet", "abstr"):
+        for key in ("pr", "tas", "pet"):
             if key in row:
                 row[key] = float(row[key])
     return rows

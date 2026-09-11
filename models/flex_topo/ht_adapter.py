@@ -58,7 +58,7 @@ import json
 import sys
 from pathlib import Path
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso", "snw", "canopy", "gw", "channel"]
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 MODEL = {"name": "flex_topo", "version": "1.0.0"}
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0, "PT15M": 1.0 / 96.0, "PT5M": 1.0 / 288.0, "PT1M": 1.0 / 1440.0}
 
@@ -138,6 +138,19 @@ def simulate(forcing: list[dict], static: dict, dt: float) -> list[dict]:
         P = pr_rate * dt
         Ep = pet_rate * dt
 
+        # The human term, first call on the stores: a prescribed withdrawal
+        # (`abstr`, mm/day net of return flow) is taken across the three
+        # units' unsaturated stores in proportion to their area-weighted
+        # water, so the reported (area-weighted) soil depth falls by exactly
+        # what was removed. Absent the column nothing changes.
+        want = max(step.get("abstr", 0.0), 0.0) * dt
+        total_su = sum(frac[n_] * su[n_] for n_ in units)
+        take_su = min(total_su, want)
+        if total_su > 0.0:
+            for n_ in units:
+                su[n_] -= (su[n_] / total_su) * take_su
+        removed = take_su
+
         evap = 0.0
         fast_out = 0.0
         to_slow = 0.0
@@ -200,6 +213,16 @@ def simulate(forcing: list[dict], static: dict, dt: float) -> list[dict]:
         qs = min(catchment["Ks"] * ss, ss)
         ss -= qs
 
+        # The human term, second call: the day's generated runoff.
+        rest = want - removed
+        take = min(fast_out, rest)
+        fast_out -= take
+        removed += take
+        rest -= take
+        take = min(qs, rest)
+        qs -= take
+        removed += take
+
         generated.append(qs + fast_out)
         n = len(generated)
         routed = sum(weights[k] * generated[n - 1 - k] for k in range(min(len(weights), n)))
@@ -208,6 +231,7 @@ def simulate(forcing: list[dict], static: dict, dt: float) -> list[dict]:
             "pr": pr_rate,
             "evspsbl": evap / dt,
             "mrro": routed / dt,
+            "gwex": -removed / dt,
             "mrso": sum(frac[n_] * su[n_] for n_ in units),
             "snw": 0.0,
             "canopy": sum(frac[n_] * si[n_] for n_ in units),
@@ -227,7 +251,7 @@ def read_forcing(path: Path) -> list[dict]:
     with open(path, newline="") as fh:
         rows = list(csv.DictReader(fh))
     for row in rows:
-        for key in ("pr", "tas", "pet"):
+        for key in ("pr", "tas", "pet", "abstr"):
             if key in row:
                 row[key] = float(row[key])
     return rows

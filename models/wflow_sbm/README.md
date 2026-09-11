@@ -167,7 +167,7 @@ case on the full record (`window_days: full`).
 | `energy/latent-heat-et-consistency` | FAIL | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
 | `energy/pet-consistency` | PASS | OK | evaporation 0.96 of demand when the soil is wettest, 0.15 when driest |
 | `energy/surface-energy-closure` | FAIL | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
-| `mass/antecedent-monotonicity` | FAIL | VIOLATION | a wet month before the storm adds no runoff (−0.0011 and −0.0010 of the storm on 2 of 3 seeds) |
+| `mass/antecedent-monotonicity` | FAIL | VIOLATION | a wet month before the storm adds almost no runoff (0.0013 and 0.0005 of the storm on 2 of 3 seeds, where 0.02 is asked) |
 | `mass/area-invariance` | PASS | OK | identical to floating point at ten times the area |
 | `mass/catchment-closure` | PASS | OK | residual 1.8e-4 to 2.1e-4 of the rain; runoff ratio 0.45 to 0.52; ET 0.53 to 0.63 of demand |
 | `mass/causality` | PASS | OK | identical to floating point before the storm; 1.00 of it runs off after |
@@ -225,8 +225,8 @@ that mapping rather than about SBM alone.
 
 **`mass/antecedent-monotonicity`.** The generator puts a 60 mm storm on 19 July. In the wet
 variant 120 mm falls over the 20 days before 9 July, then both variants have ten dry days
-before the storm. The criterion counts its month from 9 July, the start of the dry days, so the
-"storm" it reports is the 60 mm plus the rain of the following weeks (71 and 89 mm).
+before the storm. The criterion counts its month from the storm and takes the share against
+the 60 mm itself.
 
 On the two failing seeds, 1295520324 and, in brackets, 1802472438:
 - On 18 July the wet column holds 220.5 mm against the dry column's 218.2 mm (226.8 against
@@ -239,20 +239,22 @@ On the two failing seeds, 1295520324 and, in brackets, 1802472438:
   both runs are drained down to it.
 - The storm lifts both to 273 to 282 mm, far from the 320 mm at which SBM makes
   saturation-excess runoff. Over the 30 days from the storm they run off 1.70 against 1.63 mm
-  (1.44 against 1.41 mm). Over the criterion's month from 9 July the wet run returns 1.57
-  against 1.64 mm (1.46 against 1.55 mm).
+  (1.44 against 1.41 mm): 0.0013 (0.0005) of the storm, where the probe asks for 0.02. The
+  −0.0011 and −0.0010 first reported here came from a criterion that opened its month on 9 July,
+  where the wet run returns 1.57 against 1.64 mm (1.46 against 1.55 mm); #35 corrected it.
 
 The third seed passes because its wet column arrives 57 mm wetter (276.5 against 219.1 mm),
 and 17.4 and 25.3 mm more rain fall within the next nine days. That saturates it (318.8 mm) and
-returns 40 mm more.
+returns 37.5 mm more, 0.62 of the storm.
 
 The verdict holds under every mapping tried, but whether a storm crosses the threshold depends
 on where the mapping puts that evaporation floor against the stated capacity:
 - With the Moselle model's own 2000 mm soil thickness and θs lowered to keep the 320 mm
   capacity, the floor rises to (2000 − 387) × 0.16 = 258 mm. The wet column on the second seed
-  then reaches 319.1 mm, returns 0.026 of the storm, and that seed passes.
+  then reaches 319.1 mm, returns 0.038 of the storm, and that seed passes.
 - With roots through 99 % of the column there is no floor. The wet column arrives 100 mm wetter
-  but still far from saturation, and the two seeds still fail (0.0009 and 0.016).
+  but still far from saturation; the first seed still fails (0.0000) and the second clears the
+  bound by a hair (0.020).
 
 **`mass/dry-down`.** Two of the three seeds drain 38 and 45 mm against a 322 mm bound and
 never rise. On seed 1200831778:
@@ -317,10 +319,10 @@ over the preceding 30 days is 0.00001 mm/day, and the channel still holds a 0.00
 
 | Setting | | | |
 | --- | --- | --- | --- |
-| as shipped (ht.2) | −0.0011 | −0.0010 | 0.337 |
-| ht.1 geometry | −0.00005 | 0.0007 | 0.354 |
-| roots 0.99 × thickness | 0.0009 | 0.016 | 0.022 |
-| Moselle thickness | 0.0017 | 0.026 (pass) | 0.205 |
+| as shipped (ht.2) | 0.0013 | 0.0005 | 0.624 |
+| ht.1 geometry | 0.00004 | 0.0010 | 0.663 |
+| roots 0.99 × thickness | 0.0000 | 0.020 (pass) | 0.067 |
+| Moselle thickness | 0.0029 | 0.038 (pass) | 0.336 |
 
 `mass/dry-down`, seeds 186927550, 693879664, 1200831778 (a weekly rise may not exceed 2 %,
 runoff cv must reach 0.1):

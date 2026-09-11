@@ -39,3 +39,8 @@ scaled to the catchment's soil capacity keeping their ratios and every
 Reports area-weighted `canopy`, `mrso`, `gw` (the shared slow reservoir)
 and `channel` (fast reservoirs plus water in the lag). No snow module:
 `snw` is identically zero.
+
+With a prescribed human withdrawal in the forcing (`abstr`), the adapter takes
+it from the three units' unsaturated stores in proportion to their
+area-weighted water and then from the day's runoff, and declares what it
+removed as a negative `gwex`; absent the column it is unchanged.

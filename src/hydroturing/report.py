@@ -287,7 +287,9 @@ def append_csv_rows(rows: list[dict[str, str]], path: str | Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     is_new = not path.exists() or path.stat().st_size == 0
     with open(path, "a", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=CSV_COLUMNS)
+        # The csv module ends rows in \r\n on every platform unless told
+        # otherwise, and the archive is committed as LF text.
+        writer = csv.DictWriter(fh, fieldnames=CSV_COLUMNS, lineterminator="\n")
         if is_new:
             writer.writeheader()
         writer.writerows(rows)

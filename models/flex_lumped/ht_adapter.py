@@ -37,7 +37,7 @@ import json
 import sys
 from pathlib import Path
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso", "snw", "canopy", "gw", "channel"]
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 MODEL = {"name": "flex_lumped", "version": "1.0.0"}
 
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0, "PT15M": 1.0 / 96.0, "PT5M": 1.0 / 288.0, "PT1M": 1.0 / 1440.0}
@@ -101,6 +101,14 @@ def simulate(forcing: list[dict], static: dict, dt: float) -> list[dict]:
         P = pr_rate * dt
         Ep = pet_rate * dt
 
+        # The human term, first call on the store: a prescribed withdrawal
+        # (`abstr`, mm/day net of return flow) is taken from the unsaturated
+        # store, and whatever the store cannot supply later from the day's
+        # generated runoff. Absent the column nothing changes.
+        want = max(step.get("abstr", 0.0), 0.0) * dt
+        removed = min(su, want)
+        su -= removed
+
         # Interception store; evaporation from it only on rainless steps.
         if P > 0.0:
             si += P
@@ -138,6 +146,16 @@ def simulate(forcing: list[dict], static: dict, dt: float) -> list[dict]:
         qs = min(ks * ss, ss)
         ss -= qs
 
+        # The human term, second call: the day's generated runoff.
+        rest = want - removed
+        take = min(qf, rest)
+        qf -= take
+        removed += take
+        rest -= take
+        take = min(qs, rest)
+        qs -= take
+        removed += take
+
         generated.append(qf + qs)
         n = len(generated)
         routed = sum(weights[k] * generated[n - 1 - k] for k in range(min(len(weights), n)))
@@ -147,6 +165,7 @@ def simulate(forcing: list[dict], static: dict, dt: float) -> list[dict]:
             "pr": pr_rate,
             "evspsbl": (ei + ea) / dt,
             "mrro": routed / dt,
+            "gwex": -removed / dt,
             "mrso": su,
             "snw": 0.0,
             "canopy": si,
@@ -167,7 +186,7 @@ def read_forcing(path: Path) -> list[dict]:
     with open(path, newline="") as fh:
         rows = list(csv.DictReader(fh))
     for row in rows:
-        for key in ("pr", "tas", "pet"):
+        for key in ("pr", "tas", "pet", "abstr"):
             if key in row:
                 row[key] = float(row[key])
     return rows
