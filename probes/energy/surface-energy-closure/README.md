@@ -35,6 +35,8 @@ existing energy-closure engineering conventions. They are starting values,
 not observationally calibrated tolerances. The denominator uses absolute
 net radiation; neither signed cancellation nor division by near-zero Rn is
 involved. The floor provides a finite allowance under weak radiation.
+In this generator, each night's |Rn| is 25-40 W m-2, so every night block
+uses the 2 W m-2 floor; the daily seeded cooling varies between nights.
 
 ### The budget boundary
 
@@ -44,12 +46,28 @@ storage, or lateral energy transport. Evaporation or condensation is carried
 by LE. G is at the **actual soil surface**. Subsurface heat storage lies
 below that boundary and must not also be subtracted from this skin budget.
 
-A model with G at a deeper soil boundary, or with finite skin/canopy heat
-storage, needs a matching boundary or explicit storage accounting before
-this residual can judge it. Output names and `PT1H` support alone cannot
-establish this. The harness checks those declarations; adapter documentation
-and review must establish the physical boundary. A failure should only be
-interpreted as a conservation violation for a compatible boundary.
+An adapter whose model reports a plate-depth or deeper-boundary flux must
+map it to the surface using the heat stored in the layer above that depth:
+
+```
+G_surface = G_depth + (E_above_end - E_above_start) / dt
+```
+
+Both G values are interval means, positive downward; `E_above` is heat
+storage per unit area in J m-2, and `dt` is in seconds. All terms must refer
+to the same area, control volume and time interval, with no other energy
+sources or sinks in that layer. The correction must use the model's actual
+storage, not a fabricated value or the surface-budget residual. Report the
+corrected `G_surface` as `hfg`; do not subtract that storage a second time.
+
+A model with finite skin/canopy heat storage, or without the terms needed
+for this mapping, cannot be judged by this zero-capacity boundary without
+further accounting. Output names and `PT1H` support alone cannot establish
+compatibility. The harness checks those declarations; adapter documentation
+and review must establish the physical boundary. A reported residual can
+come from a conservation error or an uncorrected deeper-boundary flux. Only
+with the boundary mapping established is `VIOLATION` evidence of failure to
+close this surface budget.
 
 ## The case
 
@@ -126,3 +144,7 @@ within-block cancellation, spinup exclusion, generator reproducibility,
 complete scored phases, annotation stripping, and the minimum model window.
 These checks establish the implemented accounting test, not a validation of
 an AI or a comprehensive land-surface model.
+The plate-depth regression additionally checks a 5 cm layer with prescribed
+0.5 K and 2 K diurnal temperature amplitudes: the uncorrected flux fails,
+while adding that layer's known storage change restores surface closure.
+This verifies the boundary mapping, not a realistic soil thermal response.

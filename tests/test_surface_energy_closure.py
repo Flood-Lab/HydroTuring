@@ -76,6 +76,32 @@ def test_exact_closure_allows_negative_turbulent_fluxes():
     assert score(run).status == PASS
 
 
+@pytest.mark.parametrize("amplitude_k", [0.5, 2.0])
+def test_plate_depth_flux_needs_storage_correction(amplitude_k):
+    # Known heat content of a uniform 5 cm layer above a plate. Temperature
+    # is its layer mean at interval endpoints, with a peak at 14:00.
+    run = build(np.zeros(48), rn=np.tile(np.repeat([100.0, -30.0], 12), 2))
+    endpoint_hours = 6.0 + np.arange(49)
+    temperature = 20.0 + amplitude_k * np.cos(
+        2.0 * np.pi * (endpoint_hours - 14.0) / 24.0
+    )
+    heat_content = 2.0e6 * 0.05 * temperature  # J m-2
+    storage_rate = np.diff(heat_content) / 3600.0  # W m-2
+    surface_flux = run.table["hfg"].copy()
+    run.table["hfg"] = surface_flux - storage_rate
+
+    # Daily storage changes cancel, hiding the wrong boundary cumulatively.
+    assert get("energy_closure")(run, None, {}).status == PASS
+    uncorrected = score(run)
+    assert uncorrected.status == FAIL
+    assert "uncorrected deeper-boundary flux" in uncorrected.message
+
+    # The adapter supplies the independently known layer storage, not a
+    # correction diagnosed from the surface-budget residual.
+    run.table["hfg"] += storage_rate
+    assert score(run).status == PASS
+
+
 def test_spinup_is_not_scored_and_block_indices_start_at_the_scored_window():
     run = build(np.r_[np.full(24, 500.0), np.zeros(24)], spinup=24)
     result = score(run)

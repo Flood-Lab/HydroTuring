@@ -238,9 +238,10 @@ def energy_closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionR
 
     Separate from `closure` rather than a denominator of it, because `closure`
     differences the probe's water states and this budget has none: `hfg` is
-    the storage term, and a model that reports it has already said where the
-    energy went. Keeping them apart also lets one probe score both budgets
-    without two criteria of the same name.
+    the downward flux at the actual soil surface, already corrected by the
+    adapter for storage above a deeper flux boundary if needed. Subsurface
+    storage is not subtracted again. Keeping the budgets apart also lets one
+    probe score both without two criteria of the same name.
 
     Net radiation changes sign every night, so the relative test carries an
     absolute floor as the module docstring of `closure` prescribes.
@@ -378,7 +379,9 @@ def energy_closure_by_phase(
             f"{failed} of {len(blocks)} phase blocks fail; worst {worst['label']} "
             f"[{worst['start']}:{worst['stop']}] has mean absolute residual "
             f"{worst['mean_abs_w_m2']:.3g} W m-2 against "
-            f"{worst['allowance_w_m2']:.3g} W m-2 allowed"
+            f"{worst['allowance_w_m2']:.3g} W m-2 allowed; "
+            "assumes ground heat is mapped to the actual soil surface "
+            "(an uncorrected deeper-boundary flux can also cause a residual)"
         ),
         diagnostics={
             "blocks": blocks,

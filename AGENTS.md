@@ -127,12 +127,21 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `sbl` | the sublimating share of `evspsbl`: a component of it, never an addition; report it if the model knows which kilograms left as ice | mm/day |
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
 | `hfss` | sensible heat flux, positive away from the surface | W/m2 |
-| `hfg` | ground heat flux, positive into the ground; the storage term of the surface energy budget, so no energy state is needed | W/m2 |
+| `hfg` | ground heat flux at the actual soil surface, positive into the ground; a flux taken below the surface must be corrected for heat storage above that depth | W/m2 |
 | `mrso` | soil water storage | mm |
 | `snw` | snow water equivalent | mm |
 | `canopy` | canopy interception storage | mm |
 | `gw` | groundwater storage below the soil column | mm |
 | `channel` | water generated as runoff but not yet released by the model's routing | mm |
+
+For `hfg`, an adapter mapping a plate-depth or deeper-boundary flux must use
+`G_surface = G_depth + (E_above_end - E_above_start) / dt`, with downward
+fluxes positive, `E_above` in J/m2 and `dt` in seconds. The storage and fluxes
+must cover the same area, layer and time interval; this relation assumes no
+other energy sources or sinks in that layer. Use the model's actual heat
+storage, not a value inferred from the surface-budget residual. Document the
+mapping and any unavailable terms. Once `hfg` is mapped to the surface, do
+not subtract subsurface heat storage again in the surface budget.
 
 A probe names the stores it requires. Report every store the model
 actually has, including ones the probe did not name: a groundwater zone
