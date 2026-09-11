@@ -92,6 +92,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
     elev = float(static.get("elevation_m", 500.0))
     pa = surface_pressure_hpa(elev)
     weights = gamma_uh(UH["shape"], UH["scale_days"], dt_days)
+    parea = 1.0 - sac["adimp"] - sac["pctim"]
 
     sac_state = SacState(uztwc=0.5 * sac["uztwm"], uzfwc=0.2 * sac["uzfwm"], lztwc=0.5 * sac["lztwm"],
                          lzfsc=0.2 * sac["lzfsm"], lzfpc=0.5 * sac["lzfpm"], adimc=0.5 * (sac["uztwm"] + sac["lztwm"]))
@@ -108,7 +109,31 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         raim, _snowfall = snow17(hours, when.year, when.month, when.day, pcp, tas, lat, snow, pa, ADC, snow_state)
         fluxes = sac1(dt_days, raim, pet, sac, sac_state)
 
-        generated.append(fluxes["tci"])
+        # The human term: the prescribed withdrawal (`abstr`, mm/day net of
+        # return flow) is taken from the SAC stores, upper zone first,
+        # converting a catchment-average depth into each store's own area
+        # weighting (PAREA for the five zone stores, ADIMP for the additional
+        # impervious store), so the reported catchment-average storage falls by
+        # exactly what was removed. Absent the column nothing changes.
+        want = max(step.get("abstr", 0.0), 0.0) * dt_days
+        removed = 0.0
+        for attr, weight in (("uztwc", parea), ("uzfwc", parea), ("lztwc", parea),
+                             ("lzfsc", parea), ("lzfpc", parea), ("adimc", sac["adimp"])):
+            if want - removed <= 1e-12:
+                break
+            local = getattr(sac_state, attr)
+            local_take = min(local, (want - removed) / weight)
+            setattr(sac_state, attr, local - local_take)
+            removed += weight * local_take
+
+        # The human term, second call: the day's generated runoff, the same
+        # store-first-then-runoff rule the other adapters follow.
+        tci = fluxes["tci"]
+        take = min(tci, want - removed)
+        tci -= take
+        removed += take
+
+        generated.append(tci)
         n = len(generated)
         routed = sum(weights[k] * generated[n - 1 - k] for k in range(min(len(weights), n)))
         soil, lower = sac_storage(sac, sac_state)
@@ -117,7 +142,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             "pr": pr_rate,
             "evspsbl": fluxes["tet"] / dt_days,
             "mrro": routed / dt_days,
-            "gwex": -fluxes["bfncc"] / dt_days,  # deep baseflow leaves the catchment
+            "gwex": -(fluxes["bfncc"] + removed) / dt_days,  # deep baseflow plus the prescribed withdrawal leaves the catchment
             "mrso": soil,
             "snw": snow_state.total(),
             "canopy": 0.0,
@@ -133,7 +158,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         "port": "sacsma_snow17.py, checked against the f2py build of the Fortran",
         "parameters": {"sac": sac, "snow17": snow, "unit_hydrograph": UH},
         "canopy": "identically zero; SAC-SMA has no interception store",
-        "gwex": "minus the non-channel baseflow (SIDE); deep groundwater leaving the catchment",
+        "gwex": "minus the non-channel baseflow (SIDE), deep groundwater leaving the catchment, plus any prescribed human withdrawal removed this step",
     }
     return rows, notes
 
@@ -142,7 +167,7 @@ def read_forcing(path: Path) -> list[dict]:
     with open(path, newline="") as fh:
         rows = list(csv.DictReader(fh))
     for row in rows:
-        for key in ("pr", "tas", "pet"):
+        for key in ("pr", "tas", "pet", "abstr"):
             if key in row:
                 row[key] = float(row[key])
     return rows
