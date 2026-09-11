@@ -221,23 +221,23 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-11,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/antecedent-monotonicity,PASS,OK,full record,1295520324 1802472438 161940905,all criteria pass
 2026-09-11,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/antecedent-monotonicity,PASS,OK,730-day flood event,1295520324 1802472438 161940905,all criteria pass
 2026-09-11,wflow_sbm,1.0.4-ht.2,0.1.0,docker,mass/antecedent-monotonicity,FAIL,VIOLATION,full record,1295520324 1802472438 161940905,antecedent_monotonicity: the storm of 60 mm ran off +0.1 mm more on the wetter catchment; at least 0.02 of the storm is expected
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,full record,598896396,"adapter contract OK: 4015 rows in 9.6s, columns pr, evspsbl, mrro, dis, mrso, snw, canopy, gw, channel"
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,energy/evaporative-partition,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,energy/pet-consistency,FAIL,VIOLATION,full record,770619041 1277571155 1784523269,"demand_consistency: with the soil in the wettest 20% of its range (291 mm and above), evaporation was only 0.70 of demand (at least 0.7 expected)"
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H"
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/antecedent-monotonicity,PASS,OK,full record,1295520324 1802472438 161940905,all criteria pass
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/area-invariance,PASS,OK,full record,66780378 573732492 1080684606,all criteria pass
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/catchment-closure,PASS,OK,full record,598896396 1105848510 1612800624 2119752738 479221205,residual 0.029% of driver
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/dry-down,PASS,OK,full record,186927550 693879664 1200831778,all criteria pass
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/extreme-rain,PASS,OK,full record,154098211 661050325 1168002439,all criteria pass
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/phase-counterfactual,PASS,OK,full record,25625370 532577484 1039529598,all criteria pass
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/resolution-invariance,FAIL,VIOLATION,full record,746687816 1253639930 1760592044,resolution_invariance: mrro differs by 52.1% of pr between PT1H and PT1D (limit 10%)
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/response-nonnegativity,FAIL,VIOLATION,full record,699572709 1206524823 1713476937,response_nonnegativity: mrro falls 0.292 mm/day below the control on 2002-02-12 after 120 mm of rain was added; more water cannot lower the flow
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/runoff-bounds,PASS,OK,full record,726751959 1233704073 1740656187 100124654 607076768,all criteria pass
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/steady-state,PASS,OK,full record,1815845244 175313711 682265825,all criteria pass
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.050% of driver
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,all criteria pass
-2026-09-11,cwatm,1.11-5baaadd.1,0.1.0,docker,mass/precipitation-counterfactual,PASS,OK,full record,872466880 1379418994 1886371108,residual 0.028% of driver
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,full record,598896396,"adapter contract OK: 4015 rows in 10.0s, columns pr, evspsbl, sbl, mrro, dis, mrso, snw, canopy, gw, channel"
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,energy/evaporative-partition,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,energy/pet-consistency,FAIL,VIOLATION,full record,770619041 1277571155 1784523269,"demand_consistency: with the soil in the wettest 20% of its range (291 mm and above), evaporation was only 0.70 of demand (at least 0.7 expected)"
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H"
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/antecedent-monotonicity,PASS,OK,full record,1295520324 1802472438 161940905,all criteria pass
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/area-invariance,PASS,OK,full record,66780378 573732492 1080684606,all criteria pass
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/catchment-closure,PASS,OK,full record,598896396 1105848510 1612800624 2119752738 479221205,residual 0.029% of driver
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/causality,PASS,OK,full record,1016628858 1523580972 2030533086,all criteria pass
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/dry-down,PASS,OK,full record,186927550 693879664 1200831778,all criteria pass
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/extreme-rain,PASS,OK,full record,154098211 661050325 1168002439,all criteria pass
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/phase-counterfactual,PASS,OK,full record,25625370 532577484 1039529598,all criteria pass
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/precipitation-counterfactual,PASS,OK,full record,872466880 1379418994 1886371108,residual 0.028% of driver
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/resolution-invariance,FAIL,VIOLATION,full record,746687816 1253639930 1760592044,resolution_invariance: mrro differs by 52.1% of pr between PT1H and PT1D (limit 10%)
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/response-nonnegativity,FAIL,VIOLATION,full record,699572709 1206524823 1713476937,response_nonnegativity: mrro falls 0.292 mm/day below the control on 2002-02-12 after 120 mm of rain was added; more water cannot lower the flow
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/runoff-bounds,PASS,OK,full record,726751959 1233704073 1740656187 100124654 607076768,all criteria pass
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/steady-state,PASS,OK,full record,1815845244 175313711 682265825,all criteria pass
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.050% of driver
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
+2026-09-11,cwatm,1.11-5baaadd.2,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,all criteria pass

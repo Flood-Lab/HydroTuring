@@ -62,7 +62,7 @@ asked fail as VIOLATION, and they are not alike.
 | `mass/phase-counterfactual` | PASS | turning snow into rain moves runoff by at most 1.8 % of the rain |
 | `mass/steady-state` | PASS | settles to within 0.8 % |
 | `mass/runoff-bounds` | PASS | runoff 0.61 of the rain, inside [0.11, 1.07] |
-| `mass/antecedent-monotonicity` | PASS | the wetter catchment runs off 0.15 of the storm more |
+| `mass/antecedent-monotonicity` | PASS | the wetter catchment runs off 9.2–16.6 mm more from the same 60 mm storm (0.15–0.28 of it; at least 0.02), within the 120 mm it was given. The window now opens on the storm, after ten dry days; it used to open on the first of them, which counted 2.8–4.0 mm of recession from the antecedent rain and divided by all of the month's rain (71–116 mm) |
 | `mass/warming-response` | PASS | runoff −0.25 and −0.28, evaporation +0.27 and +0.31 per unit of demand, warmer and cooler |
 | `momentum/routing-conservation` | PASS | the runoff-concentration store stays within 0.50 of the 15-day bound |
 
@@ -201,6 +201,7 @@ fraction-weighted sums.
 | --- | --- |
 | `pr` | the forcing, echoed |
 | `evspsbl` | `totalET`: transpiration, bare-soil, open-water, interception and snow evaporation |
+| `sbl` | `snowEvap`, the snow evaporation inside `totalET`: subtracted from the snow cover (`snow_frost.py:790`), whose degree-day pack holds no liquid water, and added once to `totalET` (`landcoverType.py:1017`), so it is the part of `evspsbl` that left as ice, in mm/day like `evspsbl` |
 | `mrro` | `runoff`: surface runoff, interflow and baseflow after the runoff-concentration lag, i.e. what leaves the cell |
 | `dis` | the same over the catchment area, m3/s |
 | `mrso` | `sum_soil` = `sum_w1 + sum_w2 + sum_w3` (+ `sum_topwater`, zero without paddy fields) |
