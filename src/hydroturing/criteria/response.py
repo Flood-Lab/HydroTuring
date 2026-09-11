@@ -126,7 +126,9 @@ def counterfactual_response(
         prefix = f"{name}: " if several else ""
         for var, share in shares.items():
             if var != "storage" and share < min_share:
-                verdict = "moves the wrong way" if share < 0 else "barely responds"
+                # A hair below zero is a term ignoring the change, not one
+                # moving against it; only a real share of the wrong sign is.
+                verdict = "moves the wrong way" if share <= -min_share else "barely responds"
                 failures.append(
                     f"{prefix}{var} {verdict} ({share:+.3f} of the {word} {driver}, "
                     f"minimum {min_share:g})"
