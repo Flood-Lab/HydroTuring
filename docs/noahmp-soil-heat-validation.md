@@ -1,11 +1,13 @@
-# Noah-MP soil heat component validation
+# Noah-MP soil heat validation
 
-This optional experiment checks `soil_heat_storage` against native Noah-MP
-soil temperature calculations. It supplements the generated probe's reference
-gate. It does not run the full Noah-MP/HRLDAS system or register a Noah-MP model
-adapter in HydroTuring.
+These optional experiments supplement the generated probe's reference gate.
+The component experiment checks `soil_heat_storage` against native Noah-MP
+soil temperature calculations with fixed moisture. The full HRLDAS experiment
+runs the complete column, including water updates, and inspects the native
+heat equation and the fixed-capacity criterion's applicability. Neither
+registers a Noah-MP model adapter or runs Noah-MP on the generated probe case.
 
-## Run it
+## Run the fixed-moisture component
 
 Install this checkout with `pip install -e .` and provide GNU Fortran. From the
 repository root, choose a scratch directory for the downloaded sources and
@@ -92,3 +94,92 @@ temperature controls to fail.
 Conservation does not establish temperature accuracy. The two time steps
 produced slightly different temperature responses while both conserved the
 tested layer's energy.
+
+## Run the complete HRLDAS column
+
+The second experiment uses the official
+[HRLDAS driver at `cd96df4`](https://github.com/NCAR/hrldas/tree/cd96df470220f7d7133cdbccd5f9c5355cf173e2)
+and its Noah-MP submodule at the same `17751dc` revision as above. It executes
+the complete land column, including surface exchange and water updates.
+The meteorological forcing is synthetic; the bundled Bondville example
+supplies the official input format and converter, not observations for this run.
+
+On Linux, provide `git`, `make`, GNU Fortran, NetCDF C/Fortran and install this
+checkout with `pip install -e '.[netcdf]'`. Use a fresh scratch directory:
+
+```bash
+python scripts/noahmp_soil_heat/run_full.py \
+  --workdir /tmp/hrldas-soil-heat \
+  --fc gfortran --netcdf-prefix /path/to/netcdf
+```
+
+The script downloads the pinned official source, builds a serial executable,
+converts the point forcing to NetCDF, runs the original model, adds two
+diagnostic CSV outputs, rebuilds and reruns the same case. It compares all
+native NetCDF variable values between the two runs before evaluating the
+budget. Source licenses remain in the downloaded repositories. The default
+single precision is retained. The unrelated GRIB forcing converter is not
+built; this experiment uses the official text-to-NetCDF converter.
+
+The 96-hour case starts at 2020-06-20 06:00 UTC. It has four native soil
+layers, bare ground, no rain or snow, initial soil and air temperature 295 K,
+initial volumetric water content 0.20, wind 2 m/s and specific humidity 0.010.
+After 24 h without shortwave radiation, incoming shortwave is 300 W/m² for
+12 h, then zero for 60 h. Longwave stays at approximately 429.44 W/m².
+Forcing, model, soil and output steps are all 300 s. End-time forcing records
+align the pulse with the intended phases; hourly forcing would let the
+driver interpolate across the phase boundaries.
+
+`native_thermal_steps.csv` records the temperatures, heat capacity and
+boundary fluxes used by each thermal solve. `native_column_steps.csv` records
+the full model step, including water updates. The lower-face flux comes from
+the same native Fourier relation as in the component experiment. Neither
+flux is reconstructed from storage. The standard `SOILENERGY` output covers
+the entire soil column with current heat capacities, so it cannot replace
+this first-layer diagnostic.
+
+To inspect saved CSV files without compiling or downloading again:
+
+```bash
+python scripts/noahmp_soil_heat/score_full.py \
+  --workdir /tmp/hrldas-soil-heat/case/diagnostic
+```
+
+## Full-run result and applicability
+
+The actual run completed 1,152 model steps and wrote 1,153 standard output
+records, including the initial state. A fresh invocation of `run_full.py`
+completed the entire download/build/run/evaluation sequence on `climet3` with
+GNU Fortran 13.4.0, NetCDF Fortran 4.6.3 and NetCDF C 4.10.1. All 141 native
+output variables were exactly equal before and after instrumentation.
+Native `SWFORC` confirms exactly 144 heated steps with correctly aligned
+phase boundaries. The evaluated top layer is 0.1 m.
+Snow, soil ice, vegetation, penetrating shortwave and precipitation heat
+advection were all zero. Temperature after the complete model step equalled
+temperature immediately after the thermal solve.
+
+Water content nevertheless changed through the native hydrology. Areal heat
+capacity decreased from 190,986.531 to 185,744.797 J m⁻² K⁻¹, a 2.74% range.
+The supplemental calculation therefore uses the native discrete equation,
+`G_top - G_bottom = C_n * (T_n - T_(n-1)) / dt`, with each step's native
+capacity before integrating to hourly means. This is not a check of total
+soil-water enthalpy `Δ[C(T-T_ref)]`, or a formal fixed-capacity probe gate.
+
+| Temperature supplied to the supplemental calculation | Heating mean absolute residual | Recovery mean absolute residual |
+| --- | --- | --- |
+| Native full-column output | 0.00158 W/m² | 0.00147 W/m² |
+| Reported temperature frozen | 38.08 W/m² | 7.26 W/m² |
+| Reported temperature departures halved | 19.04 W/m² | 3.63 W/m² |
+
+The same numerical comparison allowance used by the probe is 1.90 W/m²
+during heating and 1 W/m² during recovery. Both constructed reporting errors
+exceed it in both phases; they are not observed defects in Noah-MP. Native
+single-step residuals stay below 0.011 W/m². Top-layer temperatures range
+from 294.50 to 303.33 K.
+
+The script also replays the registered fixed-capacity criterion using the
+initial capacity. It returns a numerical PASS for this case, but the report
+marks it **inapplicable** because the capacity changed. Passing a tolerance
+does not establish that a model meets the probe's physical assumptions.
+The full run supplements the fixed-moisture component evidence without
+changing the probe's equation, allowance or declared scope.

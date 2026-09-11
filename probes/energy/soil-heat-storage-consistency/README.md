@@ -94,9 +94,11 @@ this constant-capacity formula.
 
 ## Reproducing a failure
 
-The optional [Noah-MP thermal-component check](../../../docs/noahmp-soil-heat-validation.md)
-also evaluates native soil temperatures and conductive fluxes with this
-criterion. It supplements these synthetic references; it is not a full
+The optional [Noah-MP checks](../../../docs/noahmp-soil-heat-validation.md)
+include a fixed-moisture thermal component and a full HRLDAS column run.
+The component uses this criterion directly. The full run additionally checks
+the native heat equation with evolving heat capacity and explicitly reports
+why the fixed-capacity criterion is not directly applicable. Neither is a
 Noah-MP model adapter or a run of this probe's fixed-reservoir case.
 
 ```bash
