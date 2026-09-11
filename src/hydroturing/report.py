@@ -24,6 +24,7 @@ from hydroturing.scoring import (
     NOT_SCORED,
     OK,
     PASS,
+    CriterionOutcome,
     ModelReport,
     ProbeOutcome,
 )
@@ -159,7 +160,8 @@ def to_markdown(report: ModelReport) -> str:
         "| --- | --- | --- | --- | --- |",
     ]
     for probe in report.probes:
-        detail = _detail(probe)
+        # A criterion's message can carry a pipe, `|rn|`, which would end the cell.
+        detail = _detail(probe).replace("|", "\\|")
         lines.append(
             f"| `{probe.probe_id}` | {verdict_label(probe.verdict)} | "
             f"{probe.reason} | {window_label(probe)} | {detail} |"
@@ -200,9 +202,20 @@ def _window_line(probe: ProbeOutcome) -> str:
 
 
 def _detail(probe: ProbeOutcome, plain: bool = False) -> str:
-    """One line on where the verdict came from. `plain` drops the markdown."""
+    """One line on where the verdict came from. `plain` drops the markdown.
+
+    A failing probe names the criteria that failed. A passing one names the
+    criteria the probe exists to score (`ProbeOutcome.headline`), each with
+    its own message, so every number in the line says what it measured. A
+    passing paired probe also closes its control run, but that closure is a
+    precondition of the comparison, not its result.
+    """
     code = (lambda s: s) if plain else (lambda s: f"`{s}`")
     bold = (lambda s: s) if plain else (lambda s: f"**{s}**")
+
+    def described(criteria: list[CriterionOutcome]) -> str:
+        return "; ".join(f"{bold(c.name)}: {c.message}" for c in criteria)
+
     if probe.error:
         return probe.error.splitlines()[0][:160]
     parts = []
@@ -212,12 +225,12 @@ def _detail(probe: ProbeOutcome, plain: bool = False) -> str:
         parts.append("; ".join(probe.incompatible))
     failing = [c for c in probe.criteria if not c.passed]
     if failing:
-        parts.append("; ".join(f"{bold(c.name)}: {c.message}" for c in failing))
+        parts.append(described(failing))
     if parts:
         return "; ".join(parts)[:400]
-    closure = next((c for c in probe.criteria if c.name == "closure"), None)
-    if closure and closure.value is not None:
-        return f"residual {closure.value:.3%} of driver"
+    headline = [c for c in probe.criteria if c.name in probe.headline]
+    if headline:
+        return described(headline)[:400]
     return "all criteria pass"
 
 
