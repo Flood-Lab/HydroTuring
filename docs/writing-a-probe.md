@@ -225,6 +225,15 @@ run against these four before anything else. `must_fail` pins which criterion do
 the catching, so a probe cannot appear to work while catching things for the
 wrong reason.
 
+On a probe with one case per seed, `must_fail` also decides what the report
+says when a model passes: the `detail` column of `models/result.csv` names
+each criterion it lists, with that criterion's own message, and no other. A
+precondition no baseline is pinned to, such as `closure` declared ahead of
+the identity it protects, is therefore never reported as the probe's result.
+A probe with `variants` reports its paired criteria instead, since
+everything beside them is a precondition checked on the control.
+`tests/test_report_detail.py` pins what every merged probe reports.
+
 The reference models available today:
 
 | Model | What it does | Caught by |

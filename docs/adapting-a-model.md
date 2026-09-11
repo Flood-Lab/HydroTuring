@@ -165,7 +165,10 @@ probe, plus one for the adapter contract check when `verify-adapter` is
 given the same `--csv`. For a model that reports only discharge, the
 contract row is the only line saying it was actually built and run on a
 budget probe, because that probe is N/A (INCOMPLETE) before the container is
-started.
+started. Where the criteria ran, a row's `detail` names the ones behind its
+verdict with what each measured: those that failed, or on a pass those the
+probe exists to score, such as `human_abstraction` rather than the closure
+of the natural run.
 
 ## 6. Submit it
 

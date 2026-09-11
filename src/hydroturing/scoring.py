@@ -73,6 +73,9 @@ class ProbeOutcome:
     # per seed, the stretch that was actually scored.
     window_days: int | None = None
     windows: list[dict[str, Any]] = field(default_factory=list)
+    # The criteria the probe exists to score, which a pass is reported by.
+    # Empty when the criteria never ran. See ProbeSpec.headline.
+    headline: list[str] = field(default_factory=list)
 
     @property
     def failing(self) -> list[str]:

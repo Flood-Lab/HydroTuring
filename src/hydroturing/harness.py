@@ -560,6 +560,7 @@ def run_probe(
         reason=reason_for(failing, [], None),
         seeds=seeds,
         criteria=outcomes,
+        headline=list(probe.headline),
         flags=sorted(set(flags)),
         authors=list(probe.authors),
         window_days=days,
