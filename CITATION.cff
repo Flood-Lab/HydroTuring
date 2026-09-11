@@ -17,6 +17,12 @@ authors:
   - given-names: Siavash
     family-names: Shams
     # affiliation and orcid requested from the author, 2026-09-11
+  - given-names: Han
+    family-names: Wang
+    affiliation: >-
+      Department of Civil and Environmental Engineering,
+      The Hong Kong University of Science and Technology, Hong Kong, China
+    orcid: "https://orcid.org/0000-0001-9771-1324"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT
