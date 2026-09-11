@@ -112,7 +112,7 @@ hand-written conceptual models from
 [chrimerss/HydrologicModels](https://github.com/chrimerss/HydrologicModels)
 and the NWS's SAC-SMA with Snow-17 must pass every probe that can ask them
 anything, so a probe that fails one is wrong until shown otherwise. All four
-report water and no energy, so all four are INCOMPLETE on the three probes
+report water and no energy, so all four are N/A, with reason INCOMPLETE, on the three probes
 that need the latent, sensible and ground heat fluxes,
 `energy/latent-heat-et-consistency`, `energy/evaporative-partition` and
 `energy/surface-energy-closure`,
@@ -123,9 +123,9 @@ goes untested.
 
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |
-| [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (INCOMPLETE)**, 5 of 20 probes passed. Runoff-only, so nine probes cannot ask it anything; of the eleven that ask on runoff alone it passes the runoff bounds, memory, area, causality and steady state, and fails step, extreme rain, phase, warming, dry-down, and a 0.18 mm/day dip after an added storm |
-| [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (VIOLATION)**, 11 of 20 probes passed. Its learned regional-groundwater term, declared as `gwex`, closes the budget to 1e-8; what remains is a learned field capacity twice the catchment's, a response to doubled rain above the rain added, a runoff depth that changes with the area it is told, a third more runoff when snow falls as rain, and on `mass/human-abstraction` it never reads the prescribed withdrawal, so it accounts for none of the 380 mm and trips that probe's `state_bounds` on the same learned field capacity |
-| [`wflow_sbm`](models/wflow_sbm) | submitted | Deltares' Wflow.jl SBM: a soil column with unsaturated and saturated stores, interception, snow and kinematic-wave routing, adapted in Julia and run on one representative cell at the resolution of Wflow's Moselle model. | **FAIL (INCOMPLETE)**, 14 of 20 probes passed. It reports no heat fluxes, so the three energy-flux probes cannot ask it anything; its water budget closes to 2e-4 of the rain and it passes the area, routing, step, calendar, causality, extreme-rain, phase, precipitation-counterfactual and warming probes. Both come from its soil column: a storm that does not fill the column makes almost no runoff, and under the shipped mapping a wet month's extra water has already been evaporated down to the rooting depth when the storm arrives, so the wetter catchment runs off barely more than the dry one, about a thousandth of the storm where the probe asks for two hundredths; and once the root zone dries in a rainless spell, drainage from the unsaturated store raises a water table that sits below the roots, and lateral flow rises with no rain. Both move with how the stated soil capacity is mapped onto soil thickness and roots. It also never reads the prescribed withdrawal on `mass/human-abstraction`, so it accounts for none of the 380 mm while its own budget still closes |
+| [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (VIOLATION)**, 5 of 20 probes passed. Runoff-only, so nine probes cannot ask it anything; of the eleven that ask on runoff alone it passes the runoff bounds, memory, area, causality and steady state, and fails step, extreme rain, phase, warming, dry-down, and a 0.18 mm/day dip after an added storm |
+| [`dhbv2`](models/dhbv2) | submitted | δHBV 2.0, the MHPI group's differentiable HBV: neural networks write the parameters of a bucket model that reports its stores and its evaporation. | **FAIL (VIOLATION)**, 11 of 20 probes passed. It reports no heat fluxes, so the three energy-flux probes cannot ask it anything. Its learned regional-groundwater term, declared as `gwex`, closes the budget to 1e-8; what remains is a learned field capacity twice the catchment's, a response to doubled rain above the rain added, a runoff depth that changes with the area it is told, a third more runoff when snow falls as rain, and on `mass/human-abstraction` it never reads the prescribed withdrawal, so it accounts for none of the 380 mm and trips that probe's `state_bounds` on the same learned field capacity |
+| [`wflow_sbm`](models/wflow_sbm) | submitted | Deltares' Wflow.jl SBM: a soil column with unsaturated and saturated stores, interception, snow and kinematic-wave routing, adapted in Julia and run on one representative cell at the resolution of Wflow's Moselle model. | **FAIL (VIOLATION)**, 14 of 20 probes passed. It reports no heat fluxes, so the three energy-flux probes cannot ask it anything; its water budget closes to 2e-4 of the rain and it passes the area, routing, step, calendar, causality, extreme-rain, phase, precipitation-counterfactual and warming probes. Both come from its soil column: a storm that does not fill the column makes almost no runoff, and under the shipped mapping a wet month's extra water has already been evaporated down to the rooting depth when the storm arrives, so the wetter catchment runs off barely more than the dry one, about a thousandth of the storm where the probe asks for two hundredths; and once the root zone dries in a rainless spell, drainage from the unsaturated store raises a water table that sits below the roots, and lateral flow rises with no rain. Both move with how the stated soil capacity is mapped onto soil thickness and roots. It also never reads the prescribed withdrawal on `mass/human-abstraction`, so it accounts for none of the 380 mm while its own budget still closes |
 | [`summa`](models/summa) | submitted | SUMMA 4.0.0, a land model that solves the water and energy balances of canopy, snow, soil and aquifer with one implicit solver, run as one lumped HRU from its shipped test-case setup, with the radiation and humidity it needs mocked from each forcing row. | **FAIL (VIOLATION)**, 8 of 20 probes passed. Its water budget closes to rounding and its surface energy budget to 0.2% of its own net radiation; what fails is a latent heat of vaporisation held at its 0 C value, a net radiation of its own that is not the probe's `rn` (every hourly phase, and a drought that warms the surface), a canopy that, as the shipped setup configures SUMMA, intercepts all rain and keeps what freezes near 0 C, holding up to 27 mm of ice against a 2 mm capacity on the probes that score it (also the only failure on the precipitation counterfactual), leaf area that keeps its seasons under constant weather, runoff that follows the melt rather than the rain on one seed, a 5.2% runoff response to turning snow into rain on another, Green-Ampt runoff that appears only at the hourly step, and no human water use, so the prescribed withdrawal on the human-abstraction probe is never taken |
 | [`lisflood`](models/lisflood) | submitted | LISFLOOD 5.0.0, the EC Joint Research Centre's distributed model behind EFAS and GloFAS, stepped through its own Python framework on one representative 5 km cell and reporting every store its own water balance module counts. | **FAIL (ERROR)**, 14 of 20 probes passed. Its budget closes to 1e-13 mm per step; it reports no heat fluxes, so the three energy-flux probes cannot ask it anything. It fails the step probe because its potential infiltration is a pore-space storage multiplied by the step length, so rain falling within hours runs off at the hourly step (13.0% of the rain between PT1H and PT1D). The two ten-year probes take 97 s per run under amd64 emulation against a 60 s budget, so their rows are ERROR from the host's speed. Run outside the limit, `mass/precipitation-counterfactual` passes every criterion. On `mass/human-abstraction`, LISFLOOD's own water-use module accounts for about 17% of the prescribed 380 mm, the groundwater share, taken in full; the one-cell channel holds too little for the rest, which leaves 83% where the probe allows 5% |
 | `reference_bucket` | exact | conserves water exactly by construction | must pass every probe that can ask it anything; INCOMPLETE on the three energy-flux probes, which need fluxes it does not report |
@@ -154,7 +154,7 @@ goes untested.
 | `reference_sublimating` | broken | loses 40% of every snowfall to an unreported sublimation | caught by `phase_invariance` |
 | `reference_thirsty` | broken | evaporates a fixed share of its soil store, never reading demand; conserves water exactly | caught by `demand_consistency` |
 | `reference_stuck_router` | broken | a routing kernel summing to 0.9, so a tenth of every day's runoff never leaves the channel | caught by `routing_conservation` |
-| `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | scored INCOMPLETE on budget probes; caught by `response_sign` |
+| `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | N/A (INCOMPLETE) on budget probes; caught by `response_sign` |
 | `reference_in_sample` | broken | exact in range, leaks once the forcing leaves it | waiting for a `regime_transfer` probe |
 | `reference_calendar` | broken | a recession that drifts with the calendar year | caught by `invariance` (time origin) |
 
@@ -176,21 +176,31 @@ probe identity, generator seed, annotations and scoring code. See
 
 ## Verdicts
 
-Binary, with the reason recorded separately, because these mean different
-things:
+A probe that can ask the model something passes or fails it, and the reason
+is recorded separately from the verdict, because these mean different things:
 
 - `VIOLATION` the model reported its budget and the budget did not close.
-- `INCOMPLETE` the model never reported enough to be checked. Every
-  streamflow-only model lands here today. It has not violated conservation;
-  it has declined to be falsifiable.
-- `INCOMPATIBLE` the model and probe disagree on timestep, required forcing or
-  paired-perturbation support, so running them would not be meaningful.
 - `ERROR` the adapter or benchmark machinery failed. This is operational, not
   a scientific verdict, and is the one outcome that makes `ht run` exit 2.
 
-The verdict is one bit. Everything under it stays quantitative, so a paper can
-show that one model leaks 6% and another 40% long before anyone crosses the
-line.
+A probe that cannot ask the model anything is `N/A`: not scored, and neither
+a pass nor a fail. That happens two ways:
+
+- `INCOMPLETE` the model never reported enough to be checked. Every
+  streamflow-only model lands here on the budget probes. It has not violated
+  conservation; it has declined to be falsifiable.
+- `INCOMPATIBLE` the model and probe disagree on timestep, required forcing or
+  paired-perturbation support, so running them would not be meaningful.
+
+A model passes when at least one probe could be put to it and every probe
+that could be put to it passes. Otherwise it fails, with the worst reason
+among the scored probes that did not pass; an unscored probe never supplies
+that reason. A model that no probe could be put to at all is `N/A` too, and
+`ht run` exits 1 for it as it does for a FAIL.
+
+A scored verdict is one bit. Everything under it stays quantitative, so a
+paper can show that one model leaks 6% and another 40% long before anyone
+crosses the line.
 
 ## Quick start
 
@@ -250,8 +260,9 @@ The container runs with no network and never sees the probe code, so a model
 cannot read the tolerance it is being judged against. Every evaluation is
 appended to [models/result.csv](models/result.csv).
 
-**A model that fails is worth proposing.** `INCOMPLETE` is the current state
-of nearly every published rainfall-runoff model — it has not violated
+**A model that fails is worth proposing, and so is one most probes cannot
+score.** `INCOMPLETE` is the current state of nearly every published
+rainfall-runoff model on the budget probes — it has not violated
 conservation, it has declined to be falsifiable — and recording that honestly
 is a large part of what this is for.
 

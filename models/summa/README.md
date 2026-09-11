@@ -11,7 +11,7 @@ SUMMA solves the coupled conservation equations for water and energy in a
 vegetation canopy, a layered snowpack, a layered soil column and an aquifer
 with one implicit solver, and it reports its latent, sensible and ground heat
 fluxes. It is the first submission that can be asked about both budgets and
-the identity between them, rather than being declared INCOMPLETE on the
+the identity between them, rather than being N/A (INCOMPLETE) on the
 energy probes.
 
 v4.0.1 was released on the day this was packaged. It adds brackets around

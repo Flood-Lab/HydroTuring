@@ -46,9 +46,9 @@ description: >
 # citation: "https://doi.org/..."
 
 #! What the model must report for this probe to be applicable. A model that
-#! cannot emit all of these is scored FAIL with reason INCOMPLETE rather than
-#! VIOLATION. Ask for what you need and nothing more: every extra variable
-#! excludes more models from being testable at all.
+#! cannot emit all of these is not scored on it, N/A with reason INCOMPLETE
+#! rather than FAIL with VIOLATION. Ask for what you need and nothing more:
+#! every extra variable excludes more models from being testable at all.
 #!
 #! fluxes: pr, evspsbl, mrro, dis        (rates)
 #! states: mrso, snw, canopy             (absolute storages, never tendencies)

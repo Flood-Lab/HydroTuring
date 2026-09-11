@@ -18,8 +18,8 @@ then δHBV 2.0). Read `references/findings.md` for what those two taught, and
 1. **Pick or receive the model.** Requests arrive as GitHub issues from the
    `model_submission.yml` template (label `model-request`, title `[MODEL] …`).
    When asked to *find* a model, prefer one that changes what the benchmark can
-   say: the first two were a discharge-only LSTM (INCOMPLETE on every budget
-   probe by construction) and a differentiable HBV (the first that could be
+   say: the first two were a discharge-only LSTM (N/A with reason INCOMPLETE on
+   every budget probe, by construction) and a differentiable HBV (the first that could be
    scored on closure). Check the repository for pinned revisions, published
    weights, licence, forcing needs and CPU inference before filing. File the
    issue with `gh issue create --label model-request --assignee <user>` and
@@ -78,7 +78,8 @@ places where following it took judgement.
   minus routed flow). A store the model structurally lacks is reported as
   zero *and documented as such* in the README and `run.json` — that is a
   statement about the model, not a fabricated value. A flux the model does
-  not compute is never fabricated; the model is declared INCOMPLETE instead.
+  not compute is never fabricated; the probes that need it are N/A
+  (INCOMPLETE) instead.
 - **Read structure from the checkpoint when the config disagrees.** δHBV's
   shipped `config.yaml` (4 components, no routing) did not fit its weights
   (3 components, unit hydrograph). Infer from tensor shapes, record both in
@@ -112,9 +113,12 @@ places where following it took judgement.
 
 ## Harness facts a model evaluation depends on
 
-- Verdict = worst reason across probes: `OK < VIOLATION < INCOMPATIBLE <
-  INCOMPLETE < ERROR`. INCOMPLETE is decided by `ModelManifest.missing_for`
-  against `requires` in `probe.yaml`; INCOMPATIBLE only on single-step probes.
+- INCOMPLETE and INCOMPATIBLE are not failures. A probe stopped by either is
+  N/A, not scored: INCOMPLETE is decided by `ModelManifest.missing_for`
+  against `requires` in `probe.yaml`, INCOMPATIBLE only on single-step
+  probes. The model's verdict comes from the scored probes, PASS only if all
+  of them pass, with the worst reason of `OK < VIOLATION < ERROR`; a model no
+  probe could score is N/A with the worse of `INCOMPATIBLE < INCOMPLETE`.
 - Submitted models are scored on a flood-event window (`window_days` in
   `model.yaml`; default 30 d daily / 7 d hourly; `full` for the whole record;
   probes may set `min_window_days`). Reference models always see the full
@@ -123,8 +127,11 @@ places where following it took judgement.
   user (`--user uid:gid`, `HOME=/tmp`), CPUs capped at the host's count.
   Both of those were CI failures first.
 - `ht validate`, `ht gate`, `ht list`, `pytest -q` must all be green before a
-  push; `ht run` exit 1 is a scientific FAIL (fine), exit 2 is a harness
-  ERROR (not fine).
+  push; `ht run` exit 1 is a scientific FAIL, or N/A for a model no probe
+  could score (both fine), exit 2 is a harness ERROR (not fine).
+  `ht verify-adapter` uses the same codes: 1 when the check is N/A because
+  the model cannot consume the named probe, or any probe, so the adapter was
+  not run; 2 when the adapter broke the contract. A crash exits 2 from either.
 - Every probe must pass four physical models (`reference_bucket`,
   `flex_lumped`, `flex_topo`, `sacsma_snow17`) and fail its named broken one; a probe PR is
   gated on the physical models first. The seven merged probes and what each

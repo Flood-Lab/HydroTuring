@@ -239,7 +239,7 @@ The reference models available today:
 | `reference_in_sample` | exact in range, leaks outside it | `regime_transfer` |
 | `reference_calendar` | recession drifts with the calendar year | `invariance` |
 | `reference_fixed_step` | treats every row as a day whatever the step is | `resolution_invariance` |
-| `reference_streamflow_only` | reports runoff only, from a store that never reads the temperature | scored `INCOMPLETE` on budget probes; `response_sign` |
+| `reference_streamflow_only` | reports runoff only, from a store that never reads the temperature | `N/A (INCOMPLETE)` on budget probes; `response_sign` |
 | `reference_anticipating` | reports runoff smoothed over a centred window, three days of the future in every value | `causality` |
 | `reference_climatology` | the seasonal mean, whatever the weather; never reads the rain | `dry_down` |
 | `reference_saturating` | daily runoff capped at 25 mm; flat beyond its training range | `monotone_response` |
