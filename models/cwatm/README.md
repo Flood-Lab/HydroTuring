@@ -18,7 +18,7 @@ adapter can read rather than reconstruct.
 
 ## Verdict
 
-**FAIL (INCOMPLETE)**, 12 of 18 probes passed, on the gate seeds and the full
+**FAIL (INCOMPLETE)**, 13 of 19 probes passed, on the gate seeds and the full
 record of every probe (`ht run --model cwatm --gate-seeds`). INCOMPLETE is
 the worst reason: CWatM reports no energy fluxes. Three probes it can be
 asked fail as VIOLATION, and they are not alike.
@@ -54,6 +54,7 @@ asked fail as VIOLATION, and they are not alike.
 | `mass/resolution-invariance` | VIOLATION: runoff differs by 52.1 % of the rain between PT1H and PT1D (38.6–52.1 %), evaporation by 0.6 % | CWatM has no dt (below); its groundwater reservoir releases `recessionCoeff × storage` per step, so at PT1H it drains 24 times too fast |
 | `mass/response-nonnegativity` | VIOLATION: runoff 0.29 mm/day below the control on 2002-02-12, eight days after 120 mm was added (seed 1713476937; the other two never dip) | on wetter soil preferential flow takes a larger share of a later storm, and its interflow part replaces surface runoff; runoff concentration releases interflow through a slower kernel than surface runoff, so the next day carries less (below). **A packaging choice**: with `preferentialFlow = False` it passes (largest dip 0.048 mm/day, within tolerance), and the verdict also moves with land cover and with the slope that sets the lag |
 | `mass/catchment-closure` | PASS | residual 0.029 % of the rain; `mrso` within 320 mm; ET 0.43–0.48 of PET |
+| `mass/precipitation-counterfactual` | PASS | 20 % more or less rain on wet days is split 0.85–0.88 to runoff, 0.08–0.10 to evaporation and 0.05 to storage, accounting for 0.999–1.000 of the change; runoff returns 0.86–0.89 of the rain along the ladder; residual 0.028 % |
 | `mass/time-origin-invariance` | PASS | identical to floating point under a 28-year shift; residual 0.050 %. The shift keeps the day of year, so it cannot see CWatM's day-of-year snow terms (Parameters) |
 | `mass/area-invariance`, `mass/causality` | PASS | identical to floating point |
 | `mass/dry-down` | PASS | 83 mm drains in two rainless years against a 406 mm bound |
