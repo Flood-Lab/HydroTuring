@@ -407,7 +407,9 @@ esac""")
     monkeypatch.setattr(docker_runner, "require_docker", lambda: docker)
 
     model = registry.find_model("reference_bucket")
-    probe = replace(registry.find_probe("mass/catchment-closure"), max_runtime_s=1.0)
+    # The fake must start and record its arguments inside the budget, so the
+    # budget leaves a loaded CI runner room for that and nothing more.
+    probe = replace(registry.find_probe("mass/catchment-closure"), max_runtime_s=2.0)
     with pytest.raises(RunnerError, match=f"{model.name}: container exceeded the time budget for {probe.id}"):
         docker_runner.DockerRunner().invoke(model, probe, tmp_path, tmp_path / "request.json")
 

@@ -118,10 +118,16 @@ def kill_container(docker: str, name: str) -> None:
     """End a container whose `docker run` was cut off.
 
     `docker kill` stops a running container, and --rm then removes it. A
-    container the client created but never got to start is not running, so
-    the kill fails on it and `docker rm -f` removes it instead. If neither
-    finds the container, it has already gone or was never created, and there
-    is nothing left to end.
+    container that is not running, such as one created but never started,
+    fails the kill, and `docker rm -f` removes it instead. A start the client
+    sent before it died holds the container's lock in the daemon, the lock
+    both commands take, so that start either finishes and is killed or is
+    refused. Nothing is retried. A container neither command finds has
+    already gone or was not yet created, and one created afterwards is never
+    started, because `docker run` starts it from the client, which is dead.
+    It takes no CPU, but stays until removed by hand. A command that cannot
+    be run at all is skipped, so the caller's budget error is the one
+    reported.
     """
     for argv in ([docker, "kill", name], [docker, "rm", "-f", name]):
         try:
@@ -129,7 +135,7 @@ def kill_container(docker: str, name: str) -> None:
                 argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 timeout=KILL_TIMEOUT_S,
             )
-        except subprocess.TimeoutExpired:
+        except (OSError, subprocess.TimeoutExpired):
             continue
         if done.returncode == 0:
             return
