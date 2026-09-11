@@ -16,7 +16,7 @@ authors:
     orcid: "https://orcid.org/0000-0003-1793-1824"
   - given-names: Siavash
     family-names: Shams
-    # affiliation and orcid requested from the author, 2026-09-11
+    affiliation: Department of Electrical Engineering, Columbia University, New York, NY, USA
   - given-names: Han
     family-names: Wang
     affiliation: >-

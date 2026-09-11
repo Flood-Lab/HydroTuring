@@ -23,9 +23,7 @@ PROBE_IDS = sorted(PROBES)
 # Probes merged before the proposal form asked for an affiliation. Each entry
 # is a request outstanding with the author; remove it when the answer lands
 # in probe.yaml. Nothing merged after this list was written may be added to it.
-AFFILIATION_PENDING = {
-    "mass/time-origin-invariance",  # asked 2026-09-11
-}
+AFFILIATION_PENDING: set[str] = set()
 EVALUATED_MODELS = sorted(
     load_model(p).name
     for p in REPO_ROOT.glob("models/*/model.yaml")
