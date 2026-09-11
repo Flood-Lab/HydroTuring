@@ -48,8 +48,15 @@ values that no flux reads. Potential evaporation is not computed:
 calc_evaporation = False makes CWatM read reference evapotranspiration
 (ETMaps) and open-water evaporation (E0Maps) directly, and both are fed the
 probe's pet. Open water and sealed surfaces have zero area, so E0Maps is read
-but used by no flux. Preferential flow, capillary rise and runoff
-concentration are on, as in CWatM's shipped 30-arcminute settings template.
+but used by no flux. Capillary rise and runoff concentration are on, as in
+every 30-arcminute template of CWatM and of CWatM-Earth-30min. Preferential
+flow is on as in the CWatM-Earth-30min template
+(settings_CWatM_template_30min.ini at e9dfd99), the repository the parameter
+maps come from; the pinned model repository's own 30-arcminute templates and
+its global 30-arcminute test setup ship it off. That switch is a packaging
+choice that decides two verdicts: with preferentialFlow = False,
+pet-consistency and response-nonnegativity both pass on the gate seeds
+(README.md, Sensitivity).
 
 The cell is forest and grassland only. Land cover, soil hydraulics, rooting,
 crop coefficients, groundwater recession, relative elevation, slope and
@@ -57,8 +64,9 @@ orographic spread are not in static.json; they take the median over the land
 cells of CWatM's own 30-arcminute input maps (iiasa/CWatM-Earth-30min at
 e9dfd99), listed in GLOBAL_MEDIAN below with the spread in README.md. The
 forest share is the area-weighted forest share of forest plus grassland in
-the same maps. Calibration factors take the neutral defaults CWatM's settings
-template documents, not its example calibration.
+the same maps. Calibration factors take the neutral values the templates'
+[CALIBRATION] comments document, not the example calibration; SnowMeltCoef,
+for which no neutral value is documented, is a choice (see CALIBRATION_DEFAULTS).
 
 From static.json: the cell area (area_km2), the snow threshold
 (snow_threshold_degC -> TempSnow), the interception capacity
@@ -77,7 +85,10 @@ CWatM 1.11 has no sub-daily step. miscInitial sets DtSec = 86400 as a
 literal, and the soil, groundwater, snow, interception and runoff-concentration
 rates are per day with nothing that rescales them. The adapter therefore
 hands CWatM one row per step at every timestep, as the depth that row carries
-(rate x step length), and CWatM's calendar advances one day per row. At PT1H
+(rate x step length), and CWatM's calendar advances one day per row. Its snow
+scheme reads that calendar: the melt coefficient follows a northern-hemisphere
+sine of the day of year, and extra ice melt acts on snow between days 166 and
+259, so at PT1H both run on a calendar 24 times too fast. At PT1H
 that is the model applying a day of drainage, percolation and evaporation to
 every hour of forcing; the resolution probe measures exactly that, and no
 parameter is rescaled to hide it.
@@ -149,10 +160,16 @@ GLOBAL_MEDIAN = {
     },
 }
 
-# Neutral defaults CWatM's settings template documents beside its example
-# calibration (settings_CWatM_template_30min.ini, [CALIBRATION] comments).
-# manningsN and lakeEvaFactor are read by the routing module's initialisation
-# only; routing is off.
+# preferentialFlowConstant, arnoBeta_add, factor_interflow, recessionCoeff_factor
+# and runoffConc_factor take the neutral values the [CALIBRATION] comments of the
+# 30-arcminute templates document; crop_correct and soildepth_factor are 1 (no
+# scaling). SnowMeltCoef has no documented neutral value: CWatM-Earth-30min's
+# template sets 0.0027 and the model repository's 30-arcminute tests 0.0034.
+# 0.004 m/degC/day is a choice: the value those files carry commented out under
+# [SNOW] ("default: 4.0" mm) and the one the model repository's Bhima 1 km test
+# sets (pytest/settings/1km/Bhima/settings_Bhima.ini:171). manningsN and
+# lakeEvaFactor are read by the routing module's initialisation only; routing
+# is off.
 CALIBRATION_DEFAULTS = {
     "SnowMeltCoef": 0.004,
     "crop_correct": 1.0,

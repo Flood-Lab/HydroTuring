@@ -4,7 +4,9 @@
 # here; the container runs with no network and the adapter downloads nothing.
 # CWatM is GPL-3.0; the licence travels with the image at /opt/cwatm/LICENSE.
 
-FROM python:3.11-slim AS source
+# python:3.11-slim (Python 3.11.16, Debian trixie) pinned by the index digest
+# of the image the archived evaluation was built on.
+FROM python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS source
 # iiasa/CWatM at release 1.11 (tag 1.11 points at this commit).
 ARG REVISION=5baaadd8c4379f4e82956b31c1d4b90d3ebf7e00
 RUN apt-get update \
@@ -26,7 +28,7 @@ RUN cd /src/cwatm/hydrological_modules/routing_reservoirs \
  && g++ -O3 -fPIC -shared -static-libstdc++ -static-libgcc -o t5_linux.so t5.cpp \
  && rm -f t5.dll t5cyg.so t5_mac.so
 
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 # rasterio's wheel links the system expat.
 RUN apt-get update \
