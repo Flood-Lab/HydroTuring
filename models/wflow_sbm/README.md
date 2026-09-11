@@ -262,15 +262,15 @@ ht run --model wflow_sbm --gate-seeds
 
 ## Result
 
-**FAIL (INCOMPLETE), 15 of 20 probes passed**, adapter `1.0.4-ht.4`, on the gate seeds, every
+**FAIL (VIOLATION), 15 of 20 probes passed**, adapter `1.0.4-ht.4`, on the gate seeds, every
 case on the full record (`window_days: full`).
 
 | Probe | Verdict | Reason | Detail |
 | --- | --- | --- | --- |
-| `energy/evaporative-partition` | FAIL | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
-| `energy/latent-heat-et-consistency` | FAIL | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
+| `energy/evaporative-partition` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
+| `energy/latent-heat-et-consistency` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
 | `energy/pet-consistency` | PASS | OK | evaporation 0.96 of demand when the soil is wettest, 0.15 when driest |
-| `energy/surface-energy-closure` | FAIL | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
+| `energy/surface-energy-closure` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
 | `mass/antecedent-monotonicity` | FAIL | VIOLATION | a wet month before the storm adds almost no runoff (0.0013 and 0.0005 of the storm on 2 of 3 seeds, where 0.02 is asked) |
 | `mass/area-invariance` | PASS | OK | identical to floating point at ten times the area |
 | `mass/catchment-closure` | PASS | OK | residual 1.8e-4 to 2.1e-4 of the rain; runoff ratio 0.45 to 0.52; ET 0.53 to 0.63 of demand |
@@ -288,8 +288,8 @@ case on the full record (`window_days: full`).
 | `mass/warming-response` | PASS | OK | runoff falls by 0.27 to 0.31 per unit of added demand |
 | `momentum/routing-conservation` | PASS | OK | the channel holds at most 0.17 of what a 15-day hydrograph of recent runoff allows |
 
-The three energy-flux probes are INCOMPLETE because wflow_sbm computes no latent, sensible
-or ground heat flux; that is the model declining to be asked, not a failure.
+The three energy-flux probes are N/A (INCOMPLETE) because wflow_sbm computes no latent,
+sensible or ground heat flux; that is the model declining to be asked, not a failure.
 
 `mass/human-abstraction` passes because the adapter now takes the prescribed withdrawal through
 Wflow's own water demand and allocation (see [A prescribed withdrawal](#a-prescribed-withdrawal)).
