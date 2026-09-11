@@ -18,10 +18,11 @@ adapter can read rather than reconstruct.
 
 ## Verdict
 
-**FAIL (INCOMPLETE)**, 14 of 20 probes passed, on the gate seeds and the full
-record of every probe (`ht run --model cwatm --gate-seeds`). INCOMPLETE is
-the worst reason: CWatM reports no energy fluxes. Three probes it can be
-asked fail as VIOLATION, and they are not alike.
+**FAIL (VIOLATION)**, 14 of 20 probes passed, on the gate seeds and the full
+record of every probe (`ht run --model cwatm --gate-seeds`). CWatM reports no
+heat fluxes, so the three energy-flux probes cannot ask it anything: they are
+N/A (INCOMPLETE) and count neither way. Three probes it can be asked fail as
+VIOLATION, and they are not alike.
 
 - `resolution-invariance` is the model: CWatM has no step other than a day,
   and no choice made here moves it.
@@ -49,7 +50,7 @@ asked fail as VIOLATION, and they are not alike.
 
 | Probe | Result | Mechanism |
 | --- | --- | --- |
-| `energy/evaporative-partition`, `energy/latent-heat-et-consistency`, `energy/surface-energy-closure` | INCOMPLETE | CWatM reports no latent, sensible or ground heat flux (and the last probe is hourly) |
+| `energy/evaporative-partition`, `energy/latent-heat-et-consistency`, `energy/surface-energy-closure` | N/A (INCOMPLETE) | CWatM reports no latent, sensible or ground heat flux (and the last probe is hourly), so these probes cannot ask it anything |
 | `energy/pet-consistency` | VIOLATION: evaporation on the wettest fifth of soil days is 0.695 of demand on the worst seed (0.695–0.705; at least 0.7) | a land cover's transpiration, bare-soil and interception evaporation together cannot exceed `crop_correct × cropKC × ETRef`, and the fraction-weighted crop coefficient is 0.689; snow evaporation is added on top of that cap, which is why the ratio sits just above 0.689 (Sensitivity). **A packaging choice**: with `preferentialFlow = False` it passes at 0.708–0.712, and higher crop coefficients or more forest pass too |
 | `mass/resolution-invariance` | VIOLATION: runoff differs by 52.1 % of the rain between PT1H and PT1D (38.6–52.1 %), evaporation by 0.6 % | CWatM has no dt (below); its groundwater reservoir releases `recessionCoeff × storage` per step, so at PT1H it drains 24 times too fast |
 | `mass/response-nonnegativity` | VIOLATION: runoff 0.29 mm/day below the control on 2002-02-12, eight days after 120 mm was added (seed 1713476937; the other two never dip) | on wetter soil preferential flow takes a larger share of a later storm, and its interflow part replaces surface runoff; runoff concentration releases interflow through a slower kernel than surface runoff, so the next day carries less (below). **A packaging choice**: with `preferentialFlow = False` it passes (largest dip 0.048 mm/day, within tolerance), and the verdict also moves with land cover and with the slope that sets the lag |
