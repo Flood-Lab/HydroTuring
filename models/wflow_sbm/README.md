@@ -229,7 +229,7 @@ before the storm. The criterion counts its month from 9 July, the start of the d
 
 On the two failing seeds, 1295520324 and, in brackets, 1802472438:
 - On 18 July the wet column holds 220.5 mm against the dry column's 218.2 mm (226.8 against
-  220.7): only 2.3 mm (6.1 mm) wetter. It transpired 83 mm (82 mm) of the 120 mm while the rain
+  220.7): only 2.3 mm (6.1 mm) wetter. It evaporated 83 mm (82 mm) of the 120 mm while the rain
   fell and 36 mm (35 mm) more in the ten dry days, against 2 to 3 mm and 0.4 mm in the dry run.
 - Both columns sit just above 215 mm, which is (soil thickness − rooting depth) × (θs − θr) =
   (1184 − 387) × 0.270. SBM transpires from the unsaturated store only in rooted layers, and
@@ -257,14 +257,15 @@ on where the mapping puts that evaporation floor against the stated capacity:
 never rise. On seed 1200831778:
 - The rain stops with the water table at 467 mm, below the 387 mm roots, and 56 mm in the
   unsaturated store.
-- Transpiration draws on the rooted part of that store, which drains from 48 to 20 mm. As it
+- Transpiration draws on the rooted part of that store; the unsaturated store as a whole drains
+  from 56 mm to 19 mm by late March. As the rooted part
   empties, transpiration falls from 0.85 to 0 mm/day in February, while potential evaporation
   rises from 0.9 to 2.3 mm/day.
 - Gravity drainage from the unsaturated store into the saturated store continues (0.37 falling
   to 0.04 mm/day), so the saturated store refills from 190.0 to 192.4 mm and the water table
   rises 9 mm.
 - Lateral subsurface flow follows the water table, not the total storage, and here it is all of
-  the runoff. It rises 11 %, and runoff rises 3.6 % between weekly blocks 6 and 7, with 17.9 mm
+  the runoff. It rises 12 %, and runoff rises 3.6 % between weekly blocks 6 and 7, with 17.9 mm
   drained over the two years.
 
 In ht.1 the same seed failed the other way: its 22 km hillslope turned the same drainage into a
