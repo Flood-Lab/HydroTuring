@@ -248,3 +248,24 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-11,summa,4.0.0-f787fa5.4,0.1.0,docker,mass/time-origin-invariance,PASS,OK,full record,1264165719 1771117833 130586300,residual 0.000% of driver
 2026-09-11,summa,4.0.0-f787fa5.4,0.1.0,docker,mass/warming-response,PASS,OK,full record,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
 2026-09-11,summa,4.0.0-f787fa5.4,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/catchment-closure (adapter contract),PASS,OK,30-day flood event,598896396,"adapter contract OK: 395 rows in 18.6s, columns pr, evspsbl, mrro, dis, gwex, mrso, snw, canopy, gw, channel"
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,energy/evaporative-partition,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,energy/latent-heat-et-consistency,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,energy/pet-consistency,PASS,OK,3650-day flood event,770619041 1277571155 1784523269,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,energy/surface-energy-closure,FAIL,INCOMPLETE,not run,,"does not report hfls, hfss, hfg"
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/antecedent-monotonicity,PASS,OK,730-day flood event,1295520324 1802472438 161940905,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/area-invariance,PASS,OK,365-day flood event,66780378 573732492 1080684606,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/catchment-closure,PASS,OK,30-day flood event,598896396 1105848510 1612800624 2119752738 479221205,residual 0.000% of driver
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/causality,PASS,OK,730-day flood event,1016628858 1523580972 2030533086,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/dry-down,PASS,OK,730-day flood event,186927550 693879664 1200831778,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/extreme-rain,PASS,OK,1095-day flood event,154098211 661050325 1168002439,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/human-abstraction,FAIL,ERROR,3650-day flood event,1129545695 1636497809 2143449923,lisflood: container exceeded the time budget for mass/human-abstraction
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/phase-counterfactual,PASS,OK,1095-day flood event,25625370 532577484 1039529598,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/precipitation-counterfactual,FAIL,ERROR,3650-day flood event,872466880 1379418994 1886371108,lisflood: container exceeded the time budget for mass/precipitation-counterfactual
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/resolution-invariance,FAIL,VIOLATION,30-day flood event,746687816 1253639930 1760592044,resolution_invariance: mrro differs by 13.0% of pr between PT1H and PT1D (limit 10%)
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/response-nonnegativity,PASS,OK,730-day flood event,699572709 1206524823 1713476937,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/runoff-bounds,PASS,OK,3650-day flood event,726751959 1233704073 1740656187 100124654 607076768,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/steady-state,PASS,OK,1095-day flood event,1815845244 175313711 682265825,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/time-origin-invariance,PASS,OK,365-day flood event,1264165719 1771117833 130586300,residual 0.000% of driver
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,mass/warming-response,PASS,OK,365-day flood event,732983943 1239936057 1746888171 106356638 613308752,all criteria pass
+2026-09-11,lisflood,5.0.0-onecell.3,0.1.0,docker,momentum/routing-conservation,PASS,OK,1095-day flood event,417694852 924646966 1431599080,all criteria pass

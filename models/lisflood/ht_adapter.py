@@ -3,13 +3,17 @@
 
 LISFLOOD is a distributed model: a run is one XML settings file, a mask, a
 local drain direction map, and parameter maps on that grid. A lumped probe
-case is given here as the smallest valid domain LISFLOOD accepts: one square
-cell whose area is the catchment's, whose drain direction is a pit, and
-which carries a channel, so everything the cell generates leaves through the
-model's own routing. The adapter writes that domain and a settings file into
-/tmp, builds LISFLOOD's model object through the package's Python API, and
-runs its dynamic framework step by step, reading the stores after every step
-rather than asking the model to write maps.
+case is given here as one representative cell at the resolution the
+parameters come from: the shipped test catchment's 5 km grid (cell length
+5000 m, cell area 25 km2, channel length 5000 m, that catchment's median).
+The cell's drain direction is a pit and it carries a channel, so everything
+it generates leaves through the model's own routing. Every flux and store is
+a depth over the cell, which is a depth over the catchment; the catchment's
+stated area enters only the discharge, `dis = mrro * area_km2 / 86.4`. The
+adapter writes that domain and a settings file into /tmp, builds LISFLOOD's
+model object through the package's Python API, and runs its dynamic
+framework step by step, reading the stores after every step rather than
+asking the model to write maps.
 
 What is reported
 ----------------
@@ -21,10 +25,13 @@ balance module (waterbalance.py) closes its budget with:
             evaporation (TaWB + TaInterceptionWB + ESActWB).
 * `mrro`    the channel outflow at the outlet over the step (ChanQAvg * DtSec),
             as a depth over the cell.
-* `dis`     the same outflow in m3/s.
-* `gwex`    minus the loss from the lower groundwater zone to deep
-            groundwater (GwLossWB), an exchange with the outside. Identically
-            zero at LISFLOOD's documented default GwLoss = 0.
+* `dis`     `mrro` over the catchment's stated area, in m3/s.
+* `gwex`    what leaves the reported stores to the outside, negative: the loss
+            from the lower groundwater zone to deep groundwater (GwLossWB,
+            zero at LISFLOOD's default GwLoss = 0) and, when the case
+            prescribes a withdrawal, the water LISFLOOD's water-use module
+            actually took from the lower groundwater zone and from the
+            channel (abstraction_GW_actual_M3, withdrawal_CH_actual_M3).
 
 States, absolute, in mm over the cell, weighted by land-use fraction exactly
 as waterbalance.py weights them:
@@ -36,15 +43,33 @@ as waterbalance.py weights them:
 * `mrso`    the three soil layers, W1a + W1b + W2.
 * `gw`      the upper and lower groundwater zones, UZ + LZ.
 * `channel` overland flow storage (WaterDepth) plus channel water
-            (ChanM3 over the cell area): generated runoff not yet past the
-            outlet.
+            (ChanM3 over the cell): generated runoff not yet past the outlet.
 
-The per-step budget over those same terms (LISFLOOD's own precipitation in,
-evaporation, outlet flow and deep loss out, change in the stores) is
-recomputed after the run and its largest value reported in run.json as
+The per-step budget over those terms (precipitation in; evaporation, outlet
+flow, deep loss and withdrawals out; change in the stores) is recomputed
+after the run and its largest value reported in run.json as
 `budget_residual_mm_max_abs`. LISFLOOD's own reporting of the same check
 (repMBTs) is off: it writes four timeseries through PCRaster every step, a
-quarter of the run time, and switching it off leaves every output bit-identical.
+quarter of the run time, and switching it off leaves every output
+bit-identical.
+
+A prescribed withdrawal (`abstr`)
+---------------------------------
+When the forcing carries an `abstr` column (mm/day, net of return flow), the
+water-use option (`wateruse`) is switched on for the run, whatever the column
+holds, so the natural variant of a paired probe (a column of zeros) and the
+irrigated one run the same configuration. Runs without the column are
+configured exactly as before. The withdrawal is LISFLOOD's own: each step the
+adapter sets the industrial demand map to `abstr * DtDay` before the
+water-use module runs, with the industrial consumptive-use fraction at 1 (the
+prescription is already net, so nothing returns). The module then splits the
+demand as it always does: `FractionGroundwaterUsed` of it is taken from the
+lower groundwater zone with no availability check (LZ can fall below its
+threshold, and below zero), and the rest from the channel, limited to the
+channel water above the environmental-flow threshold (`EFlowThreshold * DtSec`);
+what the channel cannot supply is a shortage LISFLOOD records and does not
+take elsewhere. `gwex` carries what was actually taken, never the
+prescription, and run.json carries the prescribed, withdrawn and short totals.
 
 How the probe's forcing is fed
 ------------------------------
@@ -54,56 +79,61 @@ precipitation and the three potential evaporations as depths per step (rate
 times DtDay), temperature in degC. LISFLOOD wants three potential
 evaporations: ET0 (reference crop, for transpiration), ES0 (bare soil) and
 EW0 (open water, used here for evaporation of intercepted water). The probe
-gives one potential evaporation, and all three are set to it. Rows are fed at
-the step the case runs at: DtSec is the case's step and nothing is resampled.
+gives one potential evaporation, and all three are set to it. LISFLOOD
+documents `Tavg` as the daily mean even at sub-daily steps; at PT1H the probe's
+hourly temperature is fed as given, because rows are never resampled. DtSec
+is the case's step.
 
 The catchment
 -------------
 Parameters come from three places, in this order of preference, and run.json
 records which is which:
 
-1. static.json, where the definition is unambiguous: the area (cell area and
-   length), the latitude (LISFLOOD's snowmelt season changes sign with
-   hemisphere), the rain-snow threshold (TempSnow), the degree-day factor
-   (SnowMeltCoef), the soil capacity (the saturated water content of the three
-   layers: the 50 mm top layer is kept and the two lower layers are scaled
-   together) and the canopy capacity (LAI chosen so that LISFLOOD's interception
-   capacity SMax = 0.935 + 0.498 LAI - 0.00575 LAI^2 equals it; the LAI is held
-   constant through the year).
+1. static.json, where the definition is unambiguous: the latitude (LISFLOOD's
+   snowmelt season changes sign with hemisphere), the rain-snow threshold
+   (TempSnow), the degree-day factor (SnowMeltCoef), the soil capacity (the
+   saturated water content of the three layers: the 50 mm top layer is kept
+   and the two lower layers are scaled together) and the canopy capacity (LAI
+   chosen so that LISFLOOD's interception capacity SMax = 0.935 + 0.498 LAI -
+   0.00575 LAI^2 equals it; the LAI is held constant through the year). The
+   area only scales `dis`. `baseflow_coefficient` has no LISFLOOD counterpart
+   (LISFLOOD's recession is two linear zones with their own time constants)
+   and is not used.
 2. LISFLOOD's documented defaults in src/lisfloodSettings_reference.xml, for the
    calibration parameters (groundwater time constants, percolation, GwLoss,
-   LZThreshold, b_Xinanjiang, PowerPrefFlow, CalChanMan) and fixed constants.
+   LZThreshold, b_Xinanjiang, PowerPrefFlow, CalChanMan), fixed constants,
+   the channel routing sub-step (DtSecChannel 3600 s) and most water-use
+   constants.
 3. The shipped test catchment (tests/data/LF_ETRS89_UseCase), for maps with no
    lumped counterpart and no documented default: soil hydraulic properties and
    depths, crop coefficient and group, overland Manning's n, hillslope
-   gradient and elevation spread (catchment means), and channel geometry
-   (medians, because channel dimensions grow with upstream area and the mean
-   is set by the few large-river cells).
+   gradient and elevation spread (catchment means), channel geometry and the
+   environmental-flow threshold (medians, because they grow with upstream area
+   and the mean is set by the few large-river cells), and the groundwater
+   share of water use (mean).
 
-The whole cell is the rainfed "other" land-use fraction. Water use, lakes,
-reservoirs, polders, transmission loss, open-water evaporation, split and MCT
-routing, variable water fraction, rice irrigation and land-use change are
-switched off: no probe prescribes them and each needs inputs a synthetic
-catchment does not have. The soil starts at field capacity, the groundwater
-zones, snow, interception and overland flow empty, the channel at half
-bankfull (LISFLOOD's default); the probe's spinup year does the rest.
+LISFLOOD's snow adds terms keyed to the day of year on top of the degree-day
+factor: a seasonal melt coefficient of +-0.5 mm/degC/day at SnowSeasonAdj = 1,
+a summer ice-melt term on any pack left between days 165 and 257, and melt
+enhanced by the rain depth of the step. They are the model's own physics,
+driven by the forcing's dates, not adapter inputs.
+
+The whole cell is the rainfed "other" land-use fraction. Lakes, reservoirs,
+polders, transmission loss, open-water evaporation, split and MCT routing,
+variable water fraction, rice and drained irrigation, indicators and land-use
+change are switched off: no probe prescribes them and each needs inputs a
+synthetic catchment does not have. The soil starts at field capacity, the
+groundwater zones, snow, interception and overland flow empty, the channel at
+half bankfull (LISFLOOD's default); the probe's spinup year does the rest.
 
 Speed
 -----
-Several probes score a ten-year daily record within 60 seconds per run, and
-the image is amd64 (conda-forge has no linux-aarch64 PCRaster), so it runs
-emulated on an Apple-silicon host. Four settings serve that budget:
-
-* NUMBA_DISABLE_JIT=1. LISFLOOD's soil and interception loops are
-  numba-jitted with parallel loops over pixels; on one cell they gain
-  nothing, and compiling them costs about 40 seconds per run because a
-  read-only container cannot keep the cache. As Python, and with a warm
-  cache, they run at the same speed and every output is bit-identical.
-* numexpr on one thread, and repMBTs off (above): outputs bit-identical.
-* DtSecChannel = 21600 s instead of LISFLOOD's reference 3600 s: channel
-  routing four sub-steps a day instead of twenty-four at the daily step, and
-  once an hour at the hourly step either way. This one changes the routed
-  numbers; README.md compares every probe at both settings.
+NUMBA_DISABLE_JIT=1: LISFLOOD's soil and interception loops are numba-jitted
+with parallel loops over pixels; on one cell they gain nothing, and compiling
+them costs about 40 seconds per run because a read-only container cannot keep
+the cache. As Python they give bit-identical output. numexpr runs on one
+thread and repMBTs is off, both bit-identical. The store sums are taken on
+the numpy arrays under LISFLOOD's vegetation-fraction wrappers.
 
 The model is deterministic. The request seed is recorded and otherwise unused.
 """
@@ -130,16 +160,15 @@ os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
 import numpy as np  # noqa: E402
 
-MODEL = {"name": "lisflood", "version": "5.0.0-onecell.2"}
-
-# Channel routing sub-step. LISFLOOD's reference settings use 3600 s; routing
-# at 24 sub-steps a day puts a ten-year daily record at about 100 s under amd64
-# emulation, beyond the 60 s budget of the probes scored on it. 21600 s (four
-# sub-steps a day, LISFLOOD's reference model step) fits. At an hourly step
-# the model step is shorter and routing runs once a step either way.
-CHANNEL_SUBSTEP_SECONDS = 21600.0
+MODEL = {"name": "lisflood", "version": "5.0.0-onecell.3"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 TIMESTEP_SECONDS = {"PT1D": 86400, "PT1H": 3600, "PT15M": 900, "PT5M": 300, "PT1M": 60}
+
+# The representative cell: the shipped test catchment's grid, from which every
+# map-derived parameter below comes (pixleng.nc, pixarea.nc, chanlength.nc).
+CELL_LENGTH_M = 5000.0
+CELL_AREA_M2 = 25.0e6
+CHANNEL_LENGTH_M = 5000.0  # chanlength median; the mean is 5073 m
 
 # First day of each ten-day LAI interval, as leafarea.py numbers its map stack.
 LAI_INTERVAL_DAYS = [1, 11, 21, 32, 42, 52, 60, 70, 80, 91, 101, 111, 121, 131, 141, 152, 162, 172,
@@ -176,7 +205,7 @@ REFERENCE_DEFAULTS = {
     "ChanGradMin": 0.0001,
     "CourantCrit": 0.4,
     "BankFullPerc": 0.5,
-    "DtSecChannel": 3600.0,
+    "DtSecChannel": 3600.0,            # s, channel routing sub-step
     "PrScaling": 1.0,
     "CalEvaporation": 1.0,
     "ChanBottomWMult": 1.0,
@@ -203,6 +232,36 @@ TEST_CATCHMENT = {
     "ChanDepthThreshold": 0.331,       # m, ec_chanbnkf, median
     "ChanSdXdY": 1.0,                  # chans (1 everywhere)
     "ChanGrad": 0.009729,              # changrad, median
+}
+
+# The water-use option's inputs, used only when the case prescribes `abstr`.
+# (value, source)
+WATER_USE = {
+    "IndustryConsumptiveUseFraction": (1.0, "packaging: abstr is net of return flow, so nothing returns (reference 0.15)"),
+    "IndustrialDemandMaps": (0.0, "set every step to abstr * DtDay before the water-use module runs"),
+    "DomesticDemandMaps": (0.0, "no demand but the prescribed one"),
+    "LivestockDemandMaps": (0.0, "no demand but the prescribed one"),
+    "EnergyDemandMaps": (0.0, "no demand but the prescribed one"),
+    "FractionGroundwaterUsed": (0.168, "shipped test catchment mean of fracgwusedNew, the map the reference settings name"),
+    "FractionNonConventionalWaterUsed": (0.0, "shipped test catchment (fracncused is 0 everywhere)"),
+    "EFlowThreshold": (0.2604, "shipped test catchment median of ad_dis_nat_10, m3/s"),
+    "GroundwaterBodies": (1.0, "shipped test catchment median of ad_gwbodies"),
+    "FractionLakeReservoirWaterUsed": (0.25, "LISFLOOD reference default (lakes and reservoirs are off)"),
+    "WUsePercRemain": (0.5, "LISFLOOD reference default"),
+    "maxNoWateruse": (5.0, "LISFLOOD reference default"),
+    "DomesticConsumptiveUseFraction": (0.20, "LISFLOOD reference default"),
+    "LivestockConsumptiveUseFraction": (0.15, "LISFLOOD reference default"),
+    "EnergyConsumptiveUseFraction": (0.06378, "shipped test catchment mean of energyconsumptiveuse"),
+    "LeakageFraction": (0.2, "LISFLOOD reference default"),
+    "LeakageWaterLoss": (0.75, "LISFLOOD reference default"),
+    "LeakageReductionFraction": (0.0, "LISFLOOD reference default"),
+    "WaterSavingFraction": (0.0, "LISFLOOD reference default"),
+    "IrrigationEfficiency": (0.75, "LISFLOOD reference default"),
+    "ConveyanceEfficiency": (0.80, "LISFLOOD reference default"),
+    "IrrigationType": (1.0, "LISFLOOD reference default"),
+    "IrrigationMult": (1.20, "LISFLOOD reference default"),
+    "IrrigationWaterReUseM3": (0.0, "LISFLOOD reference default"),
+    "IrrigationWaterReUseNumDays": (143.0, "LISFLOOD reference default"),
 }
 
 OPTIONS_OFF = [
@@ -240,11 +299,6 @@ def catchment_parameters(static: dict) -> tuple[dict, dict]:
     p.update(TEST_CATCHMENT)
     source = {k: "LISFLOOD reference default" for k in REFERENCE_DEFAULTS}
     source.update({k: "shipped test catchment" for k in TEST_CATCHMENT})
-    p["DtSecChannel"] = CHANNEL_SUBSTEP_SECONDS
-    source["DtSecChannel"] = (
-        "packaging choice: 21600 s instead of the reference 3600 s, so a ten-year daily "
-        "record fits a 60 s probe budget under amd64 emulation (README.md has the sensitivity)"
-    )
 
     if "snow_threshold_degC" in static:
         p["TempSnow"] = float(static["snow_threshold_degC"])
@@ -269,36 +323,18 @@ def catchment_parameters(static: dict) -> tuple[dict, dict]:
     return p, source
 
 
-def first(value) -> float:
-    """The one cell's value of a LISFLOOD pixel array (or a scalar)."""
-    return float(np.asarray(value).reshape(-1)[0])
-
-
-def storage_terms(m) -> tuple[float, float, float, float, float]:
-    """Soil, snow, canopy, groundwater, channel: waterbalance.py's stores, in mm over the cell,
-    weighted by land-use fraction as that module weights them."""
-    ax = m.SoilFraction.dims.index("vegetation")
-    sf = m.SoilFraction
-    soil = np.sum(sf * (m.W1a + m.W1b + m.W2), ax)
-    canopy = np.sum(sf * m.CumInterception, ax) + m.DirectRunoffFraction * m.CumInterSealed
-    groundwater = np.sum(sf * m.UZ, ax) + m.LZ
-    channel = m.ChanM3 * m.M3toMM + m.WaterDepth
-    return first(soil), first(m.SnowCover), first(canopy), first(groundwater), first(channel)
-
-
 def parse_time(text: str) -> dt.datetime:
     value = dt.datetime.fromisoformat(text.strip().replace("Z", "+00:00"))
     return value.replace(tzinfo=None)
 
 
-def write_domain(work: Path, static: dict, params: dict, forcing: list[dict], timestep: str) -> Path:
-    """One cell, a pit with a channel, and the settings file that points at them."""
+def write_domain(work: Path, static: dict, params: dict, forcing: list[dict], timestep: str,
+                 water_use: bool) -> Path:
+    """One representative cell, a pit with a channel, and the settings file that points at them."""
     import netCDF4
     import pcraster as pcr
     from lisflood.global_modules.add1 import generateName
 
-    area_m2 = float(static["area_km2"]) * 1.0e6
-    length_m = math.sqrt(area_m2)
     latitude = float(static.get("latitude_deg", 45.0))
     maps = work / "maps"
     out = work / "out"
@@ -340,9 +376,9 @@ def write_domain(work: Path, static: dict, params: dict, forcing: list[dict], ti
         "MaskMap": pcr_map("mask", pcr.Boolean, 1),
         "Ldd": pcr_map("ldd", pcr.Ldd, 5),
         "Channels": pcr_map("chan", pcr.Boolean, 1),
-        "PixelLengthUser": pcr_map("pixleng", pcr.Scalar, length_m),
-        "PixelAreaUser": pcr_map("pixarea", pcr.Scalar, area_m2),
-        "ChanLength": pcr_map("chanlength", pcr.Scalar, length_m),
+        "PixelLengthUser": pcr_map("pixleng", pcr.Scalar, CELL_LENGTH_M),
+        "PixelAreaUser": pcr_map("pixarea", pcr.Scalar, CELL_AREA_M2),
+        "ChanLength": pcr_map("chanlength", pcr.Scalar, CHANNEL_LENGTH_M),
         "netCDFtemplate": str(maps / "template.nc"),
         "LAIOtherMaps": str(lai_dir / "laio"), "LAIForestMaps": str(lai_dir / "laif"),
         "LAIIrrigationMaps": str(lai_dir / "laii"),
@@ -394,10 +430,19 @@ def write_domain(work: Path, static: dict, params: dict, forcing: list[dict], ti
     for key, value in params.items():
         if key != "LAI":
             bindings.setdefault(key, repr(float(value)))
+    options_off = list(OPTIONS_OFF)
+    options_on = list(OPTIONS_ON)
+    if water_use:
+        for key, (value, _) in WATER_USE.items():
+            bindings[key] = repr(float(value))
+        # loadmap("WUseRegion").astype(int) needs a map, not a constant: one region.
+        bindings["WUseRegion"] = pcr_map("wregion", pcr.Nominal, 1)
+        options_off.remove("wateruse")
+        options_on.append("wateruse")
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>', "<lfsettings>", "<lfoptions>"]
-    lines += [f'  <setoption choice="0" name="{name}"/>' for name in OPTIONS_OFF]
-    lines += [f'  <setoption choice="1" name="{name}"/>' for name in OPTIONS_ON]
+    lines += [f'  <setoption choice="0" name="{name}"/>' for name in options_off]
+    lines += [f'  <setoption choice="1" name="{name}"/>' for name in options_on]
     lines += ["</lfoptions>", "<lfuser>",
               f'  <textvar name="PathOut" value="{out}"/>',
               '  <textvar name="ReportSteps" value="1..9999"/>',
@@ -415,13 +460,35 @@ def write_domain(work: Path, static: dict, params: dict, forcing: list[dict], ti
 # --- the model ----------------------------------------------------------------
 
 
+def first(value) -> float:
+    """The one cell's value of a LISFLOOD pixel array (or a scalar)."""
+    return float(np.asarray(value).reshape(-1)[0])
+
+
+def plain(value) -> np.ndarray:
+    """The numpy array under LISFLOOD's vegetation-fraction wrapper, or the array itself."""
+    return np.asarray(getattr(value, "values", value))
+
+
+def storage_terms(m, veg_axis: int) -> tuple[float, float, float, float, float]:
+    """Soil, snow, canopy, groundwater, channel: waterbalance.py's stores, in mm over the cell,
+    weighted by land-use fraction as that module weights them, on plain numpy arrays."""
+    sf = plain(m.SoilFraction)
+    soil = np.sum(sf * (plain(m.W1a) + plain(m.W1b) + plain(m.W2)), axis=veg_axis)
+    canopy = np.sum(sf * plain(m.CumInterception), axis=veg_axis) + plain(m.DirectRunoffFraction) * plain(m.CumInterSealed)
+    groundwater = np.sum(sf * plain(m.UZ), axis=veg_axis) + plain(m.LZ)
+    channel = plain(m.ChanM3) * plain(m.M3toMM) + plain(m.WaterDepth)
+    return first(soil), first(m.SnowCover), first(canopy), first(groundwater), first(channel)
+
+
 def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dict], dict]:
     if timestep not in TIMESTEP_SECONDS:
         raise SystemExit(f"unsupported timestep {timestep!r}")
     started = time.monotonic()
     params, sources = catchment_parameters(static)
+    water_use = "abstr" in forcing[0]
     work = Path(tempfile.mkdtemp(prefix="lisflood-"))
-    settings_path = write_domain(work, static, params, forcing, timestep)
+    settings_path = write_domain(work, static, params, forcing, timestep, water_use)
 
     from lisflood.global_modules.settings import CDFFlags, LisSettings, MaskInfo
     from lisflood.global_modules.zusatz import DynamicFramework
@@ -433,20 +500,33 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
     pr = np.array([float(r["pr"]) for r in forcing])
     tas = np.array([float(r["tas"]) for r in forcing])
     pet = np.array([float(r["pet"]) for r in forcing])
+    abstr = np.array([float(r["abstr"]) for r in forcing]) if water_use else np.zeros(len(forcing))
     records: list[tuple[float, ...]] = []
+    veg_axis = [0]
 
     class SteppedLisflood(LisfloodModel):
         def dynamic(self):
             super().dynamic()
             evaporation = self.TaWB + self.TaInterceptionWB + self.ESActWB
             outflow_m3s = np.where(self.AtLastPointC, self.ChanQAvg, 0.0)
+            m3_to_mm = first(self.M3toMM)
+            if water_use:
+                from_groundwater = first(self.abstraction_GW_actual_M3) * m3_to_mm
+                from_channel = (first(self.withdrawal_CH_actual_M3) + first(self.LakeAbstractionM3)
+                                + first(self.ReservoirAbstractionM3)
+                                - first(self.returnflow_GwAbs2Channel_M3_routStep) * self.NoRoutSteps) * m3_to_mm
+                short = first(self.areatotal_shortage_SW_M3) * m3_to_mm
+            else:
+                from_groundwater = from_channel = short = 0.0
             records.append((
-                first(evaporation), first(outflow_m3s * self.DtSec * self.M3toMM), first(outflow_m3s),
-                first(self.GwLossWB), *storage_terms(self), first(self.TotalPrecipitationWB),
+                first(evaporation), first(outflow_m3s) * self.DtSec * m3_to_mm, first(self.GwLossWB),
+                *storage_terms(self, veg_axis[0]), first(self.TotalPrecipitationWB),
+                from_groundwater, from_channel, short,
             ))
 
     model = SteppedLisflood()
-    initial_storage = sum(storage_terms(model))
+    veg_axis[0] = model.SoilFraction.dims.index("vegetation")
+    initial_storage = sum(storage_terms(model, veg_axis[0]))
     mask = MaskInfo.instance()
 
     def read_forcing_rows():
@@ -458,6 +538,9 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         model.ETRef = demand
         model.ESRef = demand.copy()
         model.EWRef = demand.copy()
+        if water_use:
+            # The water-use module's own demand input, in its units (mm per step).
+            model.IndustrialDemandMM = mask.in_zero() + abstr[i] * dt_day
 
     model.readmeteo_module.dynamic = read_forcing_rows
     initialised = time.monotonic()
@@ -470,43 +553,52 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         raise RuntimeError(f"LISFLOOD ran {len(records)} steps for {len(forcing)} forcing rows")
 
     # waterbalance.py's budget, per step, from the same terms: precipitation in,
-    # evaporation, outlet flow and deep loss out, change in the stores.
-    storage = [initial_storage] + [sum(r[4:9]) for r in records]
+    # evaporation, outlet flow, deep loss and withdrawals out, change in the stores.
+    storage = [initial_storage] + [sum(r[3:8]) for r in records]
     residual_max = max(
-        abs(r[9] - r[0] - r[1] - r[3] - (storage[i + 1] - storage[i])) for i, r in enumerate(records)
+        abs(r[8] - r[0] - r[1] - r[2] - r[9] - r[10] - (storage[i + 1] - storage[i]))
+        for i, r in enumerate(records)
     )
 
     area_km2 = float(static["area_km2"])
     rows = []
     for step, rec in zip(forcing, records):
-        evaporation, outflow_mm, outflow_m3s, loss, soil, snow, canopy, groundwater, channel, _ = rec
+        evaporation, outflow_mm, loss, soil, snow, canopy, groundwater, channel, _, gw_take, ch_take, _ = rec
+        mrro = outflow_mm / dt_day
         rows.append({
             "time": step["time"],
             "pr": step["pr"],
             "evspsbl": evaporation / dt_day,
-            "mrro": outflow_mm / dt_day,
-            "dis": outflow_m3s,
-            "gwex": (0.0 - loss) / dt_day,  # a loss, so negative; 0.0 - 0.0 avoids writing -0.0
+            "mrro": mrro,
+            "dis": mrro * area_km2 / 86.4,
+            "gwex": (0.0 - loss - gw_take - ch_take) / dt_day,
             "mrso": soil,
             "snw": snow,
             "canopy": canopy,
             "gw": groundwater,
             "channel": channel,
         })
+
     notes = {
         "timestep": timestep,
         "dt_seconds": TIMESTEP_SECONDS[timestep],
         "domain": {
             "cells": 1,
-            "cell_area_km2": area_km2,
-            "cell_length_m": math.sqrt(area_km2 * 1.0e6),
+            "cell_length_m": CELL_LENGTH_M,
+            "cell_area_km2": CELL_AREA_M2 / 1.0e6,
+            "channel_length_m": CHANNEL_LENGTH_M,
+            "source": "the shipped test catchment's 5 km grid; chanlength median",
             "ldd": "pit with a channel",
             "land_use": "rainfed 'other' fraction 1.0",
+            "catchment_area_km2": area_km2,
+            "catchment_area_enters": "only dis = mrro * area_km2 / 86.4",
         },
-        "options_off": OPTIONS_OFF,
-        "options_on": OPTIONS_ON,
+        "static_keys_unused": sorted(k for k in ("baseflow_coefficient",) if k in static),
+        "options_off": [o for o in OPTIONS_OFF if not (water_use and o == "wateruse")],
+        "options_on": OPTIONS_ON + (["wateruse"] if water_use else []),
         "parameters": {k: {"value": v, "source": sources.get(k, "")} for k, v in params.items()},
-        "forcing": "readmeteo replaced: Precipitation = pr*DtDay, Tavg = tas, ET0 = ES0 = EW0 = pet*DtDay",
+        "forcing": "readmeteo replaced: Precipitation = pr*DtDay, Tavg = tas (hourly at PT1H), "
+                   "ET0 = ES0 = EW0 = pet*DtDay",
         "states": {
             "snw": "SnowCover (mean of three elevation zones; no liquid water)",
             "canopy": "CumInterception weighted by fraction, plus sealed depression storage (zero)",
@@ -517,15 +609,32 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         "fluxes": {
             "evspsbl": "TaWB + TaInterceptionWB + ESActWB",
             "mrro": "ChanQAvg * DtSec at the outlet, over the cell",
-            "gwex": "-GwLossWB (loss from the lower zone to deep groundwater)",
+            "dis": "mrro * area_km2 / 86.4",
+            "gwex": "-(GwLossWB + abstraction_GW_actual_M3 + withdrawal_CH_actual_M3 over the cell)",
         },
         "budget_residual_mm_max_abs": residual_max,
-        "channel_substep_seconds": params["DtSecChannel"],
         "numba_disable_jit": os.environ.get("NUMBA_DISABLE_JIT"),
         "numexpr_threads": os.environ.get("NUMEXPR_NUM_THREADS"),
         "initialise_seconds": round(initialised - started, 2),
         "run_seconds": round(time.monotonic() - initialised, 2),
     }
+    if water_use:
+        prescribed = float(np.sum(abstr) * dt_day)
+        from_groundwater = float(sum(r[9] for r in records))
+        from_channel = float(sum(r[10] for r in records))
+        notes["water_use"] = {
+            "enabled_because": "the forcing carries an abstr column",
+            "demand": "industrial demand map set to abstr * DtDay each step; consumptive fraction 1",
+            "sources": "FractionGroundwaterUsed of the demand from the lower groundwater zone (no "
+                       "availability check); the rest from channel water above EFlowThreshold * DtSec",
+            "parameters": {k: {"value": v, "source": s} for k, (v, s) in WATER_USE.items()},
+            "prescribed_mm": prescribed,
+            "withdrawn_from_groundwater_mm": from_groundwater,
+            "withdrawn_from_channel_mm": from_channel,
+            "channel_shortage_mm": float(sum(r[11] for r in records)),
+            "share_withdrawn": (from_groundwater + from_channel) / prescribed if prescribed > 0 else None,
+            "lz_min_mm": float(min(r[6] for r in records)),
+        }
     return rows, notes
 
 
@@ -533,8 +642,9 @@ def read_forcing(path: Path) -> list[dict]:
     with open(path, newline="") as fh:
         rows = list(csv.DictReader(fh))
     for row in rows:
-        for key in ("pr", "tas", "pet"):
-            row[key] = float(row[key])
+        for key in ("pr", "tas", "pet", "abstr"):
+            if key in row:
+                row[key] = float(row[key])
     return rows
 
 

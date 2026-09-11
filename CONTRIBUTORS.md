@@ -50,7 +50,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `dhbv2` | Zhi Li (CU Boulder), [#2](../../issues/2) | HydroTuring maintainers |
 | `wflow_sbm` | [@kawh1111](https://github.com/kawh1111), [#29](../../issues/29) | HydroTuring maintainers |
 | `summa` | Yuanhang Liu (Independent Researcher), [#30](../../issues/30) | HydroTuring maintainers |
-| `lisflood` | [@kawh1111](https://github.com/kawh1111), [#20](../../issues/20) | HydroTuring maintainers |
+| `lisflood` | Yuanhang Liu (Independent Researcher), [#20](../../issues/20) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:

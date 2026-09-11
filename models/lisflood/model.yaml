@@ -1,19 +1,23 @@
 name: lisflood
-version: "5.0.0-onecell.2"
+version: "5.0.0-onecell.3"
 description: >
   LISFLOOD, the distributed rainfall-runoff model the European Commission's
   Joint Research Centre operates behind the European and Global Flood
   Awareness Systems, at release 5.0.0 (ec-jrc/lisflood-code, 025cff0, the
   PyPI release lisflood-model 5.0.0). The adapter drives LISFLOOD's own
-  Python framework step by step on the smallest valid domain for a lumped
-  catchment: one square cell of the catchment's area, draining to a pit that
-  carries a channel. It reads every store the water balance module counts
-  (snow, interception, three soil layers, the upper and lower groundwater
-  zones, overland flow and channel water) and the evaporation and outflow
-  that module counts, so the budget is LISFLOOD's own. Water use, lakes,
-  reservoirs, polders, transmission loss, open-water evaporation and split
-  routing are switched off because no probe prescribes them; README.md lists
-  every switch, every parameter and where it came from.
+  Python framework step by step on one representative cell at the
+  resolution its parameters come from, the shipped test catchment's 5 km
+  grid, draining to a pit that carries a channel; every flux and store is a
+  depth over that cell, and the catchment's stated area enters only the
+  discharge. It reads every store the water balance module counts (snow,
+  interception, three soil layers, the upper and lower groundwater zones,
+  overland flow and channel water) and the evaporation and outflow that
+  module counts, so the budget is LISFLOOD's own. When a probe prescribes a
+  net withdrawal (`abstr`), LISFLOOD's own water-use module takes it from
+  groundwater and the channel, and what it actually took is declared as a
+  negative `gwex`. Lakes, reservoirs, polders, transmission loss, open-water
+  evaporation and split routing are off; README.md lists every switch,
+  parameter and source.
 authors:
   - "A. De Roo, E. Gelati, P. Burek, J. van der Knijff, N. Wanders, S. Grimaldi, C. Russo et al. (European Commission Joint Research Centre and contributors)"
   - "HydroTuring maintainers (adapter)"
@@ -27,9 +31,10 @@ entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H]
 
 # `gw` is the upper plus lower groundwater zone, `channel` the overland flow
-# and channel water not yet past the outlet. `gwex` is LISFLOOD's loss from
-# the lower zone to deep groundwater, declared negative; it is zero at the
-# model's documented default (GwLoss = 0, a closed lower boundary).
+# and channel water not yet past the outlet. `gwex` is what leaves the
+# reported stores to the outside, negative: LISFLOOD's loss from the lower
+# zone to deep groundwater (zero at its documented default GwLoss = 0) and,
+# when a probe prescribes `abstr`, the withdrawal the water-use module made.
 emits:
   fluxes: [pr, evspsbl, mrro, dis, gwex]
   states: [mrso, snw, canopy, gw, channel]
@@ -39,7 +44,8 @@ supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 2, gpu: false}
 
-# Default flood-event window (30 days behind a year of spinup). Probes that
-# ask for the whole record get it. Under amd64 emulation a 395-row daily case
-# takes about 10 s and a ten-year record about 50 s, inside the 60 s budget of
-# the probes that score it; README.md says which settings that took.
+# Default flood-event window (30 days behind a year of spinup); probes that
+# ask for the whole record get it. A ten-year daily record (4015 rows) took
+# 97 s, 5 s of it initialisation, under amd64 emulation on a loaded host: over
+# the 60 s budget of the two probes that score one in a container. README.md
+# says how to re-run those natively.

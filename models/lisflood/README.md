@@ -4,14 +4,14 @@ LISFLOOD, the distributed rainfall-runoff model the European Commission's
 Joint Research Centre runs behind the European and Global Flood Awareness
 Systems ([documentation](https://ec-jrc.github.io/lisflood/)), packaged from
 [ec-jrc/lisflood-code](https://github.com/ec-jrc/lisflood-code) at release
-5.0.0 (`025cff0`), installed as the PyPI release `lisflood-model==5.0.0`.
+5.0.0 (`025cff0`), installed from the PyPI sdist `lisflood-model==5.0.0`.
 Requested in [Flood-Lab/HydroTuring#20](https://github.com/Flood-Lab/HydroTuring/issues/20)
-by [@kawh1111](https://github.com/kawh1111).
+by Yuanhang Liu ([@kawh1111](https://github.com/kawh1111)).
 
-It is the first operational distributed model in the pool, and the first
-whose water balance module checks its own budget every step. The adapter
-reads the same stores and fluxes that module sums, so what HydroTuring scores
-is LISFLOOD's own ledger.
+The adapter steps LISFLOOD's own Python framework and reads the stores and
+fluxes its water balance module sums, so what HydroTuring scores is
+LISFLOOD's own ledger. When a probe prescribes a withdrawal, LISFLOOD's own
+water-use module makes it.
 
 ## Licence
 
@@ -22,49 +22,83 @@ commit.
 
 conda-forge's `pcraster`, which LISFLOOD 5.0.0 imports throughout (its
 dynamic framework, drain-direction and routing operators), is built for
-linux-64, osx-64, osx-arm64 and win-64 and not for linux-aarch64, so a
-multi-arch image is not possible without building PCRaster from source. The
-image is pinned to `linux/amd64`: native on the CI runner, emulated on an
-Apple-silicon host, buildable on both. It is `mambaorg/micromamba:2.9.0-debian13`
-with the binary stack at the versions of the upstream `environment.yml` for
-this tag (python 3.12, pcraster 4.4.2, libgdal-core 3.12.4, numpy 2.2.6,
-numba 0.65.1, netCDF4 1.7.4), then `pip install --no-deps lisflood-model==5.0.0`.
-The PyPI sdist (`lisflood_model-5.0.0.tar.gz`, sha256 `a1f7bd46…3572`) was
-checked against the tag: its `src/lisflood` tree, `LICENSE` and `VERSION` are
-identical to commit `025cff0`, so the model code in the image is the pinned
-commit's.
-The official `jrce1/lisflood` image was not used as a base: it is amd64-only
-too, unpinned (`latest`), 8.6 GB uncompressed, and it runs the upstream test
-suite at build time.
+linux-64, osx-64, osx-arm64 and win-64 and not for linux-aarch64. The image
+is therefore pinned to `linux/amd64`: native on an x86-64 host, emulated on
+an Apple-silicon one, buildable on both. HydroTuring's CI runs submitted
+models only on manual dispatch, so no pull-request check builds it.
 
-Two build details, both for emulated builds: micromamba's parallel package
-extraction deadlocked under emulation and runs single-threaded, and the
-package's `setup.py` calls `gdal-config` for a version string, so the
-environment's `bin` is on `PATH` before the pip step.
+- Base images `mambaorg/micromamba:2.9.0-debian13` and `debian:13-slim`,
+  pinned by digest.
+- The binary stack at the versions of the upstream `environment.yml` for this
+  tag: python 3.12, pcraster 4.4.2, libgdal-core 3.12.4, numpy 2.2.6, numba
+  0.65.1, netCDF4 1.7.4. `xarray` 2026.4.0, `nine` 1.2.0 and `future` 1.0.0
+  at that file's pip versions.
+- LISFLOOD from the PyPI sdist `lisflood_model-5.0.0.tar.gz`, installed with
+  `--require-hashes` against sha256 `a1f7bd46ac43573d264210da0bb609c9823055ab1c552b3257dcba16ba103572`.
+  Its `src/lisflood` tree, `LICENSE` and `VERSION` were checked identical to
+  commit `025cff0`. `--no-deps`, because its requirement list pins test
+  tooling and GDAL's Python bindings, neither of which the model imports.
+- Two build details, both for emulated builds: micromamba's parallel package
+  extraction deadlocked under emulation and runs single-threaded, and the
+  package's `setup.py` calls `gdal-config` for a version string, so the
+  environment's `bin` is on `PATH` before the pip step.
+
+The official `jrce1/lisflood` image was not used as a base: it is amd64-only
+too, unpinned (`latest`), 8.6 GB uncompressed, and runs the upstream test
+suite at build time.
 
 ## The domain
 
-A lumped case is given as the smallest valid LISFLOOD domain: one square cell
-whose area is the catchment's (`area_km2`; cell length the square root),
-whose local drain direction is a pit, and which carries a channel of the
-cell's length, so everything the cell generates leaves through LISFLOOD's own
-overland-flow and channel kinematic wave. The clone map is a one-cell lat/lon
-grid centred on `latitude_deg`, which is all LISFLOOD reads from coordinates
-(the sign of its seasonal snowmelt coefficient); cell length and area are
-given explicitly (`gridSizeUserDefined`). The whole cell is the rainfed
-"other" land-use fraction.
+A lumped case is given as **one representative cell at the resolution its
+parameters come from**: the shipped test catchment's 5 km grid, so a cell
+5000 m square (25 km²) with a channel 5000 m long (that catchment's median
+`chanlength`). Its drain direction is a pit and it carries a channel, so
+everything the cell generates leaves through LISFLOOD's own overland-flow and
+channel kinematic waves. The clone map is a one-cell lat/lon grid centred on
+`latitude_deg`, which is all LISFLOOD reads from coordinates (the sign of its
+seasonal snowmelt coefficient); cell length and area are given explicitly
+(`gridSizeUserDefined`). The whole cell is the rainfed "other" land-use
+fraction.
+
+**Every flux and store is a depth over the cell, and the catchment's stated
+area enters only the discharge**, `dis = mrro * area_km2 / 86.4` (mm/day
+times km² to m³/s). This follows the `wflow_sbm` package, which moved to one
+representative cell for the same reason.
+
+**Why not one cell of the catchment's area.** Adapters `.1` and `.2` did
+that: a 250 km² catchment became one 15.8 km cell with a 15.8 km channel. The
+stated area then reached LISFLOOD through the geometry built from it:
+- overland sideflow is a depth times `PixelArea` over `PixelLength`;
+- the overland kinematic wave uses `PixelLength` as its flow width;
+- channel storage is a cross-section times `ChanLength`, including the
+  half-bankfull water it starts with.
+
+`mass/area-invariance` failed, and targeted runs show where.
+- At ten times the area the hillslope did not move: evaporation, soil water,
+  groundwater and the runoff generated were identical.
+- Only the routed outflow and the water in transit changed, because
+  LISFLOOD's kinematic waves are nonlinear in the volume per unit length they
+  carry.
+- Holding the cell and channel length at 15.8 km while only the area grew
+  left the departure about as large as letting both grow. No single geometric
+  term is to blame: any cell built from the stated area routes the same depth
+  differently.
+- The channel medians used were also from a 5 km grid, laid along a 15.8 km or
+  50 km channel.
+
+The representative cell takes neither its length nor its area from the stated
+area, so every depth is the same whatever the area. "Mechanisms checked with
+targeted runs" below has the numbers.
 
 Switched off, because no probe prescribes them and each needs inputs a
-synthetic catchment does not have: `wateruse` (and its demand, region and
-smoothing options), `riceIrrigation`, `drainedIrrigation`, `simulateLakes`,
-`simulateReservoirs`, `simulatePolders`, `TransLoss`, `openwaterevapo`,
-`varfractionwater`, `SplitRouting`, `MCTRouting`, `dynamicWave`, `inflow`,
-`indicator`, `TransientLandUseChange`, `simulatePF`, `cropsEPIC`, and every
-map and timeseries report. On: `gridSizeUserDefined`. `repMBTs`, which makes LISFLOOD compute and write
-its own mass-balance error every step, was on through development (its error
-never exceeded 2.1e-13 mm on any case) and is off in the packaged adapter,
-which recomputes the same budget from the same terms after the run and
-reports the largest step residual in `run.json` (`budget_residual_mm_max_abs`).
+synthetic catchment does not have: `riceIrrigation`, `drainedIrrigation`,
+`simulateLakes`, `simulateReservoirs`, `simulatePolders`, `TransLoss`,
+`openwaterevapo`, `varfractionwater`, `SplitRouting`, `MCTRouting`,
+`dynamicWave`, `inflow`, `indicator`, `TransientLandUseChange`,
+`TransientWaterDemandChange`, `wateruseRegion`, `groundwaterSmooth`,
+`simulatePF`, `cropsEPIC`, `repMBTs`, and every map and timeseries report.
+On: `gridSizeUserDefined`, and `wateruse` only when the forcing carries an
+`abstr` column (see "A prescribed withdrawal").
 
 Initial state: soil at field capacity, groundwater zones, snow, interception
 and overland flow empty, channel at half bankfull (LISFLOOD's default,
@@ -76,7 +110,7 @@ half of them.
 
 | Parameter | Value | Source |
 | --- | --- | --- |
-| cell area, cell and channel length | `area_km2`, its square root | static.json |
+| cell length and area; channel length | 5000 m, 25 km²; 5000 m | shipped test catchment grid; `chanlength` median |
 | `TempSnow` | `snow_threshold_degC` | static.json |
 | `SnowMeltCoef` | `degree_day_factor_mm_per_C_day` | static.json |
 | soil depths, layers 1b and 2 | test catchment means (748, 1709 mm) scaled together so that the saturated water of the three layers equals `soil_capacity_mm`; the 50 mm top layer is kept | static.json and test catchment |
@@ -87,7 +121,7 @@ half of them.
 | `b_Xinanjiang`, `PowerPrefFlow`, `CalChanMan` | 0.7, 3.5, 2.0 | LISFLOOD reference default |
 | `TempMelt`, `SnowSeasonAdj`, `SnowFactor`, `TemperatureLapseRate` | 1.0 degC, 1.0, 1.0, 0.0065 | LISFLOOD reference default |
 | `LeafDrainageTimeConstant`, `kdf`, `AvWaterRateThreshold`, frost constants, `beta`, `OFDepRef`, `GradMin`, `ChanGradMin`, `CourantCrit` | as in the reference settings | LISFLOOD reference default |
-| `DtSecChannel`, channel routing sub-step | 21600 s (reference 3600 s) | packaging choice, to fit 60 s probe budgets under emulation; see Speed |
+| `DtSecChannel`, channel routing sub-step | 3600 s | LISFLOOD reference default |
 | soil hydraulics (theta_s, theta_r, lambda, Van Genuchten alpha, Ksat, three layers) | catchment means | test catchment |
 | crop coefficient, crop group, overland Manning's n | 0.9994, 2.692, 0.0933 | test catchment means |
 | hillslope gradient, elevation standard deviation | 0.236, 160 m | test catchment means |
@@ -96,7 +130,10 @@ half of them.
 "Test catchment" is `tests/data/LF_ETRS89_UseCase` at the pinned commit,
 averaged over its 2847-cell mask. Channel geometry takes medians because
 channel dimensions grow with upstream area and the mean is set by the few
-large-river cells. `run.json` records every value with its source.
+large-river cells. `static.json`'s `baseflow_coefficient` has no LISFLOOD
+counterpart (LISFLOOD's recession is two linear zones with their own time
+constants) and is not used; `run.json` lists it. `run.json` records every
+value with its source.
 
 ## What the adapter reports
 
@@ -105,227 +142,350 @@ large-river cells. `run.json` records every value with its source.
 | `pr` | the forcing, echoed |
 | `evspsbl` | transpiration + evaporation of intercepted water + soil evaporation (`TaWB + TaInterceptionWB + ESActWB`) |
 | `mrro` | channel outflow at the outlet over the step (`ChanQAvg * DtSec`), as a depth over the cell |
-| `dis` | the same outflow, m3/s |
-| `gwex` | minus the lower zone's loss to deep groundwater (`GwLossWB`); zero at the default `GwLoss = 0` |
+| `dis` | `mrro * area_km2 / 86.4`, m3/s |
+| `gwex` | what leaves the reported stores to the outside, negative: the lower zone's loss to deep groundwater (`GwLossWB`, zero at the default `GwLoss = 0`) plus, when `abstr` is prescribed, what the water-use module actually withdrew (`abstraction_GW_actual_M3 + withdrawal_CH_actual_M3`, plus lake and reservoir abstraction, less return flow to the channel; the last three are zero here), over the cell |
 | `snw` | `SnowCover`, mean of the three elevation zones (the degree-day pack holds no liquid water) |
 | `canopy` | interception storage `CumInterception` (plus sealed-surface depression storage, zero here) |
 | `mrso` | the three soil layers, `W1a + W1b + W2` |
 | `gw` | upper and lower groundwater zones, `UZ + LZ` |
 | `channel` | overland flow storage (`WaterDepth`) plus channel water (`ChanM3` over the cell) |
 
-These are exactly the terms of `waterbalance.py`: stored water is channel
-plus hillslope (`WaterDepth + SnowCover + LZ + fraction-weighted
-(CumInterception + W1 + W2 + UZ) + sealed CumInterSealed`), outgoing water is
-outlet flow plus `TaWB + TaInterceptionWB + ESActWB + GwLossWB`. On the
-closure probe's 30-day window the budget reconstructed from the reported
-columns closes to 1e-13 mm per step, and LISFLOOD's own `MBErrorMM` (checked
-with `repMBTs` on) agrees.
-With the daily leaf-drainage time constant of one day, interception water
-that is not evaporated drains within the step, so `canopy` is zero at the
-end of every daily step.
+These are exactly the terms of `waterbalance.py`:
+- **stored water** is channel plus hillslope: `WaterDepth + SnowCover + LZ`,
+  fraction-weighted `CumInterception + W1 + W2 + UZ`, and sealed
+  `CumInterSealed`;
+- **outgoing water** is outlet flow plus `TaWB + TaInterceptionWB + ESActWB + GwLossWB`,
+  and, with water use on, the withdrawals it counts in `wateruseCum` and
+  `IrriLossCUM`.
 
-The harness flags this as `suspicious_exact` on the two probes that score
-closure: a budget closed to machine precision on every step can mean a store
-solved as the residual. It does not here. The stores are LISFLOOD's own
-state variables, read after each step, not derived from the fluxes; they stay
-inside their physical bounds (`state_bounds` passes, the soil store never
-leaves `[0, soil_capacity_mm]`); and LISFLOOD's own water balance module,
-which sums the same terms independently, reports the same 1e-13 mm error.
-LISFLOOD removes every flux from the store it came from in float64, so it is
-exact bookkeeping, as the physical reference models are.
+The adapter recomputes that budget after every run from the same terms and
+reports the largest step residual in `run.json` (`budget_residual_mm_max_abs`).
+LISFLOOD's own reporting of it (`repMBTs`) is off. During development, with it
+on, LISFLOOD's error never exceeded 2.1e-13 mm on any case.
+
+With the daily leaf-drainage time constant of one day, interception water
+that is not evaporated drains within the step, so `canopy` is zero at the end
+of every daily step and non-zero at PT1H.
+
+**Exact closure.** The harness flags `suspicious_exact` where a budget
+closes to machine precision on every step, which can mean a store solved as
+the residual. No reported store is solved as the budget's residual here:
+- **Soil, snow, interception and groundwater** are LISFLOOD's state
+  variables, each updated by removing a flux from the store it leaves.
+- **Overland and channel water** work the other way round. LISFLOOD sets the
+  storage from discharge through Manning's relation (`routing.py`,
+  `surface_routing.py`). It then takes the step's average outflow as the
+  continuity residual of that storage (`kinematic_wave_parallel_tools.py`),
+  clamping a negative average to zero.
+
+That residual is LISFLOOD's routing, local to the channel and exact by
+construction. A clamp that fired would show as a budget residual, and none
+has. The soil store stays inside its physical bounds (`state_bounds` passes).
 
 ## Inputs
 
 The meteorological reader (`readmeteo.dynamic`) is replaced by one that sets
 the same five variables in the same units: `Precipitation = pr * DtDay`,
-`Tavg = tas`, and `ETRef = ESRef = EWRef = pet * DtDay`. LISFLOOD wants three
-potential evaporations (reference crop, bare soil, open water, normally from
-LISVAP); the probe gives one, and all three are set to it. With
-`openwaterevapo` off, `EWRef` drives only evaporation of intercepted water.
+`Tavg = tas`, and `ETRef = ESRef = EWRef = pet * DtDay`.
+- **Three potential evaporations from one.** LISFLOOD wants three potential
+  evaporations (reference crop, bare soil, open water, normally from LISVAP);
+  the probe gives one, and all three are set to it. With `openwaterevapo` off,
+  `EWRef` drives only evaporation of intercepted water. Total demand is about
+  `pet`: potential transpiration is the crop coefficient times ET0 times one
+  minus the canopy term, less interception evaporation, and bare-soil
+  evaporation is ES0 times the canopy term.
+- **Hourly temperature.** LISFLOOD documents `Tavg` as the daily mean even at
+  sub-daily steps. At PT1H the probe's hourly temperature is fed as given,
+  because the contract forbids resampling.
+
+**Snow is more than the degree-day factor.** On top of `SnowMeltCoef`,
+LISFLOOD applies terms keyed to the forcing's day of year:
+- a seasonal melt coefficient of ±0.5 mm/degC/day at `SnowSeasonAdj = 1`;
+- a summer ice-melt term on any pack left between days 165 and 257;
+- melt enhanced by the rain depth of the step, which is itself step-dependent.
+
+They are the model's own physics, not adapter inputs.
+`mass/time-origin-invariance`'s 28-year shift preserves the day of year, so it
+cannot see them.
+
+## A prescribed withdrawal (`abstr`)
+
+When the forcing carries an `abstr` column, LISFLOOD's water-use option
+(`wateruse`) is on for that run, whatever the column holds. A run whose forcing
+has no such column is configured exactly as before. The natural and irrigated
+variants of `mass/human-abstraction` therefore run one configuration and
+differ only in the demand.
+
+- **The demand.** Every step, before the water-use module runs, the adapter
+  sets LISFLOOD's industrial demand (`IndustrialDemandMM`) to `abstr * DtDay`.
+  With `TransientWaterDemandChange` off, LISFLOOD reads its demand maps once,
+  so this is where a demand that changes through the year enters. Domestic,
+  livestock and energy demand are zero, there is no irrigated land use, and
+  lakes, reservoirs and non-conventional sources are off.
+- **Net, not gross.** `abstr` is already net of return flow, so the industrial
+  consumptive-use fraction is 1 (LISFLOOD's reference value is 0.15). LISFLOOD
+  then withdraws the consumptive use only, and its return flow from
+  groundwater users to the channel is zero.
+- **Where the water comes from.** LISFLOOD splits the demand by
+  `FractionGroundwaterUsed`, 0.168: the shipped test catchment's mean of
+  `fracgwusedNew`, the map the reference settings name.
+  - That share is subtracted from the lower groundwater zone
+    (`LZ -= abstraction_GW_actual_M3`) with no availability check, so it is
+    always taken in full. LZ may fall below zero; in the packaged runs its
+    lowest value was 0.0016 mm.
+  - The rest is asked of the channel, limited to the channel water above an
+    environmental-flow reserve, `ChanM3 - EFlowThreshold * DtSec`.
+    `EFlowThreshold` is 0.2604 m3/s, the test catchment's median of
+    `ad_dis_nat_10`. What the channel cannot give is recorded as a shortage
+    (`areatotal_shortage_SW_M3`) and is not taken from anywhere else. The
+    channel withdrawal is removed inside the kinematic-wave routing, one
+    sub-step at a time.
+- **What is declared.** `gwex` is minus what the module actually removed,
+  `abstraction_GW_actual_M3 + withdrawal_CH_actual_M3`, never the
+  prescription. Lake and reservoir abstraction are added and the return flow
+  subtracted, both zero here. LISFLOOD's own water balance counts the same
+  terms (`IrriLossCUM`, `wateruseCum`), and with the withdrawal on the
+  adapter's budget still closes to 1.8e-13 mm per step. `run.json` carries a
+  `water_use` block: the option's inputs with their sources, the prescribed
+  total, what came from groundwater and from the channel, the channel
+  shortage, the share withdrawn and the lowest LZ.
+
+**Zero withdrawal changes nothing.** Two other probes' cases were run as staged
+and again with a column of zeros added, which switches the option on:
+`mass/catchment-closure` (395 rows) and `mass/steady-state` (1460 rows). Both
+result tables are byte-identical to the originals (sha256 99589bb6de08 and
+5e67467799ce). The second run of each shows the option on and nothing
+withdrawn.
+
+**What LISFLOOD withdraws on `mass/human-abstraction`.** These figures come
+from the probe's own cases, windows and criteria, run outside the harness's
+60 s limit. On the first gate seed (1129545695):
+- Of 418.0 mm prescribed over the record, LISFLOOD withdrew 70.6 mm (16.9%):
+  70.2 mm from the lower groundwater zone and 0.37 mm from the channel. It
+  recorded 347.4 mm as channel shortage.
+- Over the ten scored years, the criterion finds 64.2 mm of the 380 mm in the
+  budget: `mrro` -64.2 mm, `evspsbl` +0.0 mm, storage -0.03 mm. That leaves a
+  residual of 315.8 mm, 83.1% of the withdrawal against a 5% limit.
+- `closure` and `state_bounds` pass.
+- The other two gate seeds (1636497809, 2143449923) give the same picture:
+  71.3 mm withdrawn (17.1%), 64.9 mm found in the budget, and a residual of
+  82.9%.
+- Water taken from the lower zone returns as less baseflow, which is why
+  runoff carries the withdrawal rather than storage.
+
+The channel supplies almost nothing because LISFLOOD's channel abstraction
+draws on the water held in the channel at the start of the step, above the
+reserve, not on what flows through the channel during the step.
+- On this one 5 km cell the channel and overland store averages 0.53 mm over
+  the record and 0.29 mm on withdrawal days.
+- The reserve, 0.2604 m3/s held for a day, is 0.90 mm over the cell. The store
+  exceeds it on 600 of 4015 days.
+- The cell's mean outflow is 0.40 m3/s, and it is below the threshold on 2772
+  of 4015 days.
+
+Two diagnostic runs of the same irrigated case show which input sets the
+share. Each changes one water-use input; the packaged values stay the sourced
+ones.
+
+| Run | From groundwater | From channel | Channel shortage | Share withdrawn | Lowest LZ |
+| --- | --- | --- | --- | --- | --- |
+| packaged: `FractionGroundwaterUsed` 0.168, `EFlowThreshold` 0.2604 m3/s | 70.2 mm | 0.4 mm | 347.4 mm | 16.9% | 0.0016 mm |
+| no reserve: `EFlowThreshold` 0 | 70.2 mm | 112.2 mm | 235.6 mm | 43.6% | 0.0016 mm |
+| all from groundwater: `FractionGroundwaterUsed` 1 | 418.0 mm | 0 | 0 | 100% | -9.2 mm |
+
+Every run's budget closes to 1.8e-13 mm per step.
+- Asked of the lower zone, LISFLOOD takes the whole prescription and lets the
+  zone fall below zero.
+- Asked of the channel, it cannot find the water even with no reserve. LISFLOOD
+  meets a water region's demand from the channel water of all the region's
+  cells, and here the region is a single 5 km reach.
+
+How much of `abstr` LISFLOOD accounts for therefore depends on the groundwater
+share and on the channel water where the withdrawal is made. The adapter does
+not set either one to pass: both are the test catchment's values, and what
+LISFLOOD removes is what is declared.
 
 ## Timestep
 
 `DtSec` is the case's step (86400 at PT1D, 3600 at PT1H); rows are fed as
 given and nothing is resampled. LISFLOOD converts its per-day parameters with
-`DtDay` itself; channel routing sub-steps at `DtSecChannel = 21600 s`, so
-four sub-steps a day and one an hour (LISFLOOD uses the smaller of the two).
+`DtDay` itself. Channel routing sub-steps at LISFLOOD's reference
+`DtSecChannel = 3600 s`: 24 sub-steps a day, one an hour.
 
 ## Speed
 
-Four probes score the ten-year daily record (4015 rows) with a 60 s budget
-per container run, and on this Apple-silicon host the amd64 image runs
-emulated. At LISFLOOD's reference settings a ten-year record took 102–111 s.
-Four settings bring it to about 50 s; three of them leave every output
-bit-identical, one changes the routed numbers.
+Three settings, each checked to leave every output byte unchanged:
 
-| Setting | Effect on outputs | 395-row case, stepping time |
-| --- | --- | --- |
-| reference settings, numba JIT on with a warm cache | reference | 10.0 s (plus about 40 s compiling when the cache is cold, which a read-only container always is) |
-| `NUMBA_DISABLE_JIT=1`: the jitted loops run as Python | bit-identical | 10.1 s |
-| `repMBTs` off: no per-step mass-balance timeseries through PCRaster | bit-identical | 7.5 s |
-| numexpr on one thread (60 expression calls a step on one-cell arrays) | bit-identical | 7.2 s |
-| `DtSecChannel` 21600 s instead of 3600 s: 4 routing sub-steps a day instead of 24 | changes routed flow | 5.2 s |
+| Setting | Why |
+| --- | --- |
+| `NUMBA_DISABLE_JIT=1` | LISFLOOD's soil and interception loops are numba-jitted with parallel loops over pixels; on one cell they gain nothing, and a read-only container cannot keep the compilation cache, so every run would spend about 40 s compiling. As Python, with a warm cache, they run at the same speed and every output column is bit-identical |
+| `repMBTs` off | LISFLOOD's per-step mass-balance timeseries go through PCRaster, about a quarter of the run time; the terms the adapter reads are set regardless of the option, and every output is bit-identical |
+| numexpr on one thread | its expressions run on one-cell arrays, where a thread pool has nothing to share; outputs bit-identical |
 
-Start-up (imports and initialisation) adds about 5 s to every run. With all
-four, a ten-year record takes about 50 s in the container, a 395-row case
-about 10 s, the hourly resolution month about 15 s. The routing sub-step is
-the one choice here that is about this host rather than the model, and the
-result below is compared probe by probe with the reference sub-step.
+The adapter's own per-step store sums run on the numpy arrays under
+LISFLOOD's vegetation-fraction wrappers.
 
-The probe that forced it is `mass/precipitation-counterfactual`: four
-variants of a ten-year record per seed, 60 s each. Run at the reference
-sub-step outside the harness, its twelve containers took 101–119 s each, so
-the harness would have stopped every one; scored offline with the probe's own
-criteria, they pass all five (closure exact; in the +20% variant the added
-rain goes 0.13 to evaporation, 0.85 to runoff and 0.02 to storage; runoff
-returns 0.85 of the rain added at the top of the ladder). At 21600 s the same
-containers take 52–61 s, the upper end when other containers are competing
-for the CPU, so on this host the margin is not enough (Result, below).
+These timings are for this image under amd64 emulation, on an Apple-silicon host
+that was also evaluating other models (load average 15 to 16):
+
+| Case | Rows | Initialise | Run | Per step |
+| --- | --- | --- | --- | --- |
+| `mass/catchment-closure`, scored window | 395 | 5.2 s | 8.4 s | 21 ms |
+| `mass/steady-state` | 1460 | 5.2 s | 30.7 s | 21 ms |
+| `mass/catchment-closure`, whole ten-year record | 4015 | 5.2 s | 91.7 s | 23 ms |
+
+A ten-year daily record takes 97 s there. That is over the 60 s budget of
+`mass/precipitation-counterfactual` and `mass/human-abstraction`.
 
 ## Result
 
-`ht run --model lisflood --gate-seeds` on the 19 merged probes, adapter
-`5.0.0-onecell.2`: **FAIL (ERROR), 13 of 19 probes passed.**
+**FAIL (ERROR), 14 of 20 probes passed.** These are the rows of the full
+gate-seed run of `5.0.0-onecell.3`, made on the emulated host described under
+"Native re-run".
 
-| Probe | Result | What decides it |
-| --- | --- | --- |
-| `mass/resolution-invariance` | FAIL (VIOLATION) | runoff moves 13.1% of the rain between PT1H and PT1D on the first gate seed, 8.9% and 9.9% on the others (limit 10%): potential infiltration is a storage multiplied by the step length (below) |
-| `mass/area-invariance` | FAIL (VIOLATION) | the water in transit departs by 7.8, 14.0 and 7.2 times its mean across the three seeds (limit 1e-6), and the routed runoff's timing with it: the kinematic waves are nonlinear in volume (below) |
-| `mass/precipitation-counterfactual` | FAIL (ERROR) | a container exceeded the 60 s budget; the variants take 52–61 s under amd64 emulation, and every criterion passes when they are allowed to finish (below) |
-| `energy/evaporative-partition`, `energy/latent-heat-et-consistency`, `energy/surface-energy-closure` | FAIL (INCOMPLETE) | LISFLOOD reports no latent, sensible or ground heat flux |
-| the other 13 | PASS | `energy/pet-consistency` (evaporation 0.90 of demand with the soil wettest, 0.09 driest), `mass/antecedent-monotonicity`, `mass/catchment-closure` (residual 2e-15 of the rain), `mass/causality`, `mass/dry-down`, `mass/extreme-rain` (returns 1.00 of the rain added at the top), `mass/phase-counterfactual` (2.2% of the rain), `mass/response-nonnegativity`, `mass/runoff-bounds` (runoff 0.60–0.64 of the rain), `mass/steady-state` (nothing varies by more than 0.23%), `mass/time-origin-invariance` (bit-identical), `mass/warming-response`, `momentum/routing-conservation` |
+- **INCOMPLETE, 3:** `energy/evaporative-partition`,
+  `energy/latent-heat-et-consistency` and `energy/surface-energy-closure`.
+  LISFLOOD reports no heat fluxes, so these probes cannot ask it anything.
+- **ERROR, 2:** `mass/precipitation-counterfactual` and
+  `mass/human-abstraction`. The container exceeded the 60 s budget, because a
+  ten-year record takes 97 s under emulation. These rows come from the
+  emulated host.
+  - Run outside the limit on all three gate seeds,
+    `mass/precipitation-counterfactual` passes every criterion.
+  - `mass/human-abstraction` fails `human_abstraction` there. LISFLOOD
+    withdraws about 17% of the prescription, which leaves a residual of about
+    83% against a 5% limit; `closure` and `state_bounds` pass.
+  - On a host fast enough for the budget, the first should PASS and the second
+    be VIOLATION. The model's verdict would then be FAIL (INCOMPLETE), with 15
+    of 20 probes passed.
+- **VIOLATION, 1:** `mass/resolution-invariance`. Rain that falls within an
+  hour runs off, so `mrro` differs by 13.0% of `pr` between PT1H and PT1D,
+  against a 10% limit.
+- **PASS, 14:**
+  - `energy/pet-consistency`;
+  - `mass/antecedent-monotonicity`, `mass/area-invariance`,
+    `mass/catchment-closure`, `mass/causality`, `mass/dry-down` and
+    `mass/extreme-rain`;
+  - `mass/phase-counterfactual`, `mass/response-nonnegativity`,
+    `mass/runoff-bounds`, `mass/steady-state`, `mass/time-origin-invariance`
+    and `mass/warming-response`;
+  - `momentum/routing-conservation`.
 
-The harness flags `suspicious_exact` on the two closure-scoring probes; the
-section on what the adapter reports explains why exact closure is LISFLOOD's
-bookkeeping and not a store solved as the residual.
+  The budget closes to 1e-13 mm per step. The harness flags `suspicious_exact`
+  on `mass/catchment-closure` and `mass/time-origin-invariance`; "What the
+  adapter reports" says why the closure is exact.
 
-### The time-budget ERROR
-
-`mass/precipitation-counterfactual` runs four variants of a ten-year record
-per seed with 60 s for each. Under amd64 emulation on this host the packaged
-adapter takes 52–61 s per variant, depending on what else the machine is
-doing; in the full evaluation and again in a re-run of that probe alone, a
-container went just over, and the harness stops a probe at its first timeout.
-At LISFLOOD's reference routing sub-step the same variants take 101–119 s.
-Scored offline with the probe's own criteria and without the time limit, all
-five criteria pass at both sub-steps. At the packaged one (the harness's
-outputs for the two seeds it finished, the third seed run outside it): the
-budget closes exactly, on the worst seed +20% rain goes 0.12 to evaporation,
-0.88 to runoff and 0.01 to storage, and runoff returns 0.85 of the rain added
-at the top of the ladder. At the reference sub-step: +20% rain goes 0.13,
-0.85 and 0.02, and runoff again returns 0.85. The ERROR is a statement about
-emulated amd64 on this machine, not about LISFLOOD's water; a native amd64
-runner should fit the budget, which has not been measured here.
-
-### The routing sub-step changes no verdict
-
-Every probe at LISFLOOD's reference routing sub-step (adapter `.1`,
-`DtSecChannel` 3600 s, scored by the same harness; `mass/warming-response`
-re-scored after `criteria/response.py` changed) against the packaged one:
-
-| Probe | 3600 s (reference) | 21600 s (packaged) |
-| --- | --- | --- |
-| `energy/evaporative-partition`, `energy/latent-heat-et-consistency`, `energy/surface-energy-closure` | INCOMPLETE | INCOMPLETE |
-| `energy/pet-consistency` | PASS, wet ratio 0.904 | PASS, 0.904 |
-| `mass/antecedent-monotonicity` | PASS | PASS |
-| `mass/area-invariance` | VIOLATION, 7.8 / 14.0 / 7.2 | VIOLATION, 7.8 / 14.0 / 7.2 |
-| `mass/catchment-closure` | PASS, residual 2.1e-15 | PASS, 2.4e-15 |
-| `mass/causality` | PASS | PASS |
-| `mass/dry-down` | PASS | PASS |
-| `mass/extreme-rain` | PASS, returns 1.00 | PASS, 1.00 |
-| `mass/phase-counterfactual` | PASS, 2.15% | PASS, 2.15% |
-| `mass/precipitation-counterfactual` | PASS offline (containers 101–119 s) | ERROR in the harness (containers 52–61 s); PASS offline |
-| `mass/resolution-invariance` | VIOLATION, 13.1 / 8.9 / 9.9% | VIOLATION, 13.1 / 8.9 / 9.9% |
-| `mass/response-nonnegativity` | PASS | PASS |
-| `mass/runoff-bounds` | PASS, 0.638 | PASS, 0.638 |
-| `mass/steady-state` | PASS, 0.23% | PASS, 0.23% |
-| `mass/time-origin-invariance` | PASS, bit-identical | PASS, bit-identical |
-| `mass/warming-response` | PASS | PASS |
-| `momentum/routing-conservation` | PASS | PASS |
-
-The routed water per day is the same to the digits the probes report; what
-the sub-step moves is within-day timing, which no probe here scores. The
-reference run used the harness before `mass/precipitation-counterfactual`
-merged; nothing else it scores changed in that merge.
+Against the `.2` rows:
+- `mass/area-invariance` moved from VIOLATION to PASS with the representative
+  cell.
+- `mass/resolution-invariance` is VIOLATION in both (13.1% then, 13.0% now).
+- `mass/precipitation-counterfactual` is ERROR on this host in both.
+- `mass/human-abstraction` is new since `.2`.
+- No other probe's verdict moved.
 
 ## Mechanisms checked with targeted runs
 
-Each of these was run on the probe's own first gate seed, through the
-adapter's `simulate()`, one simulation per process, in the amd64 LISFLOOD
-environment, at LISFLOOD's reference routing sub-step (`DtSecChannel` 3600 s)
-with its own mass-balance reporting on.
+**`mass/resolution-invariance`: rain within the hour runs off.** LISFLOOD's
+potential infiltration is a pore-space storage multiplied by the step length,
+`InfiltrationPot = StoreMaxPervious * (1 - SatFraction)^PowerInfPot * DtDay`
+(`soilloop.py`). Summed over a day's 24 hourly steps that capacity is the daily
+one, but a storm arrives in a few of those hours. What does not infiltrate in
+its hour becomes surface runoff. The runs below go through the packaged
+adapter, on one 30-day case of the probe with 212.5 mm of rain over the scored
+stretch:
 
-### Step dependence: potential infiltration is a storage scaled by the step
-
-`mass/resolution-invariance` serves one month at the day and the hour. On
-the first gate seed, runoff at the hourly step is 13.1% of the rain higher
-than at the daily step and evaporation 7.8% lower; on the other two gate
-seeds runoff moves 8.9% and 9.9%, just inside the 10% limit, so the probe
-fails on its worst seed and the size depends on how the month's rain is
-structured inside its days. The first seed is the one analysed below. Term by term, surface
-runoff gains 30% of the rain while preferential flow loses 22%, upper-zone
-outflow 17% and infiltration 7%; snow and interception barely move. The
-cause is one line of `soilloop.py`:
-
-    InfiltrationPot = StoreMaxPervious * (1 - SatFraction) ** PowerInfPot * DtDay
-
-`StoreMaxPervious` is a storage, the Xinanjiang pore space of the top soil,
-and multiplying it by `DtDay` makes it a per-step capacity: rain that falls
-in a few hours meets one twenty-fourth of the day's capacity at the hourly
-step and runs off, the topsoil stays drier, and preferential flow
-(`RelSat1 ** PowerPrefFlow`) falls with it.
-
-| Hourly run of the same month | Runoff vs daily, % of rain | Evaporation vs daily, % of rain |
-| --- | --- | --- |
-| as packaged | 13.1 | 7.8 |
-| that line without `* DtDay` | 0.9 | 1.0 |
-| as packaged, each day's rain spread evenly over its hours | 0.06 | 0.00 |
-
-Without the factor the two steps agree to within what the physical models
-move; with uniform rain inside the day they agree exactly.
-
-The size of the effect depends a little on the choices this package had to
-make and its sign not at all. The same month, daily against hourly, with one
-choice changed at a time:
-
-| Configuration | Runoff, daily / hourly (mm) | Shift, % of rain | Evaporation, daily / hourly (mm) | Shift, % of rain |
-| --- | --- | --- | --- | --- |
-| as packaged (LISFLOOD reference defaults) | 158.9 / 186.7 | 13.1 | 51.0 / 34.4 | 7.8 |
-| test catchment's calibrated means for the nine calibration parameters | 153.5 / 179.6 | 12.3 | 48.8 / 28.1 | 9.8 |
-| soil depths not scaled to `soil_capacity_mm` (about 1080 mm of pore space) | 133.5 / 168.8 | 16.6 | 51.0 / 48.8 | 1.0 |
-| LAI at the test catchment's mean (2.84) instead of from `canopy_capacity_mm` | 157.0 / 183.2 | 12.4 | 53.3 / 37.3 | 7.5 |
-
-The calibrated means are `UpperZoneTimeConstant` 17.3 d,
-`LowerZoneTimeConstant` 5210 d, `GwPercValue` 1.17, `GwLoss` 0.27,
-`LZThreshold` 12.8, `b_Xinanjiang` 1.34, `PowerPrefFlow` 4.10, `CalChanMan`
-1.41, `SnowMeltCoef` 4.27, averaged over the test catchment's cells. The dependence is
-LISFLOOD's infiltration formulation meeting sub-daily rain intensity, not the
-adapter's units: every rate LISFLOOD takes per day it converts with `DtDay`
-itself, and the adapter feeds rows at the step it is given.
-
-### Area dependence: the kinematic waves are nonlinear in volume
-
-`mass/area-invariance` tells the same catchment as 250 and as 2500 km2.
-Evaporation, soil water, groundwater and snow are bit-identical between the
-two, and so is the runoff generated before routing. The routed runoff is
-not: on the first gate seed its daily values move by up to 4.6 times the
-control's mean runoff and the water in transit by 7.8 times its mean (14.0
-and 7.2 on the other two seeds), while the year's total agrees to 0.01%. The
-same depth over ten times the area is ten times the volume per metre of
-channel and of overland flow, and LISFLOOD routes both with a kinematic wave
-storing `A = alpha * Q ** beta` with `beta = 0.6`, so the larger volume
-travels on a different schedule. Holding the cell and channel length at the
-250 km2 value for both tellings (only the area changes) barely changes this:
-
-| Cell and channel length | Runoff, largest daily difference / mean | Channel store, same | Year's runoff |
+| Run | Runoff | Evaporation | Runoff against PT1D, share of rain |
 | --- | --- | --- | --- |
-| square root of the stated area (as packaged): 15.8 and 50 km | 4.6 | 7.8 | 471.80 vs 471.74 mm |
-| 15.8 km for both | 4.4 | 7.5 | 471.80 vs 471.83 mm |
+| PT1D | 158.3 mm | 51.0 mm | |
+| PT1H | 185.9 mm | 34.4 mm | +13.0% |
+| PT1H, `InfiltrationPot` not multiplied by `DtDay` | 156.8 mm | 48.8 mm | -0.7% |
+| PT1H, each day's rain spread evenly over its hours | 158.1 mm | 51.0 mm | -0.08% |
 
-So it is the routing's nonlinearity in volume, not the one-cell domain's
-length. A lumped water budget written per unit area is invariant to the
-area; a distributed model's routing is not, and LISFLOOD's own comment on its
-overland flow width says as much ("results will depend on cell size").
+Every run's budget closes to 5e-14 mm per step.
+
+**`mass/area-invariance`: the cell, not the model.** The departure is the
+harness's measure: the largest difference between the two runs over the
+control's mean magnitude. The pairs are the probe's first gate seed
+(66780378) at the stated 250 and 2500 km²:
+
+| Cell | What the tenfold area changes | `mrro` departure | `channel` departure |
+| --- | --- | --- | --- |
+| packaged, 5 km representative cell | nothing | 0 | 0 |
+| `.1`/`.2`, one cell of the catchment's area | cell and channel 15.8 km to 50 km | 4.6 | 7.8 |
+| the same, with length held at 15.8 km | the cell area only | 4.4 | 7.5 |
+
+- In both old pairs, evaporation, soil water and groundwater were identical.
+  A component run of the first pair also found the hillslope's generated
+  runoff identical.
+- `.1` failed on all three gate seeds (`channel` 7.8, 14.0 and 7.2).
+- The packaged cell passes on all three, with every variable identical.
+
+**`mass/human-abstraction`.** See "A prescribed withdrawal" above: LISFLOOD
+withdraws 16.9 to 17.1% of the prescription on the three gate seeds, all but
+at most 1.1 mm of it from the lower groundwater zone, and records the rest as
+channel shortage.
+
+**`mass/precipitation-counterfactual` outside the time limit.** The probe's
+own cases, windows and criteria, run outside the 60 s limit: every criterion
+passes on all three gate seeds, with container walls of 87 to 104 s. Each row
+below is one seed's +20% variant, with its extra rain divided into what
+evaporated, ran off and stayed stored:
+
+| Gate seed | Extra rain | Evaporation | Runoff | Storage |
+| --- | --- | --- | --- | --- |
+| 872466880 | 1737 mm | 0.116 | 0.859 | 0.025 |
+| 1379418994 | 1634 mm | 0.116 | 0.877 | 0.007 |
+| 1886371108 | 1589 mm | 0.133 | 0.851 | 0.016 |
+
+On the same seed, the partition matches to three decimals what earlier
+adapters gave:
+- seed 1886371108 on `.1`, the catchment-sized cell at `DtSecChannel`
+  3600 s;
+- seed 1379418994 on `.2`, at 21600 s.
+
+Neither the cell nor the routing sub-step moves it. The spread between seeds
+is the weather, and earlier comparisons across two seeds read it as a
+sub-step effect.
+
+**The two ERROR rows come from the host's speed.** Both probes score a ten-year
+daily record (4015 rows with spinup) in a container with a 60 s budget, and the
+harness stops a probe at its first timeout.
+- Run outside the limit on this host, each variant took 87 to 104 s.
+- The host's load average was between 15 and 230 during the full run.
+- Per step, a ten-year record runs at the speed of a 30-day case (21 to 23 ms).
+
+Nothing in the model slows down; ten years of LISFLOOD's Python framework
+under amd64 emulation simply need more than 60 s.
+
+## Native re-run
+
+Every row this package has archived was produced on an Apple-silicon host
+running the amd64 image under emulation. Two probes score a ten-year daily
+record in a container with a 60 s budget, `mass/precipitation-counterfactual`
+and `mass/human-abstraction`. Under emulation a ten-year run took 97 s, so
+their rows in the archive are ERROR because of the host's speed alone. On an
+x86-64 Linux host, from the repository root:
+
+```bash
+docker build -t hydroturing/lisflood:5.0.0-onecell.3 -f models/lisflood/Dockerfile models/lisflood
+ht verify-adapter --model lisflood
+ht run --model lisflood --gate-seeds --csv /tmp/lisflood-native.csv --markdown
+```
+
+To replace the archived rows with the native ones, drop every `lisflood` row
+from `models/result.csv` and append the new file's rows without its header,
+leaving every other model's bytes as they are:
+
+```bash
+grep -v ',lisflood,' models/result.csv > /tmp/result.csv
+tail -n +2 /tmp/lisflood-native.csv >> /tmp/result.csv
+mv /tmp/result.csv models/result.csv
+ht verify-adapter --model lisflood --csv models/result.csv
+git diff origin/main -- models/result.csv   # only lisflood lines
+```
+
+Then update the verdict and "N of 20" in this README, the top-level README
+row and the three site rows.
 
 ## Running it
 
