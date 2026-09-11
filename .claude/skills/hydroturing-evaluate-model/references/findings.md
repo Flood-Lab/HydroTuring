@@ -165,6 +165,15 @@ models still pass; the lowest share on the gate seeds is dhbv2 0.21,
 google_flood_forecast 0.10, flex_lumped 0.17, flex_topo 0.11, sacsma_snow17
 0.024.
 
+wflow_sbm merged while the fix was in review, with its row scored on the
+old window. It still fails on the same two seeds, at 0.0013 and 0.0005 of
+the storm instead of −0.0011 and −0.0010: its wet month's water has been
+evaporated down to the rooting depth before the storm arrives, which no
+window placement changes. Its README's sensitivity table was re-scored
+from the kept per-setting runs, where the old criterion reproduces every
+entry; with roots through 99% of the column the second seed now clears the
+bound by a hair (0.020).
+
 ## Known open items
 
 - The `probe` workflow's `container` job has failed on every recorded run
