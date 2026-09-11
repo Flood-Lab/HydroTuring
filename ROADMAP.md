@@ -115,9 +115,12 @@ A branching network. Mass must close reach by reach, not only basin-wide.
 *Discriminates:* models that conserve globally while moving water between
 reaches non-physically.
 
-### `mass/human-abstraction` &middot; standard &middot; **unclaimed**
-Irrigation withdrawal and return flow, which must both appear in the budget.
+### `mass/human-abstraction` &middot; **merged**
+A prescribed net irrigation withdrawal must leave the budget: the same weather
+run with and without it, and the difference between the two runs must account
+for exactly the abstracted volume (net of return flow).
 *Discriminates:* models that treat abstraction as an unaccounted sink.
+Contributed by Yuanhang Liu.
 
 ---
 

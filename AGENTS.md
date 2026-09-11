@@ -33,7 +33,8 @@ Paths inside `request.json` are relative to the request file's directory.
 
 ```
 /io/request.json          read-only: opaque case id, model seed, timestep, n_steps, outputs
-/io/input/forcing.csv     read-only: columns time, pr, tas, pet (mm/day, degC, mm/day)
+/io/input/forcing.csv     read-only: columns time, pr, tas, pet (mm/day, degC, mm/day),
+                          and, when a probe prescribes a human withdrawal, abstr (mm/day, net)
 /io/input/static.json     read-only: catchment attributes
 /io/output/result.csv     write: one row per forcing row, spinup included
 /io/output/run.json       write: {"status": "ok"}
@@ -43,6 +44,14 @@ The model seed is deterministic for reproducible stochastic inference, but it
 is not the generator seed recorded in the host-side report. Exit 0 on success.
 There is no network. Do not attempt to download weights or data at run time;
 bake them into the image.
+
+Some probes prescribe a human withdrawal in the forcing as an `abstr` column
+(mm/day, net of return flow). Honouring it means removing that water from the
+stores and fluxes the model reports, and declaring whatever was actually
+removed as a negative `gwex`. A model that never reads the column reports a
+budget that closes on its own yet misses the withdrawal; the probe scores that
+as a failure, not as INCOMPLETE, because such a model reports everything the
+criterion needs.
 
 ## The evaluation window
 
