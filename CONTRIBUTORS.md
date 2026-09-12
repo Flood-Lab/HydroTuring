@@ -52,6 +52,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `wflow_sbm` | Yuanhang Liu (Independent Researcher), [#29](../../issues/29) | HydroTuring maintainers |
 | `summa` | Yuanhang Liu (Independent Researcher), [#30](../../issues/30) | HydroTuring maintainers |
 | `cwatm` | Yuanhang Liu (Independent Researcher), [#28](../../issues/28) | HydroTuring maintainers |
+| `lisflood` | Yuanhang Liu (Independent Researcher), [#20](../../issues/20) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:
