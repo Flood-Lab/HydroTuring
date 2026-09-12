@@ -125,9 +125,12 @@ def kill_container(docker: str, name: str) -> None:
     refused. Nothing is retried. A container neither command finds has
     already gone or was not yet created, and one created afterwards is never
     started, because `docker run` starts it from the client, which is dead.
-    It takes no CPU, but stays until removed by hand. A command that cannot
-    be run at all is skipped, so the caller still reports whatever cut the
-    run off: the budget error, the interrupt or the exception.
+    It takes no CPU, but stays until removed by hand. The client is still
+    alive only when a signal landed while subprocess was starting it, a
+    window well under a millisecond, and that client can go on to start its
+    container. A command that cannot be run at all is skipped, so the caller
+    still reports whatever cut the run off: the budget error, the interrupt
+    or the exception.
     """
     for argv in ([docker, "kill", name], [docker, "rm", "-f", name]):
         try:
@@ -228,11 +231,12 @@ class DockerRunner(Runner):
             # running too. An interrupt that reaches only the harness does:
             # subprocess kills the client, and the model never hears of it.
             # Ctrl+C at a terminal also reaches the client, which forwards it
-            # to the model, but a model need not stop on it. An exception the
-            # harness records as an ERROR leaves the container beside the next
-            # case. So it is killed here as well, and the exception goes on
-            # unchanged: an interrupt still stops the run, and an ERROR keeps
-            # its reason.
+            # to the model, but a model need not stop on it. `ht` turns
+            # SIGTERM into SystemExit, which arrives here the same way. An
+            # exception the harness records as an ERROR leaves the container
+            # beside the next case. So it is killed here as well, and the
+            # exception goes on unchanged: an interrupt still stops the run,
+            # and an ERROR keeps its reason.
             kill_container(docker, name)
             raise
 
