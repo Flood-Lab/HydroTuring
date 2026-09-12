@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from types import SimpleNamespace
 
 import numpy as np
@@ -54,10 +54,10 @@ def test_hand_calculated_event_at_the_first_scored_row(probe):
     assert result.name == "event_water_closure"
     assert not is_paired(result.name)
     assert result.value == pytest.approx(0.0)
-    assert result.threshold == pytest.approx(0.05)
+    assert result.threshold == pytest.approx(1.0)
     assert result.diagnostics["event_count"] == 1
     assert result.diagnostics["n_failed_events"] == 0
-    event = result.diagnostics["events"][0]
+    event = result.diagnostics["worst_event"]
     assert (event["start"], event["stop"]) == (0, 2)
     for name, expected in {
         "duration_days": 2, "precip_mm": 30, "gwex_mm": 0,
@@ -78,9 +78,9 @@ def test_opposite_event_errors_pass_cumulative_closure_but_fail_events(probe):
     assert get("closure")(run, probe, {}).status == PASS
     result = score(run, probe)
     assert result.status == FAIL
-    assert result.value == pytest.approx(0.2)
+    assert result.value == pytest.approx(4.0)
     assert result.diagnostics["n_failed_events"] == 2
-    assert [e["residual_mm"] for e in result.diagnostics["events"]] == [2, -2]
+    assert [e["residual_mm"] for e in result.diagnostics["failed_events"]] == [2, -2]
 
 
 def test_one_large_event_cannot_dilute_a_small_failing_event(probe):
@@ -88,7 +88,7 @@ def test_one_large_event_cannot_dilute_a_small_failing_event(probe):
     assert get("closure")(run, probe, {}).status == PASS
     result = score(run, probe)
     assert result.status == FAIL
-    assert result.value == pytest.approx(0.1)
+    assert result.value == pytest.approx(2.0)
     assert result.diagnostics["n_failed_events"] == 1
     assert result.diagnostics["worst_event"]["precip_mm"] == pytest.approx(1)
 
@@ -113,7 +113,7 @@ def test_events_crossing_spinup_or_record_edges_are_not_partly_scored(probe):
     result = score(run, probe)
     assert result.status == PASS
     assert result.diagnostics["event_count"] == 1
-    event = result.diagnostics["events"][0]
+    event = result.diagnostics["worst_event"]
     assert (event["start"], event["stop"]) == (2, 3)
     assert event["precip_mm"] == pytest.approx(10)
     assert len(result.diagnostics["skipped_events"]) >= 2
@@ -128,7 +128,7 @@ def test_all_reported_stores_are_counted_without_double_counting(probe):
     )
     result = score(run, probe)
     assert result.status == PASS
-    event = result.diagnostics["events"][0]
+    event = result.diagnostics["worst_event"]
     assert event["storage_start_mm"] == pytest.approx(22)
     assert event["storage_end_mm"] == pytest.approx(27)
     assert event["storage_change_mm"] == pytest.approx(5)
@@ -141,7 +141,8 @@ def test_later_event_uses_its_immediate_preceding_storage(probe):
     )
     result = score(run, probe)
     assert result.status == PASS
-    first, second = result.diagnostics["events"]
+    first = result.diagnostics["worst_event"]
+    second = score(replace(run, case=replace(run.case, spinup_steps=3)), probe).diagnostics["worst_event"]
     assert (first["storage_start_mm"], second["storage_start_mm"]) == (20, 21)
     assert second["storage_change_mm"] == pytest.approx(3)
 
@@ -151,7 +152,7 @@ def test_groundwater_exchange_sign_is_positive_into_the_catchment(probe, exchang
     run = build([0, 10, 0], gwex=[0, exchange, 0], mrro=[0, runoff, 0])
     result = score(run, probe)
     assert result.status == PASS
-    assert result.diagnostics["events"][0]["gwex_mm"] == pytest.approx(exchange)
+    assert result.diagnostics["worst_event"]["gwex_mm"] == pytest.approx(exchange)
 
 
 def test_declared_source_does_not_enlarge_the_rain_denominator(probe):
@@ -159,7 +160,7 @@ def test_declared_source_does_not_enlarge_the_rain_denominator(probe):
     run = build([0, 1, 0], gwex=[0, 9, 0], mrro=[0, 9.9, 0])
     result = score(run, probe)
     assert result.status == FAIL
-    assert result.value == pytest.approx(0.1)
+    assert result.value == pytest.approx(2.0)
 
 
 def test_events_and_budget_use_given_rain_instead_of_the_models_echo(probe):
@@ -167,7 +168,7 @@ def test_events_and_budget_use_given_rain_instead_of_the_models_echo(probe):
     run.table["pr"] = 0.0
     result = score(run, probe)
     assert result.status == PASS
-    assert result.diagnostics["events"][0]["precip_mm"] == pytest.approx(10)
+    assert result.diagnostics["worst_event"]["precip_mm"] == pytest.approx(10)
     assert get("forcing_fidelity")(run, probe, {}).status == FAIL
 
 
@@ -186,7 +187,8 @@ def test_flux_rates_use_the_case_step_and_one_dry_step_separates_events(
     result = score(run, probe)
     assert result.status == PASS
     assert result.diagnostics["event_count"] == 2
-    first, second = result.diagnostics["events"]
+    first = result.diagnostics["worst_event"]
+    second = score(replace(run, case=replace(run.case, spinup_steps=4)), probe).diagnostics["worst_event"]
     assert first["precip_mm"] == pytest.approx(depth)
     assert first["runoff_mm"] == pytest.approx(depth)
     assert first["duration_days"] == pytest.approx(duration)
@@ -213,8 +215,8 @@ def test_dry_day_fluxes_are_outside_the_event_budget(probe):
 def test_five_percent_boundary_is_inclusive(probe, runoff, expected):
     result = score(build([0, 20, 0], mrro=[0, runoff, 0]), probe)
     assert result.status == expected
-    assert result.value == pytest.approx(abs(20 - runoff) / 20)
-    assert result.threshold == pytest.approx(0.05)
+    assert result.value == pytest.approx(abs(20 - runoff))  # allowance = 1 mm
+    assert result.threshold == pytest.approx(1.0)
 
 
 def test_threshold_override_changes_the_same_budget_decision(probe):
@@ -222,15 +224,79 @@ def test_threshold_override_changes_the_same_budget_decision(probe):
     assert score(run, probe).status == FAIL
     relaxed = score(run, probe, threshold=0.1)
     assert relaxed.status == PASS
-    assert relaxed.value == relaxed.threshold == pytest.approx(0.1)
+    assert relaxed.value == relaxed.threshold == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize("runoff,expected", [(1e-14, PASS), (0, FAIL)])
 def test_tiny_positive_rain_keeps_its_actual_denominator(probe, runoff, expected):
-    result = score(build([0, 1e-14, 0], mrro=[0, runoff, 0]), probe)
+    result = score(build([0, 1e-14, 0], mrro=[0, runoff, 0]), probe, absolute_tolerance_mm=0)
     assert result.status == expected
-    assert result.diagnostics["events"][0]["precip_mm"] == 1e-14
-    assert result.value == (0 if expected == PASS else 1)
+    assert result.diagnostics["worst_event"]["precip_mm"] == 1e-14
+    assert result.value == pytest.approx(0 if expected == PASS else 20)
+
+
+@pytest.mark.parametrize("loss,expected", [(0.000999, PASS), (0.001, PASS), (0.001001, FAIL)])
+def test_absolute_allowance_boundary_is_inclusive(probe, loss, expected):
+    # Q=0 gives the requested exact residual without subtractive rounding.
+    result = score(build([0, loss, 0]), probe)
+    assert result.status == expected
+    assert result.value == pytest.approx(loss / 0.001)
+    assert result.threshold == 1.0
+    assert result.diagnostics["worst_event"]["allowed_residual_mm"] == 0.001
+
+
+def test_absolute_tolerance_does_not_skip_tiny_events_or_change_rain(probe):
+    result = score(build([0, 0.001, 0], mrro=[0, 0.0008, 0]), probe)
+    assert result.passed
+    assert result.diagnostics["event_count"] == 1
+    assert result.diagnostics["n_rescued_events"] == 1
+    event = result.diagnostics["worst_event"]
+    assert event["precip_mm"] == 0.001
+    assert event["relative_residual"] == pytest.approx(0.2)
+    assert result.value == pytest.approx(0.2)
+    assert result.value <= result.threshold
+    assert "0.001 mm" in result.message
+
+
+def test_a_rescued_large_relative_error_does_not_hide_a_real_failure(probe):
+    run = build([0, 0.0005, 0, 10, 0], mrro=[0, 0, 0, 9, 0])
+    result = score(run, probe)
+    assert not result.passed
+    assert result.diagnostics["n_rescued_events"] == 1
+    assert result.diagnostics["worst_event"]["precip_mm"] == 10
+    assert result.value == 2.0
+    assert result.value > result.threshold
+
+
+def test_diagnostics_cap_failures_without_losing_the_worst_or_any_scores(probe):
+    rain = [0.0]
+    runoff = [0.0]
+    for loss in range(1, 31):
+        rain.extend([100.0, 0.0])
+        runoff.extend([100.0 - loss, 0.0])
+    result = score(build(rain, mrro=runoff), probe)
+    d = result.diagnostics
+    assert d["event_count"] == 30
+    assert d["n_failed_events"] == 25
+    assert len(d["failed_events"]) == 20
+    assert d["n_failed_events_omitted"] == 5
+    assert d["worst_event"]["event_id"] == 30
+    assert [e["event_id"] for e in d["failed_events"]] == list(range(30, 10, -1))
+    assert d["percentiles"]["allowance_ratio"]["p50"] == pytest.approx(3.1)
+    assert d["percentiles"]["allowance_ratio"]["max"] == 6.0
+    assert "events" not in d
+    json.dumps(asdict(result), allow_nan=False)
+
+
+@pytest.mark.parametrize("floor", [-1, np.nan, np.inf, -np.inf])
+def test_invalid_absolute_allowance_is_a_configuration_error(probe, floor):
+    with pytest.raises(ValueError):
+        score(build([0, 1, 0]), probe, absolute_tolerance_mm=floor)
+
+
+def test_both_tolerances_cannot_be_zero(probe):
+    with pytest.raises(ValueError):
+        score(build([0, 1, 0]), probe, threshold=0, absolute_tolerance_mm=0)
 
 
 @pytest.mark.parametrize("rain", [

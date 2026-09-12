@@ -93,6 +93,7 @@ Every one is binary.
 | Criterion | Asserts | Scored over |
 | --- | --- | --- |
 | `closure` | the budget closes to within a share of the driving flux | one run |
+| `event_water_closure` | every complete precipitation event satisfies `abs(R) <= max(threshold * P, absolute_tolerance_mm)`; defaults 0.05 and 0.001 mm; reports the worst residual / allowance against 1, with up to 20 failed events and summary percentiles | complete post-spinup wet events in one run, using supplied rain and all reported water stores |
 | `state_bounds` | every reported storage stays physical | one run |
 | `et_plausible` | ET is non-negative and bounded by potential ET | one run |
 | `non_degenerate` | the partition and the response are non-trivial | one run |

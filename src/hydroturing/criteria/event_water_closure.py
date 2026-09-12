@@ -24,18 +24,27 @@ from hydroturing.spec import ProbeSpec
 
 @criterion("event_water_closure")
 def event_water_closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
-    """Require |P + GWex - ET - Q - delta S| / P <= threshold for every event.
+    """Require |P + GWex - ET - Q - delta S| <= max(threshold * P, floor).
+
+    The reported value is the largest residual / allowance, with limit 1.
+    Rain-normalized residuals and actual millimetre allowances remain in
+    event diagnostics. All events are scored; only 20 failures are retained.
 
     Diagnostic start/stop indices are relative to the post-spinup window,
     with stop exclusive. Skipped events crossing spinup can have a negative
     start. Dates identify the first and last wet steps, inclusively.
     """
-    unknown = set(params) - {"threshold"}
+    unknown = set(params) - {"threshold", "absolute_tolerance_mm"}
     if unknown:
         raise ValueError(f"event_water_closure: unknown parameters {sorted(unknown)}")
     threshold = float(params.get("threshold", 0.05))
     if not np.isfinite(threshold) or threshold < 0:
         raise ValueError("event_water_closure threshold must be finite and nonnegative")
+    floor = float(params.get("absolute_tolerance_mm", 0.001))
+    if not np.isfinite(floor) or floor < 0:
+        raise ValueError("absolute_tolerance_mm must be finite and nonnegative")
+    if threshold == 0 and floor == 0:
+        raise ValueError("event_water_closure needs at least one positive tolerance")
 
     forcing = run.case.forcing
     if "pr" not in forcing:
@@ -69,12 +78,14 @@ def event_water_closure(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
     diagnostics = {
         "event_count": len(bounds), "skipped_events": skipped,
         "denominator": "sum_pr", "dt_days": w.dt_days,
+        "relative_tolerance": threshold, "absolute_tolerance_mm": floor,
+        "score": "absolute event residual / allowed event residual", "failed_event_limit": 20,
     }
     if not bounds:
         return CriterionResult(
-            name="event_water_closure", status=FAIL, threshold=threshold,
+            name="event_water_closure", status=FAIL, threshold=1.0,
             message="no complete precipitation events after spinup; nothing to score",
-            diagnostics={**diagnostics, "events": []},
+            diagnostics={**diagnostics, "failed_events": []},
         )
 
     states = reported_states(w, probe)
@@ -97,9 +108,9 @@ def event_water_closure(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
         invalid.extend(f"initial {v}" for v, x in zip(states, initial) if not np.isfinite(x))
     if invalid:
         return CriterionResult(
-            name="event_water_closure", status=FAIL, threshold=threshold,
+            name="event_water_closure", status=FAIL, threshold=1.0,
             message=f"non-finite model water-budget data: {', '.join(invalid)}",
-            diagnostics={**diagnostics, "non_finite_variables": invalid, "events": []},
+            diagnostics={**diagnostics, "non_finite_variables": invalid, "failed_events": []},
         )
 
     # Keep numeric coercion local to this criterion, including optional stores.
@@ -126,15 +137,23 @@ def event_water_closure(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
             # Finite individual values can still overflow during integration.
             if p <= 0 or not np.isfinite([p, e, q, g, s0, s1, change, residual]).all():
                 return CriterionResult(
-                    name="event_water_closure", status=FAIL, threshold=threshold,
+                    name="event_water_closure", status=FAIL, threshold=1.0,
                     message=f"event {event_id} has a non-finite or degenerate water budget",
                     diagnostics={**diagnostics, "invalid_event": {"start": a, "stop": b}},
                 )
             relative = abs(residual) / p
-            if not np.isfinite(relative):
+            allowance = max(threshold * p, floor)
+            if not np.isfinite(relative) or not np.isfinite(allowance) or allowance <= 0:
                 return CriterionResult(
-                    name="event_water_closure", status=FAIL, threshold=threshold,
-                    message=f"event {event_id} has a non-finite relative residual",
+                    name="event_water_closure", status=FAIL, threshold=1.0,
+                    message=f"event {event_id} has an unrepresentable residual or allowance",
+                    diagnostics={**diagnostics, "invalid_event": {"start": a, "stop": b}},
+                )
+            allowance_ratio = abs(residual) / allowance
+            if not np.isfinite(allowance_ratio):
+                return CriterionResult(
+                    name="event_water_closure", status=FAIL, threshold=1.0,
+                    message=f"event {event_id} has an unrepresentable allowance ratio",
                     diagnostics={**diagnostics, "invalid_event": {"start": a, "stop": b}},
                 )
             events.append({
@@ -145,20 +164,33 @@ def event_water_closure(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
                 "precip_mm": p, "gwex_mm": g, "evap_mm": e, "runoff_mm": q,
                 "storage_start_mm": s0, "storage_end_mm": s1,
                 "storage_change_mm": change, "residual_mm": residual,
-                "relative_residual": relative, "passed": relative <= threshold,
+                "relative_residual": relative, "allowed_residual_mm": allowance,
+                "allowance_ratio": allowance_ratio, "passed": abs(residual) <= allowance,
             })
 
-    worst = max(events, key=lambda event: event["relative_residual"])
-    n_failed = sum(not event["passed"] for event in events)
+    worst = max(events, key=lambda event: event["allowance_ratio"])
+    failures = sorted((e for e in events if not e["passed"]),
+                      key=lambda e: (-e["allowance_ratio"], e["event_id"]))
+    n_failed = len(failures)
+    percentiles = {}
+    for variable in ("precip_mm", "relative_residual", "allowance_ratio"):
+        values = np.percentile([e[variable] for e in events], [50, 90, 95, 99, 100])
+        percentiles[variable] = dict(zip(("p50", "p90", "p95", "p99", "max"), values.tolist()))
     return CriterionResult(
         name="event_water_closure", status=FAIL if n_failed else PASS,
-        value=worst["relative_residual"], threshold=threshold,
+        value=worst["allowance_ratio"], threshold=1.0,
         message=(
-            f"worst event residual {worst['relative_residual']:.4%} of event precipitation "
-            f"({n_failed}/{len(events)} events fail; limit {threshold:.1%})"
+            f"worst event residual {abs(worst['residual_mm']):.6g} mm / "
+            f"{worst['allowed_residual_mm']:.6g} mm allowed "
+            f"({worst['relative_residual']:.4%} of event precipitation; "
+            f"{n_failed}/{len(events)} events fail; "
+            f"allowance=max({threshold:.1%} of rain, {floor:g} mm))"
         ),
         diagnostics={
             **diagnostics, "states": list(states), "n_failed_events": n_failed,
-            "events": events, "worst_event": worst,
+            "failed_events": failures[:20], "worst_event": worst,
+            "n_failed_events_omitted": max(0, n_failed - 20), "percentiles": percentiles,
+            "n_absolute_tolerance_events": sum(floor > threshold * e["precip_mm"] for e in events),
+            "n_rescued_events": sum(e["passed"] and e["relative_residual"] > threshold for e in events),
         },
     )

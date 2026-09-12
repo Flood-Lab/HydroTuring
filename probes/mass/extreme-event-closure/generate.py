@@ -22,7 +22,7 @@ These thresholds control construction only:
 event_water_closure scores all complete events.
 
 All calibration code lives here. No additional dependency or data download
-is needed. Underscore columns and DataFrame attrs stay on the host; models
+is needed. Construction diagnostics in DataFrame attrs stay on the host; models
 receive only time, pr, tas and pet, plus the unchanged catchment attributes.
 """
 
@@ -291,7 +291,7 @@ def select_median_wet_year(pr: np.ndarray) -> dict:
 
 
 def generate(seed: int) -> tuple[pd.DataFrame, dict]:
-    """Generate one continuous case with host-only overlap annotations."""
+    """Generate one continuous case with construction diagnostics in attrs."""
     forcing, static = generate_baseline(seed)
     baseline_rain = forcing["pr"].to_numpy().copy()
     selection = select_median_wet_year(baseline_rain)
@@ -314,23 +314,6 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
     anchor = start + int(candidates[0])
     rain, groups = pack_event_groups(rain, groups, anchor=anchor, window=(start, stop))
     forcing["pr"] = np.round(rain, 6)
-    row = np.arange(N_STEPS)
-    forcing["_regime"] = np.where(
-        (row >= start) & (row < stop), "anomaly", "ordinary"
-    )
-    event_id = np.zeros(N_STEPS, dtype=int)
-    event_start = np.zeros(N_STEPS, dtype=bool)
-    event_end = np.zeros(N_STEPS, dtype=bool)
-    for event in groups:
-        a, b = event["start"], event["stop"]
-        event_id[a:b] = event["event_id"]
-        # Construction diagnostics only; closure detects every complete wet
-        # event from supplied precipitation, including unmodified events.
-        event_start[a] = True
-        event_end[b - 1] = True
-    forcing["_event_id"] = event_id
-    forcing["_event_start"] = event_start
-    forcing["_event_end"] = event_end
     forcing.attrs["rainfall_diagnostics"] = {
         "seed": int(seed), "group_count": len(groups),
         "target_exceeded_group_count": sum(g["target_exceeded"] for g in groups),
@@ -358,9 +341,10 @@ def event_summary(forcing: pd.DataFrame) -> pd.DataFrame:
         "mean_mm_per_day", "peak_mm_per_day",
     ]
     records = []
-    for event_id, event in forcing.loc[forcing["_event_id"] > 0].groupby("_event_id"):
+    for group in forcing.attrs.get("rainfall_diagnostics", {}).get("groups", []):
+        event = forcing.iloc[group["start"]:group["stop"]]
         records.append({
-            "event_id": int(event_id),
+            "event_id": int(group["event_id"]),
             "start": event["time"].iloc[0],
             "end": event["time"].iloc[-1],
             "duration_days": len(event),

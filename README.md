@@ -68,15 +68,15 @@ not.
 
 ## The probes
 
-Twenty: fifteen under mass, four under energy and one under momentum. Each was
+Twenty-one: sixteen under mass, four under energy and one under momentum. Each was
 merged only after the acceptance gate saw it pass four physical models, a
 bucket that conserves water exactly, two hand-written FLEX models and the
 NWS's SAC-SMA with Snow-17, and fail a purpose-built broken one on the
 named criterion. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Eleven of the twenty can be scored on a model
+with any probe pull request. Eleven of the twenty-one can be scored on a model
 that reports runoff and nothing else. `ht list` prints them;
-[ROADMAP.md](ROADMAP.md#probes-we-want) has the twelve more we want, all
+[ROADMAP.md](ROADMAP.md#probes-we-want) has the eleven more we want, all
 unclaimed.
 
 | Probe | Law | What it asks | The broken model it catches |
@@ -88,6 +88,7 @@ unclaimed.
 | [`mass/dry-down`](probes/mass/dry-down) | mass | Two years without rain: runoff can only fall, and no more may drain than the catchment held. | `reference_climatology` |
 | [`mass/steady-state`](probes/mass/steady-state) | mass | Three years of the same day: does everything settle, and does the budget balance once it has? | `reference_restless` |
 | [`mass/extreme-rain`](probes/mass/extreme-rain) | mass | The largest storm scaled up to ten times: runoff may not fall, nor exceed the rain that was added. | `reference_saturating` |
+| [`mass/extreme-event-closure`](probes/mass/extreme-event-closure) | mass | Overlap rainfall events toward fitted 100-year depths in one median-wet year of twenty; check each event's water budget so long-record averaging cannot hide a loss. | `reference_in_sample` |
 | [`mass/runoff-bounds`](probes/mass/runoff-bounds) | mass | Over ten years, is the runoff possible at all: at least rain minus demand minus storage, at most rain plus storage? The mass question a runoff-only model has to answer. | `reference_degenerate`, `reference_overflowing` |
 | [`mass/area-invariance`](probes/mass/area-invariance) | mass | The same weather on the same catchment told as ten times larger: every depth must be identical. | `reference_area_leak` |
 | [`mass/response-nonnegativity`](probes/mass/response-nonnegativity) | mass | One 120 mm storm added: from that day on, runoff may never be lower than without it. | `reference_overshooting` |
@@ -126,6 +127,10 @@ it. A probe that needs a variable the model does not report, or that the model
 cannot consume, is N/A for it and in neither number, so the totals differ
 between models.
 
+Evaluations of `dhbv2`, `wflow_sbm`, `summa`, `cwatm` and `lisflood` on
+`mass/extreme-event-closure` are pending. Their standings below still describe
+the previous twenty-probe suite; they do not imply a result on the new probe.
+
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |
 | [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (VIOLATION)**, 5 of 11 probes passed. It passes the runoff bounds, memory, area, causality and steady state, and fails step, extreme rain, phase, warming, dry-down, and a 0.18 mm/day dip after an added storm |
@@ -135,9 +140,9 @@ between models.
 | [`cwatm`](models/cwatm) | submitted | CWatM 1.11, IIASA's Community Water Model and an ISIMIP global hydrological model, run on one grid cell with every store it carries reported. | **FAIL (VIOLATION)**, 14 of 17 probes passed. Its budget closes to 0.03%, and its own water-demand module pumps a prescribed withdrawal out of groundwater to within 0.004%. It fails on a groundwater reservoir with no dt that drains 24 times too fast at an hourly step (52% of the rain); on a 0.29 mm/day dip after an added storm, where preferential flow turns surface runoff into interflow that leaves through a slower runoff-concentration lag; and on evaporation on wet soil at 0.70 of demand, near the cap its crop coefficients set. The last two are packaging choices as much as results: this package follows the CWatM-Earth-30min template its parameters come from, and with `preferentialFlow = False`, the setting of the pinned model repository's own 30′ templates, both pass |
 | [`lisflood`](models/lisflood) | submitted | LISFLOOD 5.0.0, the EC Joint Research Centre's distributed model behind EFAS and GloFAS, stepped through its own Python framework on one representative 5 km cell and reporting every store its own water balance module counts. | **FAIL (ERROR)**, 14 of 17 probes passed. Its budget closes to 1e-13 mm per step; it reports no heat fluxes, so the three energy-flux probes cannot ask it anything and are N/A. It fails the step probe because its potential infiltration is a pore-space storage multiplied by the step length, so rain falling within hours runs off at the hourly step (13.0% of the rain between PT1H and PT1D). The two ten-year probes take about 90 s per run under amd64 emulation against a 60 s budget, so their rows are ERROR from the host's speed, and those two ERROR rows alone make the verdict FAIL (ERROR). Run outside the limit, `mass/precipitation-counterfactual` passes every criterion. On `mass/human-abstraction`, LISFLOOD's own water-use rule takes the groundwater share in full and the rest only from channel water above an environmental-flow reserve, recording what the channel cannot give as shortage. On this one-cell water region it withdraws 17 to 33% of the prescription, from the sourced reserve to none, and leaves 67 to 83% where the probe allows 5% |
 | `reference_bucket` | exact | conserves water exactly by construction | must pass every probe that can ask it anything; INCOMPLETE on the three energy-flux probes, which need fluxes it does not report |
-| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, triangular lag | must pass every probe that can ask it anything; **PASS**, 17 of 17 |
-| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 17 of 17 |
-| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 17 of 17 |
+| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, triangular lag | must pass every probe that can ask it anything; **PASS**, 18 of 18 |
+| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 18 of 18 |
+| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 18 of 18 |
 | `reference_coupled` | exact | the bucket with snow sublimation and a surface energy budget: every kilogram converted at the latent heat of the phase it actually underwent | must pass every criterion of the three energy-flux probes; supports daily and hourly steps |
 | `reference_abstraction_blind` | broken | the same bucket, blind to the prescribed withdrawal, so the two variants come out identical | caught by `human_abstraction` |
 | `reference_two_head` | broken | a water head and an energy head that never meet: both budgets close to 1e-15 and the latent heat implies an evaporation it never reported | caught by `flux_identity` |
@@ -161,7 +166,7 @@ between models.
 | `reference_thirsty` | broken | evaporates a fixed share of its soil store, never reading demand; conserves water exactly | caught by `demand_consistency` |
 | `reference_stuck_router` | broken | a routing kernel summing to 0.9, so a tenth of every day's runoff never leaves the channel | caught by `routing_conservation` |
 | `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | N/A (INCOMPLETE) on budget probes; caught by `response_sign` |
-| `reference_in_sample` | broken | exact in range, leaks once the forcing leaves it | waiting for a `regime_transfer` probe |
+| `reference_in_sample` | broken | removes surface runoff above a fixed 55 mm daily precipitation cutoff | caught by `event_water_closure` |
 | `reference_calendar` | broken | a recession that drifts with the calendar year | caught by `invariance` (time origin) |
 
 ## How a case is generated
@@ -330,7 +335,7 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Twenty probes, fifteen mass, four energy, one momentum, synthetic track only. More
+Suite `0.1.0`, pre-release. Twenty-one probes, sixteen mass, four energy, one momentum, synthetic track only. More
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes, so the generalisation probes on the roadmap —
 extrapolation in space and time, counterfactual response, invariance — are

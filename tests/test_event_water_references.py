@@ -3,6 +3,7 @@
 from dataclasses import replace
 
 import pandas as pd
+import numpy as np
 import pytest
 
 from hydroturing import registry
@@ -58,8 +59,8 @@ def test_existing_negative_loses_water_in_a_known_warm_wet_case(probe, tmp_path)
     assert not negative.passed
     assert negative.diagnostics["event_count"] == 1
     # The saturated bucket has enough surface runoff to lose the full excess.
-    assert negative.diagnostics["events"][0]["residual_mm"] == pytest.approx(35.75)
-    assert negative.value == pytest.approx(35.75 / 120.0)
+    assert negative.diagnostics["worst_event"]["residual_mm"] == pytest.approx(35.75)
+    assert negative.value == pytest.approx(35.75 / 6.0)
 
 
 @pytest.mark.parametrize("seed", gate_seeds("mass/extreme-event-closure", 5))
@@ -79,3 +80,38 @@ def test_existing_negative_passes_aggregate_but_fails_event_closure(probe, seed,
     assert event.value > event.threshold
     for result in results.values():
         assert result.passed, result.message
+
+
+@pytest.mark.parametrize("seed", gate_seeds("mass/extreme-event-closure", 5))
+def test_ordinary_negative_comparison_documents_actual_discrimination(probe, seed, tmp_path):
+    forcing, static = load_generator(probe).generate_baseline(seed)
+    case = Case(probe.id, seed, forcing, static, 365, "PT1D")
+    model = registry.find_model("reference_in_sample")
+    run = get_runner(model).run(model, probe, case, tmp_path)
+    result = get("event_water_closure")(run, probe, {})
+    # Ordinary weather is not assumed to be below the reference's fixed 55 mm cutoff.
+    assert result.passed is (seed not in {1506406754, 2013358868})
+    assert get("closure")(run, probe, {}).passed
+
+
+@pytest.mark.parametrize("seed", gate_seeds("mass/extreme-event-closure", 5))
+def test_precision_allowance_protects_rounded_conservative_outputs(probe, seed, tmp_path):
+    case = build_case(probe, seed)
+    model = registry.find_model("reference_bucket")
+    run = get_runner(model).run(model, probe, case, tmp_path)
+    criterion = get("event_water_closure")
+    assert criterion(run, probe, {}).passed
+    for mode in ("four_decimals", "float32"):
+        table = run.table.copy()
+        for column in table.select_dtypes(include="number"):
+            if column != "pr":  # The adapter still echoes supplied precipitation exactly.
+                table[column] = (table[column].round(4) if mode == "four_decimals" else
+                                 table[column].astype(np.float32).astype(float))
+        rounded = replace(run, table=table)
+        result = criterion(rounded, probe, {"absolute_tolerance_mm": 0.001})
+        assert result.passed, (mode, result.message)
+        assert result.value <= result.threshold
+        assert result.diagnostics["failed_events"] == []
+        if mode == "four_decimals":
+            assert not criterion(rounded, probe, {"absolute_tolerance_mm": 0}).passed
+            assert result.diagnostics["n_rescued_events"] > 0

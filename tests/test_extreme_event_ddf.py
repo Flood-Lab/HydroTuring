@@ -235,7 +235,7 @@ def test_generated_diagnostics_identify_median_wet_year_and_are_json_safe(genera
     report = forcing.attrs["rainfall_diagnostics"]
     assert report["seed"] == 20260912
     assert "group_size" not in report
-    assert report["group_count"] == forcing.loc[forcing["_event_id"] > 0, "_event_id"].nunique()
+    assert report["group_count"] == len({g["event_id"] for g in report["groups"]})
     assert report["group_count"] == len(report["groups"])
     annual_rain = baseline.pr.to_numpy()[365:].reshape(20, 365).sum(axis=1)
     selection = report["selection"]

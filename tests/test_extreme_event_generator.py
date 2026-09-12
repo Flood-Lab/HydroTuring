@@ -11,7 +11,9 @@ import pandas as pd
 import pytest
 
 from hydroturing import registry
-from hydroturing.harness import build_case, load_generator, resolve_window_days
+from hydroturing.harness import (
+    WindowBounds, build_case, load_generator, resolve_window_days, window_case,
+)
 from hydroturing.protocol import stage
 
 
@@ -562,9 +564,7 @@ def test_generated_groups_use_own_seed_q100_and_preserve_weather_and_volume(gene
         assert frame["pr"].iloc[a:b].sum() == pytest.approx(
             baseline["pr"].iloc[a:b].sum(), abs=1e-9, rel=0,
         )
-    assert frame["_regime"].iloc[start:stop].eq("anomaly").all()
-    assert frame["_regime"].iloc[:start].eq("ordinary").all()
-    assert frame["_regime"].iloc[stop:].eq("ordinary").all()
+    assert list(frame.columns) == ["time", "pr", "tas", "pet"]
     assert np.isfinite(frame[["pr", "tas", "pet"]].to_numpy()).all()
     assert (frame[["pr", "pet"]].to_numpy() >= 0).all()
 
@@ -601,31 +601,27 @@ def test_generated_groups_use_own_seed_q100_and_preserve_weather_and_volume(gene
     assert len(summary) == len(groups)
     assert set(summary["event_id"]) == {group["event_id"] for group in groups}
     all_runs = generator.rainfall_events(frame["pr"].to_numpy())
-    for event_id in summary["event_id"]:
-        event = frame.loc[frame["_event_id"] == event_id]
-        first, last = event.index[0], event.index[-1]
+    for group in groups:
+        first, last = group["start"], group["stop"] - 1
+        event = frame.iloc[first:last + 1]
         assert start <= first <= last < stop
         assert (first, last + 1) in all_runs
         assert frame["pr"].iloc[first - 1] == frame["pr"].iloc[last + 1] == 0
-        assert event["_event_start"].sum() == event["_event_end"].sum() == 1
-        assert event["_event_start"].iloc[0] and event["_event_end"].iloc[-1]
         assert (event["pr"] > 0).all()
-    outside = frame["_event_id"] == 0
-    assert not frame.loc[outside, ["_event_start", "_event_end"]].any().any()
 
 
 def test_summary_reports_daily_depth_and_intensity_of_all_groups(generator):
     frame = pd.DataFrame({
         "time": ["2000-01-01", "2000-01-02", "2000-01-03"],
         "pr": [6.0, 2.0, 0.0],
-        "_event_id": [1, 1, 0],
     })
+    frame.attrs["rainfall_diagnostics"] = {"groups": [{"event_id": 1, "start": 0, "stop": 2}]}
     assert generator.event_summary(frame).to_dict("records") == [{
         "event_id": 1, "start": "2000-01-01", "end": "2000-01-02",
         "duration_days": 2, "precip_mm": 8.0,
         "mean_mm_per_day": 4.0, "peak_mm_per_day": 6.0,
     }]
-    frame["_event_id"] = 0
+    frame.attrs["rainfall_diagnostics"]["groups"] = []
     assert generator.event_summary(frame).empty
 
 
@@ -635,7 +631,7 @@ def test_annotations_and_ddf_construction_metadata_stay_off_model_inputs(probe, 
     staged = pd.read_csv(tmp_path / "input" / "forcing.csv")
     assert list(staged.columns) == ["time", "pr", "tas", "pet"]
     assert len(staged) == case.n_steps == 7665
-    assert {"_event_id", "_event_start", "_event_end", "_regime"} <= set(case.forcing.columns)
+    assert list(case.forcing.columns) == ["time", "pr", "tas", "pet"]
     assert "rainfall_diagnostics" in case.forcing.attrs
     request = json.loads((tmp_path / "request.json").read_text())
     assert "rainfall_diagnostics" not in request
@@ -648,3 +644,12 @@ def test_annotations_and_ddf_construction_metadata_stay_off_model_inputs(probe, 
 def test_a_short_submitted_model_window_cannot_discard_the_experiment(probe):
     submitted = replace(registry.find_model("reference_bucket"), name="submitted_model", window_days=30)
     assert resolve_window_days(submitted, probe) == 7300
+
+
+def test_diagnostic_attributes_do_not_create_hidden_window_requirements(probe):
+    case = build_case(probe, seed=20260912)
+    # Exercise slicing directly: only the explicit probe minimum should
+    # require the full experiment, not diagnostic event IDs in forcing.
+    sliced = window_case(case, WindowBounds(offset_days=0, days=30))
+    assert sliced.n_steps == case.spinup_steps + 30
+    assert list(sliced.forcing.columns) == ["time", "pr", "tas", "pet"]
