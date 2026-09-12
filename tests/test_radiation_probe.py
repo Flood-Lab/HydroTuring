@@ -12,12 +12,15 @@ import pytest
 from hydroturing import registry
 from hydroturing.harness import (
     build_case,
+    compatibility_issues,
     load_generator,
     resolve_window_days,
+    run_probe,
     select_window,
     window_case,
 )
 from hydroturing.protocol import FORCING_FILE, STATIC_FILE, stage
+from hydroturing.scoring import INCOMPATIBLE, NOT_SCORED
 from hydroturing.seeds import gate_seeds
 
 SIGMA = 5.670374419e-8
@@ -37,6 +40,25 @@ def test_spec_asks_for_the_identity_and_nothing_else(probe):
     assert probe.requires_diagnostics == ("ts",)
     assert [c.name for c in probe.criteria] == ["radiative_identity"]
     assert probe.criteria[0].params["emissivity"] == "eps"
+    # The verdict rests on the case's sky and emissivity, so a model must
+    # declare that it consumes them.
+    assert probe.requires_forcing == ("rlds",)
+    assert probe.requires_static == ("eps",)
+
+
+def test_a_model_that_does_not_consume_the_sky_or_the_emissivity_is_not_judged(probe):
+    """Emitting ts and rlus is not enough: a model with its own downward
+    longwave or its own emissivity would be scored against values it never
+    read, so it is INCOMPATIBLE rather than a candidate for VIOLATION."""
+    reference = registry.find_model("reference_radiative")
+    assert compatibility_issues(reference, probe, build_case(probe, 0)) == []
+    own_inputs = replace(reference, needs_forcing=("pr", "tas", "pet", "rn"), needs_static=())
+    outcome = run_probe(own_inputs, probe, gate_seeds(probe.id, 1))
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert outcome.incompatible == [
+        "model does not declare that it consumes forcing rlds",
+        "model does not declare that it consumes static eps",
+    ]
 
 
 def test_generator_reproduces_bytes_and_changes_the_case_with_seed(probe):

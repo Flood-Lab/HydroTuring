@@ -182,6 +182,11 @@ class ProbeSpec:
     min_window_days: int = 0
     # Missing diagnostic outputs cause INCOMPLETE, as for missing fluxes.
     requires_diagnostics: tuple[str, ...] = ()
+    # Case-supplied inputs the verdict rests on: forcing columns and
+    # static.json keys a model must declare it consumes, or it is judged
+    # against values it never read and is INCOMPATIBLE instead.
+    requires_forcing: tuple[str, ...] = ()
+    requires_static: tuple[str, ...] = ()
 
     @property
     def required_vars(self) -> tuple[str, ...]:
@@ -280,6 +285,9 @@ class ModelManifest:
     window_days: int | str | None = None
     # Diagnostics the model reports in addition to its fluxes and states.
     emits_diagnostics: tuple[str, ...] = ()
+    # static.json keys the adapter reads, declared so that a probe whose
+    # verdict rests on one can tell whether the model consumed it.
+    needs_static: tuple[str, ...] = ()
 
     @property
     def timestep(self) -> str:
@@ -392,6 +400,8 @@ def load_probe(path: str | Path) -> ProbeSpec:
         requires_fluxes=tuple(requires.get("fluxes", [])),
         requires_states=tuple(requires.get("states", [])),
         requires_diagnostics=tuple(requires.get("diagnostics", [])),
+        requires_forcing=tuple(requires.get("forcing", [])),
+        requires_static=tuple(requires.get("static", [])),
         generator=case["generator"],
         n_seeds=case["n_seeds"],
         timestep=case["timestep"],
@@ -483,6 +493,7 @@ def load_model(path: str | Path) -> ModelManifest:
         emits_diagnostics=tuple(raw["emits"].get("diagnostics", [])),
         runner=runner,
         needs_forcing=tuple(raw.get("needs_forcing", [])),
+        needs_static=tuple(raw.get("needs_static", [])),
         supports_perturbation=bool(raw.get("supports", {}).get("perturbation", False)),
         resources=raw.get("resources", {}),
         authors=tuple(raw.get("authors", [])),

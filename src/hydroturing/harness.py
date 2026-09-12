@@ -333,6 +333,18 @@ def compatibility_issues(
         missing = [v for v in model.needs_forcing if v not in visible]
         if missing:
             issues.append("forcing does not provide " + ", ".join(missing))
+    # A probe whose verdict rests on a case-supplied input can only judge a
+    # model that declares it consumes that input. One that estimates its own
+    # sky or emissivity would be scored against values it never read.
+    for what, required, declared in (
+        ("forcing", probe.requires_forcing, model.needs_forcing),
+        ("static", probe.requires_static, model.needs_static),
+    ):
+        undeclared = [name for name in required if name not in declared]
+        if undeclared:
+            issues.append(
+                f"model does not declare that it consumes {what} " + ", ".join(undeclared)
+            )
     return issues
 
 

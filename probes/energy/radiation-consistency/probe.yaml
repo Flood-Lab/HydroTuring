@@ -25,6 +25,11 @@ requires:
   fluxes: [rlus]
   states: []
   diagnostics: [ts]
+  # The verdict rests on the case's sky and emissivity. A model that does
+  # not declare it consumes them may be using its own, and is INCOMPATIBLE
+  # rather than judged against values it never read.
+  forcing: [rlds]
+  static: [eps]
 
 case:
   generator: generate.py

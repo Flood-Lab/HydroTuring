@@ -91,18 +91,19 @@ seeds 0-19, seed 36 (eps 0.9891, highest among seeds 0-49), and the five
 gate cases forced to each emissivity endpoint: 36 cases in total.
 
 Ratios below are absolute residual divided by tolerance. The positive
-column gives the largest ratio in the group. Negative columns give the
-**minimum across cases of each case's maximum ratio**; the design target
-is at least 1.3 for both negative controls, with the criterion threshold
-unchanged at 1.
+column bounds the largest ratio in the group: the value is rounding, 1e-14
+to 1e-13 depending on the numpy and pandas installed. Negative columns
+give the **minimum across cases of each case's maximum ratio**; the design
+target is at least 1.3 for both negative controls, with the criterion
+threshold unchanged at 1.
 
-| Group | Cases | Positive maximum | Air emitter | No reflection |
+| Group | Cases | Positive, bound | Air emitter | No reflection |
 | --- | --- | --- | --- | --- |
-| gate | 5 | 3e-14 | 45.7 | 3.10 |
-| additional | 20 | 3e-14 | 44.5 | 3.12 |
-| drawn eps 0.9891 | 1 | 3e-14 | 49.9 | 2.15 |
-| forced eps 0.99 | 5 | 3e-14 | 46.1 | 1.95 |
-| forced eps 0.95 | 5 | 3e-14 | 44.7 | 10.2 |
+| gate | 5 | < 1e-12 | 45.7 | 3.10 |
+| additional | 20 | < 1e-12 | 44.5 | 3.12 |
+| drawn eps 0.9891 | 1 | < 1e-12 | 49.9 | 2.15 |
+| forced eps 0.99 | 5 | < 1e-12 | 46.1 | 1.95 |
+| forced eps 0.95 | 5 | < 1e-12 | 44.7 | 10.2 |
 
 The air emitter violates 679-690 of 720 scored steps per case: every night
 step and all daytime steps except some 06:00 and 17:00 rows near Ts = Ta.

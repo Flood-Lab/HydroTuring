@@ -16,6 +16,7 @@ emits:
   states: [mrso, snw, canopy, channel]
   diagnostics: [ts]
 needs_forcing: [pr, tas, pet, rn, rlds]
+needs_static: [eps]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

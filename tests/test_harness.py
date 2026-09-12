@@ -169,6 +169,16 @@ def test_missing_forcing_is_reported_as_incompatible(probe):
     assert "unavailable_driver" in outcome.incompatible[0]
 
 
+def test_undeclared_case_inputs_are_reported_as_incompatible(probe):
+    """A verdict that rests on a case-supplied input can only be given to a
+    model that says it read that input."""
+    rests_on = replace(probe, requires_forcing=("rlds",), requires_static=("eps",))
+    outcome = run_probe(registry.find_model("reference_bucket"), rests_on, [11])
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert "forcing rlds" in outcome.incompatible[0]
+    assert "static eps" in outcome.incompatible[1]
+
+
 def test_paired_probe_requires_declared_perturbation_support(probe):
     paired = replace(probe, variants=("control", "perturbed"))
     model = replace(registry.find_model("reference_bucket"), supports_perturbation=False)

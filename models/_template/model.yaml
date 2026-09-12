@@ -20,6 +20,8 @@ emits:
   states: [mrso, snw, canopy]
 
 needs_forcing: [pr, tas, pet]
+# static.json keys the adapter reads; a probe may require one to be declared.
+# needs_static: [eps]
 supports:
   perturbation: true
 resources: {cpu: 2, memory_gb: 4, gpu: false}

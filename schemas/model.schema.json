@@ -47,6 +47,10 @@
       }
     },
     "needs_forcing": {"type": "array", "items": {"type": "string"}},
+    "needs_static": {
+      "type": "array", "items": {"type": "string"}, "uniqueItems": true,
+      "description": "static.json keys the adapter reads. A probe whose verdict rests on one requires it to be declared here."
+    },
     "supports": {
       "type": "object",
       "additionalProperties": false,
