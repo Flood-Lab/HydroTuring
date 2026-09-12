@@ -562,6 +562,59 @@ esac""")
         assert (calls / "rm").read_text().splitlines() == ["rm", "-f", name]
 
 
+@pytest.mark.parametrize(
+    "cut_off",
+    [KeyboardInterrupt(), RuntimeError("the docker client broke")],
+    ids=["interrupted", "crashed"],
+)
+def test_container_whose_run_is_cut_off_by_an_exception_is_killed(monkeypatch, tmp_path, cut_off):
+    """A timeout is not the only way the docker client can end with its
+    container still running. An interrupt ends it too, and so does any
+    exception the harness records as an ERROR before it starts the next case.
+    Sent to the harness alone, an interrupt left google_flood_forecast's
+    container computing for 34 s more, writing into an output directory no
+    one read. The container is killed by name either way, and the exception
+    goes on unchanged: an interrupt still has to stop the run, and an ERROR
+    keeps its reason."""
+    import shlex
+
+    from hydroturing.runner import docker_runner
+
+    calls = tmp_path / "calls"
+    calls.mkdir()
+    log = shlex.quote(str(calls))
+    docker = fake_docker(tmp_path, f"""case "$1" in
+  kill) printf '%s\\n' "$@" > {log}/kill ;;
+  rm) printf '%s\\n' "$@" > {log}/rm ;;
+esac""")
+    monkeypatch.setattr(docker_runner, "require_docker", lambda: docker)
+
+    # Raising in place of `docker run` stands in for an exception that arrives
+    # while it is in flight; the build before it and the kill after it reach
+    # the fake docker.
+    real_run = docker_runner.subprocess.run
+    run = []
+
+    def cut_off_run(argv, **kwargs):
+        if argv[1] == "run":
+            run.extend(argv)
+            raise cut_off
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(docker_runner.subprocess, "run", cut_off_run)
+
+    model = registry.find_model("reference_bucket")
+    probe = registry.find_probe("mass/catchment-closure")
+    with pytest.raises(type(cut_off)) as raised:
+        docker_runner.DockerRunner().invoke(model, probe, tmp_path, tmp_path / "request.json")
+
+    assert raised.value is cut_off
+    name = run[run.index("--name") + 1]
+    assert name.startswith(f"hydroturing-{model.name}-")
+    assert (calls / "kill").read_text().splitlines() == ["kill", name]
+    assert not (calls / "rm").exists()
+
+
 def test_submitted_model_cannot_request_host_subprocess_access(tmp_path):
     import shutil
 
