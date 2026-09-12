@@ -169,6 +169,15 @@ def test_missing_forcing_is_reported_as_incompatible(probe):
     assert "unavailable_driver" in outcome.incompatible[0]
 
 
+def test_missing_static_is_reported_as_incompatible(probe):
+    """A static key the adapter would read and the case does not supply is an
+    incompatibility found before the run, not a KeyError inside the adapter."""
+    model = replace(registry.find_model("reference_bucket"), needs_static=("eps",))
+    outcome = run_probe(model, probe, [11])
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert outcome.incompatible == ["static does not provide eps"]
+
+
 def test_undeclared_case_inputs_are_reported_as_incompatible(probe):
     """A verdict that rests on a case-supplied input can only be given to a
     model that says it read that input."""

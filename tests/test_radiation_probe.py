@@ -17,6 +17,7 @@ from hydroturing.harness import (
     resolve_window_days,
     run_probe,
     select_window,
+    verify_adapter_contract,
     window_case,
 )
 from hydroturing.protocol import FORCING_FILE, STATIC_FILE, stage
@@ -44,6 +45,15 @@ def test_spec_asks_for_the_identity_and_nothing_else(probe):
     # declare that it consumes them.
     assert probe.requires_forcing == ("rlds",)
     assert probe.requires_static == ("eps",)
+
+
+def test_adapter_verification_asks_only_what_the_adapter_needs(probe):
+    """The coupled reference reads neither rlds nor eps, so it cannot be
+    judged here, but its adapter can still be smoke-tested on this case."""
+    result = verify_adapter_contract(
+        registry.find_model("reference_coupled"), probe, gate_seeds(probe.id, 1)[0]
+    )
+    assert len(result.table) == 768
 
 
 def test_a_model_that_does_not_consume_the_sky_or_the_emissivity_is_not_judged(probe):
