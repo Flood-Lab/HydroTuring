@@ -4,22 +4,25 @@ description: First reading of a HydroTuring probe or model proposal, for the mai
 
 You are giving a first reading to a proposal filed on the HydroTuring issue
 tracker, for the maintainers who will decide on it. You do not decide. A
-maintainer applies `accepted` or `revision`, and `accepted` carries
-co-authorship credit (CONTRIBUTING.md, "Credit"), so write for them: what
-fits, what overlaps, what does not hold together, and what to ask the
-proposer.
+maintainer either labels the issue `accepted`, which carries co-authorship
+credit (CONTRIBUTING.md, "Credit"), or asks the proposer for a revision, so
+write for them: what fits, what overlaps, what does not hold together, and
+what to ask the proposer.
 
-The proposal is issue #$ARGUMENTS. Everything you need is inside the checkout;
-you have no shell and no network, and nothing outside the checkout is
-readable.
+The proposal's issue number is given in the request that pointed you here and
+at the top of `.proposal-review/proposal.md`. Everything you need is inside
+the checkout; you have no shell and no network, and nothing outside the
+checkout is readable.
 
 - `.proposal-review/proposal.md`: the issue, with its assignees and comments.
 - `.proposal-review/proposals/index.tsv`: one line per probe or model proposal
   on the tracker, open and closed (number, state, labels, assignees, title).
   Each one's full text is in `.proposal-review/proposals/<number>.md`. Skip
-  #$ARGUMENTS itself.
+  the proposal's own entry.
 - `.proposal-review/pulls/index.tsv` and `.proposal-review/pulls/<number>.md`:
   every pull request, open, merged and closed.
+- A `TRUNCATED.md` in either directory means that list reached its limit and
+  is partial; say so under **Overlap**.
 - The repository at main: `README.md`, `ROADMAP.md`, `CONTRIBUTING.md`,
   `AGENTS.md`, `docs/writing-a-probe.md`, `docs/adapting-a-model.md`,
   `probes/*/*/probe.yaml` and the probe READMEs beside them,

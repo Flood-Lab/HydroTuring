@@ -71,9 +71,12 @@ jobs:
       issue: ${{ steps.target.outputs.issue }}
       review: ${{ steps.claude.outputs.structured_output }}
     steps:
+      # The default branch, even for a run dispatched from another branch, so
+      # the rubric Claude follows is the one on main.
       - name: Check out main
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
       - name: Resolve the issue number
@@ -105,10 +108,16 @@ jobs:
             --json number,title,body,author,labels,assignees,state,createdAt,url,comments \
             --jq '"# #\(.number) \(.title)\n\nAuthor: \(.author.login)\nState: \(.state)\nLabels: \([.labels[].name] | join(", "))\nAssignees: \([.assignees[].login] | join(", "))\nOpened: \(.createdAt)\nURL: \(.url)\n\n## Body\n\n\(.body // "")\n\n## Comments\n" + ([.comments[] | select(.author.login | test("^github-actions") | not) | "\n### \(.author.login), \(.createdAt)\n\n\(.body)\n"] | join(""))' \
             > "$dir/proposal.md"
+          # A list that reaches its limit is partial; say so rather than let
+          # the index pass for complete.
           gh issue list --repo "$REPO" --state all --limit 1000 \
-            --json number,title,body,labels,assignees,state,url \
-            --jq '.[] | select((.title | test("^\\[(PROBE|MODEL)"; "i")) or any(.labels[]; .name | test("proposal|request")))' \
-            | jq -c '.' > "$RUNNER_TEMP/proposals.jsonl"
+            --json number,title,body,labels,assignees,state,url > "$RUNNER_TEMP/issues.json"
+          if [ "$(jq length "$RUNNER_TEMP/issues.json")" -ge 1000 ]; then
+            echo "::warning::the issue list reached its limit of 1000, so older proposals are missing"
+            echo "The issue list reached its limit of 1000; older proposals are missing." > "$dir/proposals/TRUNCATED.md"
+          fi
+          jq -c '.[] | select((.title | test("^\\[(PROBE|MODEL)"; "i")) or any(.labels[]; .name | test("proposal|request")))' \
+            "$RUNNER_TEMP/issues.json" > "$RUNNER_TEMP/proposals.jsonl"
           jq -r '[.number, .state, ([.labels[].name] | join(",")), ([.assignees[].login] | join(",")), .title] | @tsv' \
             "$RUNNER_TEMP/proposals.jsonl" > "$dir/proposals/index.tsv"
           while IFS= read -r row; do
@@ -117,8 +126,12 @@ jobs:
               <<< "$row" > "$dir/proposals/$n.md"
           done < "$RUNNER_TEMP/proposals.jsonl"
           gh pr list --repo "$REPO" --state all --limit 300 \
-            --json number,title,body,state,url --jq '.[]' \
-            | jq -c '.' > "$RUNNER_TEMP/pulls.jsonl"
+            --json number,title,body,state,url > "$RUNNER_TEMP/pulls.json"
+          if [ "$(jq length "$RUNNER_TEMP/pulls.json")" -ge 300 ]; then
+            echo "::warning::the pull request list reached its limit of 300, so older pull requests are missing"
+            echo "The pull request list reached its limit of 300; older pull requests are missing." > "$dir/pulls/TRUNCATED.md"
+          fi
+          jq -c '.[]' "$RUNNER_TEMP/pulls.json" > "$RUNNER_TEMP/pulls.jsonl"
           jq -r '[.number, .state, .title] | @tsv' \
             "$RUNNER_TEMP/pulls.jsonl" > "$dir/pulls/index.tsv"
           while IFS= read -r row; do
@@ -129,7 +142,9 @@ jobs:
 
       - name: Review the proposal
         id: claude
-        uses: anthropics/claude-code-action@v1
+        # Pinned to a commit: the action receives the subscription token, and a
+        # tag can move. Move the pin deliberately, after reading the change.
+        uses: anthropics/claude-code-action@56cf60fde42f7b19c3abfd5c9c48b69a1288461f # v1.0.222
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Proposers are not collaborators, so the action's write-access gate
@@ -138,7 +153,10 @@ jobs:
           # what bound it.
           github_token: ${{ secrets.GITHUB_TOKEN }}
           allowed_non_write_users: '*'
-          prompt: /review-proposal ${{ steps.target.outputs.issue }}
+          # A plain request to read the rubric: in automation mode the action
+          # passes the prompt as text, without slash-command expansion.
+          prompt: |
+            Read .claude/commands/review-proposal.md and follow it. The proposal is issue #${{ steps.target.outputs.issue }}, gathered into .proposal-review/. Return the structured result that file describes.
           # File tools read only inside the checkout, and not its .git. A bare
           # Read allow rule would permit reads anywhere, so there is none:
           # reads in the working directory need no approval, and a headless

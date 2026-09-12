@@ -2,10 +2,11 @@
 description: Review a HydroTuring pull request, for the maintainers
 ---
 
-Review pull request #$ARGUMENTS in HydroTuring, a benchmark that asks whether
-hydrologic models conserve what physics says they must, and whether that holds
-when the question moves. A maintainer asked for this review with `/review`;
-they decide what happens to the pull request.
+Review a pull request in HydroTuring, a benchmark that asks whether hydrologic
+models conserve what physics says they must, and whether that holds when the
+question moves. Its number is given in the request that pointed you here and
+at the top of `.pr-review/pr.md`. A maintainer asked for this review with
+`/review`; they decide what happens to the pull request.
 
 Everything you need is inside the checkout; you have no shell and no network,
 and nothing outside the checkout is readable.

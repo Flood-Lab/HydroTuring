@@ -97,6 +97,7 @@ jobs:
       - name: Check out main
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
       - name: Extract the pull request's head as files only
@@ -141,11 +142,16 @@ jobs:
 
       - name: Review the pull request
         id: claude
-        uses: anthropics/claude-code-action@v1
+        # Pinned to a commit: the action receives the subscription token, and a
+        # tag can move. Move the pin deliberately, after reading the change.
+        uses: anthropics/claude-code-action@56cf60fde42f7b19c3abfd5c9c48b69a1288461f # v1.0.222
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: /review-pr ${{ needs.command.outputs.pr }}
+          # A plain request to read the rubric: in automation mode the action
+          # passes the prompt as text, without slash-command expansion.
+          prompt: |
+            Read .claude/commands/review-pr.md and follow it. The pull request is #${{ needs.command.outputs.pr }}, gathered into .pr-review/ with its head in pr-head/. Return the structured result that file describes.
           # File tools read only inside the checkout, and not its .git. A bare
           # Read allow rule would permit reads anywhere, so there is none.
           settings: |
