@@ -1,0 +1,103 @@
+id: energy/snowmelt-energy-water
+title: Melt reported as water must be paid for out of the energy budget
+law: energy
+track: synthetic
+version: 1
+
+authors:
+  - name: Siddik Barbhuiya
+    affiliation: >-
+      Indian Institute of Technology Mandi,
+      Mandi, Himachal Pradesh, India
+    orcid: "0000-0003-1278-5151"
+    github: Barbhuiya12
+
+description: >
+  Build a snowpack over a cold winter, ripen it, then melt it out over sixty
+  dry days above freezing. Over that stretch the surface energy residual is
+  not required to vanish: it is required to equal the energy the reported melt
+  demanded, at the latent heat of fusion. Filed under energy because the
+  schema admits mass, energy and momentum, as
+  energy/latent-heat-et-consistency was for the same reason. The scored stage
+  carries no precipitation, so snowfall is zero whatever threshold a model
+  uses internally and the pack's loss is melt and sublimation alone, which is
+  what makes melt observable through a contract carrying neither a melt flux
+  nor a snowfall flux. The pack is ripened before the stage opens, so the
+  cold content that no contract variable can see is spent where nothing is
+  scored. Catches the common construction of a degree-day melt head bolted to
+  an energy head that closes by itself: both budgets balance, and the ice
+  melts whether or not the energy to melt it existed.
+
+requires:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_days: 210
+  spinup_days: 30
+  # The whole record. A submitted model is otherwise scored on a 30-day window
+  # that slices one stage, and a window inside the accumulation stage asks
+  # nothing about melt at all.
+  min_window_days: 240
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+criteria:
+  # A precondition, not the probe. A model that leaks water reports a pack
+  # loss that was never melt, so the identity below would be measuring a leak.
+  # Nothing is pinned to it in `baselines`, so it is never reported as this
+  # probe's result.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  # The probe. Over the melt stage, mean(rn - hfls - hfss - hfg) must equal
+  # lambda_f times the ice the model says it lost, within 5 percent of that
+  # melt energy or 2 W/m2, whichever is larger. The floor is carried from
+  # energy/surface-energy-closure and for the same reason: the denominator
+  # goes to zero for a model that reports no pack. Note which of the two
+  # actually binds. The crossover is at a demand of 40 W/m2: below it 5 percent
+  # is under 2 W/m2 and the floor is the operative bound, above it the relative
+  # rule is. Both happen here, across the 24 to 43 W/m2 the reference models
+  # produce, so the effective band runs +/-5 to +/-8 percent rather than a
+  # flat 5.
+  - melt_energy:
+      driver: rn
+      sinks: [hfls, hfss, hfg]
+      pack: snw
+      sublimation: sbl
+      threshold: 0.05
+      floor: 2.0
+      segment_column: _regime
+      scored_label: melt
+      snowfall_label: accumulation
+      # A model reporting no pack would satisfy the identity with two zeroes.
+      # How much of the pack it then melts is not scored: melting part of it
+      # and paying for exactly that part is correct coupling, and failing it
+      # for melting slowly would score a calibration choice as a violation.
+      min_peak_share_of_snowfall: 0.5
+
+baselines:
+  # `must_pass` can only name models that emit what the probe requires, and
+  # reference_bucket, flex_lumped, flex_topo and sacsma_snow17 emit no energy
+  # fluxes at all, so they are N/A (INCOMPLETE) here. Every merged energy
+  # probe carries a single-model must_pass for the same structural reason.
+  must_pass: [reference_snow_energy]
+  must_fail:
+    # Melts a degree-day depth and closes its energy budget around whatever
+    # evaporated, so no fusion term ever enters it: the residual is exactly
+    # zero while the water budget reports a pack going.
+    reference_coupled: melt_energy
+    # An energy head that never reads the water head. Its residual is zero
+    # too, and its melt is still a function of air temperature.
+    reference_two_head: melt_energy
+
+provenance: >
+  Synthetic. Generated at run time by generate.py from a recorded seed, so the
+  pack, the weather and the melt season differ with every seed and nothing is
+  committed as data. Proposal and agreed scope:
+  https://github.com/Flood-Lab/HydroTuring/issues/66.

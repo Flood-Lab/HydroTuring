@@ -113,6 +113,7 @@ Every one is binary.
 | `phase_invariance` | the same water as rain instead of snow leaves the integrated volumes within a share of the rain | paired runs |
 | `demand_consistency` | evaporation reaches demand when the model's own soil is wettest, never exceeds it, and falls when driest | one run |
 | `energy_closure_by_phase` | the mean absolute surface-energy residual in each contiguous day or night stays within the larger of the relative radiation tolerance and the absolute flux floor | one run, contiguous day/night blocks |
+| `melt_energy` | over a labelled melt block, the surface energy residual equals the latent heat of fusion the reported loss of pack demanded | one run, labelled blocks |
 | `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff | one run |
 
 Picking a denominator for `closure` and `regime_transfer`:
@@ -261,6 +262,7 @@ The reference models available today:
 | `reference_thirsty` | evaporates a fixed share of its soil store whatever the demand | `demand_consistency` |
 | `reference_stuck_router` | a routing kernel summing to 0.9 | `routing_conservation` |
 | `reference_coupled` | the bucket with snow sublimation and a surface energy budget; every kilogram converted at the latent heat of the phase it actually underwent | nothing, it must pass the energy probes |
+| `reference_snow_energy` | `reference_coupled` with melt bought from the pack's own surface energy budget instead of a degree-day factor | nothing, it must pass `energy/snowmelt-energy-water` |
 | `reference_two_head` | a water head and an energy head that never meet; both budgets close and the latent heat implies an evaporation it never reported | `flux_identity`, `partition_shift` |
 | `reference_constant_lambda` | converts every kilogram at one latent heat of vaporisation | `flux_identity` |
 | `reference_sublimation_blind` | converts snow sublimation at the latent heat of vaporisation instead of sublimation | `flux_identity` |

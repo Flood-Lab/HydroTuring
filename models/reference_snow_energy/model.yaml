@@ -1,0 +1,25 @@
+name: reference_snow_energy
+version: "1.0.0"
+description: >
+  The bucket of reference_coupled with one structural change: the snowpack
+  melts from the energy its own surface budget makes available rather than
+  from a degree-day factor. Net radiation less the ground, latent and
+  turbulent sensible fluxes is what is left to melt ice, and the mass melted
+  is that energy divided by the latent heat of fusion. The water budget, the
+  energy budget and the identity between melt and fusion energy therefore all
+  hold by construction. It is the model every criterion of
+  energy/snowmelt-energy-water must pass. If it ever fails one, the criterion
+  has drifted past what exact physics achieves and the criterion is wrong
+  rather than the model.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H]
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet, rn]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

@@ -73,6 +73,7 @@ FULL_WINDOW = "full"
 TRUSTED_SUBPROCESS_MODELS = {
     "reference_bucket",
     "reference_coupled",
+    "reference_snow_energy",
     "reference_diurnal_bias",
     "reference_abstraction_blind",
     "reference_two_head",
