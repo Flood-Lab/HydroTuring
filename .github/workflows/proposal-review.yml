@@ -1,0 +1,183 @@
+name: proposal-review
+
+# A first reading of every probe or model proposal, posted as one comment
+# before a maintainer decides. It checks scope against the project's own
+# documents, looks for overlap with what exists or is already proposed, and
+# asks whether the proposal holds together. It never labels: `accepted` is a
+# maintainer's judgement and carries co-authorship credit (CONTRIBUTING.md).
+#
+# Issue text comes from anyone with a GitHub account, and the agent reads it,
+# so the run is split in two. The review job holds the Claude credential and a
+# read-only token. Claude has no shell, editing or network tools, and its file
+# tools refuse anything outside the checkout, so it cannot read the process
+# environment that holds the credential. Whatever an issue persuades it to
+# say, all it produces is the structured review. The comment job holds the
+# only write permission and runs no model. It posts or updates one marked
+# comment on the triggering issue, handling the review as data with jq,
+# refusing text shaped like a credential, and breaking @-mentions so that a
+# review pages nobody. Only main is checked out, so no contributor code runs.
+#
+# Proposals opened before this workflow, or ones to read again, run by hand:
+#
+#   gh workflow run proposal-review --ref main -f issue=63
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: 'Issue number of the proposal to review'
+        required: true
+
+# An author editing a proposal several times in a row gets one review, of the
+# last version.
+concurrency:
+  group: proposal-review-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  review:
+    # The issue forms title proposals `[PROBE] ` and `[MODEL] `. The title, not
+    # the label, is the filter: several proposals written from the forms
+    # arrived without their label.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.issue.title, '[PROBE') ||
+      startsWith(github.event.issue.title, '[MODEL')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      issue: ${{ steps.target.outputs.issue }}
+      review: ${{ steps.claude.outputs.structured_output }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Resolve the issue number
+        id: target
+        env:
+          ISSUE: ${{ github.event.issue.number || inputs.issue }}
+        run: |
+          if ! [[ "$ISSUE" =~ ^[0-9]+$ ]]; then
+            echo "not an issue number: $ISSUE" >&2
+            exit 1
+          fi
+          echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
+
+      # Claude has no shell or network, so everything it compares against is
+      # written into the checkout first: one small Markdown file per issue or
+      # pull request and a one-line index of each, so it can search and open
+      # only what matters. Titles, bodies and comments are untrusted text, and
+      # only jq handles them.
+      - name: Gather the proposal and what it could overlap with
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ steps.target.outputs.issue }}
+        run: |
+          dir=.proposal-review
+          mkdir -p "$dir/proposals" "$dir/pulls"
+          gh issue view "$ISSUE" --repo "$REPO" \
+            --json number,title,body,author,labels,state,createdAt,url,comments \
+            --jq '"# #\(.number) \(.title)\n\nAuthor: \(.author.login)\nState: \(.state)\nLabels: \([.labels[].name] | join(", "))\nOpened: \(.createdAt)\nURL: \(.url)\n\n## Body\n\n\(.body // "")\n\n## Comments\n" + ([.comments[] | "\n### \(.author.login), \(.createdAt)\n\n\(.body)\n"] | join(""))' \
+            > "$dir/proposal.md"
+          gh issue list --repo "$REPO" --state all --limit 1000 \
+            --json number,title,body,labels,state,url \
+            --jq '.[] | select((.title | test("^\\[(PROBE|MODEL)"; "i")) or any(.labels[]; .name | test("proposal|request")))' \
+            | jq -c '.' > "$RUNNER_TEMP/proposals.jsonl"
+          jq -r '[.number, .state, ([.labels[].name] | join(",")), .title] | @tsv' \
+            "$RUNNER_TEMP/proposals.jsonl" > "$dir/proposals/index.tsv"
+          while IFS= read -r row; do
+            n=$(jq -r '.number' <<< "$row")
+            jq -r '"# #\(.number) \(.title)\n\nState: \(.state)\nLabels: \([.labels[].name] | join(", "))\nURL: \(.url)\n\n\(.body // "")"' \
+              <<< "$row" > "$dir/proposals/$n.md"
+          done < "$RUNNER_TEMP/proposals.jsonl"
+          gh pr list --repo "$REPO" --state all --limit 300 \
+            --json number,title,body,state,url --jq '.[]' \
+            | jq -c '.' > "$RUNNER_TEMP/pulls.jsonl"
+          jq -r '[.number, .state, .title] | @tsv' \
+            "$RUNNER_TEMP/pulls.jsonl" > "$dir/pulls/index.tsv"
+          while IFS= read -r row; do
+            n=$(jq -r '.number' <<< "$row")
+            jq -r '"# PR #\(.number) \(.title)\n\nState: \(.state)\nURL: \(.url)\n\n\(.body // "")"' \
+              <<< "$row" > "$dir/pulls/$n.md"
+          done < "$RUNNER_TEMP/pulls.jsonl"
+
+      - name: Review the proposal
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Proposers are not collaborators, so the action's write-access gate
+          # is lifted for them, as in its own issue-triage example. That needs
+          # the workflow token passed in; this job's read-only permissions are
+          # what bound it.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          allowed_non_write_users: '*'
+          prompt: /review-proposal ${{ steps.target.outputs.issue }}
+          # File tools read only inside the checkout, and not its .git. A bare
+          # Read allow rule would permit reads anywhere, so there is none:
+          # reads in the working directory need no approval.
+          settings: |
+            {"permissions": {"blockReadsOutsideWorkingDirectories": true, "deny": ["Read(./.git/**)", "Read(//proc/**)", "Read(//sys/**)"]}}
+          claude_args: |
+            --model claude-sonnet-5
+            --max-turns 40
+            --disallowedTools Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch
+            --json-schema '{"type":"object","properties":{"kind":{"type":"string","enum":["probe","model","other"]},"suggestion":{"type":"string","enum":["accept","revise","out-of-scope","duplicate","maintainer-judgement"]},"comment":{"type":"string"}},"required":["kind","suggestion","comment"],"additionalProperties":false}'
+
+  comment:
+    needs: review
+    if: needs.review.outputs.review != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Post or update the review comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ needs.review.outputs.issue }}
+          REVIEW: ${{ needs.review.outputs.review }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if ! jq -e '(.comment | type == "string") and (.suggestion | type == "string")' <<< "$REVIEW" > /dev/null; then
+            echo "the review is not in the expected shape" >&2
+            exit 1
+          fi
+          # Claude cannot read a credential from inside the checkout, but a
+          # public comment is not the place to find out otherwise.
+          if jq -r '.comment, .suggestion' <<< "$REVIEW" \
+              | grep -Eq 'sk-ant-[A-Za-z0-9_-]{8}|gh[pousr]_[A-Za-z0-9]{20}|github_pat_[A-Za-z0-9_]{20}'; then
+            echo "the review contains a credential-shaped string; not posting it" >&2
+            exit 1
+          fi
+          marker='<!-- proposal-review -->'
+          body=$(mktemp)
+          {
+            echo "$marker"
+            # A zero-width space after @ keeps a name readable without paging it.
+            jq -r '.comment' <<< "$REVIEW" | perl -CS -pe 's/@(?=[A-Za-z0-9])/\@\x{200B}/g'
+            echo
+            echo '---'
+            printf '<sub>First reading by an agent, for the maintainers (suggested: %s). It does not accept or decline the proposal: a maintainer labels it. <a href="%s">Run</a></sub>\n' \
+              "$(jq -r '.suggestion' <<< "$REVIEW")" "$RUN_URL"
+          } > "$body"
+          existing=$(gh api --paginate "repos/$REPO/issues/$ISSUE/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- proposal-review -->"))) | .id' \
+            | head -n 1)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$existing" -F body=@"$body" > /dev/null
+          else
+            gh api "repos/$REPO/issues/$ISSUE/comments" -F body=@"$body" > /dev/null
+          fi
