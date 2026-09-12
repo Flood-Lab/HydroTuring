@@ -98,45 +98,67 @@ def test_site_lists_the_probe_as_merged_in_every_language(probe_id):
         assert 'class="tag merged"' in row, f"{probe_id} is not tagged merged on the site: {row[:120]}"
 
 
-def _archived_counts() -> dict[str, tuple[int, int]]:
-    """Each model's passes and scored probes, at the version archived last.
+def _archived_standings(path=REPO_ROOT / "models" / "result.csv") -> dict[str, dict]:
+    """Each model's standing at the version archived last.
 
-    A probe that could not be put to a model is N/A and in neither number, so
-    every model is counted out of its own total: a runoff-only model out of
-    the probes that can ask about runoff, not out of the whole suite. The
-    version archived last is taken to have been run on every probe, as the
-    evaluation of a new version is.
+    Per model: that version, the merged probes archived at it, and its passes
+    and scored probes there. A probe that could not be put to a model is N/A
+    and in neither number, so every model is counted out of its own total: a
+    runoff-only model out of the probes that can ask about runoff, not out of
+    the whole suite. Rows for probes no longer in the suite are not counted.
     """
-    with open(REPO_ROOT / "models" / "result.csv", newline="", encoding="utf-8") as fh:
-        rows = [r for r in csv.DictReader(fh) if not r["probe"].endswith("(adapter contract)")]
+    with open(path, newline="", encoding="utf-8") as fh:
+        rows = [r for r in csv.DictReader(fh) if r["probe"] in PROBES]
     version = {r["model"]: r["version"] for r in rows}
     latest = {
         (r["model"], r["probe"]): r["verdict"] for r in rows if r["version"] == version[r["model"]]
     }
-    counts: dict[str, tuple[int, int]] = {}
-    for (model, _), verdict in latest.items():
-        if verdict == "N/A":
-            continue
-        passed, scored = counts.get(model, (0, 0))
-        counts[model] = (passed + (verdict == "PASS"), scored + 1)
-    return counts
+    standings = {
+        model: {"version": v, "probes": set(), "passed": 0, "scored": 0}
+        for model, v in version.items()
+    }
+    for (model, probe), verdict in latest.items():
+        standing = standings[model]
+        standing["probes"].add(probe)
+        if verdict != "N/A":
+            standing["scored"] += 1
+            standing["passed"] += verdict == "PASS"
+    return standings
 
 
 def _assert_counts_match_archive(
-    where: str, listed: list[str], found: list[tuple[str, str, str]]
+    where: str,
+    listed: list[str],
+    found: list[tuple[str, str, str]],
+    standings: dict[str, dict] | None = None,
 ) -> None:
     """Every model row states its passes out of its scored probes, as archived.
 
-    A row may leave the count out only for a model no probe could score,
-    which has nothing to count.
+    The standing is taken at the version archived last, which has to have been
+    run on every merged probe: `ht run --probe` appends a single probe's row,
+    and a newer version archived on one probe alone would otherwise count as
+    1 of 1. A row may leave the count out only for a model no probe could
+    score, which has nothing to count.
     """
-    archived = _archived_counts()
+    standings = _archived_standings() if standings is None else standings
+    partial = [
+        f"{model} {standings[model]['version']} ({len(standings[model]['probes'])} of {len(PROBE_IDS)})"
+        for model in listed
+        if model in standings and len(standings[model]["probes"]) < len(PROBE_IDS)
+    ]
+    assert not partial, (
+        f"{where} states a standing for {partial}, but the newest archived version was not run "
+        "on every probe; archive a full run before stating it"
+    )
     counted = {model for model, _, _ in found}
-    uncounted = [model for model in listed if model not in counted and model in archived]
+    uncounted = [
+        model for model in listed if model not in counted and standings.get(model, {}).get("scored")
+    ]
     assert not uncounted, f"{where} gives no count for {uncounted}, though the archive scored them"
     wrong = []
     for model, passed, total in found:
-        expected = archived.get(model)
+        standing = standings.get(model)
+        expected = (standing["passed"], standing["scored"]) if standing else None
         if expected != (int(passed), int(total)):
             archive = f"{expected[0]} of {expected[1]}" if expected else "none"
             wrong.append((model, f"{passed} of {total}", archive))
