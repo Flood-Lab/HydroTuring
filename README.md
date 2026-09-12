@@ -139,7 +139,7 @@ between models.
 | [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 17 of 17 |
 | [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 17 of 17 |
 | `reference_coupled` | exact | the bucket with snow sublimation and a surface energy budget: every kilogram converted at the latent heat of the phase it actually underwent | must pass every criterion of the three energy-flux probes; supports daily and hourly steps |
-| `reference_soil_heat` | exact | a fixed soil layer with analytically integrated conductive boundary fluxes and temperature | must pass `soil_heat_storage`; checks budget consistency, not temperature accuracy |
+| `reference_soil_heat` | physical | a radiative surface and fixed soil layer with jointly integrated native fluxes and temperature | must pass `soil_heat_storage`; checks budget consistency, not temperature accuracy |
 | `reference_frozen_soil` | broken | retains the conductive fluxes but reports a frozen soil temperature | caught by `soil_heat_storage` |
 | `reference_half_soil` | broken | retains the conductive fluxes but halves the reported soil-temperature change | caught by `soil_heat_storage` |
 | `reference_abstraction_blind` | broken | the same bucket, blind to the prescribed withdrawal, so the two variants come out identical | caught by `human_abstraction` |

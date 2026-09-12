@@ -1,7 +1,7 @@
 name: reference_frozen_soil
 version: "1.0.0"
 description: >
-  The analytic soil heat reference with reported layer temperature frozen at
+  The conductive soil heat reference with reported layer temperature frozen at
   its initial value. Its native fluxes are unchanged, so surface energy still
   closes while the declared layer storage disagrees with its boundary fluxes.
 authors: ["Han Wang"]
@@ -13,7 +13,8 @@ emits:
   fluxes: [pr, hfls, hfss, hfg, hfg_bottom]
   states: []
   diagnostics: [tsoil_layer]
-needs_forcing: [pr, tas, rn]
+# Also requires either rn or both rsds and rlds, as checked by the adapter.
+needs_forcing: [pr, tas]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

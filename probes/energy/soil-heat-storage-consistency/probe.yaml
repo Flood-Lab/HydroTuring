@@ -53,7 +53,9 @@ baselines:
 
 provenance: >
   Synthetic, generated at run time from the recorded seed. Layer depth,
-  heat capacity, conductances, temperature and heating vary across seeds.
+  solid heat capacity, temperature and incoming shortwave vary across seeds.
+  All models receive the same incoming radiation and meteorology. Lower-face
+  heat exchange is supplied by each model, not prescribed from the reference.
   Timestamps label interval starts; output fluxes are interval means and
   layer temperature is the interval-end mean layer temperature. The last
   spinup row supplies the first scored starting temperature. Proposal:

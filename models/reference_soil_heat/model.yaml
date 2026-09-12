@@ -1,9 +1,11 @@
 name: reference_soil_heat
 version: "1.0.0"
 description: >
-  Analytic conductive heat storage in one homogeneous layer beneath a
-  zero-capacity bare skin. Native flux equations are integrated over each
-  interval and layer temperature is reported at its end. The fixed-capacity
+  Conductive heat storage in one homogeneous layer beneath a zero-capacity
+  bare skin. Incoming shortwave/longwave drives a radiative surface solve;
+  prescribed net radiation uses the existing analytic solution. Native flux
+  equations are integrated over each interval and layer temperature is
+  reported at its end. The fixed-capacity
   layer has no evaporation, phase change, advection or internal heat sources.
   Synthetic positive reference for energy/soil-heat-storage-consistency.
 authors: ["Han Wang"]
@@ -15,7 +17,8 @@ emits:
   fluxes: [pr, hfls, hfss, hfg, hfg_bottom]
   states: []
   diagnostics: [tsoil_layer]
-needs_forcing: [pr, tas, rn]
+# Also requires either rn or both rsds and rlds, as checked by the adapter.
+needs_forcing: [pr, tas]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

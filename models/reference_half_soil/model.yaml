@@ -1,7 +1,7 @@
 name: reference_half_soil
 version: "1.0.0"
 description: >
-  The analytic soil heat reference with only its reported layer temperature
+  The conductive soil heat reference with only its reported layer temperature
   response halved. Native surface and bottom fluxes remain unchanged, leaving
   the surface budget closed but the layer heat storage inconsistent.
 authors: ["Han Wang"]
@@ -13,7 +13,8 @@ emits:
   fluxes: [pr, hfls, hfss, hfg, hfg_bottom]
   states: []
   diagnostics: [tsoil_layer]
-needs_forcing: [pr, tas, rn]
+# Also requires either rn or both rsds and rlds, as checked by the adapter.
+needs_forcing: [pr, tas]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}
