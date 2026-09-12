@@ -1,0 +1,64 @@
+id: energy/soil-heat-storage-consistency
+title: Soil heat fluxes and layer temperature must agree
+law: energy
+track: synthetic
+version: 1
+
+authors:
+  - name: Han Wang
+    affiliation: >-
+      Department of Civil and Environmental Engineering,
+      The Hong Kong University of Science and Technology, Hong Kong, China
+    orcid: "0000-0001-9771-1324"
+    github: cehw
+
+description: >
+  Heat entering a fixed homogeneous soil layer minus heat leaving its lower
+  boundary must match the change in layer heat storage. The layer has constant
+  areal heat capacity, with no phase change, heat advection or internal sources.
+  Heating and recovery are scored separately. Passing establishes consistency
+  between reported fluxes and temperature, not an accurate thermal response.
+
+requires:
+  fluxes: [hfg, hfg_bottom]
+  states: []
+  diagnostics: [tsoil_layer]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1H
+  period_days: 3
+  spinup_days: 1
+  # Preserve the entire 12-hour heating and 60-hour recovery sequence.
+  min_window_days: 3
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+criteria:
+  - soil_heat_storage:
+      capacity: soil_heat_capacity_areal
+      temperature: tsoil_layer
+      top: hfg
+      bottom: hfg_bottom
+      # Starting engineering allowance relative to net heat retained, with a
+      # 1 W m-2 floor for weak exchange; absolute residuals avoid cancellation.
+      threshold: 0.05
+      floor: 1.0
+      segment_column: _phase
+
+baselines:
+  must_pass: [reference_soil_heat]
+  must_fail:
+    reference_frozen_soil: soil_heat_storage
+    reference_half_soil: soil_heat_storage
+
+provenance: >
+  Synthetic, generated at run time from the recorded seed. Layer depth,
+  solid heat capacity, temperature and incoming shortwave vary across seeds.
+  All models receive the same incoming radiation and meteorology. Lower-face
+  heat exchange is supplied by each model, not prescribed from the reference.
+  Timestamps label interval starts; output fluxes are interval means and
+  layer temperature is the interval-end mean layer temperature. The last
+  spinup row supplies the first scored starting temperature. Proposal:
+  https://github.com/Flood-Lab/HydroTuring/issues/26.

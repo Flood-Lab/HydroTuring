@@ -191,6 +191,13 @@ surface with negligible heat capacity; ground heat flux is measured at that
 surface, so no separate soil-storage term is subtracted.
 Contributed by Han Wang ([@cehw](https://github.com/cehw)).
 
+### `energy/soil-heat-storage-consistency` &middot; **merged**
+Heat entering a fixed soil layer minus heat leaving its base must agree
+with the layer temperature change times its prescribed heat capacity.
+Heating and recovery are scored separately, so a closed surface budget
+cannot hide a frozen or half-amplitude soil temperature.
+Contributed by Han Wang ([@cehw](https://github.com/cehw)).
+
 ### `energy/snowpack-cold-content` &middot; hard &middot; **unclaimed**
 The full snowpack energy budget including cold content and phase change. Melt
 must not occur while the pack is below freezing.

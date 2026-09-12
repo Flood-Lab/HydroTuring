@@ -37,6 +37,26 @@ correct outcome, and it is a different statement from `FAIL (VIOLATION)`.
 Inventing an evapotranspiration column to escape `INCOMPLETE` converts an
 honest limitation into a false claim, and the budget will not close anyway.
 
+Non-water outputs have an optional `diagnostics` group. A model that reports
+soil-layer temperature and its boundary heat fluxes can declare:
+
+```yaml
+emits:
+  fluxes: [hfg, hfg_bottom]
+  states: []
+  diagnostics: [tsoil_layer]
+```
+
+`tsoil_layer` is the layer-mean temperature in kelvin at each interval's end;
+it is never included in water-storage sums. `hfg` and `hfg_bottom` are the
+interval-mean downward heat fluxes in W/m2 at the actual soil surface and at
+the bottom of that same layer. The row timestamp remains the forcing
+interval's start. Emit the temperature during spinup too, so the last spinup
+row supplies the initial temperature of the first scored interval. Document
+the layer bounds and heat capacity. Use the model's own fluxes, not fluxes
+reconstructed from the temperature change being checked. Missing diagnostics
+are treated like other missing required outputs: `FAIL (INCOMPLETE)`.
+
 ## 2. Write the adapter
 
 Read `/io/request.json`, read the forcing, call your model, write the table.
