@@ -504,7 +504,7 @@ through the split instead; its numbers are under What changed.
 ```
 ### HydroTuring `summa` v4.0.0-f787fa5.4
 
-FAIL (VIOLATION) · 8/20 probes passed · suite 0.1.0
+FAIL (VIOLATION) · 8/21 probes passed · suite 0.1.0
 ```
 
 It passes eight probes:
@@ -516,8 +516,12 @@ It passes eight probes:
 
 Against `4.0.0-f787fa5.3` no verdict changed. The fourth version's changes
 leave SUMMA's output the same bit for bit, and `flux_identity` still fails
-without `sbl`. The count is out of 20 because the suite gained
+without `sbl`. The count was out of 20 because the suite gained
 `mass/human-abstraction`, which SUMMA fails because it has no human water use.
+It is out of 21 since `mass/extreme-event-closure` merged. SUMMA fails that
+probe on the canopy's `state_bounds` alone, holding up to 25 mm of ice against
+a 2 mm capacity on 68 steps, while every wet event's water budget closes to
+within 3e-4 of its allowance.
 
 In `4.0.0-f787fa5.3` the threshold translation flipped no probe verdict
 against `4.0.0-f787fa5.2`. It moved one failure inside a probe and changed the
