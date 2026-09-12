@@ -131,19 +131,20 @@ def _rolled_up(*outcomes):
 
 def test_a_probe_that_cannot_be_put_to_the_model_counts_neither_way():
     """An N/A probe asked the model nothing. It must not fail a model that
-    passes everything else, and must not mask a violation or an error."""
-    assert _rolled_up((PASS, OK), (NOT_SCORED, INCOMPLETE)) == (
-        PASS, OK, "1/2 probes passed, 1 INCOMPLETE"
-    )
+    passes everything else, must not mask a violation or an error, and is not
+    in the total the passes are counted out of."""
+    assert _rolled_up((PASS, OK), (NOT_SCORED, INCOMPLETE)) == (PASS, OK, "1/1 probes passed")
     assert _rolled_up(
         (FAIL, VIOLATION), (PASS, OK), (NOT_SCORED, INCOMPLETE), (NOT_SCORED, INCOMPATIBLE)
-    ) == (FAIL, VIOLATION, "1/4 probes passed, 1 INCOMPLETE, 1 INCOMPATIBLE")
+    ) == (FAIL, VIOLATION, "1/2 probes passed")
     assert _rolled_up((FAIL, ERROR), (FAIL, VIOLATION), (NOT_SCORED, INCOMPLETE))[:2] == (FAIL, ERROR)
 
 
 def test_a_model_no_probe_could_score_has_not_passed():
-    """Reporting nothing checkable must not earn a PASS."""
-    assert _rolled_up((NOT_SCORED, INCOMPATIBLE), (NOT_SCORED, INCOMPLETE))[:2] == (NOT_SCORED, INCOMPLETE)
+    """Reporting nothing checkable must not earn a PASS, nor a count out of nothing."""
+    assert _rolled_up((NOT_SCORED, INCOMPATIBLE), (NOT_SCORED, INCOMPLETE)) == (
+        NOT_SCORED, INCOMPLETE, "no probe could be scored"
+    )
     assert _rolled_up((NOT_SCORED, INCOMPATIBLE))[:2] == (NOT_SCORED, INCOMPATIBLE)
     assert _rolled_up()[:2] == (FAIL, ERROR)
 
@@ -371,7 +372,7 @@ def test_container_runs_with_hardened_read_only_inputs(tmp_path):
     from hydroturing.runner.docker_runner import DockerRunner
 
     model = registry.find_model("reference_bucket")
-    argv = DockerRunner.command("docker", "img:1", model, tmp_path)
+    argv = DockerRunner.command("docker", "img:1", model, tmp_path, "hydroturing-test")
 
     assert argv[:3] == ["docker", "run", "--rm"]
     assert "--network" in argv and argv[argv.index("--network") + 1] == "none"
@@ -414,11 +415,11 @@ def test_cpu_request_is_capped_at_the_host(monkeypatch, tmp_path):
 
     model = replace(registry.find_model("reference_bucket"), resources={"cpu": 8, "memory_gb": 8})
     monkeypatch.setattr(docker_runner.os, "cpu_count", lambda: 4)
-    argv = DockerRunner.command("docker", "img:1", model, tmp_path)
+    argv = DockerRunner.command("docker", "img:1", model, tmp_path, "hydroturing-test")
     assert argv[argv.index("--cpus") + 1] == "4"
 
     monkeypatch.setattr(docker_runner.os, "cpu_count", lambda: 16)
-    argv = DockerRunner.command("docker", "img:1", model, tmp_path)
+    argv = DockerRunner.command("docker", "img:1", model, tmp_path, "hydroturing-test")
     assert argv[argv.index("--cpus") + 1] == "8"
 
 
@@ -520,6 +521,45 @@ def test_failed_image_build_still_reports_the_end_of_its_log(tmp_path):
     docker = fake_docker(tmp_path, "echo 'step 1/1: pip install failed' >&2\nexit 1")
     with pytest.raises(RunnerError, match="image build failed\n    step 1/1: pip install failed"):
         docker_runner.build(model, docker=docker)
+
+
+@pytest.mark.parametrize("kill_status", [0, 1], ids=["killed", "created-not-started"])
+def test_container_past_its_time_budget_is_killed_not_left_running(monkeypatch, tmp_path, kill_status):
+    """The timeout ends the docker client, not the container: after
+    extreme-rain timed out for google_flood_forecast, its container was still
+    running five minutes later and taking CPU from the cases behind it. A
+    timed-out run kills the container by the name it ran under, and removes
+    it by force when the kill fails, as on one created but never started."""
+    import shlex
+
+    from hydroturing.runner import docker_runner
+    from hydroturing.runner.base import RunnerError
+
+    calls = tmp_path / "calls"
+    calls.mkdir()
+    log = shlex.quote(str(calls))
+    docker = fake_docker(tmp_path, f"""case "$1" in
+  run) printf '%s\\n' "$@" > {log}/run; exec sleep 30 ;;
+  kill) printf '%s\\n' "$@" > {log}/kill; exit {kill_status} ;;
+  rm) printf '%s\\n' "$@" > {log}/rm ;;
+esac""")
+    monkeypatch.setattr(docker_runner, "require_docker", lambda: docker)
+
+    model = registry.find_model("reference_bucket")
+    # The fake must start and record its arguments inside the budget, so the
+    # budget leaves a loaded CI runner room for that and nothing more.
+    probe = replace(registry.find_probe("mass/catchment-closure"), max_runtime_s=2.0)
+    with pytest.raises(RunnerError, match=f"{model.name}: container exceeded the time budget for {probe.id}"):
+        docker_runner.DockerRunner().invoke(model, probe, tmp_path, tmp_path / "request.json")
+
+    run = (calls / "run").read_text().splitlines()
+    name = run[run.index("--name") + 1]
+    assert name.startswith(f"hydroturing-{model.name}-")
+    assert (calls / "kill").read_text().splitlines() == ["kill", name]
+    if kill_status == 0:
+        assert not (calls / "rm").exists()
+    else:
+        assert (calls / "rm").read_text().splitlines() == ["rm", "-f", name]
 
 
 def test_submitted_model_cannot_request_host_subprocess_access(tmp_path):
@@ -863,8 +903,9 @@ def test_ht_ascii_drops_the_marks_without_doubling_the_word(monkeypatch):
 
 
 def test_an_unscored_probe_reads_as_neither_pass_nor_fail(monkeypatch):
-    """N/A is not a FAIL, so neither its mark nor its word may read as one,
-    and the summary says why the probe was not scored."""
+    """N/A is not a FAIL, so neither its mark nor its word may read as one.
+    The reason says why the probe was not scored, and the summary does not
+    count the model out of a probe that asked it nothing."""
     from hydroturing import report
 
     monkeypatch.setattr(report, "use_emoji", lambda: True)
@@ -872,7 +913,7 @@ def test_an_unscored_probe_reads_as_neither_pass_nor_fail(monkeypatch):
     text = report.to_text(unscored)
     assert report.FAIL_MARK not in text and report.PASS_MARK not in text
     assert text.count(report.NOT_SCORED_MARK) == 2  # model and probe
-    assert "N/A (INCOMPLETE)  [0/1 probes passed, 1 INCOMPLETE]" in text
+    assert "N/A (INCOMPLETE)  [no probe could be scored]" in text
     assert f"{report.NOT_SCORED_MARK} **N/A** (INCOMPLETE)" in report.to_markdown(unscored)
 
     monkeypatch.setattr(report, "use_emoji", lambda: False)

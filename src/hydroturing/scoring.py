@@ -113,13 +113,17 @@ class ModelReport:
 
     @property
     def summary(self) -> str:
-        passed = sum(1 for p in self.probes if p.verdict == PASS)
-        parts = [f"{passed}/{len(self.probes)} probes passed"]
-        for reason in (INCOMPLETE, INCOMPATIBLE):
-            count = sum(1 for p in self.probes if p.verdict == NOT_SCORED and p.reason == reason)
-            if count:
-                parts.append(f"{count} {reason}")
-        return ", ".join(parts)
+        """Passes out of the probes that were scored.
+
+        A probe that could not be put to the model counts neither way, so it
+        is not in the total either. The total is the probes that could ask
+        this model something, and it differs between models that report or
+        accept different things. A model no probe could score has nothing to count.
+        """
+        if not self.scored:
+            return "no probe could be scored"
+        passed = sum(1 for p in self.scored if p.verdict == PASS)
+        return f"{passed}/{len(self.scored)} probes passed"
 
 
 def reason_for(
