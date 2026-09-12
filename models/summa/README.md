@@ -12,7 +12,7 @@ vegetation canopy, a layered snowpack, a layered soil column and an aquifer
 with one implicit solver, and it reports its latent, sensible and ground heat
 fluxes. It is the first submission that can be asked about both budgets and
 the identity between them, rather than being N/A (INCOMPLETE) on the
-energy probes.
+energy probes that need the heat fluxes.
 
 v4.0.1 was released on the day this was packaged. It adds brackets around
 `iden_ice/iden_water` in four files (a last-bit change in floating point) and
@@ -261,7 +261,7 @@ SUMMA wants shortwave and longwave down, wind, pressure and specific humidity.
 They are mocked from each forcing row alone: nothing reads the calendar, the
 clock or another row, and `run.json` labels every one.
 
-**Net radiation of the row.** Where the probe supplies `rn` (the three energy
+**Net radiation of the row.** Where the probe supplies `rn` (the four energy
 probes that need it), that is used. Otherwise the row's `pet` is multiplied by
 the Priestley-Taylor (alpha 1.26) conversion from potential evaporation to
 net radiation. The conversion is evaluated at one fixed reference temperature,
@@ -522,6 +522,8 @@ It is out of 21 since `mass/extreme-event-closure` merged. SUMMA fails that
 probe on the canopy's `state_bounds` alone, holding up to 25 mm of ice against
 a 2 mm capacity on 68 steps, while every wet event's water budget closes to
 within 3e-4 of its allowance.
+`energy/radiation-consistency`, merged since, is N/A (INCOMPLETE): the adapter
+reports no `rlus` or `ts`, so the count stays out of 21.
 
 In `4.0.0-f787fa5.3` the threshold translation flipped no probe verdict
 against `4.0.0-f787fa5.2`. It moved one failure inside a probe and changed the

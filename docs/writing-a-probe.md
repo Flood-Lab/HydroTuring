@@ -113,6 +113,7 @@ Every one is binary.
 | `phase_invariance` | the same water as rain instead of snow leaves the integrated volumes within a share of the rain | paired runs |
 | `demand_consistency` | evaporation reaches demand when the model's own soil is wettest, never exceeds it, and falls when driest | one run |
 | `energy_closure_by_phase` | the mean absolute surface-energy residual in each contiguous day or night stays within the larger of the relative radiation tolerance and the absolute flux floor | one run, contiguous day/night blocks |
+| `radiative_identity` | upward longwave equals what the reported surface temperature emits plus the reflected downward longwave, at every step, within the larger of a relative tolerance and an absolute floor; emissivity comes from `static.json` | one run, instantaneous values |
 | `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff | one run |
 
 Picking a denominator for `closure` and `regime_transfer`:
@@ -267,6 +268,9 @@ The reference models available today:
 | `reference_energy_leak` | discards 15% of net radiation | `energy_closure` |
 | `reference_ground_dodge` | coherent and closed, but its sensible flux never reads the soil, so the ground flux absorbs a drydown's whole shift | `partition_shift` |
 | `reference_diurnal_bias` | shifts sensible heat to leave opposite day and night energy residuals that cancel over the full record | `energy_closure_by_phase` |
+| `reference_radiative` | the coupled reference with a skin: temperature from the sensible flux through a fixed conductance, upward longwave from that skin at the given emissivity | nothing, it must pass the radiation probe |
+| `reference_air_emitter` | reports the skin's temperature but emits at the air's, reflected sky unchanged | `radiative_identity` |
+| `reference_no_reflection` | reports emission alone as the total upward longwave, the reflected sky left out | `radiative_identity` |
 
 If your probe needs a broken model that does not exist yet, add it under
 `models/` alongside the probe. A criterion with nothing that trips it is

@@ -307,6 +307,7 @@ def compatibility_issues(
     case: Case | None = None,
     *,
     check_perturbation: bool = True,
+    check_declared_inputs: bool = True,
 ) -> list[str]:
     """Explain why a model cannot be meaningfully run on a probe.
 
@@ -330,9 +331,28 @@ def compatibility_issues(
         issues.append("model does not declare support for paired perturbation cases")
     if case is not None:
         visible = {c for c in case.forcing.columns if not c.startswith("_")}
-        missing = [v for v in model.needs_forcing if v not in visible]
-        if missing:
-            issues.append("forcing does not provide " + ", ".join(missing))
+        for what, needed, provided in (
+            ("forcing", model.needs_forcing, visible),
+            ("static", model.needs_static, case.static),
+        ):
+            missing = [name for name in needed if name not in provided]
+            if missing:
+                issues.append(f"{what} does not provide " + ", ".join(missing))
+    # A probe whose verdict rests on a case-supplied input can only judge a
+    # model that declares it consumes that input. One that estimates its own
+    # sky or emissivity would be scored against values it never read. The
+    # adapter smoke test skips this: it asks whether the model can run, not
+    # whether a verdict can be given.
+    if check_declared_inputs:
+        for what, required, declared in (
+            ("forcing", probe.requires_forcing, model.needs_forcing + model.uses_forcing),
+            ("static", probe.requires_static, model.needs_static + model.uses_static),
+        ):
+            undeclared = [name for name in required if name not in declared]
+            if undeclared:
+                issues.append(
+                    f"model does not declare that it consumes {what} " + ", ".join(undeclared)
+                )
     return issues
 
 
@@ -382,10 +402,13 @@ def verify_adapter_contract(
     to the probe's later N/A (INCOMPLETE), not to this smoke test.
 
     A probe the model cannot consume is another matter: a step it does not
-    declare, a forcing it needs and the probe does not generate, a window
-    that drops a stretch the probe scores. There is nothing to run the
-    adapter on, so IncompatibleError is raised before it is invoked, on the
-    same grounds that make `run_probe` call the probe N/A (INCOMPATIBLE).
+    declare, a forcing or static input it needs and the probe does not
+    generate, a window that drops a stretch the probe scores. There is
+    nothing to run the adapter on, so IncompatibleError is raised before it
+    is invoked, on the same grounds that make `run_probe` call the probe N/A
+    (INCOMPATIBLE). What the scoring requires the model to have read is not
+    asked here: that decides whether a verdict can be given, not whether the
+    adapter can run.
 
     The case is cut to the model's evaluation window, as it will be in the
     real run, so a model that only fits its time budget on the window is
@@ -394,7 +417,9 @@ def verify_adapter_contract(
     # The control variant is the one at the model's own step, so a daily
     # model is smoke-tested on daily rows rather than on a month of minutes.
     case = build_case(probe, seed, select_variants(model, probe)[0])
-    issues = compatibility_issues(model, probe, case, check_perturbation=False)
+    issues = compatibility_issues(
+        model, probe, case, check_perturbation=False, check_declared_inputs=False
+    )
     if issues:
         raise IncompatibleError(issues)
 
@@ -410,6 +435,7 @@ def verify_adapter_contract(
         probe,
         requires_fluxes=model.emits_fluxes,
         requires_states=model.emits_states,
+        requires_diagnostics=model.emits_diagnostics,
         variants=(),
         criteria=(),
     )

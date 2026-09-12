@@ -195,11 +195,16 @@ must not occur while the pack is below freezing.
 *Discriminates:* models that melt snow on a warm day regardless of whether
 the pack has the energy to melt.
 
-### `energy/radiation-consistency` &middot; standard &middot; **unclaimed**
-Outgoing longwave must be consistent with the reported surface temperature
-through Stefan-Boltzmann, given emissivity.
-*Discriminates:* models that predict surface temperature and radiation with
-separate heads that never have to agree.
+### `energy/radiation-consistency` &middot; **merged**
+The surface temperature a model reports and the upward longwave it reports
+must describe one gray surface at the emissivity it was given, hour by hour:
+`rlus = eps sigma ts^4 + (1 - eps) rlds` within 0.5 percent of the reported
+flux, with a 0.5 W/m2 floor. A same-instant identity, so nothing cancels
+across hours; net radiation stays a prescribed forcing.
+*Discriminates:* a model whose temperature and radiation heads never have to
+agree, through `reference_air_emitter`, which emits at the air temperature,
+and `reference_no_reflection`, which drops the reflected sky.
+Contributed by Xin Lan (Michigan State University).
 
 ---
 

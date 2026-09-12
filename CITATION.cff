@@ -39,6 +39,13 @@ authors:
       Laboratory of Catchment Hydrology and Geomorphology,
       École Polytechnique Fédérale de Lausanne (EPFL), 1951 Sion, Switzerland
     orcid: "https://orcid.org/0009-0001-9658-4375"
+  - given-names: Xin
+    family-names: Lan
+    affiliation: >-
+      Center for Systems Integration and Sustainability, Department of
+      Fisheries and Wildlife, Michigan State University, East Lansing, MI
+      48823, USA
+    orcid: "https://orcid.org/0000-0002-0607-2270"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

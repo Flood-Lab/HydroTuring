@@ -137,11 +137,13 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
 | `hfss` | sensible heat flux, positive away from the surface | W/m2 |
 | `hfg` | ground heat flux at the actual soil surface, positive into the ground; a flux taken below the surface must be corrected for heat storage above that depth | W/m2 |
+| `rlus` | total upward longwave radiation at the surface: emission plus reflected downward longwave, positive away from the surface; row i's value is at row i's `time`, the same instant as row i's `rlds` | W/m2 |
 | `mrso` | soil water storage | mm |
 | `snw` | snow water equivalent | mm |
 | `canopy` | canopy interception storage | mm |
 | `gw` | groundwater storage below the soil column | mm |
 | `channel` | water generated as runoff but not yet released by the model's routing | mm |
+| `ts` | surface (skin) temperature at row i's `time`, the same instant as row i's `rlds`; a diagnostic, declared under `emits.diagnostics`, neither integrated nor differenced by any budget | K |
 
 For `hfg`, an adapter mapping a plate-depth or deeper-boundary flux must use
 `G_surface = G_depth + (E_above_end - E_above_start) / dt`, with downward
@@ -200,6 +202,19 @@ cannot be put to the model, so it counts neither way. Fabricating an
 `evspsbl` column to avoid `INCOMPLETE` produces `VIOLATION` instead, which
 is worse and is also dishonest.
 
+`needs_forcing` and `needs_static` declare inputs the adapter cannot run
+without; a missing input makes the case `N/A (INCOMPATIBLE)`.
+`uses_forcing` and `uses_static` declare optional inputs: the adapter must
+consume them whenever supplied, but can run without them using a documented
+fallback. A probe's `requires.forcing` and `requires.static` accept either
+declaration. For example, `energy/radiation-consistency` requires consumption
+of `rlds` and `eps`; a model that does not declare it consumes both is
+`N/A (INCOMPATIBLE)` because it may be computing its own sky or emissivity.
+
+Declare diagnostic outputs under the optional key `diagnostics: [ts]`.
+Criteria read diagnostics, but budgets never integrate or difference them;
+a surface temperature must not be summed into water storage.
+
 ## Verify before you submit
 
 ```bash
@@ -211,7 +226,7 @@ ht run --model <model-name>              # the actual evaluation
 use, and checks the shape of what came back. Get that green before looking
 at any residual. Without `--probe` it checks the closure probe, or the first
 probe the model can consume when it cannot consume that one: a step it does
-not declare, a forcing the probe does not generate, or a window that drops a
+not declare, a forcing or static input the probe does not generate, or a window that drops a
 stretch the probe scores makes a probe N/A (INCOMPATIBLE) for the model.
 When that is true of the probe named with `--probe`, or of every probe, the
 adapter is not run and the command exits 1, as `ht run` does for a model no

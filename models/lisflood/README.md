@@ -394,7 +394,7 @@ of their own.
 
 ## Result
 
-**FAIL (ERROR), 15 of 18 probes passed, 3 N/A (INCOMPLETE).** These are the
+**FAIL (ERROR), 15 of 18 probes passed, 4 N/A (INCOMPLETE).** These are the
 rows of the full gate-seed run of `5.0.0-onecell.5`, made on the emulated host
 described under "Native re-run". The verdict is ERROR because two probes ran
 out of time on that host. Any ERROR among the scored probes makes the verdict
@@ -409,9 +409,10 @@ budget for each case, and every wet event closes to 1e-13 mm.
 are to be replaced by a native x86-64 evaluation; "Native re-run" gives the
 commands and the row replacement.
 
-- **N/A (INCOMPLETE), 3, not scored:** `energy/evaporative-partition`,
-  `energy/latent-heat-et-consistency` and `energy/surface-energy-closure`.
-  LISFLOOD reports no heat fluxes, so these probes cannot ask it anything.
+- **N/A (INCOMPLETE), 4, not scored:** `energy/evaporative-partition`,
+  `energy/latent-heat-et-consistency`, `energy/surface-energy-closure` and
+  `energy/radiation-consistency`. LISFLOOD reports no heat fluxes and no
+  surface temperature, so these probes cannot ask it anything.
   They are neither a pass nor a fail, and do not decide the verdict.
 - **ERROR, 2:** `mass/precipitation-counterfactual` and
   `mass/human-abstraction`. The container exceeded the 60 s budget, because a
@@ -426,7 +427,7 @@ commands and the row replacement.
     `closure` and `state_bounds` pass.
   - On a host fast enough for the budget, the first should PASS and the second
     be VIOLATION. The model's verdict would then be FAIL (VIOLATION), with 16
-    of 18 probes passed and 3 N/A.
+    of 18 probes passed and 4 N/A.
 - **VIOLATION, 1:** `mass/resolution-invariance`. Rain that falls within an
   hour runs off, so `mrro` differs by 13.0% of `pr` between PT1H and PT1D,
   against a 10% limit.
@@ -451,11 +452,12 @@ Against the `.2` rows:
 - `mass/precipitation-counterfactual` is ERROR on this host in both.
 - `mass/human-abstraction` is new since `.2`.
 - The three energy-flux probes were FAIL (INCOMPLETE) under the earlier
-  roll-up and are N/A (INCOMPLETE) under main's.
+  roll-up and are N/A (INCOMPLETE) under main's; `energy/radiation-consistency`,
+  new since `.2`, is N/A too.
 - No other probe's verdict moved.
 
 The standing counts passes out of the 18 probes that could score LISFLOOD; the
-three N/A energy-flux probes are in neither number.
+four N/A energy probes are in neither number.
 
 Against the `.3` rows, `.4` changes the environmental-flow reserve and the
 channel's bottom width, bankfull depth and gradient to the headwater values.

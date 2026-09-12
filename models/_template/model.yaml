@@ -18,8 +18,16 @@ timestep: PT1D
 emits:
   fluxes: [pr, evspsbl, mrro]
   states: [mrso, snw, canopy]
+  # Outputs no budget integrates, such as a surface temperature.
+  # diagnostics: [ts]
 
+# Inputs the adapter cannot run without.
 needs_forcing: [pr, tas, pet]
+# needs_static: [soil_capacity_mm]
+# Optional inputs consumed whenever supplied; document the fallback if absent.
+# Either needs_* or uses_* satisfies a probe's required input declaration.
+# uses_forcing: [rlds]
+# uses_static: [eps]
 supports:
   perturbation: true
 resources: {cpu: 2, memory_gb: 4, gpu: false}

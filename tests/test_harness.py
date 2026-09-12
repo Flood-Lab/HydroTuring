@@ -169,6 +169,36 @@ def test_missing_forcing_is_reported_as_incompatible(probe):
     assert "unavailable_driver" in outcome.incompatible[0]
 
 
+def test_missing_static_is_reported_as_incompatible(probe):
+    """A static key the adapter would read and the case does not supply is an
+    incompatibility found before the run, not a KeyError inside the adapter."""
+    model = replace(registry.find_model("reference_bucket"), needs_static=("eps",))
+    outcome = run_probe(model, probe, [11])
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert outcome.incompatible == ["static does not provide eps"]
+
+
+@pytest.mark.parametrize("kind, name", [("forcing", "rlds"), ("static", "eps")])
+def test_optional_declaration_does_not_cancel_a_required_input(probe, kind, name):
+    model = replace(
+        registry.find_model("reference_bucket"),
+        **{f"needs_{kind}": (name,), f"uses_{kind}": (name,)},
+    )
+    outcome = run_probe(model, probe, [11])
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert outcome.incompatible == [f"{kind} does not provide {name}"]
+
+
+def test_undeclared_case_inputs_are_reported_as_incompatible(probe):
+    """A verdict that rests on a case-supplied input can only be given to a
+    model that says it read that input."""
+    rests_on = replace(probe, requires_forcing=("rlds",), requires_static=("eps",))
+    outcome = run_probe(registry.find_model("reference_bucket"), rests_on, [11])
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert "forcing rlds" in outcome.incompatible[0]
+    assert "static eps" in outcome.incompatible[1]
+
+
 def test_paired_probe_requires_declared_perturbation_support(probe):
     paired = replace(probe, variants=("control", "perturbed"))
     model = replace(registry.find_model("reference_bucket"), supports_perturbation=False)
@@ -359,6 +389,93 @@ def test_request_hides_probe_identity_and_generator_seed(probe, tmp_path):
     assert "spinup_steps" not in request
     assert request["request"]["fluxes"] == list(model.emits_fluxes)
     assert request["request"]["states"] == list(model.emits_states)
+    assert request["request"]["diagnostics"] == list(model.emits_diagnostics)
+
+
+# --- diagnostics ------------------------------------------------------------
+# The third output category is threaded through the probe spec, the manifest,
+# the request, the contract check and the verdict. Each join is pinned here so
+# that a later change cannot drop one of them silently.
+
+
+def test_a_required_diagnostic_the_model_lacks_is_incomplete(probe):
+    needs_ts = replace(probe, requires_diagnostics=("ts",))
+    model = registry.find_model("reference_bucket")
+    assert "ts" in needs_ts.required_vars
+    assert model.missing_for(needs_ts) == ["ts"]
+    outcome = run_probe(model, needs_ts, [11])
+    assert outcome.verdict == NOT_SCORED
+    assert outcome.reason == INCOMPLETE
+    assert outcome.missing == ["ts"]
+
+
+def test_manifest_declares_diagnostics_under_their_own_key(tmp_path):
+    import shutil
+
+    from hydroturing.spec import load_model
+
+    target = tmp_path / "skin_model"
+    shutil.copytree(registry.MODELS_DIR / "_template", target)
+    manifest = target / "model.yaml"
+    manifest.write_text(
+        manifest.read_text()
+        .replace("name: _template", "name: skin_model")
+        .replace("  states: [", "  diagnostics: [ts]\n  states: [")
+    )
+    model = load_model(target)
+    assert model.emits_diagnostics == ("ts",)
+    assert "ts" in model.emitted
+    assert "ts" not in model.emits_fluxes + model.emits_states
+
+    manifest.write_text(manifest.read_text().replace("diagnostics: [ts]", "diagnostics: [skin]"))
+    with pytest.raises(SpecError, match="unknown variables"):
+        load_model(target)
+
+
+def test_required_diagnostics_are_read_from_probe_yaml_and_emitted_ones_reach_the_request(tmp_path):
+    import shutil
+
+    from hydroturing.spec import load_probe
+
+    source = registry.PROBES_DIR / "mass" / "catchment-closure"
+    target = tmp_path / "mass" / "catchment-closure"
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__"))
+    spec_file = target / "probe.yaml"
+    spec_file.write_text(
+        spec_file.read_text().replace(
+            "  states: [mrso, snw, canopy]\n", "  states: [mrso, snw, canopy]\n  diagnostics: [ts]\n", 1
+        )
+    )
+    needs_ts = load_probe(target)
+    assert needs_ts.requires_diagnostics == ("ts",)
+    assert needs_ts.required_vars[-1] == "ts"
+
+    model = replace(registry.find_model("reference_bucket"), emits_diagnostics=("ts",))
+    request_path = stage(tmp_path / "io", build_case(needs_ts, 1), needs_ts, model)
+    request = json.loads(request_path.read_text())
+    assert request["request"]["diagnostics"] == ["ts"]
+    assert request["units"]["ts"] == "K"
+
+
+def test_adapter_verification_rejects_a_declared_but_unreported_diagnostic(probe):
+    """Declaring `ts` and not writing it is a contract breach, not INCOMPLETE."""
+    model = replace(registry.find_model("reference_bucket"), emits_diagnostics=("ts",))
+    with pytest.raises(ProtocolError, match=r"missing requested variables: \['ts'\]"):
+        verify_adapter_contract(model, probe, gate_seeds(probe.id, 1)[0])
+
+
+def test_a_diagnostic_is_never_counted_as_a_store(probe):
+    from hydroturing.criteria.base import make_window, reported_states
+    from hydroturing.protocol import RunResult
+
+    case = build_case(probe, 3)
+    table = pd.DataFrame({
+        "time": case.forcing["time"], "mrso": 100.0, "snw": 0.0, "canopy": 0.0, "ts": 290.0,
+    })
+    run = RunResult(case=case, table=table, meta={}, wall_seconds=0.0)
+    window = make_window(run, probe)
+    assert "ts" not in reported_states(window, probe)
+    assert window.storage(reported_states(window, probe))[0] == pytest.approx(100.0)
 
 
 # --- container isolation ----------------------------------------------------
@@ -866,6 +983,25 @@ def test_unknown_criterion_is_rejected(tmp_path, monkeypatch):
     spec_file.write_text(yaml.safe_dump(raw, sort_keys=False))
 
     with pytest.raises(SpecError, match="unknown criteria"):
+        load_probe(target)
+
+
+@pytest.mark.parametrize("key,name", [("diagnostics", "skin"), ("states", "mrro")])
+def test_a_required_name_no_manifest_can_declare_is_rejected(key, name, tmp_path, monkeypatch):
+    """Reject unknown required outputs and variables in the wrong category."""
+    import yaml
+
+    from hydroturing import scaffold
+    from hydroturing.spec import load_probe
+
+    monkeypatch.setattr(scaffold, "PROBES_DIR", tmp_path / "probes")
+    target, _ = _scaffold_template(scaffold, tmp_path, "default", "unknown-requirement")
+    spec_file = target / "probe.yaml"
+    raw = yaml.safe_load(spec_file.read_text())
+    raw["requires"][key] = [name]
+    spec_file.write_text(yaml.safe_dump(raw, sort_keys=False))
+
+    with pytest.raises(SpecError, match="unknown variables in requires"):
         load_probe(target)
 
 

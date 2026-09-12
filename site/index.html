@@ -318,8 +318,10 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <text x="396" y="201" class="probe" data-i18n="infra.probe.partition">partition</text>
       <circle cx="388" cy="211.5" r="2.4" fill="var(--pass)"/>
       <text x="396" y="215" class="probe" data-i18n="infra.probe.diurnal">day / night</text>
-      <rect x="384" y="228" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
-      <text x="418" y="252" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
+      <circle cx="388" cy="225.5" r="2.4" fill="var(--pass)"/>
+      <text x="396" y="229" class="probe" data-i18n="infra.probe.radiation">radiation</text>
+      <rect x="384" y="242" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
+      <text x="418" y="266" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
       <rect x="472" y="100" width="92" height="250" rx="6" fill="var(--surface-2)"/>
       <text x="518" y="121" class="pillar" data-i18n="infra.momentum" text-anchor="middle">MOMENTUM</text>
       <text x="518" y="138" class="note" data-i18n="infra.momentum.s1" text-anchor="middle">routing conserves</text>
@@ -635,6 +637,7 @@ en: {
   "infra.probe.latent":"latent heat",
   "infra.probe.partition":"partition",
   "infra.probe.diurnal":"day / night",
+  "infra.probe.radiation":"radiation",
   "infra.probe.routing":"routing",
   "infra.flow":"seed → case → run → one bit",
   "infra.s1a":"seeded",
@@ -714,6 +717,7 @@ en: {
 <tr><td class="mono">energy/latent-heat-et-consistency</td><td>energy</td><td>The evaporation a model reports as water and the one implied by its latent heat: are they the same evaporation?</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">energy/evaporative-partition</td><td>energy</td><td>One summer without rain under radiation that did not change: the latent heat a drying surface gives up has to warm the air.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">energy/surface-energy-closure</td><td>energy</td><td>Does each day and night close its hourly surface energy budget, without opposite errors cancelling?</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">energy/radiation-consistency</td><td>energy</td><td>Do the surface temperature and the upward longwave a model reports describe one surface, hour by hour, at the emissivity it was given?</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>momentum</td><td>The channel store is never negative and never holds more than its hydrograph can.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>mass</td><td>Event water budgets under overlapping storms targeting synthetic 100-year rainfall depths.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">coupled/snowmelt-energy-water</td><td>coupled</td><td>Melt in the water budget must match the energy spent melting.</td><td><span class="tag wanted">wanted</span></td></tr>
@@ -722,7 +726,6 @@ en: {
 <tr><td class="mono">mass/routing-network-closure</td><td>mass</td><td>A branching network: mass must close reach by reach.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">mass/ungauged-basin-closure</td><td>mass</td><td>Closure on catchments outside the range models are fitted to.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">energy/snowpack-cold-content</td><td>energy</td><td>The full snowpack energy budget, cold content and phase change included.</td><td><span class="tag wanted">wanted</span></td></tr>
-<tr><td class="mono">energy/radiation-consistency</td><td>energy</td><td>Outgoing longwave must be consistent with the reported surface temperature.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">momentum/channel-routing-mass</td><td>momentum</td><td>Inflow minus outflow minus the change in channel storage, per reach.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>momentum</td><td>A steady-flow rating must be monotonic.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">momentum/wave-celerity-bounds</td><td>momentum</td><td>Kinematic wave celerity must be positive and near the Manning expectation.</td><td><span class="tag wanted">wanted</span></td></tr>
@@ -839,6 +842,7 @@ es: {
   "infra.probe.latent":"calor latente",
   "infra.probe.partition":"partición",
   "infra.probe.diurnal":"día / noche",
+  "infra.probe.radiation":"radiación",
   "infra.probe.routing":"tránsito",
   "infra.flow":"semilla → caso → ejecución → un bit",
   "infra.s1a":"generador",
@@ -918,6 +922,7 @@ es: {
 <tr><td class="mono">energy/latent-heat-et-consistency</td><td>energía</td><td>La evaporación que un modelo reporta como agua y la que implica su calor latente: ¿son la misma evaporación?</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">energy/evaporative-partition</td><td>energía</td><td>Un verano sin lluvia bajo una radiación que no cambió: el calor latente que cede una superficie que se seca tiene que calentar el aire.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">energy/surface-energy-closure</td><td>energía</td><td>¿Cierra el balance energético horario en cada día y cada noche, sin que se cancelen errores opuestos?</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">energy/radiation-consistency</td><td>energía</td><td>¿Describen la temperatura superficial y la onda larga ascendente que reporta un modelo una misma superficie, hora a hora, con la emisividad que se le dio?</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>momento</td><td>El almacén del cauce nunca es negativo ni retiene más de lo que cabe en su hidrograma.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>masa</td><td>Balances de agua por evento bajo tormentas superpuestas con objetivos sintéticos de lluvia de 100 años.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">coupled/snowmelt-energy-water</td><td>acoplada</td><td>El deshielo del balance hídrico debe coincidir con la energía gastada en fundir.</td><td><span class="tag wanted">se busca</span></td></tr>
@@ -926,7 +931,6 @@ es: {
 <tr><td class="mono">mass/routing-network-closure</td><td>masa</td><td>Una red ramificada: la masa debe cerrar tramo a tramo.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">mass/ungauged-basin-closure</td><td>masa</td><td>Cierre en cuencas fuera del rango al que se ajustan los modelos.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">energy/snowpack-cold-content</td><td>energía</td><td>El balance energético completo del manto de nieve, con contenido frío y cambio de fase.</td><td><span class="tag wanted">se busca</span></td></tr>
-<tr><td class="mono">energy/radiation-consistency</td><td>energía</td><td>La onda larga saliente debe ser coherente con la temperatura superficial reportada.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">momentum/channel-routing-mass</td><td>momento</td><td>Entrada menos salida menos el cambio de almacenamiento en el cauce, por tramo.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>momento</td><td>Una curva de gasto en flujo estacionario debe ser monótona.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">momentum/wave-celerity-bounds</td><td>momento</td><td>La celeridad de la onda cinemática debe ser positiva y cercana a la esperada por Manning.</td><td><span class="tag wanted">se busca</span></td></tr>
@@ -1043,6 +1047,7 @@ zh: {
   "infra.probe.latent":"潜热一致",
   "infra.probe.partition":"能量分配",
   "infra.probe.diurnal":"昼夜闭合",
+  "infra.probe.radiation":"辐射一致",
   "infra.probe.routing":"汇流演算",
   "infra.flow":"种子 → 案例 → 运行 → 一位判定",
   "infra.s1a":"带种子的",
@@ -1122,6 +1127,7 @@ zh: {
 <tr><td class="mono">energy/latent-heat-et-consistency</td><td>能量</td><td>模型作为水量报告的蒸发与其潜热通量所隐含的蒸发：是否是同一个蒸发？</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">energy/evaporative-partition</td><td>能量</td><td>净辐射不变的情况下一个无雨的夏天：干燥地表让出的潜热必须去加热空气。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">energy/surface-energy-closure</td><td>能量</td><td>每个白天和夜晚的逐小时地表能量预算是否闭合，而没有依赖正负误差抵消？</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">energy/radiation-consistency</td><td>能量</td><td>模型报告的地表温度与上行长波辐射，在给定发射率下是否逐小时描述同一个表面？</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>动量</td><td>河道蓄水永不为负，也永不超过其单位线所能容纳的量。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>质量</td><td>叠加降雨以超过合成气候的百年一遇雨量阈值，逐事件检查水量闭合。</td><td><span class="tag merged">已合入</span></td></tr>
 <tr><td class="mono">coupled/snowmelt-energy-water</td><td>耦合</td><td>水量收支中的融雪量必须与融化耗能一致。</td><td><span class="tag wanted">征集中</span></td></tr>
@@ -1130,7 +1136,6 @@ zh: {
 <tr><td class="mono">mass/routing-network-closure</td><td>质量</td><td>分叉河网：质量须逐河段闭合。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">mass/ungauged-basin-closure</td><td>质量</td><td>在模型拟合范围之外的流域上保持闭合。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">energy/snowpack-cold-content</td><td>能量</td><td>完整的积雪能量收支，含冷储量与相变。</td><td><span class="tag wanted">征集中</span></td></tr>
-<tr><td class="mono">energy/radiation-consistency</td><td>能量</td><td>出射长波辐射必须与所报告的地表温度一致。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">momentum/channel-routing-mass</td><td>动量</td><td>逐河段：入流减出流减河道蓄量变化。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>动量</td><td>恒定流的水位流量关系必须单调。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">momentum/wave-celerity-bounds</td><td>动量</td><td>运动波波速必须为正，且接近曼宁公式的预期。</td><td><span class="tag wanted">征集中</span></td></tr>

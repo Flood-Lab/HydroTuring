@@ -88,7 +88,7 @@ from a malformed table tells you nothing.
 It runs on the closure probe, or on the first probe your model can consume
 when it cannot consume that one: a model driven by net radiation is checked
 on an energy probe, because the closure probe generates none. A probe the
-model cannot consume, at its step, with its forcing or on its window, is N/A
+model cannot consume, at its step, with its forcing or static inputs, or on its window, is N/A
 (INCOMPATIBLE) for it. When that is true of the probe named with `--probe`,
 or of every probe, the adapter is not run and the command exits 1, as
 `ht run` does for a model no probe could score. Exit 0 is a contract that

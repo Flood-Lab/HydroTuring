@@ -94,6 +94,30 @@
             "type": "string"
           },
           "uniqueItems": true
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Diagnostic outputs a criterion reads but no budget integrates or differences, such as a surface temperature."
+        },
+        "forcing": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Forcing columns the verdict rests on. A model must list them in needs_forcing or uses_forcing, or it is INCOMPATIBLE: it may be using its own estimate instead."
+        },
+        "static": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "static.json keys the verdict rests on. A model must list them in needs_static or uses_static, or it is INCOMPATIBLE."
         }
       }
     },

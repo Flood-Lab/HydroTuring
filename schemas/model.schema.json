@@ -39,10 +39,29 @@
         "states": {
           "type": "array", "items": {"type": "string"}, "uniqueItems": true,
           "description": "Absolute storage values, never tendencies. The harness differences them."
+        },
+        "diagnostics": {
+          "type": "array", "items": {"type": "string"}, "uniqueItems": true,
+          "description": "Diagnostic outputs that are neither fluxes nor stores, such as a surface temperature. Read by criteria, never integrated or differenced."
         }
       }
     },
-    "needs_forcing": {"type": "array", "items": {"type": "string"}},
+    "needs_forcing": {
+      "type": "array", "items": {"type": "string"},
+      "description": "Forcing columns the adapter cannot run without. A missing column makes the case INCOMPATIBLE."
+    },
+    "needs_static": {
+      "type": "array", "items": {"type": "string"}, "uniqueItems": true,
+      "description": "static.json keys the adapter cannot run without. A missing key makes the case INCOMPATIBLE."
+    },
+    "uses_forcing": {
+      "type": "array", "items": {"type": "string"}, "uniqueItems": true,
+      "description": "Optional forcing columns the adapter consumes whenever supplied. Their absence does not prevent running. These and needs_forcing satisfy a probe's requires.forcing."
+    },
+    "uses_static": {
+      "type": "array", "items": {"type": "string"}, "uniqueItems": true,
+      "description": "Optional static.json keys the adapter consumes whenever supplied. Their absence does not prevent running. These and needs_static satisfy a probe's requires.static."
+    },
     "supports": {
       "type": "object",
       "additionalProperties": false,

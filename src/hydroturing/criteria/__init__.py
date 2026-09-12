@@ -20,6 +20,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     event_water_closure,
     human,
     limits,
+    radiation,
     regime,
     response,
     stress,

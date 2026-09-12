@@ -270,6 +270,7 @@ case on the full record (`window_days: full`).
 | `energy/evaporative-partition` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
 | `energy/latent-heat-et-consistency` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
 | `energy/pet-consistency` | PASS | OK | evaporation 0.96 of demand when the soil is wettest, 0.15 when driest |
+| `energy/radiation-consistency` | N/A | INCOMPLETE | does not report `rlus`, `ts` |
 | `energy/surface-energy-closure` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
 | `mass/antecedent-monotonicity` | FAIL | VIOLATION | a wet month before the storm adds almost no runoff (0.0013 and 0.0005 of the storm on 2 of 3 seeds, where 0.02 is asked) |
 | `mass/area-invariance` | PASS | OK | identical to floating point at ten times the area |
@@ -289,8 +290,9 @@ case on the full record (`window_days: full`).
 | `mass/warming-response` | PASS | OK | runoff falls by 0.27 to 0.31 per unit of added demand |
 | `momentum/routing-conservation` | PASS | OK | the channel holds at most 0.17 of what a 15-day hydrograph of recent runoff allows |
 
-The three energy-flux probes are N/A (INCOMPLETE) because wflow_sbm computes no latent,
-sensible or ground heat flux; that is the model declining to be asked, not a failure.
+The four energy probes that need an energy output are N/A (INCOMPLETE) because wflow_sbm
+computes no latent, sensible or ground heat flux and no surface temperature; that is the
+model declining to be asked, not a failure.
 
 `mass/human-abstraction` passes because the adapter now takes the prescribed withdrawal through
 Wflow's own water demand and allocation (see [A prescribed withdrawal](#a-prescribed-withdrawal)).
