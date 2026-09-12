@@ -54,7 +54,7 @@ description: >
 #! states: mrso, snw, canopy             (absolute storages, never tendencies)
 #! diagnostics: ts                       (read by a criterion, never integrated)
 #! forcing, static: case inputs the verdict rests on; a model must declare
-#!                  it consumes them (needs_forcing, needs_static) or it is
+#!                  it consumes them (needs_* or uses_*) or it is
 #!                  N/A with reason INCOMPATIBLE
 requires:
   fluxes: [pr, evspsbl, mrro]

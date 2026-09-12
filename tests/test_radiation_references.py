@@ -12,8 +12,9 @@ import pytest
 from hydroturing import registry
 from hydroturing.criteria import get
 from hydroturing.criteria.base import FAIL, PASS
-from hydroturing.harness import build_case
+from hydroturing.harness import build_case, run_probe
 from hydroturing.runner import get_runner
+from hydroturing.scoring import OK, PASS as PROBE_PASS
 from hydroturing.seeds import gate_seeds
 
 KELVIN = 273.15
@@ -63,6 +64,16 @@ def test_positive_control_is_the_coupled_reference_with_a_skin(probe):
         assert np.isfinite(ts).all()
         assert ts.min() > KELVIN, "the snow-free boundary needs a skin that never freezes"
         assert ts.max() < KELVIN + 60.0
+
+
+@pytest.mark.parametrize("name", [
+    "reference_radiative", "reference_air_emitter", "reference_no_reflection",
+])
+def test_optional_radiation_inputs_do_not_block_surface_energy_closure(name, tmp_path):
+    probe = registry.find_probe("energy/surface-energy-closure")
+    model = registry.find_model(name)
+    outcome = run_probe(model, probe, [4242], workdir=tmp_path)
+    assert (outcome.verdict, outcome.reason) == (PROBE_PASS, OK), outcome.incompatible
 
 
 @pytest.mark.parametrize("negative", ["reference_air_emitter", "reference_no_reflection"])

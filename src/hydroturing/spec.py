@@ -285,9 +285,11 @@ class ModelManifest:
     window_days: int | str | None = None
     # Diagnostics the model reports in addition to its fluxes and states.
     emits_diagnostics: tuple[str, ...] = ()
-    # static.json keys the adapter reads, declared so that a probe whose
-    # verdict rests on one can tell whether the model consumed it.
+    # Static inputs the adapter cannot run without.
     needs_static: tuple[str, ...] = ()
+    # Optional inputs the adapter consumes whenever the case supplies them.
+    uses_forcing: tuple[str, ...] = ()
+    uses_static: tuple[str, ...] = ()
 
     @property
     def timestep(self) -> str:
@@ -505,6 +507,8 @@ def load_model(path: str | Path) -> ModelManifest:
         runner=runner,
         needs_forcing=tuple(raw.get("needs_forcing", [])),
         needs_static=tuple(raw.get("needs_static", [])),
+        uses_forcing=tuple(raw.get("uses_forcing", [])),
+        uses_static=tuple(raw.get("uses_static", [])),
         supports_perturbation=bool(raw.get("supports", {}).get("perturbation", False)),
         resources=raw.get("resources", {}),
         authors=tuple(raw.get("authors", [])),

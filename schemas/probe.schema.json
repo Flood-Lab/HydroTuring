@@ -109,7 +109,7 @@
             "type": "string"
           },
           "uniqueItems": true,
-          "description": "Forcing columns the verdict rests on. A model must list them in needs_forcing or it is INCOMPATIBLE: it may be using its own estimate instead."
+          "description": "Forcing columns the verdict rests on. A model must list them in needs_forcing or uses_forcing, or it is INCOMPATIBLE: it may be using its own estimate instead."
         },
         "static": {
           "type": "array",
@@ -117,7 +117,7 @@
             "type": "string"
           },
           "uniqueItems": true,
-          "description": "static.json keys the verdict rests on. A model must list them in needs_static or it is INCOMPATIBLE."
+          "description": "static.json keys the verdict rests on. A model must list them in needs_static or uses_static, or it is INCOMPATIBLE."
         }
       }
     },

@@ -15,8 +15,9 @@ emits:
   fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg, rlus]
   states: [mrso, snw, canopy, channel]
   diagnostics: [ts]
-needs_forcing: [pr, tas, pet, rn, rlds]
-needs_static: [eps]
+needs_forcing: [pr, tas, pet, rn]
+uses_forcing: [rlds]
+uses_static: [eps]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

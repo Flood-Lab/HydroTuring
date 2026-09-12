@@ -75,8 +75,8 @@ def simulate(forcing, static, dt_days=1.0):
     ddf = static["degree_day_factor_mm_per_C_day"]
     k_base = static["baseflow_coefficient"]
     t_snow = static["snow_threshold_degC"]
-    # Use the supplied emissivity without fitting it to the outputs.
-    eps = static["eps"]
+    # Use the supplied emissivity; otherwise assume a black surface.
+    eps = static.get("eps", 1.0)
 
     soil = 0.5 * soil_cap
     swe = 0.0
@@ -86,7 +86,7 @@ def simulate(forcing, static, dt_days=1.0):
     for step in forcing:
         pr_rate, tas, pet_rate = step["pr"], step["tas"], step["pet"]
         rn = step.get("rn", 0.0)
-        rlds = step["rlds"]
+        rlds = step.get("rlds", 0.0)
         pr = pr_rate * dt_days
         pet = pet_rate * dt_days
 

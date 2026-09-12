@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -160,6 +162,15 @@ def test_finite_temperature_that_overflows_the_identity_fails():
     result = score(run)
     assert result.status == FAIL
     assert result.diagnostics["non_finite_calculation_steps"] == 1
+
+
+def test_large_finite_residuals_keep_the_report_finite():
+    run = build([290.0, 290.0], rlus=[1e308, 1e308])
+    with np.errstate(over="raise", invalid="raise"):
+        result = score(run)
+    assert result.status == FAIL
+    assert result.diagnostics["mean_abs_residual_w_m2"] == pytest.approx(1e308)
+    json.dumps(result.diagnostics, allow_nan=False)
 
 
 @pytest.mark.parametrize("temperature", [0.0, -290.0])

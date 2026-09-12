@@ -135,7 +135,9 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
         "units": {v: UNITS[v] for v in model.emitted if v in UNITS},
         "notes": (
             "States are absolute storages, not tendencies. The harness "
-            "differences them itself."
+            "differences them itself. Row i's ts and rlus are instantaneous "
+            "values at row i's time, the same instant as row i's rlds, "
+            "when supplied."
         ),
     }
     request_path = io_dir / REQUEST_FILE

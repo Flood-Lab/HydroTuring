@@ -345,8 +345,8 @@ def compatibility_issues(
     # whether a verdict can be given.
     if check_declared_inputs:
         for what, required, declared in (
-            ("forcing", probe.requires_forcing, model.needs_forcing),
-            ("static", probe.requires_static, model.needs_static),
+            ("forcing", probe.requires_forcing, model.needs_forcing + model.uses_forcing),
+            ("static", probe.requires_static, model.needs_static + model.uses_static),
         ):
             undeclared = [name for name in required if name not in declared]
             if undeclared:

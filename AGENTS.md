@@ -137,13 +137,13 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
 | `hfss` | sensible heat flux, positive away from the surface | W/m2 |
 | `hfg` | ground heat flux at the actual soil surface, positive into the ground; a flux taken below the surface must be corrected for heat storage above that depth | W/m2 |
-| `rlus` | total upward longwave radiation at the surface: emission plus reflected downward longwave, positive away from the surface, at the sampling instant | W/m2 |
+| `rlus` | total upward longwave radiation at the surface: emission plus reflected downward longwave, positive away from the surface; row i's value is at row i's `time`, the same instant as row i's `rlds` | W/m2 |
 | `mrso` | soil water storage | mm |
 | `snw` | snow water equivalent | mm |
 | `canopy` | canopy interception storage | mm |
 | `gw` | groundwater storage below the soil column | mm |
 | `channel` | water generated as runoff but not yet released by the model's routing | mm |
-| `ts` | surface (skin) temperature at the sampling instant; a diagnostic, declared under `emits.diagnostics`, neither integrated nor differenced by any budget | K |
+| `ts` | surface (skin) temperature at row i's `time`, the same instant as row i's `rlds`; a diagnostic, declared under `emits.diagnostics`, neither integrated nor differenced by any budget | K |
 
 For `hfg`, an adapter mapping a plate-depth or deeper-boundary flux must use
 `G_surface = G_depth + (E_above_end - E_above_start) / dt`, with downward
@@ -202,14 +202,14 @@ cannot be put to the model, so it counts neither way. Fabricating an
 `evspsbl` column to avoid `INCOMPLETE` produces `VIOLATION` instead, which
 is worse and is also dishonest.
 
-`needs_forcing` lists the forcing columns the adapter reads, and
-`needs_static` the `static.json` keys a probe may require it to have read;
-keys every case supplies, the soil capacity say, need no declaration. A
-probe whose verdict rests on a case-supplied input, the downward longwave
-and the emissivity of `energy/radiation-consistency`, requires those
-declarations, and a model without them is `N/A` with reason
-`INCOMPATIBLE`: it may be computing its own sky or emissivity, and cannot
-be judged against values it never read.
+`needs_forcing` and `needs_static` declare inputs the adapter cannot run
+without; a missing input makes the case `N/A (INCOMPATIBLE)`.
+`uses_forcing` and `uses_static` declare optional inputs: the adapter must
+consume them whenever supplied, but can run without them using a documented
+fallback. A probe's `requires.forcing` and `requires.static` accept either
+declaration. For example, `energy/radiation-consistency` requires consumption
+of `rlds` and `eps`; a model that does not declare it consumes both is
+`N/A (INCOMPATIBLE)` because it may be computing its own sky or emissivity.
 
 Declare diagnostic outputs under the optional key `diagnostics: [ts]`.
 Criteria read diagnostics, but budgets never integrate or difference them;

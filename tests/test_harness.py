@@ -178,6 +178,17 @@ def test_missing_static_is_reported_as_incompatible(probe):
     assert outcome.incompatible == ["static does not provide eps"]
 
 
+@pytest.mark.parametrize("kind, name", [("forcing", "rlds"), ("static", "eps")])
+def test_optional_declaration_does_not_cancel_a_required_input(probe, kind, name):
+    model = replace(
+        registry.find_model("reference_bucket"),
+        **{f"needs_{kind}": (name,), f"uses_{kind}": (name,)},
+    )
+    outcome = run_probe(model, probe, [11])
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert outcome.incompatible == [f"{kind} does not provide {name}"]
+
+
 def test_undeclared_case_inputs_are_reported_as_incompatible(probe):
     """A verdict that rests on a case-supplied input can only be given to a
     model that says it read that input."""

@@ -56,19 +56,45 @@ def test_adapter_verification_asks_only_what_the_adapter_needs(probe):
     assert len(result.table) == 768
 
 
-def test_a_model_that_does_not_consume_the_sky_or_the_emissivity_is_not_judged(probe):
+@pytest.mark.parametrize("missing", [("rlds",), ("eps",), ("rlds", "eps")])
+def test_a_model_that_does_not_consume_the_sky_or_the_emissivity_is_not_judged(probe, missing):
     """Emitting ts and rlus is not enough: a model with its own downward
     longwave or its own emissivity would be scored against values it never
     read, so it is INCOMPATIBLE rather than a candidate for VIOLATION."""
     reference = registry.find_model("reference_radiative")
     assert compatibility_issues(reference, probe, build_case(probe, 0)) == []
-    own_inputs = replace(reference, needs_forcing=("pr", "tas", "pet", "rn"), needs_static=())
+    own_inputs = replace(
+        reference,
+        uses_forcing=() if "rlds" in missing else ("rlds",),
+        uses_static=() if "eps" in missing else ("eps",),
+    )
     outcome = run_probe(own_inputs, probe, gate_seeds(probe.id, 1))
     assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
-    assert outcome.incompatible == [
-        "model does not declare that it consumes forcing rlds",
-        "model does not declare that it consumes static eps",
-    ]
+    expected = []
+    if "rlds" in missing:
+        expected.append("model does not declare that it consumes forcing rlds")
+    if "eps" in missing:
+        expected.append("model does not declare that it consumes static eps")
+    assert outcome.incompatible == expected
+
+
+@pytest.mark.parametrize("forcing_kind", ["needs", "uses"])
+@pytest.mark.parametrize("static_kind", ["needs", "uses"])
+def test_required_inputs_accept_mandatory_or_optional_declarations(probe, forcing_kind, static_kind):
+    model = registry.find_model("reference_radiative")
+    inputs = dict(needs_forcing=model.needs_forcing, needs_static=(), uses_forcing=(), uses_static=())
+    inputs[f"{forcing_kind}_forcing"] += ("rlds",)
+    inputs[f"{static_kind}_static"] += ("eps",)
+    model = replace(model, **inputs)
+    assert compatibility_issues(model, probe, build_case(probe, 0)) == []
+
+    other = registry.find_probe("energy/surface-energy-closure")
+    expected = []
+    if forcing_kind == "needs":
+        expected.append("forcing does not provide rlds")
+    if static_kind == "needs":
+        expected.append("static does not provide eps")
+    assert compatibility_issues(model, other, build_case(other, 4242)) == expected
 
 
 def test_generator_reproduces_bytes_and_changes_the_case_with_seed(probe):
@@ -146,6 +172,8 @@ def test_staging_hands_the_model_the_sky_and_the_emissivity(probe, tmp_path):
     assert static["eps"] == case.static["eps"]
     assert request["timestep"] == "PT1H"
     assert request["n_steps"] == 768
+    assert "ts and rlus are instantaneous values at row i's time" in request["notes"]
+    assert "the same instant as row i's rlds" in request["notes"]
 
 
 def test_submitted_models_see_every_scored_day(probe):

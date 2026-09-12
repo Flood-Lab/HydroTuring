@@ -33,8 +33,9 @@ two spinup days and 30 scored days. `min_window_days: 30` preserves all
 scored day/night cycles for submitted models, including dry hours outside
 the default seven-day flood window.
 
-`tas`, `rlds`, `ts` and `rlus` are instantaneous. `pr`, `pet` and `rn` are
-means over the following hour and drive the reference water/energy budgets.
+`tas`, `rlds`, `ts` and `rlus` are instantaneous values at each row's `time`.
+`pr`, `pet` and `rn` are means over the following hour and drive the reference
+water/energy budgets.
 Net radiation is prescribed and is **not reconciled with the longwave
 components**.
 
@@ -58,6 +59,11 @@ balance. Its radiation identity holds by construction; the diagnosed
 temperature is approximate. Each negative control changes the radiation
 mode; tests verify that only `rlus` differs from the positive control.
 
+All three references consume supplied `rlds` and `eps` through `uses_forcing`
+and `uses_static`. When absent, they default to zero downward longwave and
+a black surface (`eps = 1`), so they can still run on other compatible
+probes. This probe always supplies both inputs; the defaults do not apply.
+
 ## Limits
 
 A wrong Ts paired with longwave computed from that Ts can pass. This checks
@@ -66,11 +72,24 @@ inertia. Adapters must expose native model outputs, not manufacture `rlus`
 from `ts`. Missing either output yields INCOMPLETE, as for every archived
 physical and submitted model on this probe.
 
+A model using its own land-cover emissivity cannot be scored here unless
+its adapter consumes the case's `eps`, as well as its `rlds`.
+
 Around 290 K under a 300 W m-2 sky, temperature differences below about
 0.4 K can pass; resolution is coarser at warmer temperatures. Unit tests
 also document a linearised Stefan-Boltzmann law: around 288 K, excursions
 of 5 K pass while 10 K fails, with a neglected second-order term near
 2.8 W m-2. That optional control is not part of the gate.
+
+In a sweep of the five gate seeds plus seeds 0-199, a blackbody approximation
+(`rlus = sigma * ts^4`) passes 11 of 205 cases at high emissivity.
+It fails all five gate seeds, but passes all 205 cases with
+`eps` forced to 0.99.
+
+Emission linearized around the previous step's Ts passes 8 of those 205
+cases. Its maximum residual-to-tolerance ratio ranges from 0.88 to 1.80
+(1.25-1.59 on the gate seeds), depending on hourly skin-temperature jumps,
+which reach 12.6 K in this sweep. It remains outside the gate.
 
 ## Reproduce
 

@@ -21,9 +21,13 @@ emits:
   # Outputs no budget integrates, such as a surface temperature.
   # diagnostics: [ts]
 
+# Inputs the adapter cannot run without.
 needs_forcing: [pr, tas, pet]
-# static.json keys a probe may require the adapter to have read.
-# needs_static: [eps]
+# needs_static: [soil_capacity_mm]
+# Optional inputs consumed whenever supplied; document the fallback if absent.
+# Either needs_* or uses_* satisfies a probe's required input declaration.
+# uses_forcing: [rlds]
+# uses_static: [eps]
 supports:
   perturbation: true
 resources: {cpu: 2, memory_gb: 4, gpu: false}
