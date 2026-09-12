@@ -98,7 +98,10 @@ records which is which:
    0.00575 LAI^2 equals it; the LAI is held constant through the year). The
    area only scales `dis`. `baseflow_coefficient` has no LISFLOOD counterpart
    (LISFLOOD's recession is two linear zones with their own time constants)
-   and is not used.
+   and is not used. The latitude, the area and the canopy capacity are
+   required: the adapter stops before it stages anything if one is missing.
+   The rain-snow threshold, degree-day factor and soil capacity fall back to
+   the sources in 2 and 3 when absent, and run.json records which was used.
 2. LISFLOOD's documented defaults in src/lisfloodSettings_reference.xml, for the
    calibration parameters (groundwater time constants, percolation, GwLoss,
    LZThreshold, b_Xinanjiang, PowerPrefFlow, CalChanMan), fixed constants,
@@ -162,7 +165,7 @@ os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
 import numpy as np  # noqa: E402
 
-MODEL = {"name": "lisflood", "version": "5.0.0-onecell.4"}
+MODEL = {"name": "lisflood", "version": "5.0.0-onecell.5"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 TIMESTEP_SECONDS = {"PT1D": 86400, "PT1H": 3600, "PT15M": 900, "PT5M": 300, "PT1M": 60}
 
@@ -300,6 +303,21 @@ def lai_for_canopy_capacity(capacity_mm: float) -> float:
     return (0.498 - math.sqrt(0.498 ** 2 - 4.0 * 0.00575 * c)) / (2.0 * 0.00575)
 
 
+# static.json keys the adapter cannot run without and will not invent: the
+# latitude sets the hemisphere of LISFLOOD's seasonal snowmelt coefficient, the
+# area scales the discharge and the canopy capacity sets the LAI. Every probe
+# supplies them. The snow and soil keys fall back to LISFLOOD's reference and
+# the test catchment's values when absent, and run.json names the source used.
+REQUIRED_STATIC = ("latitude_deg", "area_km2", "canopy_capacity_mm")
+
+
+def require_static(static: dict) -> None:
+    missing = [key for key in REQUIRED_STATIC if key not in static]
+    if missing:
+        raise SystemExit(f"static.json has no {', '.join(missing)}; LISFLOOD needs each of "
+                         f"{', '.join(REQUIRED_STATIC)} and the adapter does not invent them")
+
+
 def catchment_parameters(static: dict) -> tuple[dict, dict]:
     p = dict(REFERENCE_DEFAULTS)
     p.update(TEST_CATCHMENT)
@@ -323,7 +341,7 @@ def catchment_parameters(static: dict) -> tuple[dict, dict]:
             f"shipped test catchment x {scale:.4f}, so saturated storage equals static.json soil_capacity_mm"
         )
 
-    canopy = float(static.get("canopy_capacity_mm", 0.935 + 0.498 * 2.84 - 0.00575 * 2.84 ** 2))
+    canopy = float(static["canopy_capacity_mm"])
     p["LAI"] = lai_for_canopy_capacity(canopy)
     source["LAI"] = "static.json canopy_capacity_mm through LISFLOOD's SMax(LAI), constant in time"
     return p, source
@@ -341,7 +359,7 @@ def write_domain(work: Path, static: dict, params: dict, forcing: list[dict], ti
     import pcraster as pcr
     from lisflood.global_modules.add1 import generateName
 
-    latitude = float(static.get("latitude_deg", 45.0))
+    latitude = float(static["latitude_deg"])
     maps = work / "maps"
     out = work / "out"
     lai_dir = maps / "lai"
@@ -490,6 +508,7 @@ def storage_terms(m, veg_axis: int) -> tuple[float, float, float, float, float]:
 def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dict], dict]:
     if timestep not in TIMESTEP_SECONDS:
         raise SystemExit(f"unsupported timestep {timestep!r}")
+    require_static(static)
     started = time.monotonic()
     params, sources = catchment_parameters(static)
     water_use = "abstr" in forcing[0]
@@ -598,11 +617,14 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             "land_use": "rainfed 'other' fraction 1.0",
             "catchment_area_km2": area_km2,
             "catchment_area_enters": "only dis = mrro * area_km2 / 86.4",
+            "latitude_deg": float(static["latitude_deg"]),
+            "latitude_source": "static.json latitude_deg; the clone cell is centred on it, and it sets "
+                               "the hemisphere of LISFLOOD's seasonal snowmelt coefficient",
         },
         "static_keys_unused": sorted(k for k in ("baseflow_coefficient",) if k in static),
         "options_off": [o for o in OPTIONS_OFF if not (water_use and o == "wateruse")],
         "options_on": OPTIONS_ON + (["wateruse"] if water_use else []),
-        "parameters": {k: {"value": v, "source": sources.get(k, "")} for k, v in params.items()},
+        "parameters": {k: {"value": v, "source": sources[k]} for k, v in params.items()},
         "forcing": "readmeteo replaced: Precipitation = pr*DtDay, Tavg = tas (hourly at PT1H), "
                    "ET0 = ES0 = EW0 = pet*DtDay",
         "states": {
@@ -667,8 +689,8 @@ def main() -> int:
     forcing = read_forcing(io_dir / request["input"]["forcing"])
     static = json.loads((io_dir / request["input"]["static"]).read_text())
 
-    rows, notes = simulate(forcing, static, str(request.get("timestep", "PT1D")))
-    notes["seed"] = int(request.get("seed", 0))
+    rows, notes = simulate(forcing, static, str(request["timestep"]))
+    notes["seed"] = request.get("seed")
 
     out = io_dir / request["output"]["table"]
     out.parent.mkdir(parents=True, exist_ok=True)

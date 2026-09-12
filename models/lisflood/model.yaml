@@ -1,5 +1,5 @@
 name: lisflood
-version: "5.0.0-onecell.4"
+version: "5.0.0-onecell.5"
 description: >
   LISFLOOD, the distributed rainfall-runoff model the European Commission's
   Joint Research Centre operates behind the European and Global Flood
@@ -46,6 +46,6 @@ resources: {cpu: 1, memory_gb: 2, gpu: false}
 
 # Default flood-event window (30 days behind a year of spinup); probes that
 # ask for the whole record get it. A ten-year daily record (4015 rows) takes
-# about 90 s under amd64 emulation (88 and 90 s in the archive run): over the
+# about 90 s under amd64 emulation (87 and 92 s when left to finish): over the
 # 60 s budget of the two probes that score one in a container. README.md says
 # how to re-run those natively.

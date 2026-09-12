@@ -150,6 +150,20 @@ counterpart (LISFLOOD's recession is two linear zones with their own time
 constants) and is not used; `run.json` lists it. `run.json` records every
 value with its source.
 
+**Required inputs.** `latitude_deg`, `area_km2` and `canopy_capacity_mm` are
+required.
+- The latitude centres the clone cell and sets the hemisphere of LISFLOOD's
+  seasonal snowmelt coefficient.
+- The area scales `dis`.
+- The canopy capacity sets the LAI.
+
+If one is missing, the adapter stops with an error before it stages anything,
+rather than inventing a value. `run.json` records the latitude it used, with
+its source. `snow_threshold_degC`, `degree_day_factor_mm_per_C_day` and
+`soil_capacity_mm` fall back to LISFLOOD's reference defaults and the test
+catchment's soil depths when absent, and `run.json` names the source used.
+Every probe supplies all six.
+
 ## What the adapter reports
 
 | Column | What it is |
@@ -372,19 +386,23 @@ in 14.1 and 34.7 s of wall time, beside the archive run.
 | `mass/catchment-closure`, whole ten-year record | 4015 | 5.2 s | 91.7 s | 23 ms |
 
 A ten-year daily record takes 97 s there. That is over the 60 s budget of
-`mass/precipitation-counterfactual` and `mass/human-abstraction`. In the `.4`
-archive run, whose log records a load average of 10.8 at its start, the
-ten-year cases took 88 and 90 s. The harness stops waiting at 60 s but does
-not stop the container. The timed-out human-abstraction case ran on for
-another 30 s while the next probe started.
+`mass/precipitation-counterfactual` and `mass/human-abstraction`. Left to
+finish, the first ten-year cases of a `.5` run took 87 and 92 s; that run's log
+records a load average of 15.6 at its start. The harness now kills a
+container at its time budget, so the archived ERROR rows record no wall time
+of their own.
 
 ## Result
 
-**FAIL (ERROR), 14 of 20 probes passed, 3 N/A (INCOMPLETE).** These are the
-rows of the full gate-seed run of `5.0.0-onecell.4`, made on the emulated host
+**FAIL (ERROR), 14 of 17 probes passed, 3 N/A (INCOMPLETE).** These are the
+rows of the full gate-seed run of `5.0.0-onecell.5`, made on the emulated host
 described under "Native re-run". The verdict is ERROR because two probes ran
 out of time on that host. Any ERROR among the scored probes makes the verdict
 FAIL (ERROR), whatever the other probes score.
+
+**These rows are provisional. Do not merge the pull request until the two
+ERROR rows have been replaced by a native evaluation;** "Native re-run" gives
+the commands. The maintainer runs it on an x86-64 Linux host.
 
 - **N/A (INCOMPLETE), 3, not scored:** `energy/evaporative-partition`,
   `energy/latent-heat-et-consistency` and `energy/surface-energy-closure`.
@@ -392,7 +410,8 @@ FAIL (ERROR), whatever the other probes score.
   They are neither a pass nor a fail, and do not decide the verdict.
 - **ERROR, 2:** `mass/precipitation-counterfactual` and
   `mass/human-abstraction`. The container exceeded the 60 s budget, because a
-  ten-year record takes about 90 s under emulation (88 and 90 s in this run).
+  ten-year record takes about 90 s under emulation (87 and 92 s when left to
+  finish).
   These rows come from the emulated host.
   - Run outside the limit on all three gate seeds,
     `mass/precipitation-counterfactual` passes every criterion.
@@ -402,7 +421,7 @@ FAIL (ERROR), whatever the other probes score.
     `closure` and `state_bounds` pass.
   - On a host fast enough for the budget, the first should PASS and the second
     be VIOLATION. The model's verdict would then be FAIL (VIOLATION), with 15
-    of 20 probes passed and 3 N/A.
+    of 17 probes passed and 3 N/A.
 - **VIOLATION, 1:** `mass/resolution-invariance`. Rain that falls within an
   hour runs off, so `mrro` differs by 13.0% of `pr` between PT1H and PT1D,
   against a 10% limit.
@@ -430,6 +449,9 @@ Against the `.2` rows:
   roll-up and are N/A (INCOMPLETE) under main's.
 - No other probe's verdict moved.
 
+The standing counts passes out of the 17 probes that could score LISFLOOD; the
+three N/A energy-flux probes are in neither number.
+
 Against the `.3` rows, `.4` changes the environmental-flow reserve and the
 channel's bottom width, bankfull depth and gradient to the headwater values.
 No probe's verdict or reason moved:
@@ -437,6 +459,13 @@ No probe's verdict or reason moved:
   departs by exactly 0;
 - `mass/resolution-invariance` is 13.0% in both;
 - the two ten-year probes are ERROR on this host in both.
+
+`.5` requires `latitude_deg`, `area_km2` and `canopy_capacity_mm` and records
+the latitude it used in `run.json`. Every probe supplies them, and re-run on
+all 20 probes with the same harness, no row moved against `.4` except its
+version and the contract row's timing. Re-run again with main's harness from
+`89f2f14`, which kills a timed-out container and counts passes out of the
+scored probes, no row moved either; these are the archived rows.
 
 ## Mechanisms checked with targeted runs
 
@@ -508,9 +537,9 @@ daily record (4015 rows with spinup) in a container with a 60 s budget, and the
 harness stops a probe at its first timeout.
 - Run outside the limit on this host, each `.4` variant took 96 to 110 s, two
   containers at a time.
-- In the `.4` archive run the first ten-year cases took 88 and 90 s. The
-  harness stops waiting at 60 s but not the container, which runs on into the
-  next probe.
+- Left to finish, the first ten-year cases of a `.5` run took 87 and 92 s. The
+  harness now kills a container at its 60 s budget, so a timed-out case no
+  longer runs on into the next probe.
 - Per step, a ten-year record runs at the speed of a 30-day case (21 to 23 ms).
 
 Nothing in the model slows down; ten years of LISFLOOD's Python framework
@@ -518,17 +547,20 @@ under amd64 emulation simply need more than 60 s.
 
 ## Native re-run
 
+**The pull request must not merge until this re-run has replaced the two
+ERROR rows below.** They are provisional rows from an emulated host.
+
 Every row this package has archived was produced on an Apple-silicon host
 running the amd64 image under emulation. Two probes score a ten-year daily
 record in a container with a 60 s budget, `mass/precipitation-counterfactual`
 and `mass/human-abstraction`. Under emulation a ten-year run takes about
-90 s (88 and 90 s in the archive run), so their archived rows are ERROR
+90 s (87 and 92 s when left to finish), so their archived rows are ERROR
 because of the host's speed alone. On an
 x86-64 Linux host, from the repository root:
 
 ```bash
 rm -f /tmp/lisflood-native.csv   # ht run --csv appends
-docker build -t hydroturing/lisflood:5.0.0-onecell.4 -f models/lisflood/Dockerfile models/lisflood
+docker build -t hydroturing/lisflood:5.0.0-onecell.5 -f models/lisflood/Dockerfile models/lisflood
 ht verify-adapter --model lisflood
 ht run --model lisflood --gate-seeds --csv /tmp/lisflood-native.csv --markdown
 ```
@@ -546,7 +578,7 @@ git diff origin/main -- models/result.csv   # only lisflood lines
 ```
 
 Then rewrite everything that describes the emulated host:
-- the verdict, "N of 20" and the ERROR narrative under "Result", and the
+- the verdict, its count and the ERROR narrative under "Result", and the
   time-budget paragraph under "Mechanisms checked with targeted runs";
 - the ten-year timings in this README, in `model.yaml`'s closing comment and
   in the top-level README row;
@@ -556,7 +588,7 @@ Then rewrite everything that describes the emulated host:
 
 If the ten-year cases still exceed 60 s on the native host, the ERROR is the
 model's own at its reference routing sub-step. The archived cases need about
-1.5 times this host's speed to fit (88 and 90 s against 60 s).
+1.5 times this host's speed to fit (87 and 92 s against 60 s).
 
 ## Running it
 
