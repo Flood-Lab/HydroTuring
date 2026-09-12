@@ -54,7 +54,7 @@ import numpy as np
 import pandas as pd
 
 from hydroturing.criteria.base import (
-    FAIL, PASS, CriterionResult, criterion, make_window, segments,
+    FAIL, PASS, CriterionResult, criterion, make_window, segments, storage_at,
 )
 from hydroturing.criteria.response import pick
 from hydroturing.protocol import RunResult
@@ -584,4 +584,218 @@ def partition_shift(
             "window_steps": int(mask.sum()),
             "onset": onset,
         },
+    )
+
+
+@criterion("melt_energy")
+def melt_energy(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
+    """Melt reported as water must equal the melt the energy budget paid for.
+
+    The third place the two ledgers meet, after vaporisation in
+    `flux_identity` and the drydown partition in `partition_shift`. A model
+    can melt a degree-day depth and close a surface energy budget that never
+    mentions fusion; both budgets balance and no single-budget criterion sees
+    it. Here the surface residual is not required to vanish. It is required to
+    be the melt energy:
+
+        mean(rn - hfls - hfss - hfg)  ==  lambda_f * M / (N * dt * 86400)
+
+    with `M` the ice the model says it lost. Two properties of the case make
+    `M` observable through a contract that carries neither a melt flux nor a
+    snowfall flux:
+
+    no precipitation   snowfall is zero whatever threshold the model uses
+                       internally, so the pack's loss is melt and sublimation
+                       and nothing else:  M = -d(snw) - sum(sbl dt)
+
+    a ripe pack        the cold content term is spent before the block opens,
+                       so the surface residual is fusion and nothing else.
+                       Energy spent warming a sub-freezing pack does no
+                       melting and is not visible in any contract variable,
+                       which is why the generator ripens the pack first and
+                       scores only what follows.
+
+    Scored over each block the generator labels, so a stretch where the pack
+    is building cannot dilute the stretch where it is going.
+    """
+    driver = str(params.get("driver", "rn"))
+    sinks = list(params.get("sinks", ["hfls", "hfss", "hfg"]))
+    pack = str(params.get("pack", "snw"))
+    sublimation_var = str(params.get("sublimation", "sbl"))
+    threshold = float(params.get("threshold", 0.05))
+    floor = float(params.get("floor", 2.0))
+    lam_f = float(params.get("lambda_fusion", LAMBDA_F))
+    segment_column = str(params.get("segment_column", "_regime"))
+    scored_label = str(params.get("scored_label", "melt"))
+    # The pack the case builds has to actually appear, or a model that reports
+    # no snow at all would satisfy the identity with two zeroes. A share, not a
+    # depth, so it holds for any seed.
+    #
+    # How much of that pack a model then melts is deliberately not scored. A
+    # model that melts part of it and pays for exactly that part is coupled
+    # correctly, which is the only thing this criterion is entitled to judge;
+    # failing it for melting slowly would score a calibration choice as a
+    # conservation violation. See the probe README, "Scope".
+    min_peak_share = float(params.get("min_peak_share_of_snowfall", 0.5))
+    snowfall_label = str(params.get("snowfall_label", "accumulation"))
+    precipitation = str(params.get("precipitation", "pr"))
+    dry_tolerance_mm = float(params.get("dry_tolerance_mm", 1e-9))
+
+    w = make_window(run, probe)
+    if driver not in w.forcing.columns:
+        raise ValueError(
+            f"melt_energy needs forcing column '{driver}'; this probe's "
+            "generator does not produce it"
+        )
+    for var in (*sinks, pack):
+        if var not in w.table.columns:
+            raise ValueError(f"melt_energy needs '{var}' in the model result")
+
+    blocks_all = segments(w, segment_column)
+    scored = [b for b in blocks_all if b[0] == scored_label]
+    if not scored:
+        raise ValueError(
+            f"melt_energy found no '{scored_label}' block in column "
+            f"'{segment_column}'; the generator has to label the stretch the "
+            "pack is melting over"
+        )
+
+    # The melt inference `M = -d(snw) - sum(sbl dt)` is only melt where nothing
+    # is being added to the pack. This generator builds a dry block for exactly
+    # that reason, but a probe reusing the criterion might not, and snowfall
+    # inside the block nets out of the pack change and quietly shrinks the melt.
+    # Refuse rather than measure the wrong thing.
+    if precipitation in w.forcing.columns:
+        rain = w.forcing[precipitation].to_numpy(dtype=float)
+        for label, start, stop in scored:
+            fell = float(w.volume(rain[start:stop]).sum())
+            if fell > dry_tolerance_mm:
+                raise ValueError(
+                    f"melt_energy scores '{label}' as a melt block, but "
+                    f"{fell:.3f} mm of '{precipitation}' falls within it. Melt "
+                    "is inferred from the pack, which holds only where nothing "
+                    "is added to it: the scored block has to be dry"
+                )
+
+    drive = w.forcing[driver].to_numpy(dtype=float)
+    fluxes = w.table[sinks].to_numpy(dtype=float)
+    snw = w.table[pack].to_numpy(dtype=float)
+    subl = (
+        w.table[sublimation_var].to_numpy(dtype=float)
+        if sublimation_var in w.table.columns
+        else np.zeros(len(w.table))
+    )
+
+    # `subl` belongs here because it feeds `melted` below. Without it a NaN in
+    # one sbl row is not reported as the contract violation it is: it
+    # propagates into the melt and the demand, and the criterion fails with a
+    # message reading "melt of nan mm demands nan W/m2".
+    finite = (
+        np.isfinite(drive)
+        & np.isfinite(fluxes).all(axis=1)
+        & np.isfinite(snw)
+        & np.isfinite(subl)
+    )
+    if not finite.all():
+        n_bad = int((~finite).sum())
+        return CriterionResult(
+            name="melt_energy",
+            status=FAIL,
+            message=(
+                f"non-finite snow, sublimation or energy values on {n_bad} "
+                "scored steps"
+            ),
+            diagnostics={"non_finite_steps": n_bad},
+        )
+
+    # --- the pack has to be real ------------------------------------------
+    peak = float(snw.max())
+    snowfall = sum(
+        float(w.volume(w.forcing[precipitation].to_numpy(dtype=float)[start:stop]).sum())
+        for label, start, stop in blocks_all
+        if label == snowfall_label
+    )
+    if snowfall > 0.0 and peak < min_peak_share * snowfall:
+        return CriterionResult(
+            name="melt_energy",
+            status=FAIL,
+            value=peak,
+            threshold=min_peak_share * snowfall,
+            message=(
+                f"no pack to melt: peak {pack} {peak:.1f} mm against "
+                f"{snowfall:.1f} mm of snowfall, under the "
+                f"{min_peak_share:.0%} the case requires"
+            ),
+            diagnostics={"peak_swe_mm": peak, "snowfall_mm": snowfall},
+        )
+
+    residual = drive - fluxes.sum(axis=1)
+    seconds = w.dt_days * SECONDS_PER_DAY
+    blocks = []
+    for label, start, stop in scored:
+        melted = -(float(snw[stop - 1]) - storage_at(w, (pack,), start)) - float(
+            w.volume(subl[start:stop]).sum()
+        )
+        n = stop - start
+        demanded = lam_f * melted / (n * seconds)
+        available = float(residual[start:stop].mean())
+        gap = abs(available - demanded)
+        allowance = max(threshold * demanded, floor)
+        left = float(snw[stop - 1])
+        # Reported so a reviewer can see how far the melt got, never scored.
+        blocks.append({
+            "label": label,
+            "start": start,
+            "stop": stop,
+            "melt_mm": melted,
+            "demanded_w_m2": demanded,
+            "available_w_m2": available,
+            "gap_w_m2": gap,
+            "allowance_w_m2": allowance,
+            "slack": gap / allowance if allowance > 0 else float("inf"),
+            "snw_end_mm": left,
+            "share_of_peak_left": left / peak if peak > 0 else 0.0,
+            "passed": gap <= allowance and melted > 0.0,
+        })
+
+    stalled = [b for b in blocks if b["melt_mm"] <= 0.0]
+    if stalled:
+        return CriterionResult(
+            name="melt_energy",
+            status=FAIL,
+            value=stalled[0]["melt_mm"],
+            threshold=0.0,
+            message=(
+                f"the pack did not melt over the {scored_label} block: "
+                f"{stalled[0]['melt_mm']:.2f} mm lost from a {peak:.1f} mm pack "
+                "under forcing well above freezing"
+            ),
+            diagnostics={"blocks": blocks, "peak_swe_mm": peak},
+        )
+
+    failed = sum(not b["passed"] for b in blocks)
+    worst = max(blocks, key=lambda b: b["slack"])
+    return CriterionResult(
+        name="melt_energy",
+        status=PASS if failed == 0 else FAIL,
+        value=worst["slack"],
+        threshold=1.0,
+        message=(
+            f"melt of {worst['melt_mm']:.1f} mm demands "
+            f"{worst['demanded_w_m2']:.2f} W/m2 and the surface budget has "
+            f"{worst['available_w_m2']:.2f} W/m2"
+            + (
+                f"; agree within {worst['allowance_w_m2']:.2f} W/m2"
+                if failed == 0
+                # Signed, because the failing branch fires in both directions
+                # and "paid for melt that never appeared as water" is the
+                # opposite defect from "melted ice it never paid for".
+                else (
+                    f"; {'short by' if worst['available_w_m2'] < worst['demanded_w_m2'] else 'over by'}"
+                    f" {worst['gap_w_m2']:.2f} W/m2, past the "
+                    f"{worst['allowance_w_m2']:.2f} W/m2 allowed"
+                )
+            )
+        ),
+        diagnostics={"blocks": blocks, "peak_swe_mm": peak, "n_blocks": len(blocks)},
     )
