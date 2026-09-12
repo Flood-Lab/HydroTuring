@@ -1,0 +1,228 @@
+name: pr-review
+
+# `/review` in a pull request's conversation asks Claude (Opus 5) for a code
+# review, posted as one pull-request review. Only people with write access can
+# ask: the command job checks the comment author's association with the
+# repository, and the action checks their permission again. Anything after
+# `/review` on the same line, as in `/review the runner changes`, is passed on
+# as the focus.
+#
+# A pull request is untrusted, a fork's most of all: its code, description and
+# comments can carry instructions. So the run is split as proposal-review's
+# is. The review job checks out main and extracts the pull request's head
+# into pr-head/ with git archive, as files only: nothing from it is built,
+# installed or run. Its .claude directories, .mcp.json and CLAUDE.md files are
+# renamed so Claude Code cannot load them as configuration, and its symlinks
+# are replaced by notes so none can point outside the checkout. The diff and
+# the conversation are written to disk first. Claude reads everything with
+# file tools fenced to the checkout, with no shell, editing or network tools,
+# and returns a structured review. The post job runs no model and holds the
+# write permission. It puts each finding on its line when the diff contains
+# that line and in the review body otherwise, refuses text shaped like a
+# credential, and breaks @-mentions and other repositories' issue references.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+defaults:
+  run:
+    # GitHub's bash shell runs with -o pipefail.
+    shell: bash
+
+jobs:
+  command:
+    if: >-
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/review') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    outputs:
+      ok: ${{ steps.parse.outputs.ok }}
+      pr: ${{ steps.parse.outputs.pr }}
+    steps:
+      # `/review` must be the whole first word, so `/reviewed` is not a command.
+      - name: Read the command
+        id: parse
+        env:
+          BODY: ${{ github.event.comment.body }}
+          PR: ${{ github.event.issue.number }}
+        run: |
+          first=${BODY%%$'\n'*}
+          first=${first%$'\r'}
+          if [[ "$first" =~ ^/review([[:space:]]|$) ]]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+
+  acknowledge:
+    needs: command
+    if: needs.command.outputs.ok == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      issues: write
+    steps:
+      - name: React to the command
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+        run: gh api --method POST "repos/$REPO/issues/comments/$COMMENT_ID/reactions" -f content=eyes > /dev/null
+
+  review:
+    needs: command
+    if: needs.command.outputs.ok == 'true'
+    # A second /review on the same pull request replaces one still running.
+    concurrency:
+      group: pr-review-${{ github.event.issue.number }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pr: ${{ needs.command.outputs.pr }}
+      head: ${{ steps.head.outputs.sha }}
+      review: ${{ steps.claude.outputs.structured_output }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Extract the pull request's head as files only
+        id: head
+        env:
+          PR: ${{ needs.command.outputs.pr }}
+        run: |
+          git fetch --no-tags --depth=1 origin "refs/pull/$PR/head"
+          sha=$(git rev-parse FETCH_HEAD)
+          mkdir pr-head
+          git archive FETCH_HEAD | tar -x -C pr-head
+          find pr-head -type l -print0 | while IFS= read -r -d '' link; do
+            target=$(readlink "$link")
+            rm "$link"
+            printf 'symlink to %s\n' "$target" > "$link.symlink"
+          done
+          find pr-head \( -name .claude -o -name .mcp.json -o -name .claude.json -o -name CLAUDE.md -o -name CLAUDE.local.md \) -prune -print0 \
+            | while IFS= read -r -d '' path; do mv "$path" "$path.from-pr"; done
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      # The conversation, like the code, is untrusted text; only jq handles it.
+      # This workflow's own reviews are not comments, so nothing of an earlier
+      # review is read back.
+      - name: Gather the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ needs.command.outputs.pr }}
+          BODY: ${{ github.event.comment.body }}
+        run: |
+          dir=.pr-review
+          mkdir -p "$dir"
+          gh pr view "$PR" --repo "$REPO" \
+            --json number,title,body,author,baseRefName,headRefName,headRefOid,additions,deletions,changedFiles,files,comments \
+            --jq '"# PR #\(.number) \(.title)\n\nAuthor: \(.author.login)\nBase: \(.baseRefName)\nHead: \(.headRefName) at \(.headRefOid)\nChanged files: \(.changedFiles) (+\(.additions) -\(.deletions))\n\n## Files\n\n" + ([.files[] | "- \(.path) (+\(.additions) -\(.deletions))"] | join("\n")) + "\n\n## Description\n\n\(.body // "")\n\n## Conversation\n" + ([.comments[] | "\n### \(.author.login), \(.createdAt)\n\n\(.body)\n"] | join(""))' \
+            > "$dir/pr.md"
+          gh pr diff "$PR" --repo "$REPO" > "$dir/diff.patch"
+          first=${BODY%%$'\n'*}
+          first=${first%$'\r'}
+          focus=${first#/review}
+          printf '%s\n' "${focus#"${focus%%[![:space:]]*}"}" > "$dir/focus.md"
+
+      - name: Review the pull request
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: /review-pr ${{ needs.command.outputs.pr }}
+          # File tools read only inside the checkout, and not its .git. A bare
+          # Read allow rule would permit reads anywhere, so there is none.
+          settings: |
+            {"permissions": {"blockReadsOutsideWorkingDirectories": true, "deny": ["Read(./.git/**)", "Read(//proc/**)", "Read(//sys/**)"]}}
+          claude_args: |
+            --model claude-opus-5
+            --max-turns 80
+            --disallowedTools Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch
+            --json-schema '{"type":"object","properties":{"summary":{"type":"string"},"assessment":{"type":"string","enum":["no-blocking-issues","changes-suggested","needs-discussion"]},"findings":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"path":{"type":"string"},"line":{"type":"integer","minimum":1},"severity":{"type":"string","enum":["high","medium","low"]},"title":{"type":"string"},"body":{"type":"string"}},"required":["path","line","severity","title","body"],"additionalProperties":false}}},"required":["summary","assessment","findings"],"additionalProperties":false}'
+
+  post:
+    needs: review
+    if: needs.review.outputs.review != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post the review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ needs.review.outputs.pr }}
+          HEAD: ${{ needs.review.outputs.head }}
+          REVIEW: ${{ needs.review.outputs.review }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if ! jq -e '(.summary | type == "string")
+                and (.assessment | IN("no-blocking-issues", "changes-suggested", "needs-discussion"))
+                and (.findings | type == "array")
+                and all(.findings[]; (.path | type == "string") and (.line | type == "number")
+                  and (.severity | IN("high", "medium", "low"))
+                  and (.title | type == "string") and (.body | type == "string"))' \
+              <<< "$REVIEW" > /dev/null; then
+            echo "the review is not in the expected shape" >&2
+            exit 1
+          fi
+          # grep reads to the end rather than quitting at the first match, so
+          # pipefail does not turn a match into a failure.
+          if jq -r '.summary, (.findings[] | .path, .title, .body)' <<< "$REVIEW" \
+              | grep -E 'sk-ant-[A-Za-z0-9_-]{8}|gh[pousr]_[A-Za-z0-9]{20}|github_pat_[A-Za-z0-9_]{20}' > /dev/null; then
+            echo "the review contains a credential-shaped string; not posting it" >&2
+            exit 1
+          fi
+          # The lines a review comment can sit on: lines of the new file inside
+          # the diff's hunks, added or unchanged. A `+++ ` inside a hunk is an
+          # added line, not a file header.
+          gh pr diff "$PR" --repo "$REPO" | awk '
+            /^diff --git / { header = 1; path = ""; next }
+            header && /^\+\+\+ / { path = substr($0, 5); sub(/^b\//, "", path); next }
+            /^@@ / { header = 0; split($3, range, ","); line = substr(range[1], 2) + 0; next }
+            header { next }
+            /^[+ ]/ { if (path != "" && path != "/dev/null") print path "\t" line; line++ }
+          ' > "$RUNNER_TEMP/commentable.tsv"
+          # $flat puts every finding in the body, for when GitHub refuses a line
+          # and with it the whole review.
+          program='
+            def safe: gsub("@(?=[A-Za-z0-9])"; "@​")
+              | gsub("(?<ref>\\b[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+)#(?=[0-9])"; "\(.ref)#​");
+            def item: "**\(.severity): \(.title | safe)**\n\n\(.body | safe)";
+            (env.REVIEW | fromjson) as $r
+            | ($lines | split("\n") | map(select(length > 0)) | INDEX(.)) as $ok
+            | [$r.findings[] | . + {inline: (($flat | not) and ($ok[.path + "\t" + (.line | tostring)] != null))}] as $f
+            | {
+                event: "COMMENT",
+                body: ("> **Automated review by Claude (\($r.assessment)), not a maintainer approval.**\n\n"
+                  + ($r.summary | safe)
+                  + ([$f[] | select(.inline | not) | "\n\n---\n\n`\(.path):\(.line)` " + item] | join(""))
+                  + "\n\n<sub>Posted by the pr-review workflow. <a href=\"\($run)\">Run</a></sub>"),
+                comments: [$f[] | select(.inline) | {path, line, side: "RIGHT", body: item}]
+              }
+            + (if $head != "" then {commit_id: $head} else {} end)'
+          jq -n --arg head "$HEAD" --arg run "$RUN_URL" --rawfile lines "$RUNNER_TEMP/commentable.tsv" \
+            --argjson flat false "$program" > "$RUNNER_TEMP/review.json"
+          jq -n --arg head "$HEAD" --arg run "$RUN_URL" --rawfile lines "$RUNNER_TEMP/commentable.tsv" \
+            --argjson flat true "$program" > "$RUNNER_TEMP/review-flat.json"
+          if ! gh api --method POST "repos/$REPO/pulls/$PR/reviews" --input "$RUNNER_TEMP/review.json" > /dev/null; then
+            echo "GitHub refused the review with inline comments; posting every finding in the body" >&2
+            gh api --method POST "repos/$REPO/pulls/$PR/reviews" --input "$RUNNER_TEMP/review-flat.json" > /dev/null
+          fi
