@@ -447,11 +447,12 @@ Against the `.2` rows:
 - `mass/precipitation-counterfactual` is ERROR on this host in both.
 - `mass/human-abstraction` is new since `.2`.
 - The three energy-flux probes were FAIL (INCOMPLETE) under the earlier
-  roll-up and are N/A (INCOMPLETE) under main's.
+  roll-up and are N/A (INCOMPLETE) under main's; `energy/radiation-consistency`,
+  new since `.2`, is N/A too.
 - No other probe's verdict moved.
 
 The standing counts passes out of the 17 probes that could score LISFLOOD; the
-three N/A energy-flux probes are in neither number.
+four N/A energy probes are in neither number.
 
 Against the `.3` rows, `.4` changes the environmental-flow reserve and the
 channel's bottom width, bankfull depth and gradient to the headwater values.

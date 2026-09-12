@@ -826,8 +826,7 @@ def test_unknown_criterion_is_rejected(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("key,name", [("diagnostics", "skin"), ("states", "mrro")])
 def test_a_required_name_no_manifest_can_declare_is_rejected(key, name, tmp_path, monkeypatch):
-    """A typo, or a flux asked for as a state, would make every model
-    INCOMPLETE for an output none can declare; the probe fails to load instead."""
+    """Reject unknown required outputs and variables in the wrong category."""
     import yaml
 
     from hydroturing import scaffold

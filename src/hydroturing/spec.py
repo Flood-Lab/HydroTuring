@@ -389,8 +389,9 @@ def load_probe(path: str | Path) -> ProbeSpec:
             )
 
     requires = raw.get("requires", {})
-    # A required name no manifest can declare would make every model
-    # INCOMPLETE; refuse it here, as load_model refuses an unknown emission.
+    # Refuse a required name no manifest can declare, as load_model refuses an
+    # unknown emission: a typo would make every model INCOMPLETE, and a flux
+    # asked for as a state would be met by the flux and never noticed.
     unknown = [
         name
         for key, known in (("fluxes", FLUX_VARS), ("states", STATE_VARS), ("diagnostics", DIAG_VARS))

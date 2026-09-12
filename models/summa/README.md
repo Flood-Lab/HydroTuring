@@ -261,7 +261,7 @@ SUMMA wants shortwave and longwave down, wind, pressure and specific humidity.
 They are mocked from each forcing row alone: nothing reads the calendar, the
 clock or another row, and `run.json` labels every one.
 
-**Net radiation of the row.** Where the probe supplies `rn` (the three energy
+**Net radiation of the row.** Where the probe supplies `rn` (the four energy
 probes that need it), that is used. Otherwise the row's `pet` is multiplied by
 the Priestley-Taylor (alpha 1.26) conversion from potential evaporation to
 net radiation. The conversion is evaluated at one fixed reference temperature,
