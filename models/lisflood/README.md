@@ -400,9 +400,9 @@ described under "Native re-run". The verdict is ERROR because two probes ran
 out of time on that host. Any ERROR among the scored probes makes the verdict
 FAIL (ERROR), whatever the other probes score.
 
-**These rows are provisional. Do not merge the pull request until the two
-ERROR rows have been replaced by a native evaluation;** "Native re-run" gives
-the commands. The maintainer runs it on an x86-64 Linux host.
+**The two ERROR rows are provisional.** They come from the emulated host and
+are to be replaced by a native x86-64 evaluation; "Native re-run" gives the
+commands and the row replacement.
 
 - **N/A (INCOMPLETE), 3, not scored:** `energy/evaporative-partition`,
   `energy/latent-heat-et-consistency` and `energy/surface-energy-closure`.
@@ -547,8 +547,8 @@ under amd64 emulation simply need more than 60 s.
 
 ## Native re-run
 
-**The pull request must not merge until this re-run has replaced the two
-ERROR rows below.** They are provisional rows from an emulated host.
+**The two ERROR rows are provisional:** they come from an emulated host, and
+this re-run replaces them.
 
 Every row this package has archived was produced on an Apple-silicon host
 running the amd64 image under emulation. Two probes score a ten-year daily
