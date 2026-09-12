@@ -12,7 +12,7 @@ vegetation canopy, a layered snowpack, a layered soil column and an aquifer
 with one implicit solver, and it reports its latent, sensible and ground heat
 fluxes. It is the first submission that can be asked about both budgets and
 the identity between them, rather than being N/A (INCOMPLETE) on the
-energy probes.
+energy probes that need the heat fluxes.
 
 v4.0.1 was released on the day this was packaged. It adds brackets around
 `iden_ice/iden_water` in four files (a last-bit change in floating point) and
@@ -518,6 +518,8 @@ Against `4.0.0-f787fa5.3` no verdict changed. The fourth version's changes
 leave SUMMA's output the same bit for bit, and `flux_identity` still fails
 without `sbl`. The count is out of 20 because the suite gained
 `mass/human-abstraction`, which SUMMA fails because it has no human water use.
+`energy/radiation-consistency`, merged since, is N/A (INCOMPLETE): the adapter
+reports no `rlus` or `ts`, so the count stays out of 20.
 
 In `4.0.0-f787fa5.3` the threshold translation flipped no probe verdict
 against `4.0.0-f787fa5.2`. It moved one failure inside a probe and changed the

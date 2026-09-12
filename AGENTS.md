@@ -202,12 +202,14 @@ cannot be put to the model, so it counts neither way. Fabricating an
 `evspsbl` column to avoid `INCOMPLETE` produces `VIOLATION` instead, which
 is worse and is also dishonest.
 
-`needs_forcing` lists the forcing columns the adapter reads and
-`needs_static` the `static.json` keys. A probe whose verdict rests on a
-case-supplied input, the downward longwave and the emissivity of
-`energy/radiation-consistency`, requires those declarations, and a model
-without them is `N/A` with reason `INCOMPATIBLE`: it may be computing its
-own sky or emissivity, and cannot be judged against values it never read.
+`needs_forcing` lists the forcing columns the adapter reads, and
+`needs_static` the `static.json` keys a probe may require it to have read;
+keys every case supplies, the soil capacity say, need no declaration. A
+probe whose verdict rests on a case-supplied input, the downward longwave
+and the emissivity of `energy/radiation-consistency`, requires those
+declarations, and a model without them is `N/A` with reason
+`INCOMPATIBLE`: it may be computing its own sky or emissivity, and cannot
+be judged against values it never read.
 
 Declare diagnostic outputs under the optional key `diagnostics: [ts]`.
 Criteria read diagnostics, but budgets never integrate or difference them;
@@ -224,7 +226,7 @@ ht run --model <model-name>              # the actual evaluation
 use, and checks the shape of what came back. Get that green before looking
 at any residual. Without `--probe` it checks the closure probe, or the first
 probe the model can consume when it cannot consume that one: a step it does
-not declare, a forcing the probe does not generate, or a window that drops a
+not declare, a forcing or static input the probe does not generate, or a window that drops a
 stretch the probe scores makes a probe N/A (INCOMPATIBLE) for the model.
 When that is true of the probe named with `--probe`, or of every probe, the
 adapter is not run and the command exits 1, as `ht run` does for a model no

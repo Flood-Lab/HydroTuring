@@ -18,9 +18,11 @@ timestep: PT1D
 emits:
   fluxes: [pr, evspsbl, mrro]
   states: [mrso, snw, canopy]
+  # Outputs no budget integrates, such as a surface temperature.
+  # diagnostics: [ts]
 
 needs_forcing: [pr, tas, pet]
-# static.json keys the adapter reads; a probe may require one to be declared.
+# static.json keys a probe may require the adapter to have read.
 # needs_static: [eps]
 supports:
   perturbation: true

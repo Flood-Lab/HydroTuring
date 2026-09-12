@@ -49,7 +49,7 @@
     "needs_forcing": {"type": "array", "items": {"type": "string"}},
     "needs_static": {
       "type": "array", "items": {"type": "string"}, "uniqueItems": true,
-      "description": "static.json keys the adapter reads. A probe whose verdict rests on one requires it to be declared here."
+      "description": "static.json keys a probe may require the adapter to have read, such as the emissivity of energy/radiation-consistency. Keys every case supplies need no declaration."
     },
     "supports": {
       "type": "object",

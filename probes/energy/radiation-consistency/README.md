@@ -91,11 +91,11 @@ seeds 0-19, seed 36 (eps 0.9891, highest among seeds 0-49), and the five
 gate cases forced to each emissivity endpoint: 36 cases in total.
 
 Ratios below are absolute residual divided by tolerance. The positive
-column bounds the largest ratio in the group: the value is rounding, 1e-14
-to 1e-13 depending on the numpy and pandas installed. Negative columns
-give the **minimum across cases of each case's maximum ratio**; the design
-target is at least 1.3 for both negative controls, with the criterion
-threshold unchanged at 1.
+column bounds the largest ratio in the group: the value is rounding, of
+order 1e-13 or smaller, varying with the numpy and pandas installed.
+Negative columns give the **minimum across cases of each case's maximum
+ratio**; the design target is at least 1.3 for both negative controls,
+with the criterion threshold unchanged at 1.
 
 | Group | Cases | Positive, bound | Air emitter | No reflection |
 | --- | --- | --- | --- | --- |

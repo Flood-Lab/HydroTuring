@@ -201,7 +201,8 @@ a pass nor a fail. That happens two ways:
 - `INCOMPLETE` the model never reported enough to be checked. Every
   streamflow-only model lands here on the budget probes. It has not violated
   conservation; it has declined to be falsifiable.
-- `INCOMPATIBLE` the model and probe disagree on timestep, required forcing or
+- `INCOMPATIBLE` the model and probe disagree on timestep, on a forcing or
+  static input one needs and the other does not supply or declare, or on
   paired-perturbation support, so running them would not be meaningful.
 
 A model passes when at least one probe could be put to it and every probe
