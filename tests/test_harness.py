@@ -562,6 +562,157 @@ esac""")
         assert (calls / "rm").read_text().splitlines() == ["rm", "-f", name]
 
 
+@pytest.mark.parametrize(
+    "cut_off",
+    [KeyboardInterrupt(), RuntimeError("the docker client broke")],
+    ids=["interrupted", "crashed"],
+)
+def test_container_whose_run_is_cut_off_by_an_exception_is_killed(monkeypatch, tmp_path, cut_off):
+    """A timeout is not the only way the docker client can end with its
+    container still running. An interrupt ends it too, and so does any
+    exception the harness records as an ERROR before it starts the next case.
+    Sent to the harness alone, an interrupt left google_flood_forecast's
+    container computing for 34 s more, writing into an output directory no
+    one read. The container is killed by name either way, and the exception
+    goes on unchanged: an interrupt still has to stop the run, and an ERROR
+    keeps its reason."""
+    import shlex
+
+    from hydroturing.runner import docker_runner
+
+    calls = tmp_path / "calls"
+    calls.mkdir()
+    log = shlex.quote(str(calls))
+    docker = fake_docker(tmp_path, f"""case "$1" in
+  kill) printf '%s\\n' "$@" > {log}/kill ;;
+  rm) printf '%s\\n' "$@" > {log}/rm ;;
+esac""")
+    monkeypatch.setattr(docker_runner, "require_docker", lambda: docker)
+
+    # Raising in place of `docker run` stands in for an exception that arrives
+    # while it is in flight; the build before it and the kill after it reach
+    # the fake docker.
+    real_run = docker_runner.subprocess.run
+    run = []
+
+    def cut_off_run(argv, **kwargs):
+        if argv[1] == "run":
+            run.extend(argv)
+            raise cut_off
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(docker_runner.subprocess, "run", cut_off_run)
+
+    model = registry.find_model("reference_bucket")
+    probe = registry.find_probe("mass/catchment-closure")
+    with pytest.raises(type(cut_off)) as raised:
+        docker_runner.DockerRunner().invoke(model, probe, tmp_path, tmp_path / "request.json")
+
+    assert raised.value is cut_off
+    name = run[run.index("--name") + 1]
+    assert name.startswith(f"hydroturing-{model.name}-")
+    assert (calls / "kill").read_text().splitlines() == ["kill", name]
+    assert not (calls / "rm").exists()
+
+
+def test_sigterm_to_the_harness_kills_its_container_before_it_exits(tmp_path):
+    """SIGTERM's default action ends Python without running the runner's
+    cleanup, so `kill <pid>` or `timeout` left the container running, and its
+    docker client with it. `ht` turns SIGTERM into an exit that unwinds the
+    way Ctrl+C does: the container is killed by name, the client is gone, and
+    the process exits 143. The signal goes to the harness alone, as `kill
+    <pid>` sends it, so nothing but the harness can end the client."""
+    import os
+    import shlex
+    import signal
+    import subprocess
+    import sys
+    import time
+    from pathlib import Path
+
+    import hydroturing
+
+    calls = tmp_path / "calls"
+    calls.mkdir()
+    log = shlex.quote(str(calls))
+    # The record is renamed into place, so it exists only once it is complete
+    # and `docker run` is about to sleep.
+    fake_docker(tmp_path, f"""case "$1" in
+  info) echo 28.5.2 ;;
+  run) printf '%s\\n' "$@" > {log}/run.tmp; mv {log}/run.tmp {log}/run; exec sleep 30 ;;
+  kill) printf '%s\\n' "$@" > {log}/kill ;;
+  rm) printf '%s\\n' "$@" > {log}/rm ;;
+esac""")
+    env = dict(os.environ)
+    env["PATH"] = f"{tmp_path}{os.pathsep}{env.get('PATH', '')}"
+    src = str(Path(hydroturing.__file__).resolve().parents[1])
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [src, env.get("PYTHONPATH")]))
+    output = tmp_path / "ht.log"
+    archive = tmp_path / "result.csv"
+
+    with output.open("w") as out:
+        # A session of its own, so the harness's process group holds the
+        # harness, what it started, and nothing else.
+        harness = subprocess.Popen(
+            [sys.executable, "-m", "hydroturing.cli", "run", "--model", "reference_bucket",
+             "--runner", "docker", "--probe", "mass/catchment-closure", "--seed", "1",
+             "--workdir", str(tmp_path / "io"), "--csv", str(archive)],
+            env=env, stdout=out, stderr=subprocess.STDOUT, start_new_session=True,
+        )
+        try:
+            deadline = time.monotonic() + 60
+            while not (calls / "run").exists():
+                assert harness.poll() is None, output.read_text()
+                assert time.monotonic() < deadline, "the harness never reached docker run"
+                time.sleep(0.05)
+            harness.send_signal(signal.SIGTERM)
+            assert harness.wait(timeout=60) == 128 + signal.SIGTERM, output.read_text()
+        finally:
+            if harness.poll() is None:
+                harness.kill()
+                harness.wait()
+            # Whatever is still in the group outlived the harness: the docker
+            # client, if the harness did not end it. Signal 0 only asks.
+            try:
+                os.killpg(harness.pid, 0)
+                left_running = True
+                os.killpg(harness.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                left_running = False
+
+    run = (calls / "run").read_text().splitlines()
+    name = run[run.index("--name") + 1]
+    assert (calls / "kill").read_text().splitlines() == ["kill", name]
+    assert not left_running, "the docker client outlived the harness"
+    assert not archive.exists(), "a terminated run archived rows"
+
+
+@pytest.mark.parametrize("before", ["default", "ignored"])
+def test_cli_takes_over_sigterm_only_from_the_default_and_gives_it_back(monkeypatch, before):
+    """The tests, and any program embedding the harness, call cli.main()
+    in-process. It must leave the process's SIGTERM disposition as it found
+    it, and must not override a caller that ignores SIGTERM on purpose."""
+    import signal
+
+    from hydroturing import cli
+
+    disposition = {"default": signal.SIG_DFL, "ignored": signal.SIG_IGN}[before]
+    during = []
+    monkeypatch.setattr(cli, "cmd_list", lambda args: during.append(signal.getsignal(signal.SIGTERM)) or 0)
+    original = signal.signal(signal.SIGTERM, disposition)
+    try:
+        assert cli.main(["list"]) == 0
+        after = signal.getsignal(signal.SIGTERM)
+    finally:
+        signal.signal(signal.SIGTERM, original)
+
+    if before == "default":
+        assert during == [cli._exit_for_signal]
+    else:
+        assert during == [signal.SIG_IGN]
+    assert after == disposition
+
+
 def test_submitted_model_cannot_request_host_subprocess_access(tmp_path):
     import shutil
 

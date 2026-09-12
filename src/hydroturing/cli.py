@@ -12,11 +12,16 @@
 from __future__ import annotations
 
 import argparse
+import signal
 import sys
+import threading
 import traceback
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import replace
 import tempfile
 from pathlib import Path
+from typing import NoReturn
 
 from hydroturing import SUITE_VERSION, __version__
 from hydroturing import registry
@@ -465,18 +470,58 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _exit_for_signal(signum, frame) -> NoReturn:
+    # The handler steps aside first, so a second SIGTERM ends the process at
+    # once, the way the first would have without it.
+    signal.signal(signum, signal.SIG_DFL)
+    raise SystemExit(128 + signum)
+
+
+@contextmanager
+def _exit_on_sigterm() -> Iterator[None]:
+    """Turn SIGTERM into SystemExit while a command runs.
+
+    By default SIGTERM ends Python on the spot, and no except or finally
+    clause runs. `kill <pid>`, `timeout` and a service manager stopping a job
+    all send it, and a Docker case under way then kept its container running:
+    the runner never got to kill it, and the docker client either outlived
+    the harness or passed the signal on to a model that need not stop on it.
+    As SystemExit the signal unwinds the way Ctrl+C does. The runner kills
+    the container, nothing records the case as a harness ERROR, and a run
+    stopped before its report is written archives no rows. The process exits
+    143, the status a shell reports for a process SIGTERM ended.
+
+    Only the default disposition is taken over, and it is put back when the
+    command ends, so a caller that ignores or handles SIGTERM itself, or that
+    calls main() in-process as the tests do, keeps what it had.
+    """
+    if (
+        threading.current_thread() is not threading.main_thread()
+        or signal.getsignal(signal.SIGTERM) != signal.SIG_DFL
+    ):
+        yield
+        return
+    signal.signal(signal.SIGTERM, _exit_for_signal)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    try:
-        return args.fn(args)
-    except (KeyError, SpecError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
-    except Exception:  # noqa: BLE001 - a crash nothing anticipated is a harness ERROR too
-        # Python exits 1 on an uncaught exception, and CI accepts exit 1 as a
-        # FAIL or an N/A. A crash is neither, so it keeps its traceback and exits 2.
-        traceback.print_exc()
-        return 2
+    with _exit_on_sigterm():
+        try:
+            return args.fn(args)
+        except (KeyError, SpecError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        except Exception:  # noqa: BLE001 - a crash nothing anticipated is a harness ERROR too
+            # Python exits 1 on an uncaught exception, and CI accepts exit 1
+            # as a FAIL or an N/A. A crash is neither, so it keeps its
+            # traceback and exits 2.
+            traceback.print_exc()
+            return 2
 
 
 if __name__ == "__main__":
