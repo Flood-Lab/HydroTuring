@@ -824,6 +824,26 @@ def test_unknown_criterion_is_rejected(tmp_path, monkeypatch):
         load_probe(target)
 
 
+@pytest.mark.parametrize("key,name", [("diagnostics", "skin"), ("states", "mrro")])
+def test_a_required_name_no_manifest_can_declare_is_rejected(key, name, tmp_path, monkeypatch):
+    """A typo, or a flux asked for as a state, would make every model
+    INCOMPLETE for an output none can declare; the probe fails to load instead."""
+    import yaml
+
+    from hydroturing import scaffold
+    from hydroturing.spec import load_probe
+
+    monkeypatch.setattr(scaffold, "PROBES_DIR", tmp_path / "probes")
+    target, _ = _scaffold_template(scaffold, tmp_path, "default", "unknown-requirement")
+    spec_file = target / "probe.yaml"
+    raw = yaml.safe_load(spec_file.read_text())
+    raw["requires"][key] = [name]
+    spec_file.write_text(yaml.safe_dump(raw, sort_keys=False))
+
+    with pytest.raises(SpecError, match="unknown variables in requires"):
+        load_probe(target)
+
+
 @pytest.mark.parametrize("kind", _template_kinds())
 def test_every_template_scaffolds_into_a_valid_probe(kind, tmp_path, monkeypatch):
     from hydroturing import scaffold

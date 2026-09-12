@@ -389,6 +389,16 @@ def load_probe(path: str | Path) -> ProbeSpec:
             )
 
     requires = raw.get("requires", {})
+    # A required name no manifest can declare would make every model
+    # INCOMPLETE; refuse it here, as load_model refuses an unknown emission.
+    unknown = [
+        name
+        for key, known in (("fluxes", FLUX_VARS), ("states", STATE_VARS), ("diagnostics", DIAG_VARS))
+        for name in requires.get(key, [])
+        if name not in known
+    ]
+    if unknown:
+        raise SpecError(f"{spec_file}: unknown variables in requires: {unknown}")
     return ProbeSpec(
         id=raw["id"],
         title=raw["title"],
