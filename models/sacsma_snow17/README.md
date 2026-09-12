@@ -63,5 +63,5 @@ PT1D and PT1H, the whole hours Snow-17 is defined on.
 
 ## Result
 
-**PASS, 17 of 17 probes passed**, with the gate seeds (`ht run --model
+**PASS, 18 of 18 probes passed**, with the gate seeds (`ht run --model
 sacsma_snow17 --gate-seeds`).

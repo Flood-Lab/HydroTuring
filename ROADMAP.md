@@ -132,17 +132,15 @@ the property survives a move — to another place, to another time, to a
 different question. Each has a template, so the harness work is done and what
 is left is the case.
 
-### `mass/extreme-event-closure` &middot; hard &middot; **unclaimed**
-`ht init-probe --template extrapolation-time`
-
-Ordinary years, then conditions outside anything earlier in the record. The
-budget must close over the anomalous stretch on its own terms, scored
-separately so nine ordinary years cannot dilute it.
-
-*Discriminates:* models that learned closure as a statistical regularity of
-their training distribution rather than as a structural property. This is the
-probe most likely to separate architecturally-constrained models from ones
-that merely look conservative in-sample.
+### `mass/extreme-event-closure` &middot; **merged**
+Overlap rainfall events in one median-wet year of a twenty-year record toward
+100-year depths from synthetic 1-, 3- and 7-day DDF fits. Check every complete
+precipitation event's water budget, including ordinary events, with a 5%
+relative tolerance and a 0.001 mm numerical floor.
+*Discriminates:* event-scale losses in `reference_in_sample` that pass
+whole-record closure. The fitted thresholds describe the synthetic climate,
+not the submitted model's unknown training range.
+Contributed by Taiqi Lian.
 
 ### `mass/ungauged-basin-closure` &middot; standard &middot; **unclaimed**
 `ht init-probe --template extrapolation-space`

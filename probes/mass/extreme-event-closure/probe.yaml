@@ -1,0 +1,119 @@
+# See issue #31: adaptive Q100 overlap in the median-wet scored year, followed by
+# one-dry-day storm spacing from May 1. Closure scores every complete event.
+id: mass/extreme-event-closure
+
+title: Event-wise water balance closure under extreme rainfall
+
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Taiqi Lian
+    affiliation: Laboratory of Catchment Hydrology and Geomorphology, École Polytechnique Fédérale de Lausanne (EPFL), 1951 Sion, Switzerland
+    orcid: 0009-0001-9658-4375
+    github: LianTaiqi
+
+description: >
+  Test whether water-balance closure generalizes to extreme rainfall conditions
+  that a model may not have encountered during training. Models that learn
+  closure as a statistical regularity, rather than enforce it structurally,
+  may violate conservation under unfamiliar forcing. To expose such failures,
+  overlap rainfall events to exceed the fitted 100-year precipitation depth at one
+  or more of the 1-, 3- or 7-day durations. Extremeness is defined against the
+  synthetic baseline climate; the probe does not assume knowledge of a
+  submitted model's training distribution.
+  Generate 365 spinup days and twenty 365-day scored blocks. Select the block
+  whose total precipitation is closest to the median of the twenty annual
+  totals, breaking equal-distance ties by the earliest block. Overlap
+  complete rainfall events chronologically in that block. Add
+  whole events until an isolated group's maximum 1-, 3- or 7-day depth first
+  strictly exceeds its own seed's fitted 100-year depth at that duration,
+  then begin with the next unused event. Combine remaining events at year
+  end even if the target is unmet. Pack all resulting storms chronologically,
+  starting on the actual May 1 in the selected block, with exactly one dry day
+  between them. The calendar anchor is found from dates, not a fixed row offset.
+  Rainfall volume, record length, temperature, PET and dates are preserved.
+  An independent 100-year synthetic calibration supplies GEV L-moment targets.
+  Every complete precipitation event in the twenty scored years is checked
+  for water closure, including groups below the target. The existing
+  reference_in_sample silently loses some surface runoff under intense
+  rainfall. The gate requires its event closure
+  to fail; tests additionally verify that aggregate closure remains within
+  the 5 percent tolerance. Selecting a median-wet year does not itself
+  guarantee aggregate closure.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_years: 20
+  spinup_days: 365
+  # Keep all twenty scored years, including the selected transformation block,
+  # when a submitted model asks for a short window.
+  min_window_days: 7300
+  max_output_mb: 4.0
+  # Per-adapter timeout, separate from the PR template's whole-probe runtime check.
+  max_runtime_s: 300
+
+criteria:
+  # Whole-window closure still has to hold. It is necessary, not sufficient.
+  # Use the catchment-closure probe's 5 percent engineering tolerance,
+  # normalized by supplied precipitation rather than model-reported rain.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  # Score all complete wet events, including unmet groups.
+  # DDF targets guide construction only; the denominator is each event's rain.
+  # Retain the same 5 percent tolerance per event so long ordinary periods
+  # cannot dilute a short loss. A 0.001 mm absolute allowance protects tiny
+  # events from output-rounding error; all events retain their supplied rain.
+  # The 5 percent allowance dominates at event depths >= 0.02 mm.
+  # Four-decimal and float32 output regressions exercise this precision budget.
+  - event_water_closure:
+      threshold: 0.05
+      absolute_tolerance_mm: 0.001
+
+  - forcing_fidelity:
+      variables: [pr]
+
+  # Check the template's configured storage limits. These bounds do not
+  # independently verify the authenticity of every reported water store.
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro, evspsbl]
+
+baselines:
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
+  must_fail:
+    reference_in_sample: event_water_closure
+
+provenance: >
+  Synthetic. SeedSequence spawns independent PCG64 streams for the model's
+  weather and its 100-year rainfall-frequency calibration. Both use the
+  catchment-closure rainfall law. Only the scored year closest to the median
+  annual precipitation is transformed; equal-distance ties select the
+  earliest year. Selection uses precipitation alone, not model output.
+  Whole events are aligned and summed until any isolated 1-, 3- or 7-day depth
+  strictly exceeds its fitted 100-year target; no rainfall is rescaled.
+  Pack the resulting hyetographs from the actual May 1 in the selected block,
+  with one dry day between groups. Record the calendar anchor, original
+  placement bounds and source-event indices, clearing old rainfall positions.
+  Final unmet groups are packed too; boundary-crossing and unfinished
+  record-edge events are unchanged. Temperature is not adjusted for placement.
+  GEV fits use duration-specific annual maxima and unbiased sample L-moments.
+  These marginal duration targets guide construction, not event eligibility
+  or the water-closure acceptance threshold.

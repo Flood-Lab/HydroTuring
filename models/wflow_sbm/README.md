@@ -262,7 +262,7 @@ ht run --model wflow_sbm --gate-seeds
 
 ## Result
 
-**FAIL (VIOLATION), 15 of 17 probes passed**, adapter `1.0.4-ht.4`, on the gate seeds, every
+**FAIL (VIOLATION), 15 of 18 probes passed**, adapter `1.0.4-ht.4`, on the gate seeds, every
 case on the full record (`window_days: full`).
 
 | Probe | Verdict | Reason | Detail |
@@ -277,6 +277,7 @@ case on the full record (`window_days: full`).
 | `mass/catchment-closure` | PASS | OK | residual 1.8e-4 to 2.1e-4 of the rain; runoff ratio 0.45 to 0.52; ET 0.53 to 0.63 of demand |
 | `mass/causality` | PASS | OK | identical to floating point before the storm; 1.00 of it runs off after |
 | `mass/dry-down` | FAIL | VIOLATION | on one seed runoff rises 3.6 % between weekly blocks with no rain |
+| `mass/extreme-event-closure` | FAIL | VIOLATION | one event fails, on one seed: on a 0.006 mm drizzle day the river kinematic wave creates 0.0016 mm, past the 0.001 mm floor (see The budget); the other four seeds' worst events are within 0.54 of their allowance |
 | `mass/extreme-rain` | PASS | OK | returns 1.00 of the rain added at every rung |
 | `mass/human-abstraction` | PASS | OK | the prescribed 380 mm leave the budget to within 0.8 to 1.1 % of it; on the worst seed evaporation −124 mm, runoff −270 mm, storage +18 mm |
 | `mass/phase-counterfactual` | PASS | OK | snow as rain moves the volumes by 0.6 to 3.8 % of the rain |
@@ -323,7 +324,12 @@ the closure probe's first seed; the wave floors its discharge at 1e-30 m3/s rath
 the channel, and the water that creates, 1.71 mm over the record, is exactly the adapter's
 residual. On days with non-negative inflow the error is below 2e-17 m3/s. It is larger than in
 ht.1 (3e-6) because the river covers 1.18 % of a 750 m cell rather than 0.27 % of a 15.8 km one,
-and it stays more than two orders of magnitude inside the 5 % limit.
+and it stays more than two orders of magnitude inside the 5 % limit. A probe that scores one wet day
+on its own can see it, though: `mass/extreme-event-closure` allows max(5 % of an event's rain,
+0.001 mm), and on seed 2013358868 a 0.006 mm drizzle day carries 0.0016 mm of it and fails. On all
+five of that probe's seeds the adapter's residual summed over the record equals
+`wflow_river_balance_error_cumulative_mm` to 1e-4 mm, and every day on which it exceeds 0.001 mm
+is water created, never lost.
 
 **Steps.** Between PT1D and PT1H the volumes move by 0.4 to 1.1 % of the rain (runoff 0.7 %,
 end-of-record soil storage 1.1 % on the worst seed) although interception changes scheme with

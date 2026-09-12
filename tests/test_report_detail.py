@@ -34,12 +34,14 @@ HEADLINES = {
     "energy/evaporative-partition": ("partition_shift",),
     "energy/latent-heat-et-consistency": ("energy_closure", "flux_identity"),
     "energy/pet-consistency": ("demand_consistency",),
+    "energy/radiation-consistency": ("radiative_identity",),
     "energy/surface-energy-closure": ("energy_closure_by_phase",),
     "mass/antecedent-monotonicity": ("antecedent_monotonicity",),
     "mass/area-invariance": ("invariance",),
     "mass/catchment-closure": ("closure", "state_bounds", "non_degenerate"),
     "mass/causality": ("causality",),
     "mass/dry-down": ("dry_down",),
+    "mass/extreme-event-closure": ("event_water_closure",),
     "mass/extreme-rain": ("monotone_response",),
     "mass/human-abstraction": ("human_abstraction",),
     "mass/phase-counterfactual": ("phase_invariance",),
@@ -96,6 +98,18 @@ def test_every_probe_has_a_headline():
     """A probe with none could say nothing about a pass but that it passed."""
     for spec in registry.all_probes():
         assert spec.headline, f"{spec.id} names no criterion to report a pass by"
+
+
+def test_headline_expectations_cover_every_registered_probe():
+    assert set(HEADLINES) == {probe.id for probe in registry.all_probes()}
+
+
+def test_passing_event_probe_reports_its_actual_allowance():
+    report = _run("reference_bucket", "mass/extreme-event-closure")
+    assert report.probes[0].verdict == PASS
+    detail = to_csv_rows(report)[0]["detail"]
+    assert detail.startswith("event_water_closure:")
+    assert "mm allowed" in detail
 
 
 def test_a_passing_paired_probe_reports_its_paired_criterion(abstraction):

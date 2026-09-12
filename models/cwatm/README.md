@@ -18,12 +18,16 @@ adapter can read rather than reconstruct.
 
 ## Verdict
 
-**FAIL (VIOLATION)**, 14 of 17 probes passed, on the gate seeds and the full
-record of every probe (`ht run --model cwatm --gate-seeds`). Three probes fail
+**FAIL (VIOLATION)**, 14 of 18 probes passed, on the gate seeds and the full
+record of every probe (`ht run --model cwatm --gate-seeds`). Four probes fail
 as VIOLATION, and they are not alike.
 
 - `resolution-invariance` is the model: CWatM has no step other than a day,
   and no choice made here moves it.
+- `extreme-event-closure` is the model too: the water CWatM's capillary rise
+  creates (The water balance), a few thousandths of a millimetre a day, is
+  more than that probe allows on a one-day drizzle event, 5 % of its rain or
+  0.001 mm, whichever is larger.
 - `pet-consistency` and `response-nonnegativity` are packaging choices as
   much as model results. Both were run with `preferentialFlow = True`, which
   this package takes from the settings template of
@@ -52,6 +56,7 @@ as VIOLATION, and they are not alike.
 | `energy/pet-consistency` | VIOLATION: evaporation on the wettest fifth of soil days is 0.695 of demand on the worst seed (0.695–0.705; at least 0.7) | a land cover's transpiration, bare-soil and interception evaporation together cannot exceed `crop_correct × cropKC × ETRef`, and the fraction-weighted crop coefficient is 0.689; snow evaporation is added on top of that cap, which is why the ratio sits just above 0.689 (Sensitivity). **A packaging choice**: with `preferentialFlow = False` it passes at 0.708–0.712, and higher crop coefficients or more forest pass too |
 | `mass/resolution-invariance` | VIOLATION: runoff differs by 52.1 % of the rain between PT1H and PT1D (38.6–52.1 %), evaporation by 0.6 % | CWatM has no dt (below); its groundwater reservoir releases `recessionCoeff × storage` per step, so at PT1H it drains 24 times too fast |
 | `mass/response-nonnegativity` | VIOLATION: runoff 0.29 mm/day below the control on 2002-02-12, eight days after 120 mm was added (seed 1713476937; the other two never dip) | on wetter soil preferential flow takes a larger share of a later storm, and its interflow part replaces surface runoff; runoff concentration releases interflow through a slower kernel than surface runoff, so the next day carries less (below). **A packaging choice**: with `preferentialFlow = False` it passes (largest dip 0.048 mm/day, within tolerance), and the verdict also moves with land cover and with the slope that sets the lag |
+| `mass/extreme-event-closure` | VIOLATION on every seed: 3 to 8 events per seed, each a single drizzle day of 0.0008–0.067 mm on which 0.0010–0.0049 mm more water leaves or is stored than fell, against max(5 % of the rain, 0.001 mm); whole-record closure passes (0.026 % at worst) | the water the capillary rise creates (The water balance): every day with a residual above 0.001 mm has it in that direction. With a floor of 0.005 mm every event passes on every seed |
 | `mass/catchment-closure` | PASS | residual 0.029 % of the rain; `mrso` within 320 mm; ET 0.43–0.48 of PET |
 | `mass/human-abstraction` | PASS | the prescribed 380 mm of `abstr` leaves the budget on every seed: runoff −378.9 mm, storage −1.1 mm, evaporation −0.003 to −0.005 mm, a residual of 0.002–0.004 % of it (limit 5 %). CWatM's own water-demand module, fed each day's depth, pumped the whole 418 mm of each record from `storGroundwater`, none of it unmet and none of it early: no day with zero `abstr` pumps, and cumulative withdrawal equals the prescription on every day. Groundwater recovers each winter, so almost all of it shows as lost baseflow (Prescribed withdrawal) |
 | `mass/precipitation-counterfactual` | PASS | 20 % more or less rain on wet days is split 0.85–0.88 to runoff, 0.08–0.10 to evaporation and 0.05 to storage, accounting for 0.999–1.000 of the change; runoff returns 0.86–0.89 of the rain along the ladder; residual 0.028 % |
@@ -397,7 +402,11 @@ added to the soil is not taken back, so the excess is created. On the
 closure probe's first gate seed the adapter's per-step check finds at most
 0.008 mm in a step and −2.6 mm (0.03 % of the rain) over the record; with
 `CapillarRise = False` the same record closes to 2e-13 mm. It is far inside
-the closure probe's 5 % and is reported here because it is there.
+the closure probe's 5 % and is reported here because it is there. On
+`mass/extreme-event-closure` it is not: that probe scores each wet spell on its
+own against 5 % of its rain or 0.001 mm, whichever is larger, and on one-day
+drizzle events of under 0.07 mm the water created that day is more, on every
+seed.
 
 ## Running it
 
