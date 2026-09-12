@@ -107,10 +107,12 @@ records which is which:
 3. The shipped test catchment (tests/data/LF_ETRS89_UseCase), for maps with no
    lumped counterpart and no documented default: soil hydraulic properties and
    depths, crop coefficient and group, overland Manning's n, hillslope
-   gradient and elevation spread (catchment means), channel geometry and the
-   environmental-flow threshold (medians, because they grow with upstream area
-   and the mean is set by the few large-river cells), and the groundwater
-   share of water use (mean).
+   gradient and elevation spread (catchment means), channel Manning's n
+   (median), the channel's bottom width, bankfull depth and gradient and the
+   environmental-flow threshold (medians over the catchment's 961 headwater
+   cells, whose upstream area is one cell: these grow with upstream area, and
+   the representative cell is a pit that drains only its own 25 km2), and the
+   groundwater share of water use (mean).
 
 LISFLOOD's snow adds terms keyed to the day of year on top of the degree-day
 factor: a seasonal melt coefficient of +-0.5 mm/degC/day at SnowSeasonAdj = 1,
@@ -160,7 +162,7 @@ os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
 import numpy as np  # noqa: E402
 
-MODEL = {"name": "lisflood", "version": "5.0.0-onecell.3"}
+MODEL = {"name": "lisflood", "version": "5.0.0-onecell.4"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 TIMESTEP_SECONDS = {"PT1D": 86400, "PT1H": 3600, "PT15M": 900, "PT5M": 300, "PT1M": 60}
 
@@ -214,7 +216,9 @@ REFERENCE_DEFAULTS = {
 }
 
 # tests/data/LF_ETRS89_UseCase at v5.0.0, over its 2847-cell mask: means for
-# hillslope and soil maps of the "other" land use, medians for channel geometry.
+# hillslope and soil maps of the "other" land use; medians for channel geometry,
+# over the 961 headwater cells (upstream area one cell) where it grows with
+# upstream area.
 TEST_CATCHMENT = {
     "ElevationStD": 159.9,             # m, elvstd
     "Grad": 0.2361,                    # gradient
@@ -228,10 +232,10 @@ TEST_CATCHMENT = {
     "MapKSat1": 2.815, "MapKSat2": 3.004, "MapKSat3": 2.923,
     "MapCropCoef": 0.9994, "MapCropGroupNumber": 2.692, "MapN": 0.09327,
     "ChanMan": 0.04676,                # ec_chanman, median
-    "ChanBottomWidth": 8.147,          # m, ec_chanbw, median
-    "ChanDepthThreshold": 0.331,       # m, ec_chanbnkf, median
+    "ChanBottomWidth": 4.344,          # m, ec_chanbw, headwater median (all cells 8.147)
+    "ChanDepthThreshold": 0.1646,      # m, ec_chanbnkf, headwater median (all cells 0.331)
     "ChanSdXdY": 1.0,                  # chans (1 everywhere)
-    "ChanGrad": 0.009729,              # changrad, median
+    "ChanGrad": 0.06579,               # changrad, headwater median (all cells 0.009729)
 }
 
 # The water-use option's inputs, used only when the case prescribes `abstr`.
@@ -244,7 +248,9 @@ WATER_USE = {
     "EnergyDemandMaps": (0.0, "no demand but the prescribed one"),
     "FractionGroundwaterUsed": (0.168, "shipped test catchment mean of fracgwusedNew, the map the reference settings name"),
     "FractionNonConventionalWaterUsed": (0.0, "shipped test catchment (fracncused is 0 everywhere)"),
-    "EFlowThreshold": (0.2604, "shipped test catchment median of ad_dis_nat_10, m3/s"),
+    "EFlowThreshold": (0.0700, "shipped test catchment: median of ad_dis_nat_10 over its 961 headwater "
+                               "cells (upstream area one cell), m3/s; all cells 0.2604, per unit upstream "
+                               "area on 25 km2 0.0813"),
     "GroundwaterBodies": (1.0, "shipped test catchment median of ad_gwbodies"),
     "FractionLakeReservoirWaterUsed": (0.25, "LISFLOOD reference default (lakes and reservoirs are off)"),
     "WUsePercRemain": (0.5, "LISFLOOD reference default"),
@@ -521,7 +527,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             records.append((
                 first(evaporation), first(outflow_m3s) * self.DtSec * m3_to_mm, first(self.GwLossWB),
                 *storage_terms(self, veg_axis[0]), first(self.TotalPrecipitationWB),
-                from_groundwater, from_channel, short,
+                from_groundwater, from_channel, short, first(self.LZ),
             ))
 
     model = SteppedLisflood()
@@ -563,7 +569,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
     area_km2 = float(static["area_km2"])
     rows = []
     for step, rec in zip(forcing, records):
-        evaporation, outflow_mm, loss, soil, snow, canopy, groundwater, channel, _, gw_take, ch_take, _ = rec
+        evaporation, outflow_mm, loss, soil, snow, canopy, groundwater, channel, _, gw_take, ch_take, _, _ = rec
         mrro = outflow_mm / dt_day
         rows.append({
             "time": step["time"],
@@ -633,7 +639,8 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             "withdrawn_from_channel_mm": from_channel,
             "channel_shortage_mm": float(sum(r[11] for r in records)),
             "share_withdrawn": (from_groundwater + from_channel) / prescribed if prescribed > 0 else None,
-            "lz_min_mm": float(min(r[6] for r in records)),
+            "lz_min_mm": float(min(r[12] for r in records)),
+            "lz_min_note": "LISFLOOD's lower groundwater zone LZ at the end of each step, over the whole record",
         }
     return rows, notes
 

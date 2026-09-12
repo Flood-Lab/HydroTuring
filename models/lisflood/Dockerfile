@@ -36,6 +36,7 @@ RUN micromamba install -y -n base -c conda-forge --override-channels \
         python=3.12 pcraster=4.4.2 libgdal-core=3.12.4 \
         numpy=2.2.6 numba=0.65.1 numexpr=2.14.1 scipy=1.17.1 \
         pandas=2.3.3 netcdf4=1.7.4 cftime=1.6.5 pyproj=3.7.2 pip \
+        setuptools=84.0.0 wheel=0.48.0 \
  && micromamba clean --all --yes
 # setup.py calls gdal-config (shipped by libgdal-core) for the GDAL version
 # string, so the environment's bin directory must be on PATH.
@@ -46,9 +47,10 @@ RUN pip install --no-deps xarray==2026.4.0 nine==1.2.0 future==1.0.0
 # LISFLOOD 5.0.0: the sdist whose src/lisflood, LICENSE and VERSION are
 # identical to commit 025cff0, enforced by hash. --no-deps: its requirement
 # list pins the test tooling and GDAL's Python bindings, neither of which the
-# model imports.
+# model imports. --no-build-isolation: the sdist builds with the setuptools
+# and wheel pinned above instead of fetching unpinned ones.
 RUN printf 'lisflood-model==5.0.0 --hash=sha256:a1f7bd46ac43573d264210da0bb609c9823055ab1c552b3257dcba16ba103572\n' > /tmp/lisflood-requirements.txt \
- && pip install --no-deps --require-hashes -r /tmp/lisflood-requirements.txt \
+ && pip install --no-deps --no-build-isolation --require-hashes -r /tmp/lisflood-requirements.txt \
  && rm /tmp/lisflood-requirements.txt \
  && python -c "import lisflood, xarray, nine; print('lisflood', lisflood.__version__, 'xarray', xarray.__version__)"
 

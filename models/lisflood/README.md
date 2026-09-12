@@ -125,12 +125,27 @@ half of them.
 | soil hydraulics (theta_s, theta_r, lambda, Van Genuchten alpha, Ksat, three layers) | catchment means | test catchment |
 | crop coefficient, crop group, overland Manning's n | 0.9994, 2.692, 0.0933 | test catchment means |
 | hillslope gradient, elevation standard deviation | 0.236, 160 m | test catchment means |
-| channel Manning's n, bottom width, bankfull depth, side slope, gradient | 0.0468, 8.15 m, 0.331 m, 1, 0.0097 | test catchment medians |
+| channel Manning's n, side slope | 0.0468, 1 | test catchment medians over all cells |
+| channel bottom width, bankfull depth, gradient | 4.34 m, 0.165 m, 0.066 | test catchment medians over its 961 headwater cells |
 
 "Test catchment" is `tests/data/LF_ETRS89_UseCase` at the pinned commit,
-averaged over its 2847-cell mask. Channel geometry takes medians because
-channel dimensions grow with upstream area and the mean is set by the few
-large-river cells. `static.json`'s `baseflow_coefficient` has no LISFLOOD
+averaged over its 2847-cell mask. Channel dimensions and low flows grow with
+upstream area. The representative cell is a pit that drains only its own
+25 km², so it takes them from the catchment's 961 headwater cells, whose
+upstream area is one cell: the channel's bottom width, bankfull depth and
+gradient, and the environmental-flow threshold. The threshold had two
+sourced definitions:
+- the headwater median of `ad_dis_nat_10`, each cell's 10th-percentile natural
+  discharge: 0.0700 m3/s, with quartiles 0.035 and 0.152;
+- the median over all cells of `ad_dis_nat_10` per unit upstream area, on the
+  cell's 25 km²: 0.0813 m3/s.
+
+The adapter uses the first. It takes the reserve from the same cells as the
+channel it is applied to, and does not assume that low flow scales with area.
+The second is a sensitivity row under "A prescribed withdrawal". Channel
+Manning's n stays at its all-cell median of 0.0468 (headwater median 0.0613),
+and channel length at 5000 m, the grid's cell length (headwater median
+3653 m). `static.json`'s `baseflow_coefficient` has no LISFLOOD
 counterpart (LISFLOOD's recession is two linear zones with their own time
 constants) and is not used; `run.json` lists it. `run.json` records every
 value with its source.
@@ -231,12 +246,14 @@ differ only in the demand.
   `fracgwusedNew`, the map the reference settings name.
   - That share is subtracted from the lower groundwater zone
     (`LZ -= abstraction_GW_actual_M3`) with no availability check, so it is
-    always taken in full. LZ may fall below zero; in the packaged runs its
-    lowest value was 0.0016 mm.
+    always taken in full. LZ may fall below zero. In the packaged runs it
+    never does: its lowest value, 0.0016 mm, is its first step from empty,
+    and on withdrawal days the groundwater store (UZ + LZ) stays above
+    10.3 mm.
   - The rest is asked of the channel, limited to the channel water above an
     environmental-flow reserve, `ChanM3 - EFlowThreshold * DtSec`.
-    `EFlowThreshold` is 0.2604 m3/s, the test catchment's median of
-    `ad_dis_nat_10`. What the channel cannot give is recorded as a shortage
+    `EFlowThreshold` is 0.0700 m3/s, the median of `ad_dis_nat_10` over the
+    test catchment's headwater cells (see the parameter notes). What the channel cannot give is recorded as a shortage
     (`areatotal_shortage_SW_M3`) and is not taken from anywhere else. The
     channel withdrawal is removed inside the kinematic-wave routing, one
     sub-step at a time.
@@ -248,7 +265,7 @@ differ only in the demand.
   adapter's budget still closes to 1.8e-13 mm per step. `run.json` carries a
   `water_use` block: the option's inputs with their sources, the prescribed
   total, what came from groundwater and from the channel, the channel
-  shortage, the share withdrawn and the lowest LZ.
+  shortage, the share withdrawn and the lowest LZ over the record.
 
 **Zero withdrawal changes nothing.** Two other probes' cases were run as staged
 and again with a column of zeros added, which switches the option on:
@@ -257,53 +274,71 @@ result tables are byte-identical to the originals (sha256 99589bb6de08 and
 5e67467799ce). The second run of each shows the option on and nothing
 withdrawn.
 
-**What LISFLOOD withdraws on `mass/human-abstraction`.** These figures come
-from the probe's own cases, windows and criteria, run outside the harness's
-60 s limit. On the first gate seed (1129545695):
-- Of 418.0 mm prescribed over the record, LISFLOOD withdrew 70.6 mm (16.9%):
-  70.2 mm from the lower groundwater zone and 0.37 mm from the channel. It
-  recorded 347.4 mm as channel shortage.
-- Over the ten scored years, the criterion finds 64.2 mm of the 380 mm in the
-  budget: `mrro` -64.2 mm, `evspsbl` +0.0 mm, storage -0.03 mm. That leaves a
-  residual of 315.8 mm, 83.1% of the withdrawal against a 5% limit.
-- `closure` and `state_bounds` pass.
-- The other two gate seeds (1636497809, 2143449923) give the same picture:
-  71.3 mm withdrawn (17.1%), 64.9 mm found in the budget, and a residual of
-  82.9%.
-- Water taken from the lower zone returns as less baseflow, which is why
-  runoff carries the withdrawal rather than storage.
+**What LISFLOOD withdraws on `mass/human-abstraction`.** LISFLOOD's rule on
+this domain is plain:
+- it takes the groundwater share of the demand in full;
+- it takes the rest only from channel water in the water region, above the
+  environmental-flow reserve;
+- it records what the channel cannot give as shortage, and takes that from
+  nowhere else.
 
-The channel supplies almost nothing because LISFLOOD's channel abstraction
-draws on the water held in the channel at the start of the step, above the
-reserve, not on what flows through the channel during the step.
-- On this one 5 km cell the channel and overland store averages 0.53 mm over
-  the record and 0.29 mm on withdrawal days.
-- The reserve, 0.2604 m3/s held for a day, is 0.90 mm over the cell. The store
-  exceeds it on 600 of 4015 days.
-- The cell's mean outflow is 0.40 m3/s, and it is below the threshold on 2772
-  of 4015 days.
+The water region here is one headwater cell, so most of the prescription is
+left untaken. These figures come from the probe's own cases, windows and
+criteria on its three gate seeds, run outside the harness's 60 s limit. They
+run from the sourced reserve to no reserve at all:
 
-Two diagnostic runs of the same irrigated case show which input sets the
-share. Each changes one water-use input; the packaged values stay the sourced
-ones.
+| Gate seed | Withdrawn, sourced reserve | Residual | Withdrawn, no reserve | Residual |
+| --- | --- | --- | --- | --- |
+| 1129545695 | 17.0% | 82.9% | 31.6% | 68.4% |
+| 1636497809 | 17.2% | 82.7% | 33.1% | 66.7% |
+| 2143449923 | 17.4% | 82.7% | 33.1% | 67.1% |
 
-| Run | From groundwater | From channel | Channel shortage | Share withdrawn | Lowest LZ |
-| --- | --- | --- | --- | --- | --- |
-| packaged: `FractionGroundwaterUsed` 0.168, `EFlowThreshold` 0.2604 m3/s | 70.2 mm | 0.4 mm | 347.4 mm | 16.9% | 0.0016 mm |
-| no reserve: `EFlowThreshold` 0 | 70.2 mm | 112.2 mm | 235.6 mm | 43.6% | 0.0016 mm |
-| all from groundwater: `FractionGroundwaterUsed` 1 | 418.0 mm | 0 | 0 | 100% | -9.2 mm |
+- **The bracket.** LISFLOOD withdraws between 17.0% and 33.1% of the 418 mm
+  prescribed over the record. That leaves a residual of 82.9% down to 66.7% of
+  the 380 mm scored, against a 5% limit.
+- **Where the withdrawal comes from.** The groundwater share is 70.2 mm on
+  every seed. With the sourced reserve the channel gives 1.0 to 2.3 mm and
+  leaves 345 to 347 mm as shortage. With no reserve it gives 62 to 68 mm.
+- **Other criteria.** `closure` and `state_bounds` pass on every seed.
+- **Where it shows.** Water taken from the lower zone returns as less
+  baseflow, so runoff carries the withdrawal and storage barely moves
+  (-0.03 mm).
 
-Every run's budget closes to 1.8e-13 mm per step.
-- Asked of the lower zone, LISFLOOD takes the whole prescription and lets the
-  zone fall below zero.
-- Asked of the channel, it cannot find the water even with no reserve. LISFLOOD
-  meets a water region's demand from the channel water of all the region's
-  cells, and here the region is a single 5 km reach.
+The channel gives little because LISFLOOD's channel abstraction draws on the
+water held in the region's channels at the start of the step, above the
+reserve, not on what flows through them during the step.
+- The reserve, 0.0700 m3/s held for a day, is 0.24 mm over the cell.
+- On this one cell the channel and overland store averages 0.41 mm over the
+  record and 0.22 mm on withdrawal days. It exceeds the reserve on 1267 of
+  4015 days.
+- The cell's outflow is below the threshold on 814 of 4015 days (20%), where
+  a 10th-percentile flow would be undercut on about 10%. The old all-cell
+  median, 0.2604 m3/s, was undercut on 2772 of 4015 days with the `.3` cell.
+- In the test catchment a water region's median size is 121 cells; here it is
+  one.
 
-How much of `abstr` LISFLOOD accounts for therefore depends on the groundwater
-share and on the channel water where the withdrawal is made. The adapter does
-not set either one to pass: both are the test catchment's values, and what
-LISFLOOD removes is what is declared.
+On seed 1129545695, runs that change one water-use input at a time show which
+input sets the share:
+
+| Run | From groundwater | From channel | Channel shortage | Withdrawn | Residual | Lowest LZ |
+| --- | --- | --- | --- | --- | --- | --- |
+| packaged: `EFlowThreshold` 0.0700 m3/s, headwater median | 70.2 mm | 1.0 mm | 346.8 mm | 17.0% | 82.9% | 0.0016 mm |
+| `EFlowThreshold` 0.0813 m3/s, per unit upstream area | 70.2 mm | 0.7 mm | 347.0 mm | 17.0% | 83.0% | 0.0016 mm |
+| no reserve: `EFlowThreshold` 0 | 70.2 mm | 61.7 mm | 286.1 mm | 31.6% | 68.4% | 0.0016 mm |
+| all from groundwater: `FractionGroundwaterUsed` 1 | 418.0 mm | 0 | 0 | 100% | 0.0% | -9.2 mm |
+
+- **LZ.** LZ is recorded at the end of every step. In the first three runs its
+  lowest value is its first step, filling from empty. On withdrawal days in
+  the packaged run the groundwater store (UZ + LZ) stays above 10.3 mm.
+- **All from groundwater.** Asked for everything, LISFLOOD takes all of it and
+  lets LZ fall to -9.2 mm, and the probe passes.
+- **Budget.** Every run's budget closes to 1.8e-13 mm per step.
+- **Geometry.** With the all-cell channel geometry of `.3`, no reserve gave
+  43.6%. A headwater channel holds less water, so it gives less.
+
+`FractionGroundwaterUsed` stays the test catchment's 0.168, and every other
+input stays the test catchment's value; none is set to pass. What LISFLOOD
+removes is what `gwex` declares.
 
 ## Timestep
 
@@ -325,8 +360,10 @@ Three settings, each checked to leave every output byte unchanged:
 The adapter's own per-step store sums run on the numpy arrays under
 LISFLOOD's vegetation-fraction wrappers.
 
-These timings are for this image under amd64 emulation, on an Apple-silicon host
-that was also evaluating other models (load average 15 to 16):
+These timings were measured with the `.3` image under amd64 emulation, on an
+Apple-silicon host that was also evaluating other models (load average 15 to
+16). `.4` does the same work per step: it ran the same 395- and 1460-row cases
+in 14.1 and 34.7 s of wall time, beside the archive run.
 
 | Case | Rows | Initialise | Run | Per step |
 | --- | --- | --- | --- | --- |
@@ -335,14 +372,16 @@ that was also evaluating other models (load average 15 to 16):
 | `mass/catchment-closure`, whole ten-year record | 4015 | 5.2 s | 91.7 s | 23 ms |
 
 A ten-year daily record takes 97 s there. That is over the 60 s budget of
-`mass/precipitation-counterfactual` and `mass/human-abstraction`. With the
-host nearly idle (load average 4 to 7), the archive run's ten-year cases still
-took 88 and 96 s.
+`mass/precipitation-counterfactual` and `mass/human-abstraction`. In the `.4`
+archive run, whose log records a load average of 10.8 at its start, the
+ten-year cases took 88 and 90 s. The harness stops waiting at 60 s but does
+not stop the container. The timed-out human-abstraction case ran on for
+another 30 s while the next probe started.
 
 ## Result
 
 **FAIL (ERROR), 14 of 20 probes passed, 3 N/A (INCOMPLETE).** These are the
-rows of the full gate-seed run of `5.0.0-onecell.3`, made on the emulated host
+rows of the full gate-seed run of `5.0.0-onecell.4`, made on the emulated host
 described under "Native re-run". The verdict is ERROR because two probes ran
 out of time on that host. Any ERROR among the scored probes makes the verdict
 FAIL (ERROR), whatever the other probes score.
@@ -353,13 +392,14 @@ FAIL (ERROR), whatever the other probes score.
   They are neither a pass nor a fail, and do not decide the verdict.
 - **ERROR, 2:** `mass/precipitation-counterfactual` and
   `mass/human-abstraction`. The container exceeded the 60 s budget, because a
-  ten-year record takes 97 s under emulation. These rows come from the
-  emulated host.
+  ten-year record takes about 90 s under emulation (88 and 90 s in this run).
+  These rows come from the emulated host.
   - Run outside the limit on all three gate seeds,
     `mass/precipitation-counterfactual` passes every criterion.
   - `mass/human-abstraction` fails `human_abstraction` there. LISFLOOD
-    withdraws about 17% of the prescription, which leaves a residual of about
-    83% against a 5% limit; `closure` and `state_bounds` pass.
+    withdraws 17.0 to 33.1% of the prescription, from the sourced reserve to
+    none. That leaves a residual of 82.9 to 66.7% against a 5% limit;
+    `closure` and `state_bounds` pass.
   - On a host fast enough for the budget, the first should PASS and the second
     be VIOLATION. The model's verdict would then be FAIL (VIOLATION), with 15
     of 20 probes passed and 3 N/A.
@@ -390,6 +430,14 @@ Against the `.2` rows:
   roll-up and are N/A (INCOMPLETE) under main's.
 - No other probe's verdict moved.
 
+Against the `.3` rows, `.4` changes the environmental-flow reserve and the
+channel's bottom width, bankfull depth and gradient to the headwater values.
+No probe's verdict or reason moved:
+- the routing-sensitive probes still pass, and `mass/area-invariance` still
+  departs by exactly 0;
+- `mass/resolution-invariance` is 13.0% in both;
+- the two ten-year probes are ERROR on this host in both.
+
 ## Mechanisms checked with targeted runs
 
 **`mass/resolution-invariance`: rain within the hour runs off.** LISFLOOD's
@@ -404,11 +452,11 @@ stretch:
 | Run | Runoff | Evaporation | Runoff against PT1D, share of rain |
 | --- | --- | --- | --- |
 | PT1D | 158.3 mm | 51.0 mm | |
-| PT1H | 185.9 mm | 34.4 mm | +13.0% |
+| PT1H | 185.8 mm | 34.4 mm | +13.0% |
 | PT1H, `InfiltrationPot` not multiplied by `DtDay` | 156.8 mm | 48.8 mm | -0.7% |
 | PT1H, each day's rain spread evenly over its hours | 158.1 mm | 51.0 mm | -0.08% |
 
-Every run's budget closes to 5e-14 mm per step.
+Every run's budget closes to 6e-14 mm per step.
 
 **`mass/area-invariance`: the cell, not the model.** The departure is the
 harness's measure: the largest difference between the two runs over the
@@ -428,9 +476,10 @@ control's mean magnitude. The pairs are the probe's first gate seed
 - The packaged cell passes on all three, with every variable identical.
 
 **`mass/human-abstraction`.** See "A prescribed withdrawal" above: LISFLOOD
-withdraws 16.9 to 17.1% of the prescription on the three gate seeds, all but
-at most 1.1 mm of it from the lower groundwater zone, and records the rest as
-channel shortage.
+withdraws 17.0 to 17.4% of the prescription on the three gate seeds with the
+sourced reserve, and 31.6 to 33.1% with none. It takes the groundwater share
+in full, and from the channel only what one headwater cell holds above the
+reserve.
 
 **`mass/precipitation-counterfactual` outside the time limit.** The probe's
 own cases, windows and criteria, run outside the 60 s limit: every criterion
@@ -457,9 +506,11 @@ sub-step effect.
 **The two ERROR rows come from the host's speed.** Both probes score a ten-year
 daily record (4015 rows with spinup) in a container with a 60 s budget, and the
 harness stops a probe at its first timeout.
-- Run outside the limit on this host, each variant took 87 to 104 s.
-- In the archive run, with the host's load average between 4 and 7, the first
-  ten-year cases still took 88 and 96 s.
+- Run outside the limit on this host, each `.4` variant took 96 to 110 s, two
+  containers at a time.
+- In the `.4` archive run the first ten-year cases took 88 and 90 s. The
+  harness stops waiting at 60 s but not the container, which runs on into the
+  next probe.
 - Per step, a ten-year record runs at the speed of a 30-day case (21 to 23 ms).
 
 Nothing in the model slows down; ten years of LISFLOOD's Python framework
@@ -470,12 +521,14 @@ under amd64 emulation simply need more than 60 s.
 Every row this package has archived was produced on an Apple-silicon host
 running the amd64 image under emulation. Two probes score a ten-year daily
 record in a container with a 60 s budget, `mass/precipitation-counterfactual`
-and `mass/human-abstraction`. Under emulation a ten-year run took 97 s, so
-their rows in the archive are ERROR because of the host's speed alone. On an
+and `mass/human-abstraction`. Under emulation a ten-year run takes about
+90 s (88 and 90 s in the archive run), so their archived rows are ERROR
+because of the host's speed alone. On an
 x86-64 Linux host, from the repository root:
 
 ```bash
-docker build -t hydroturing/lisflood:5.0.0-onecell.3 -f models/lisflood/Dockerfile models/lisflood
+rm -f /tmp/lisflood-native.csv   # ht run --csv appends
+docker build -t hydroturing/lisflood:5.0.0-onecell.4 -f models/lisflood/Dockerfile models/lisflood
 ht verify-adapter --model lisflood
 ht run --model lisflood --gate-seeds --csv /tmp/lisflood-native.csv --markdown
 ```
@@ -492,8 +545,18 @@ ht verify-adapter --model lisflood --csv models/result.csv
 git diff origin/main -- models/result.csv   # only lisflood lines
 ```
 
-Then update the verdict and "N of 20" in this README, the top-level README
-row and the three site rows.
+Then rewrite everything that describes the emulated host:
+- the verdict, "N of 20" and the ERROR narrative under "Result", and the
+  time-budget paragraph under "Mechanisms checked with targeted runs";
+- the ten-year timings in this README, in `model.yaml`'s closing comment and
+  in the top-level README row;
+- the share of `abstr` LISFLOOD withdraws and the residual, wherever they are
+  quoted, from the native `mass/human-abstraction` row;
+- the top-level README row and the three rows of `site/index.html`.
+
+If the ten-year cases still exceed 60 s on the native host, the ERROR is the
+model's own at its reference routing sub-step. The archived cases need about
+1.5 times this host's speed to fit (88 and 90 s against 60 s).
 
 ## Running it
 
