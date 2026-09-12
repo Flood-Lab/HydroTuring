@@ -239,12 +239,13 @@ this list is caught before it lands rather than noticed a week later.
 For a merged probe:
 
 1. `README.md`: a row in the probes table, and a row in the reference-models
-   table for every reference model the probe adds. If the probe requires a
-   variable the physical models do not report, their standing changes from
-   "PASS, N of N" to "PASS, N of N+1, INCOMPLETE on ...", because a probe that
-   cannot be put to a model counts neither way, and the sentence above the
-   table that says what they must pass changes with it. The same holds for a
-   submitted model: its verdict and reason do not move, only its count.
+   table for every reference model the probe adds. A model's standing counts
+   its passes out of the probes that could score it. A probe it is N/A on,
+   because it does not report a variable the probe needs or cannot consume
+   it, changes neither number, so "PASS, N of N" stays as it is; if that is
+   true of the physical models, only the sentence above the table that says
+   what they must pass changes. A probe that can score a model adds one to its
+   total, and one to its passes if the model passes it.
 2. `CONTRIBUTORS.md`: a row in the probes table naming the author with
    their affiliation, as `Name (Institution)`. A merged probe earns
    co-authorship, so this row is the record of that. The affiliation comes
@@ -261,8 +262,10 @@ For a merged probe:
    above it if it counted the unclaimed entries.
 4. `site/index.html`, three times, once per language block: the row in
    `probes.rows` moves from the wanted block to the merged block under its
-   real id; every `N / M` in `models.rows` takes the new probe count; the
-   flowchart under "How it works" gains a labelled entry in the right pillar,
+   real id; an `N / M` in `models.rows` moves only for a model the new probe
+   can score, because M counts the probes that could ask that model
+   something and a probe it is N/A on is in neither number; the flowchart
+   under "How it works" gains a labelled entry in the right pillar,
    with an `infra.probe.<key>` translation in each language, measured against
    the pillar's width. The badge count is generated and needs nothing.
 5. `models/result.csv`: one row per evaluated model on the new probe, written

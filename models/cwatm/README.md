@@ -18,11 +18,9 @@ adapter can read rather than reconstruct.
 
 ## Verdict
 
-**FAIL (VIOLATION)**, 14 of 20 probes passed, on the gate seeds and the full
-record of every probe (`ht run --model cwatm --gate-seeds`). CWatM reports no
-heat fluxes, so the three energy-flux probes cannot ask it anything: they are
-N/A (INCOMPLETE) and count neither way. Three probes it can be asked fail as
-VIOLATION, and they are not alike.
+**FAIL (VIOLATION)**, 14 of 17 probes passed, on the gate seeds and the full
+record of every probe (`ht run --model cwatm --gate-seeds`). Three probes fail
+as VIOLATION, and they are not alike.
 
 - `resolution-invariance` is the model: CWatM has no step other than a day,
   and no choice made here moves it.

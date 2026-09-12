@@ -98,11 +98,92 @@ def test_site_lists_the_probe_as_merged_in_every_language(probe_id):
         assert 'class="tag merged"' in row, f"{probe_id} is not tagged merged on the site: {row[:120]}"
 
 
-def test_site_counts_probes_out_of_the_right_total():
-    counts = re.findall(r"<td>(\d+) / (\d+)</td>", read("site/index.html"))
-    assert counts, "no probe counts found in the site's models table"
-    wrong = {total for _, total in counts if int(total) != len(PROBE_IDS)}
-    assert not wrong, f"site models table counts out of {wrong}, but there are {len(PROBE_IDS)} probes"
+def _archived_standings(path=REPO_ROOT / "models" / "result.csv") -> dict[str, dict]:
+    """Each model's standing at the version archived last.
+
+    Per model: that version, the merged probes archived at it, and its passes
+    and scored probes there. A probe that could not be put to a model is N/A
+    and in neither number, so every model is counted out of its own total: a
+    runoff-only model out of the probes that can ask about runoff, not out of
+    the whole suite. Rows for probes no longer in the suite are not counted.
+    """
+    with open(path, newline="", encoding="utf-8") as fh:
+        rows = [r for r in csv.DictReader(fh) if r["probe"] in PROBES]
+    version = {r["model"]: r["version"] for r in rows}
+    latest = {
+        (r["model"], r["probe"]): r["verdict"] for r in rows if r["version"] == version[r["model"]]
+    }
+    standings = {
+        model: {"version": v, "probes": set(), "passed": 0, "scored": 0}
+        for model, v in version.items()
+    }
+    for (model, probe), verdict in latest.items():
+        standing = standings[model]
+        standing["probes"].add(probe)
+        if verdict != "N/A":
+            standing["scored"] += 1
+            standing["passed"] += verdict == "PASS"
+    return standings
+
+
+def _assert_counts_match_archive(
+    where: str,
+    listed: list[str],
+    found: list[tuple[str, str, str]],
+    standings: dict[str, dict] | None = None,
+) -> None:
+    """Every model row states its passes out of its scored probes, as archived.
+
+    The standing is taken at the version archived last, which has to have been
+    run on every merged probe: `ht run --probe` appends a single probe's row,
+    and a newer version archived on one probe alone would otherwise count as
+    1 of 1. A row may leave the count out only for a model no probe could
+    score, which has nothing to count.
+    """
+    standings = _archived_standings() if standings is None else standings
+    partial = [
+        f"{model} {standings[model]['version']} ({len(standings[model]['probes'])} of {len(PROBE_IDS)})"
+        for model in listed
+        if model in standings and len(standings[model]["probes"]) < len(PROBE_IDS)
+    ]
+    assert not partial, (
+        f"{where} states a standing for {partial}, but the newest archived version was not run "
+        "on every probe; archive a full run before stating it"
+    )
+    counted = {model for model, _, _ in found}
+    uncounted = [
+        model for model in listed if model not in counted and standings.get(model, {}).get("scored")
+    ]
+    assert not uncounted, f"{where} gives no count for {uncounted}, though the archive scored them"
+    wrong = []
+    for model, passed, total in found:
+        standing = standings.get(model)
+        expected = (standing["passed"], standing["scored"]) if standing else None
+        if expected != (int(passed), int(total)):
+            archive = f"{expected[0]} of {expected[1]}" if expected else "none"
+            wrong.append((model, f"{passed} of {total}", archive))
+    assert not wrong, f"{where} counts disagree with models/result.csv (model, stated, archive): {wrong}"
+
+
+def test_site_counts_each_model_out_of_the_probes_it_was_scored_on():
+    rows = "".join(re.findall(r'"models\.rows":`(.*?)`', read("site/index.html"), re.DOTALL))
+    listed = re.findall(r'<tr><td class="mono">([a-z0-9_]+)</td>', rows)
+    found = re.findall(r'<tr><td class="mono">([a-z0-9_]+)</td>.*?<td>(\d+) / (\d+)</td>', rows)
+    assert listed, "no model rows found in the site's models table"
+    _assert_counts_match_archive("the site", listed, found)
+
+
+def test_readme_counts_each_model_out_of_the_probes_it_was_scored_on():
+    readme = read("README.md")
+    listed = re.findall(r"^\| \[`([a-z0-9_]+)`\]\(models/", readme, re.MULTILINE)
+    found = re.findall(
+        r"^\| \[`([a-z0-9_]+)`\]\(models/[a-z0-9_]+\) \|.*?"
+        r"\*\*(?:PASS|FAIL \([A-Z]+\)|N/A \([A-Z]+\))\*\*, (\d+) of (\d+)",
+        readme,
+        re.MULTILINE,
+    )
+    assert listed, "no model rows found in the README's models table"
+    _assert_counts_match_archive("the README", listed, found)
 
 
 def test_site_flowchart_shows_every_probe():
