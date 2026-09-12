@@ -82,9 +82,10 @@ of 5 K pass while 10 K fails, with a neglected second-order term near
 2.8 W m-2. That optional control is not part of the gate.
 
 In a sweep of the five gate seeds plus seeds 0-199, a blackbody approximation
-(`rlus = sigma * ts^4`) passes 11 of 205 cases at high emissivity.
-It fails all five gate seeds, but passes all 205 cases with
-`eps` forced to 0.99.
+(`rlus = sigma * ts^4`) passes 11 of 205 cases: every case whose drawn `eps`
+is 0.9881 or more, and none at 0.9864 or less, so it passes above about
+`eps` 0.987. The gate seeds draw `eps` up to 0.9844, so it fails all five of
+them today, but it passes all 205 cases with `eps` forced to 0.99.
 
 Emission linearized around the previous step's Ts passes 8 of those 205
 cases. Its maximum residual-to-tolerance ratio ranges from 0.88 to 1.80
