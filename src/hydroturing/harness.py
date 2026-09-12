@@ -13,10 +13,11 @@ import pandas as pd
 
 from hydroturing import SUITE_VERSION, criteria as criteria_mod
 from hydroturing.criteria.base import CriterionResult
-from hydroturing.protocol import Case, ProtocolError, RunResult
+from hydroturing.protocol import Case, RunResult
 from hydroturing.runner import get_runner
 from hydroturing.scoring import (
     FAIL,
+    NOT_SCORED,
     PASS,
     CriterionOutcome,
     ModelReport,
@@ -41,6 +42,18 @@ WINDOW_DRIVER = "pr"
 
 class WindowError(ValueError):
     """A window cannot be cut from this case without breaking the probe."""
+
+
+class IncompatibleError(Exception):
+    """The model cannot consume this probe, which is N/A (INCOMPATIBLE) for it.
+
+    Raised before the adapter runs, so that a check that never put the probe
+    to the model is not mistaken for an adapter that broke the contract.
+    """
+
+    def __init__(self, issues: list[str]):
+        super().__init__("; ".join(issues))
+        self.issues = list(issues)
 
 
 def resolve_window_days(
@@ -366,7 +379,13 @@ def verify_adapter_contract(
 
     Contract verification must not short-circuit merely because a scientific
     probe needs variables the model does not produce. That limitation belongs
-    to the later INCOMPLETE verdict, not to this smoke test.
+    to the probe's later N/A (INCOMPLETE), not to this smoke test.
+
+    A probe the model cannot consume is another matter: a step it does not
+    declare, a forcing it needs and the probe does not generate, a window
+    that drops a stretch the probe scores. There is nothing to run the
+    adapter on, so IncompatibleError is raised before it is invoked, on the
+    same grounds that make `run_probe` call the probe N/A (INCOMPATIBLE).
 
     The case is cut to the model's evaluation window, as it will be in the
     real run, so a model that only fits its time budget on the window is
@@ -377,11 +396,15 @@ def verify_adapter_contract(
     case = build_case(probe, seed, select_variants(model, probe)[0])
     issues = compatibility_issues(model, probe, case, check_perturbation=False)
     if issues:
-        raise ProtocolError("; ".join(issues))
+        raise IncompatibleError(issues)
 
     days = resolve_window_days(model, probe, window)
     if days is not None:
-        case = window_case(case, select_window(case, probe, days))
+        bounds = select_window(case, probe, days)
+        try:
+            case = window_case(case, bounds)
+        except WindowError as exc:
+            raise IncompatibleError([str(exc)]) from exc
 
     smoke_probe = replace(
         probe,
@@ -416,7 +439,7 @@ def run_probe(
         return ProbeOutcome(
             probe_id=probe.id,
             law=probe.law,
-            verdict=FAIL,
+            verdict=NOT_SCORED,
             reason=reason_for([], missing, None, incompatible),
             missing=missing,
             incompatible=incompatible,
@@ -444,7 +467,7 @@ def run_probe(
         return ProbeOutcome(
             probe_id=probe.id,
             law=probe.law,
-            verdict=FAIL,
+            verdict=NOT_SCORED,
             reason=reason_for([], [], None, issues),
             incompatible=issues,
             seeds=seeds,
@@ -452,17 +475,32 @@ def run_probe(
             window_days=days,
         )
 
-    for seed in seeds:
-        runs: dict[str, RunResult] = {}
-        # One window per seed, chosen on the control variant and applied to
-        # every variant in time, so a paired probe still compares the same
-        # stretch of the same weather under its two treatments, even when
-        # the treatments run at different steps.
-        bounds: WindowBounds | None = None
-        try:
+    def error_outcome(exc: Exception) -> ProbeOutcome:
+        # A bare assert or an exhausted next() has no message. It is still the
+        # machinery failing, and an empty message must not read as reason OK.
+        message = str(exc) or type(exc).__name__
+        return ProbeOutcome(
+            probe_id=probe.id, law=probe.law, verdict=FAIL,
+            reason=reason_for([], [], message),
+            seeds=seeds, error=message, authors=list(probe.authors),
+            window_days=days, windows=windows,
+        )
+
+    # Every seed's cases are built, checked and cut to their windows before
+    # the model runs on any of them. A case the model cannot consume makes
+    # the probe N/A, and N/A has to mean the probe asked the model nothing:
+    # found on a later seed, after earlier seeds had been scored, it would
+    # discard failures that were already measured.
+    prepared: list[tuple[int, list[tuple[str | None, Case]]]] = []
+    try:
+        for seed in seeds:
+            # One window per seed, chosen on the control variant and applied
+            # to every variant in time, so a paired probe still compares the
+            # same stretch of the same weather under its two treatments, even
+            # when the treatments run at different steps.
+            bounds: WindowBounds | None = None
+            cases: list[tuple[str | None, Case]] = []
             for variant in variants:
-                suffix = f"__{variant}" if variant else ""
-                io_dir = tmp_root / f"{model.name}__{probe.slug}__{seed}{suffix}"
                 case = build_case(probe, seed, variant)
                 issues = compatibility_issues(model, probe, case)
                 if issues:
@@ -476,18 +514,24 @@ def run_probe(
                         return incompatible_outcome([str(exc)])
                     if variant in (None, variants[0]):
                         windows.append({"seed": seed, **case.window})
+                cases.append((variant, case))
+            prepared.append((seed, cases))
+    except Exception as exc:  # noqa: BLE001 - a generator or window-locating failure is an ERROR, not a traceback
+        return error_outcome(exc)
+
+    for seed, cases in prepared:
+        runs: dict[str, RunResult] = {}
+        try:
+            for variant, case in cases:
+                suffix = f"__{variant}" if variant else ""
+                io_dir = tmp_root / f"{model.name}__{probe.slug}__{seed}{suffix}"
                 runs[variant or "_"] = runner.run(model, probe, case, io_dir)
             for result in evaluate_criteria(runs, probe, control=variants[0] or "_"):
                 per_criterion[result.name].append((seed, result))
                 if result.diagnostics.get("suspicious_exact"):
                     flags.append(f"suspicious_exact:{probe.id}")
-        except Exception as exc:  # generator, runner, protocol, or criterion failure
-            return ProbeOutcome(
-                probe_id=probe.id, law=probe.law, verdict=FAIL,
-                reason=reason_for([], [], str(exc)),
-                seeds=seeds, error=str(exc), authors=list(probe.authors),
-                window_days=days, windows=windows,
-            )
+        except Exception as exc:  # noqa: BLE001 - a runner, protocol or criterion failure is an ERROR
+            return error_outcome(exc)
 
     outcomes = []
     for name, pairs in per_criterion.items():
@@ -517,6 +561,7 @@ def run_probe(
         reason=reason_for(failing, [], None),
         seeds=seeds,
         criteria=outcomes,
+        headline=list(probe.headline),
         flags=sorted(set(flags)),
         authors=list(probe.authors),
         window_days=days,

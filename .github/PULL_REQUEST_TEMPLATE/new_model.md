@@ -22,8 +22,8 @@ emits:
 ```
 
 <!-- If this list is short, say so plainly. A model that reports discharge
-     alone is scored FAIL (INCOMPLETE), which is an honest result and one
-     worth recording. Do not pad the list to escape it. -->
+     alone is N/A (INCOMPLETE) on every probe that needs more, which is an
+     honest result and one worth recording. Do not pad the list to escape it. -->
 
 ## Result
 

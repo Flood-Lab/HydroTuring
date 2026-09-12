@@ -227,17 +227,20 @@ model can be written in any language. It ships as a container with a small
 adapter.
 
 Declare what the model genuinely produces and nothing more. A model that
-predicts discharge alone is scored `FAIL (INCOMPLETE)`, which is the honest
-outcome and a completely different statement from `FAIL (VIOLATION)`.
+predicts discharge alone is `N/A (INCOMPLETE)` on every probe that needs
+more, which is the honest outcome and a completely different statement from
+`FAIL (VIOLATION)`: those probes are not scored, and the rest decide its
+verdict.
 
 ### 2. Submit
 
 Push to your fork, then open a pull request titled `[MODEL] <name>`, linking
 the proposal issue.
 
-**Submitting a model that fails is welcome and useful.** `FAIL` with reason
-`INCOMPLETE` is the current state of nearly every published rainfall-runoff
-model, and recording that honestly is part of what the benchmark is for.
+**Submitting a model that fails is welcome and useful.** `N/A` with reason
+`INCOMPLETE` on the budget probes is the current state of nearly every
+published rainfall-runoff model, and recording that honestly is part of what
+the benchmark is for.
 Nobody is embarrassed by a result here; the point is to have one. Review is on
 the contract — does the adapter honour `/io`, is `emits` honest, is the image
 reproducible — never on the verdict.

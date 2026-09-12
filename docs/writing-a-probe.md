@@ -226,6 +226,15 @@ run against these four before anything else. `must_fail` pins which criterion do
 the catching, so a probe cannot appear to work while catching things for the
 wrong reason.
 
+On a probe with one case per seed, `must_fail` also decides what the report
+says when a model passes: the `detail` column of `models/result.csv` names
+each criterion it lists, with that criterion's own message, and no other. A
+precondition no baseline is pinned to, such as `closure` declared ahead of
+the identity it protects, is therefore never reported as the probe's result.
+A probe with `variants` reports its paired criteria instead, since
+everything beside them is a precondition checked on the control.
+`tests/test_report_detail.py` pins what every merged probe reports.
+
 The reference models available today:
 
 | Model | What it does | Caught by |
@@ -240,7 +249,7 @@ The reference models available today:
 | `reference_in_sample` | exact in range, leaks outside it | `regime_transfer` |
 | `reference_calendar` | recession drifts with the calendar year | `invariance` |
 | `reference_fixed_step` | treats every row as a day whatever the step is | `resolution_invariance` |
-| `reference_streamflow_only` | reports runoff only, from a store that never reads the temperature | scored `INCOMPLETE` on budget probes; `response_sign` |
+| `reference_streamflow_only` | reports runoff only, from a store that never reads the temperature | `N/A (INCOMPLETE)` on budget probes; `response_sign` |
 | `reference_anticipating` | reports runoff smoothed over a centred window, three days of the future in every value | `causality` |
 | `reference_climatology` | the seasonal mean, whatever the weather; never reads the rain | `dry_down` |
 | `reference_saturating` | daily runoff capped at 25 mm; flat beyond its training range | `monotone_response` |

@@ -17,6 +17,7 @@ import pytest
 
 from hydroturing import registry
 from hydroturing.harness import (
+    IncompatibleError,
     WindowBounds,
     WindowError,
     build_case,
@@ -254,7 +255,7 @@ def test_cli_window_and_csv_flags(probe, tmp_path, capsys):
 
 
 def test_models_that_never_ran_are_labelled_so(probe):
-    """An INCOMPLETE verdict is issued before the container starts. The
+    """An N/A (INCOMPLETE) outcome is decided before the container starts. The
     archive must not say the model was scored on a record it never saw."""
     from hydroturing.report import to_csv_rows, window_label
 
@@ -283,3 +284,105 @@ def test_contract_check_can_be_archived(probe, tmp_path):
     assert row["window"] == "full record"
     assert row["detail"].startswith("adapter contract OK: 4015 rows")
     assert row["seeds"] == str(gate_seeds(probe.id, 1)[0])
+
+
+def test_verify_adapter_is_not_run_on_a_window_that_drops_a_scored_stretch(probe, monkeypatch):
+    """The window rule is the one `run_probe` applies: a window that cuts away
+    a stretch the probe labels makes the probe N/A (INCOMPATIBLE), so the
+    contract is not checked on it either."""
+    from hydroturing import harness
+
+    real_build_case = harness.build_case
+
+    def labelled(probe, seed, variant=None):
+        case = real_build_case(probe, seed, variant)
+        # A labelled stretch at each end of the record: no 30-day window keeps both.
+        labels = np.array(["ordinary"] * case.n_steps, dtype=object)
+        labels[case.spinup_steps], labels[-1] = "first", "last"
+        return replace(case, forcing=case.forcing.assign(_regime=labels))
+
+    monkeypatch.setattr(harness, "build_case", labelled)
+    with pytest.raises(IncompatibleError, match="_regime"):
+        verify_adapter_contract(_submitted(), probe, gate_seeds(probe.id, 1)[0])
+
+
+def test_contract_check_runs_on_a_probe_the_model_can_consume(tmp_path):
+    """Left to choose, the check picks a probe the model can consume. A model
+    driven by net radiation cannot be put to the closure probe, which
+    generates none, and is checked on one that does rather than failing a
+    contract it was never asked to honour."""
+    from hydroturing.cli import main
+
+    archive = tmp_path / "result.csv"
+    assert main(["verify-adapter", "--model", "reference_coupled", "--csv", str(archive)]) == 0
+    with open(archive, newline="") as fh:
+        (row,) = list(csv.DictReader(fh))
+    chosen = row["probe"].removesuffix(" (adapter contract)")
+    assert chosen != "mass/catchment-closure"
+    assert (row["verdict"], row["reason"]) == ("PASS", "OK")
+    assert row["seeds"] == str(gate_seeds(chosen, 1)[0])
+
+
+def test_contract_check_on_a_probe_the_model_cannot_consume_is_not_scored(probe, tmp_path, capsys):
+    """Named a probe it cannot consume, the check says so and archives N/A
+    (INCOMPATIBLE) rather than FAIL (ERROR). It exits 1, as `ht run` does for
+    a model no probe could score, because CI reads only exit 2 as broken."""
+    from hydroturing.cli import main
+
+    archive = tmp_path / "result.csv"
+    assert main([
+        "verify-adapter", "--model", "reference_coupled",
+        "--probe", probe.id, "--csv", str(archive),
+    ]) == 1
+    out = capsys.readouterr().out
+    assert "mass/catchment-closure is N/A (INCOMPATIBLE)" in out
+    assert "forcing does not provide rn" in out
+    with open(archive, newline="") as fh:
+        (row,) = list(csv.DictReader(fh))
+    assert row["probe"] == "mass/catchment-closure (adapter contract)"
+    assert (row["verdict"], row["reason"], row["window"]) == ("N/A", "INCOMPATIBLE", "not run")
+    assert row["detail"] == "forcing does not provide rn"
+    assert row["seeds"] == str(gate_seeds(probe.id, 1)[0])
+
+
+def test_contract_check_with_no_probe_the_model_can_consume_is_not_scored(capsys, monkeypatch):
+    """With no probe it can consume there is nothing to run the adapter on.
+    That is N/A too, and names the closure probe's reasons."""
+    from hydroturing.cli import main
+
+    real_find_model = registry.find_model
+    unfed = replace(
+        real_find_model("reference_bucket"),
+        name="unfed_model",
+        needs_forcing=("pr", "unavailable_driver"),
+    )
+    monkeypatch.setattr(
+        registry, "find_model", lambda name: unfed if name == "unfed_model" else real_find_model(name)
+    )
+    assert main(["verify-adapter", "--model", "unfed_model"]) == 1
+    out = capsys.readouterr().out
+    assert "every probe is N/A (INCOMPATIBLE)" in out
+    assert "mass/catchment-closure: forcing does not provide unavailable_driver" in out
+
+
+def test_a_broken_contract_exits_2(probe, tmp_path, capsys, monkeypatch):
+    """An adapter that breaks the contract is an ERROR and exits 2, as in
+    `ht run`, so CI can tell it from a check that was N/A. A failure with no
+    message still says what failed."""
+    from hydroturing import harness
+    from hydroturing.cli import main
+
+    class Broken:
+        def run(self, model, probe, case, io_dir):
+            raise AssertionError()
+
+    monkeypatch.setattr(harness, "get_runner", lambda model: Broken())
+    archive = tmp_path / "result.csv"
+    assert main([
+        "verify-adapter", "--model", "reference_bucket",
+        "--probe", probe.id, "--csv", str(archive),
+    ]) == 2
+    assert "adapter contract FAILED for reference_bucket on mass/catchment-closure" in capsys.readouterr().out
+    with open(archive, newline="") as fh:
+        (row,) = list(csv.DictReader(fh))
+    assert (row["verdict"], row["reason"], row["detail"]) == ("FAIL", "ERROR", "AssertionError")

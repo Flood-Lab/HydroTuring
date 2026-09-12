@@ -16,6 +16,7 @@
   .infra .mono-small-accent{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:9px; fill:#0E6C78}
   .infra .tag-pass{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:11px; font-weight:600; fill:#2C7A57}
   .infra .tag-fail{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:11px; font-weight:600; fill:#A8501C}
+  .infra .tag-na{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:11px; font-weight:600; fill:#5B6E76}
 </style>
 <defs><marker id="infra-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0E6C78"/></marker></defs>
 <rect x="16" y="140" width="144" height="212" rx="8" fill="#FFFFFF" stroke="#B6C6C9"/>
@@ -102,10 +103,12 @@
 <rect x="650" y="140" width="134" height="212" rx="8" fill="#FFFFFF" stroke="#B6C6C9"/>
 <text x="717" y="124" class="mono-accent" text-anchor="middle">$ ht run --model</text>
 <text x="717" y="164" class="eyebrow" text-anchor="middle">VERDICT</text>
-<rect x="664" y="176" width="48" height="20" rx="4" fill="#DFF0E7"/>
-<text x="688" y="190" class="tag-pass" text-anchor="middle">PASS</text>
-<rect x="722" y="176" width="48" height="20" rx="4" fill="#F6E5D9"/>
-<text x="746" y="190" class="tag-fail" text-anchor="middle">FAIL</text>
+<rect x="662" y="176" width="36" height="20" rx="4" fill="#DFF0E7"/>
+<text x="680" y="190" class="tag-pass" text-anchor="middle">PASS</text>
+<rect x="703" y="176" width="36" height="20" rx="4" fill="#F6E5D9"/>
+<text x="721" y="190" class="tag-fail" text-anchor="middle">FAIL</text>
+<rect x="744" y="176" width="36" height="20" rx="4" fill="#EDF2F2"/>
+<text x="762" y="190" class="tag-na" text-anchor="middle">N/A</text>
 <text x="717" y="214" class="note" text-anchor="middle">with its reason</text>
 <text x="717" y="229" class="mono-small" text-anchor="middle">OK</text>
 <text x="717" y="241" class="mono-small" text-anchor="middle">VIOLATION</text>

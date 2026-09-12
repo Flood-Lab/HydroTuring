@@ -196,9 +196,11 @@ emits:
   states: []
 ```
 
-It will be scored `FAIL` with reason `INCOMPLETE`, which is the honest
-outcome. Fabricating an `evspsbl` column to avoid `INCOMPLETE` produces
-`VIOLATION` instead, which is worse and is also dishonest.
+Every probe that needs more than that will be `N/A` with reason
+`INCOMPLETE`, which is the honest outcome: not a fail, but a probe that
+cannot be put to the model, so it counts neither way. Fabricating an
+`evspsbl` column to avoid `INCOMPLETE` produces `VIOLATION` instead, which
+is worse and is also dishonest.
 
 Declare diagnostic outputs under the optional key `diagnostics: [ts]`.
 Criteria read diagnostics, but budgets never integrate or difference them;
@@ -213,7 +215,14 @@ ht run --model <model-name>              # the actual evaluation
 
 `verify-adapter` runs a single seed, on the same window the evaluation will
 use, and checks the shape of what came back. Get that green before looking
-at any residual. Both commands take `--csv models/result.csv` to append what
+at any residual. Without `--probe` it checks the closure probe, or the first
+probe the model can consume when it cannot consume that one: a step it does
+not declare, a forcing the probe does not generate, or a window that drops a
+stretch the probe scores makes a probe N/A (INCOMPATIBLE) for the model.
+When that is true of the probe named with `--probe`, or of every probe, the
+adapter is not run and the command exits 1, as `ht run` does for a model no
+probe could score. Exit 2 means the adapter broke the contract or the
+harness failed. Both commands take `--csv models/result.csv` to append what
 they found to the archive, and `--window DAYS|full` to override the
 manifest.
 
@@ -236,10 +245,13 @@ this list is caught before it lands rather than noticed a week later.
 For a merged probe:
 
 1. `README.md`: a row in the probes table, and a row in the reference-models
-   table for every reference model the probe adds. If the probe requires a
-   variable the physical models do not report, their standing changes from
-   "PASS, N of N" to "N of N+1, INCOMPLETE on ..." and the sentence above the
-   table that says what they must pass changes with it.
+   table for every reference model the probe adds. A model's standing counts
+   its passes out of the probes that could score it. A probe it is N/A on,
+   because it does not report a variable the probe needs or cannot consume
+   it, changes neither number, so "PASS, N of N" stays as it is; if that is
+   true of the physical models, only the sentence above the table that says
+   what they must pass changes. A probe that can score a model adds one to its
+   total, and one to its passes if the model passes it.
 2. `CONTRIBUTORS.md`: a row in the probes table naming the author with
    their affiliation, as `Name (Institution)`. A merged probe earns
    co-authorship, so this row is the record of that. The affiliation comes
@@ -256,14 +268,16 @@ For a merged probe:
    above it if it counted the unclaimed entries.
 4. `site/index.html`, three times, once per language block: the row in
    `probes.rows` moves from the wanted block to the merged block under its
-   real id; every `N / M` in `models.rows` takes the new probe count; the
-   flowchart under "How it works" gains a labelled entry in the right pillar,
+   real id; an `N / M` in `models.rows` moves only for a model the new probe
+   can score, because M counts the probes that could ask that model
+   something and a probe it is N/A on is in neither number; the flowchart
+   under "How it works" gains a labelled entry in the right pillar,
    with an `infra.probe.<key>` translation in each language, measured against
    the pillar's width. The badge count is generated and needs nothing.
 5. `models/result.csv`: one row per evaluated model on the new probe, written
    by `ht run --model <name> --probe <id> --gate-seeds --csv models/result.csv`
-   rather than by hand. INCOMPLETE is a verdict and is archived like any
-   other.
+   rather than by hand. A probe that cannot be put to the model is archived
+   as `N/A` with its reason, like any other row.
 6. This file, if the probe introduced a variable: a row in the table above.
    `spec.py` accepts the name the moment it is in `FLUX_VARS`; nothing tells
    an adapter author it exists except this table.

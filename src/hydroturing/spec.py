@@ -233,6 +233,27 @@ class ProbeSpec:
         """
         return self.variants[0] if self.variants else None
 
+    @property
+    def headline(self) -> tuple[str, ...]:
+        """The criteria this probe exists to score, in declaration order.
+
+        On a paired probe these are its paired criteria: the variants are run
+        for them alone, and every single-run criterion beside them is scored
+        on the control as a precondition. A probe with one case per seed has
+        no such mark, and its declaration order is no guide either, since a
+        precondition is often listed first. Its gate stands in: the criteria
+        its `must_fail` baselines are declared to trip, which are the
+        failures the probe is shown to catch.
+        """
+        # The package, not criteria.base: importing it is what fills the registry.
+        from hydroturing.criteria import is_paired  # noqa: PLC0415
+
+        paired = tuple(c.name for c in self.criteria if is_paired(c.name))
+        if paired:
+            return paired
+        caught = set(self.must_fail.values())
+        return tuple(c.name for c in self.criteria if c.name in caught)
+
 
 @dataclass(frozen=True)
 class ModelManifest:
@@ -275,9 +296,9 @@ class ModelManifest:
     def missing_for(self, probe: ProbeSpec) -> list[str]:
         """Variables the probe needs that this model never reports.
 
-        A non-empty result means the verdict is FAIL with reason INCOMPLETE:
-        the model cannot demonstrate conservation because it never says
-        enough to be checked.
+        A non-empty result means the probe is not scored, N/A with reason
+        INCOMPLETE: the model cannot demonstrate conservation because it never
+        says enough to be checked, and it has not violated it either.
         """
         return [v for v in probe.required_vars if v not in self.emitted]
 
