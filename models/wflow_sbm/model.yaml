@@ -1,5 +1,5 @@
 name: wflow_sbm
-version: "1.0.4-ht.2"
+version: "1.0.4-ht.4"
 description: >
   wflow_sbm, the distributed hydrological model of Deltares' Wflow.jl at v1.0.4
   (van Verseveld et al. 2024, GMD, which evaluates v0.7.3): the SBM soil column
@@ -22,13 +22,14 @@ entrypoint: ["julia", "--project=/opt/wflow_sbm", "--startup-file=no", "/opt/wfl
 # Wflow takes its step as timestepsecs; the resolution probe runs the next finer step too.
 timestep: [PT1D, PT1H]
 
-# Everything the sbm model type carries. `mrso` is the whole soil column, unsaturated and
-# saturated stores; `gw` is zero because the sbm type has no store below that column;
-# `channel` is the water in the land and river kinematic waves; `gwex` is the leakage out of
-# the saturated store, zero in the test model and here.
+# Every store the sbm model type carries. `mrso` is the whole soil column, unsaturated and
+# saturated stores; `channel` is the water in the land and river kinematic waves; `gwex` is the
+# leakage out of the saturated store, zero in the test model and here, plus, when a probe
+# prescribes a withdrawal (`abstr`), minus what Wflow's water allocation took for it. There is no
+# `gw`: the sbm type has no store below the soil column, and run.json says so under `not_reported`.
 emits:
   fluxes: [pr, evspsbl, mrro, dis, gwex]
-  states: [mrso, snw, canopy, gw, channel]
+  states: [mrso, snw, canopy, channel]
 
 needs_forcing: [pr, tas, pet]
 supports:

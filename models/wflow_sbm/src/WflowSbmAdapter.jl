@@ -40,7 +40,7 @@ nothing follows the calendar. Where the test model has no value, Wflow's documen
 applies.
 
 Switched off, each because the probe's catchment has none of it: reservoirs and lakes,
-glaciers, paddies, irrigation and all water demand, floodplains, lateral snow transport
+glaciers, paddies, irrigation and water demand other than a prescribed withdrawal, floodplains, lateral snow transport
 (which at a pit would carry snow out of the map), the frozen-soil infiltration reduction,
 open water outside the river (`WaterFrac` 0) and the leakage out of the bottom of the
 saturated store (`MaxLeakage` 0, as in the test model).
@@ -66,7 +66,8 @@ Fluxes, as rates in mm per day unless stated:
              out of the outlet cell, which Wflow passes out of the map rather than into the
              river because the outlet has no cell downstream of it
 * `dis`      `mrro` over the catchment's area, in m3/s
-* `gwex`     minus the leakage out of the saturated store (zero: `MaxLeakage` is 0)
+* `gwex`     minus the leakage out of the saturated store (zero: `MaxLeakage` is 0), and minus
+             the water Wflow's allocation took when the case prescribes a withdrawal
 
 States, absolute, in mm:
 
@@ -74,19 +75,43 @@ States, absolute, in mm:
              saturated store. SBM's saturated zone is the lower part of the same column
              below a pseudo water table, bounded by the same thickness and porosity, and it
              is the capacity of that column that `soil_capacity_mm` names
-* `gw`       zero. The `sbm` model type has no store below the soil column (that is the
-             `sbm_gwf` type); its lateral subsurface flow moves the saturated store above
 * `snw`      dry snow plus the liquid water held in the pack
 * `canopy`   the canopy storage (identically zero at a daily step, where Gash applies)
 * `channel`  the water in the land and river kinematic waves: generated as runoff and not
              yet released at the outlet
 
-The budget closes over these by construction of the mapping, and run.json records both the
-adapter's per-step residual and Wflow's own mass-balance errors for each component. The
-schematisation (static maps, forcing and TOML, well under a megabyte for a ten-year daily
-case) is written to a temporary directory on /tmp and removed after the run; nothing else is
-written outside /io/output. Wflow is deterministic; the request seed is recorded and
-otherwise unused.
+`gw` is not reported: the `sbm` model type has no store below the soil column (that is the
+`sbm_gwf` type), and run.json says so under `not_reported`.
+
+A prescribed withdrawal
+-----------------------
+When the forcing carries an `abstr` column, a net withdrawal in mm/day, it goes through Wflow's
+own water demand and allocation. The domestic sector's gross and net demand are both set to it
+each step, so there is no return flow. Wflow takes the demand from the river cell first, up to
+0.80 of the river's storage, and the rest from the saturated store, up to 0.75 of the lateral
+subsurface storage, as negative recharge. Whatever neither source can supply is not taken. The
+water the allocation records is declared as negative `gwex`. run.json records the prescription,
+what the allocation recorded from each source, the shortfall, and Wflow's river balance error,
+which shows how much of the river share the kinematic wave could not deliver. Without the
+column, water demand stays off.
+
+What run.json records
+---------------------
+The budget closes over the reported stores by construction of the mapping, and run.json
+records the adapter's per-step residual and Wflow's own mass-balance errors for each component.
+It also records every value the adapter sets or relies on, read back from the model Wflow built:
+the model options as Wflow resolved them, defaults included (`wflow_model_options`), and every
+soil, vegetation, interception, snow, routing and domain parameter of the cell
+(`wflow_parameters`). The few numbers that are constants in Wflow's source rather than
+parameters cannot be read back and are listed by name, value and file (`wflow_code_constants`).
+
+Where it writes
+---------------
+The schematisation (static maps, forcing and TOML, well under a megabyte for a ten-year daily
+case) goes to a temporary directory on /tmp, removed after the run. /tmp also holds Julia's
+first depot, where Julia would write only if the compiled caches in the image did not match;
+the table and run.json go to /io/output. Wflow is deterministic; the request seed is recorded
+and otherwise unused.
 """
 module WflowSbmAdapter
 
@@ -98,12 +123,12 @@ using PrecompileTools: @compile_workload, @setup_workload
 using TOML: TOML
 using Wflow: Wflow
 
-const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.2")
+const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.4")
 const WFLOW = Dict{String, Any}(
     "package" => "Wflow.jl", "version" => "1.0.4",
     "commit" => "82df72031511339d50fd9142fa159d0ec13e73c5", "model_type" => "sbm",
 )
-const COLUMNS = ("time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel")
+const COLUMNS = ("time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "channel")
 const STEP_SECONDS = Dict("PT1D" => 86400, "PT1H" => 3600, "PT15M" => 900, "PT5M" => 300, "PT1M" => 60)
 const FILL = -9999.0
 const TIME_UNITS = "seconds since 1900-01-01 00:00:00"
@@ -141,6 +166,29 @@ const MOSELLE = (
     river_depth = 1.0,                           # RiverDepth, bankfull, m (river cells)
 )
 const WFLOW_DEFAULTS = (cmax = 1.0, cfmax = 3.75)  # documented defaults, used only as fallbacks
+
+# Numbers the model uses that are constants in Wflow v1.0.4's source, not parameters, so they
+# cannot be read back from a built model. Paths are under Wflow/src.
+const WFLOW_CODE_CONSTANTS = Dict{String, Any}(
+    "snow_refreezing_efficiency_cfr" => Dict("value" => 0.05, "source" => "snow/snow_process.jl, snowpack_hbv"),
+    "rainfall_and_snowfall_correction_factors" => Dict("value" => 1.0, "source" => "snow/snow_process.jl, precipitation_hbv (rfcf, sfcf)"),
+    "stemflow_share" => Dict("value" => "min(0.1 * canopy gap fraction, 1 - canopy gap fraction)",
+        "source" => "vegetation/rainfall_interception.jl, both schemes"),
+    "gash_interception_from_step_hours" => Dict("value" => 23, "source" => "sbm.jl, LandHydrologySBM (Rutter below)"),
+    "withdrawal_available_share_of_river_storage" => Dict("value" => 0.80,
+        "source" => "demand/water_demand.jl, surface_water_allocation_local! (only with a prescribed withdrawal)"),
+    "withdrawal_available_share_of_subsurface_storage" => Dict("value" => 0.75,
+        "source" => "demand/water_demand.jl, groundwater_allocation_local! (only with a prescribed withdrawal)"),
+    "kinematic_wave_discharge_floor_m3_per_s" => Dict("value" => 1.0e-30,
+        "source" => "routing/routing_process.jl, kinematic_wave (lines 37 and 50)"),
+    "feddes_h3_potential_transpiration_bounds_mm_per_day" => Dict("value" => [1.0, 5.0],
+        "source" => "soil/soil_process.jl, feddes_h3"),
+    "unsaturated_flow_iteration_step_mm" => Dict("value" => 0.2, "source" => "soil/soil_process.jl, unsatzone_flow_layer"),
+    "max_water_table_change_per_lateral_substep_m" => Dict("value" => 0.1,
+        "source" => "routing/routing_process.jl, kinematic_wave_ssf"),
+    "kinematic_wave_newton_tolerance_and_max_iterations" => Dict("value" => [1.0e-12, 3000],
+        "source" => "routing/routing_process.jl, kinematic_wave and kw_ssf_newton_raphson"),
+)
 
 # Wflow standard name => the variable written to the static maps.
 const STATIC_NAMES = Dict(
@@ -183,6 +231,7 @@ struct Forcing
     pr::Vector{Float64}
     tas::Vector{Float64}
     pet::Vector{Float64}
+    abstr::Union{Nothing, Vector{Float64}}  # prescribed net withdrawal, mm/day, when the case gives one
 end
 
 function read_forcing(path::AbstractString)
@@ -198,6 +247,7 @@ function read_forcing(path::AbstractString)
         [String(strip(r[col["time"]])) for r in rows],
         [String(strip(r[col["pr"]])) for r in rows],
         number("pr"), number("tas"), number("pet"),
+        haskey(col, "abstr") ? number("abstr") : nothing,
     )
 end
 
@@ -350,7 +400,8 @@ function write_forcing(path::AbstractString, cell::Float64, stamps::Vector{DateT
     return path
 end
 
-function write_config(path::AbstractString, first_end::DateTime, last_end::DateTime, dt::Int)
+function write_config(path::AbstractString, first_end::DateTime, last_end::DateTime, dt::Int;
+                      withdrawal::Bool = false)
     config = Dict{String, Any}(
         "dir_input" => ".",
         "dir_output" => ".",
@@ -389,8 +440,198 @@ function write_config(path::AbstractString, first_end::DateTime, last_end::DateT
             "static" => Dict{String, Any}(STATIC_NAMES),
         ),
     )
+    if withdrawal
+        # A prescribed net withdrawal goes through Wflow's own water demand and allocation: the
+        # domestic sector, with gross and net demand both the prescription (so no return flow),
+        # read from the forcing each step. The allocation area and the surface-water fraction
+        # keep Wflow's defaults: one area, surface water first, then groundwater.
+        config["model"]["water_demand"] = Dict{String, Any}("domestic__flag" => true)
+        config["input"]["forcing"]["domestic__gross_water_demand_volume_flux"] = "abstr"
+        config["input"]["forcing"]["domestic__net_water_demand_volume_flux"] = "abstr"
+    end
     open(io -> TOML.print(io, config; sorted = true), path, "w")
     return path
+end
+
+# --- what the model was given --------------------------------------------------------------
+
+"A JSON-safe copy: non-finite numbers become null, static vectors become arrays."
+jsonable(x::Bool) = x
+jsonable(x::Integer) = x
+jsonable(x::AbstractFloat) = isfinite(x) ? Float64(x) : nothing
+jsonable(x::AbstractString) = String(x)
+jsonable(x::Symbol) = String(x)
+jsonable(::Nothing) = nothing
+jsonable(x::AbstractDict) = Dict{String, Any}(string(k) => jsonable(v) for (k, v) in x)
+jsonable(x::AbstractVector) = Any[jsonable(v) for v in x]
+jsonable(x::Tuple) = Any[jsonable(v) for v in x]
+jsonable(x) = string(x)
+
+"""
+    parameter_record(model)
+
+Every parameter of the one active cell as the built Wflow model holds it, defaults included,
+so that run.json shows what the model actually ran with rather than what the adapter meant to
+give it. Values are in the units Wflow holds them for the case's step (see `units`).
+"""
+function parameter_record(model)
+    cell(v) = jsonable(v[1])
+    soil = model.land.soil.parameters
+    vegetation = model.land.vegetation_parameters
+    interception = model.land.interception
+    snow = model.land.snow.parameters
+    overland = model.routing.overland_flow
+    river = model.routing.river_flow
+    lateral = model.routing.subsurface_flow.parameters
+    land = model.domain.land.parameters
+    riverdomain = model.domain.river.parameters
+    kv = soil.kv_profile
+    kh = lateral.kh_profile
+    return Dict{String, Any}(
+        "units" => "as Wflow holds them for the case's step: vertical conductivity, infiltration " *
+            "capacities and leakage in mm per step, the degree-day factor in mm per degC per step, " *
+            "the soil-temperature weight per step; lateral conductivity in m per day and the lateral " *
+            "soil thickness in m; other depths in mm, heads in cm, lengths in m, areas in m2",
+        "soil" => Dict{String, Any}(
+            "layers" => soil.maxlayers,
+            "active_layers" => cell(soil.nlayers),
+            "layer_thickness_mm" => cell(soil.act_thickl),
+            "layer_top_depth_mm" => cell(soil.sumlayers),
+            "theta_s" => cell(soil.theta_s),
+            "theta_r" => cell(soil.theta_r),
+            "soil_thickness_mm" => cell(soil.soilthickness),
+            "soil_water_capacity_mm" => cell(soil.soilwatercapacity),
+            "vertical_conductivity_profile" => string(nameof(typeof(kv))),
+            "kv_0_mm_per_step" => hasproperty(kv, :kv_0) ? cell(kv.kv_0) : nothing,
+            "f_per_mm" => hasproperty(kv, :f) ? cell(kv.f) : nothing,
+            "kv_factor_per_layer" => cell(soil.kvfrac),
+            "brooks_corey_c_per_layer" => cell(soil.c),
+            "air_entry_pressure_head_cm" => cell(soil.hb),
+            "feddes_h1_cm" => cell(soil.h1),
+            "feddes_h2_cm" => cell(soil.h2),
+            "feddes_h3_high_cm" => cell(soil.h3_high),
+            "feddes_h3_low_cm" => cell(soil.h3_low),
+            "feddes_h4_cm" => cell(soil.h4),
+            "feddes_alpha_h1" => cell(soil.alpha_h1),
+            "infiltration_capacity_soil_mm_per_step" => cell(soil.infiltcapsoil),
+            "infiltration_capacity_compacted_mm_per_step" => cell(soil.infiltcappath),
+            "compacted_area_fraction" => cell(soil.pathfrac),
+            "soil_fraction" => cell(soil.soil_fraction),
+            "max_leakage_mm_per_step" => cell(soil.maxleakage),
+            "capillary_rise_max_water_table_depth_mm" => cell(soil.cap_hmax),
+            "capillary_rise_averianov_exponent" => cell(soil.cap_n),
+            "soil_temperature_weight_per_step" => cell(soil.w_soil),
+            "frozen_soil_infiltration_parameter_cf_soil" => cell(soil.cf_soil),
+            "rootdistpar" => cell(soil.rootdistpar),
+            "root_fraction_per_layer" => cell(soil.rootfraction),
+        ),
+        "vegetation" => Dict{String, Any}(
+            "rooting_depth_mm" => cell(vegetation.rootingdepth),
+            "crop_factor_kc" => cell(vegetation.kc),
+            "canopy_gap_fraction" => cell(vegetation.canopygapfraction),
+            "max_canopy_storage_mm" => cell(vegetation.cmax),
+            "leaf_area_index" => isnothing(vegetation.leaf_area_index) ? "not used: no cyclic LAI" :
+                cell(vegetation.leaf_area_index),
+        ),
+        "interception" => Dict{String, Any}(
+            "scheme" => string(nameof(typeof(interception))),
+            "gash_evaporation_to_precipitation_ratio" => hasproperty(interception.parameters, :e_r) ?
+                cell(interception.parameters.e_r) : "not used: modified Rutter",
+        ),
+        "snow" => Dict{String, Any}(
+            "degree_day_factor_mm_per_degC_per_step" => cell(snow.cfmax),
+            "snowfall_threshold_degC" => cell(snow.tt),
+            "snowfall_interval_degC" => cell(snow.tti),
+            "melt_threshold_degC" => cell(snow.ttm),
+            "liquid_water_holding_capacity" => cell(snow.whc),
+        ),
+        "overland_flow" => Dict{String, Any}(
+            "manning_n" => cell(overland.parameters.mannings_n),
+            "slope" => cell(overland.parameters.slope),
+            "kinematic_wave_beta" => overland.parameters.beta,
+            "manning_alpha_power" => overland.parameters.alpha_pow,
+            "internal_step_s" => overland.timestepping.dt_fixed,
+            "adaptive_step" => overland.timestepping.adaptive,
+        ),
+        "river_flow" => Dict{String, Any}(
+            "manning_n" => cell(river.parameters.flow.mannings_n),
+            "slope" => cell(river.parameters.flow.slope),
+            "bankfull_depth_m" => cell(river.parameters.bankfull_depth),
+            "width_m" => cell(riverdomain.flow_width),
+            "length_m" => cell(riverdomain.flow_length),
+            "kinematic_wave_beta" => river.parameters.flow.beta,
+            "manning_alpha_power" => river.parameters.flow.alpha_pow,
+            "internal_step_s" => river.timestepping.dt_fixed,
+            "adaptive_step" => river.timestepping.adaptive,
+        ),
+        "lateral_subsurface_flow" => Dict{String, Any}(
+            "horizontal_to_vertical_conductivity_ratio" => cell(lateral.khfrac),
+            "horizontal_conductivity_profile" => string(nameof(typeof(kh))),
+            "kh_0_m_per_day" => hasproperty(kh, :kh_0) ? cell(kh.kh_0) : nothing,
+            "f_per_m" => hasproperty(kh, :f) ? cell(kh.f) : nothing,
+            "soil_thickness_m" => cell(lateral.soilthickness),
+        ),
+        "domain" => Dict{String, Any}(
+            "cell_area_m2" => cell(land.area),
+            "flow_length_m" => cell(land.flow_length),
+            "flow_width_m" => cell(land.flow_width),
+            "surface_flow_width_m" => cell(land.surface_flow_width),
+            "land_slope" => cell(land.slope),
+            "river_fraction" => cell(land.river_fraction),
+            "flow_fraction_to_river" => cell(land.flow_fraction_to_river),
+            "open_water_fraction" => cell(land.water_fraction),
+        ),
+    )
+end
+
+"""
+    withdrawal_record(model, withdrawal, forcing, prescribed, allocated_sw, allocated_gw, shortfall, returned,
+                      river_error_mm, dt_days)
+
+The prescribed net withdrawal and what Wflow's allocation recorded for it, in mm over the cell
+for the whole record, spin-up included.
+"""
+function withdrawal_record(model, withdrawal::Bool, forcing::Forcing, prescribed, allocated_sw, allocated_gw,
+                           shortfall, returned, river_error_mm::Float64, dt_days::Float64)
+    withdrawal || return Dict{String, Any}(
+        "prescribed" => false,
+        "note" => "the case gives no abstr column, so Wflow's water demand and allocation are off",
+    )
+    allocation = model.land.allocation.parameters
+    return Dict{String, Any}(
+        "prescribed" => true,
+        "mechanism" => "Wflow's non-irrigation water demand, domestic sector, with gross and net demand " *
+            "both set to abstr from the forcing each step, so there is no return flow; Wflow's allocation " *
+            "takes the demand from the river cell first and the rest from the saturated store, and takes " *
+            "nothing a source cannot supply",
+        "sources" => Dict{String, Any}(
+            "surface_water" => "the river of the cell: up to 0.80 of its storage at the start of the step, " *
+                "taken out of the river kinematic wave as abstraction",
+            "groundwater" => "the saturated store of the soil column: up to 0.75 of the lateral subsurface " *
+                "storage, taken as negative recharge before the lateral subsurface kinematic wave",
+        ),
+        "surface_water_fraction" => jsonable(allocation.frac_sw_used[1]),
+        "allocation_area" => jsonable(allocation.areas[1]),
+        "gwex" => "minus (leakage + surface-water abstraction + groundwater abstraction), the volumes " *
+            "Wflow's allocation records for the step, as a depth over the cell",
+        "negative_prescription_steps" => count(<(0.0), forcing.abstr),
+        "prescribed_unclamped_mm" => sum(forcing.abstr) * dt_days,
+        "ignored_negative_mm" => sum(x -> max(-x, 0.0), forcing.abstr) * dt_days,
+        "prescribed_mm" => sum(prescribed),
+        "allocated_surface_water_mm" => sum(allocated_sw),
+        "allocated_groundwater_mm" => sum(allocated_gw),
+        "allocated_note" => "allocated_* and the shortfall are the volumes Wflow's allocation records for each " *
+            "step. The river share is then taken out of the river kinematic wave, which cannot deliver all of " *
+            "it while its discharge sits at the 1.0e-30 m3/s floor; see river_balance_error_mm",
+        "return_flow_mm" => sum(returned),
+        "shortfall_mm" => sum(shortfall),
+        "steps_with_shortfall" => count(>(1.0e-9), shortfall),
+        "largest_step_shortfall_mm" => maximum(shortfall; init = 0.0),
+        "river_balance_error_mm" => river_error_mm,
+        "river_balance_error_note" => "Wflow's river balance error summed over the record, as a depth over the " *
+            "cell; negative is water the river kinematic wave created. Above the natural level (the same case " *
+            "without a withdrawal), this is river abstraction the kinematic wave did not deliver.",
+    )
 end
 
 # --- the model -----------------------------------------------------------------------------
@@ -412,15 +653,23 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
 
     stamps = [parse_time(t) + Second(dt) for t in forcing.time]
     write_static_maps(joinpath(workdir, "staticmaps.nc"), cell, maps)
-    write_forcing(joinpath(workdir, "forcing.nc"), cell, stamps, [
+    withdrawal = forcing.abstr !== nothing
+    series = [
         "precip" => forcing.pr .* dt_days,
         "temp" => forcing.tas,
         "pet" => forcing.pet .* dt_days,
-    ])
-    toml = write_config(joinpath(workdir, "wflow_sbm.toml"), stamps[1], stamps[end], dt)
+    ]
+    # Wflow copies forcing into its demand as a depth per step. A negative prescription would be
+    # a supply, not a withdrawal, and is not passed on (run.json counts such steps).
+    prescribed_mm = withdrawal ? max.(forcing.abstr, 0.0) .* dt_days : zeros(n)
+    withdrawal && push!(series, "abstr" => prescribed_mm)
+    write_forcing(joinpath(workdir, "forcing.nc"), cell, stamps, series)
+    toml = write_config(joinpath(workdir, "wflow_sbm.toml"), stamps[1], stamps[end], dt; withdrawal)
 
-    model = Wflow.Model(Wflow.Config(toml))
+    config = Wflow.Config(toml)
+    model = Wflow.Model(config)
     Wflow.load_fixed_forcing!(model)
+    options = jsonable(Wflow.to_dict(config.model))
 
     soil = model.land.soil.variables
     canopy = model.land.interception.variables
@@ -434,39 +683,54 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
     area = land.area[1]
     mm(volume_m3) = volume_m3 / area * 1000.0
 
-    columns = zeros(n, 9)  # evspsbl mrro dis gwex mrso snw canopy gw channel
-    stored(i) = columns[i, 5] + columns[i, 6] + columns[i, 7] + columns[i, 8] + columns[i, 9]
+    allocation = withdrawal ? model.land.allocation.variables : nothing
+    river_allocation = withdrawal ? model.routing.river_flow.allocation.variables : nothing
+    domestic = withdrawal ? model.land.demand.domestic.variables : nothing
+    removed_sw, removed_gw, shortfall, returned = zeros(n), zeros(n), zeros(n), zeros(n)
+
+    columns = zeros(n, 8)  # evspsbl mrro dis gwex mrso snw canopy channel
+    stored(i) = columns[i, 5] + columns[i, 6] + columns[i, 7] + columns[i, 8]
     initial = soil.ustoredepth[1] + soil.satwaterdepth[1] + snow.snow_storage[1] + snow.snow_water[1] +
         canopy.canopy_storage[1] + mm(overland.storage[1] + river.storage[1])
     worst_residual, cumulative_residual = 0.0, 0.0
     wflow_errors = zeros(4)
+    river_error_mm = 0.0  # signed: Wflow's river balance error summed over the record, as a depth
     min_river_inflow = Inf
 
     for i in 1:n
         Wflow.run_timestep!(model; write_model_output = false)
         outflow = river.q_av[1] + overland.q_av[1] + lateral.ssf[1] / 86400.0  # m3/s out of the cell
         leakage = soil.actleakage[1]
+        if withdrawal
+            # What Wflow's allocation took this step, from the river and then the saturated store.
+            removed_sw[i] = mm(river_allocation.act_surfacewater_abst_vol[1])
+            removed_gw[i] = mm(allocation.act_groundwater_abst_vol[1])
+            shortfall[i] = max(prescribed_mm[i] - removed_sw[i] - removed_gw[i], 0.0)
+            returned[i] = domestic.returnflow[1]
+        end
+        removed = removed_sw[i] + removed_gw[i]
         columns[i, 1] = soil.actevap[1] / dt_days
         columns[i, 2] = mm(outflow * 86400.0)
         columns[i, 3] = columns[i, 2] * area_km2 / 86.4
-        columns[i, 4] = -leakage / dt_days
+        columns[i, 4] = withdrawal ? -(leakage + removed) / dt_days : -leakage / dt_days
         columns[i, 5] = soil.ustoredepth[1] + soil.satwaterdepth[1]
         columns[i, 6] = snow.snow_storage[1] + snow.snow_water[1]
         columns[i, 7] = canopy.canopy_storage[1]
-        columns[i, 8] = 0.0
-        columns[i, 9] = mm(overland.storage[1] + river.storage[1])
+        columns[i, 8] = mm(overland.storage[1] + river.storage[1])
 
         before = i == 1 ? initial : stored(i - 1)
-        residual = forcing.pr[i] * dt_days - leakage - soil.actevap[1] - columns[i, 2] * dt_days -
+        residual = forcing.pr[i] * dt_days - leakage - removed - soil.actevap[1] - columns[i, 2] * dt_days -
             (stored(i) - before)
         worst_residual = max(worst_residual, abs(residual))
         cumulative_residual += residual
         wflow_errors[1] = max(wflow_errors[1], abs(balance.land_water_balance.error[1]))
         wflow_errors[2] = max(wflow_errors[2], abs(balance.routing.overland_water_balance.error[1]))
         wflow_errors[3] = max(wflow_errors[3], abs(balance.routing.river_water_balance.error[1]))
+        river_error_mm += mm(balance.routing.river_water_balance.error[1] * dt)
         wflow_errors[4] = max(wflow_errors[4], abs(balance.routing.subsurface_water_balance.error[1]))
         min_river_inflow = min(min_river_inflow, river_bc.inwater[1])
     end
+    parameters = parameter_record(model)  # after the run: Wflow sets soil_fraction in the first step
     Wflow.close_files(model; delete_output = false)
 
     interception = model.land.interception isa Wflow.GashInterceptionModel ?
@@ -501,12 +765,20 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
             ),
             "from_moselle_test_model" => Dict{String, Any}(String(k) => v for (k, v) in pairs(MOSELLE)),
             "effective_rooting_depth_mm" => model.land.vegetation_parameters.rootingdepth[1],
+            "static_maps_written" => jsonable(maps),
             "static_attributes_unused" => sort([String(k) for k in keys(static) if !(k in (
                 "area_km2", "soil_capacity_mm", "canopy_capacity_mm", "snow_threshold_degC",
                 "degree_day_factor_mm_per_C_day"))]),
         ),
+        "wflow_model_options" => options,
+        "wflow_parameters" => parameters,
+        "wflow_code_constants" => WFLOW_CODE_CONSTANTS,
+        "human_withdrawal" => withdrawal_record(model, withdrawal, forcing, prescribed_mm, removed_sw,
+            removed_gw, shortfall, returned, river_error_mm, dt_days),
         "switched_off" => [
-            "reservoirs and lakes", "glaciers", "water demand, irrigation and paddies",
+            "reservoirs and lakes", "glaciers",
+            withdrawal ? "irrigation, paddies and every demand sector but the domestic one that carries abstr" :
+                "water demand, irrigation and paddies",
             "floodplains", "lateral snow transport", "frozen-soil infiltration reduction",
             "open water outside the river (WaterFrac 0)", "leakage from the saturated store (MaxLeakage 0)",
         ],
@@ -514,12 +786,16 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
             "evspsbl" => "actevap: interception + soil evaporation + transpiration + open water",
             "mrro" => "river q_av at the outlet + overland q_av + lateral subsurface flow out of the outlet cell, as a depth over the cell",
             "dis" => "mrro over the catchment's area, m3/s",
-            "gwex" => "minus the leakage from the saturated store (identically zero, MaxLeakage 0)",
+            "gwex" => "minus the leakage from the saturated store (zero, MaxLeakage 0), and, when the case " *
+                "prescribes a withdrawal, minus what Wflow's allocation took for it (see human_withdrawal)",
             "mrso" => "unsaturated store (all layers) + saturated store: the SBM soil column",
-            "gw" => "identically zero: the sbm model type has no store below the soil column",
             "snw" => "dry snow + liquid water in the pack",
             "canopy" => "canopy storage",
             "channel" => "land and river kinematic-wave storage, as a depth over the cell",
+        ),
+        "not_reported" => Dict{String, Any}(
+            "gw" => "the sbm model type has no store below the soil column (Wflow's sbm_gwf type adds " *
+                "one); SBM's saturated store is the lower part of the soil column and is part of mrso",
         ),
         "budget" => Dict{String, Any}(
             "adapter_max_step_residual_mm" => worst_residual,
@@ -527,8 +803,9 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
             "wflow_max_abs_error_land_mm" => wflow_errors[1],
             "wflow_max_abs_error_overland_m3s" => wflow_errors[2],
             "wflow_max_abs_error_river_m3s" => wflow_errors[3],
+            "wflow_river_balance_error_cumulative_mm" => river_error_mm,
             "wflow_max_abs_error_subsurface_m3" => wflow_errors[4],
-            "min_river_lateral_inflow_m3s" => min_river_inflow,
+            "min_river_lateral_inflow_m3s" => jsonable(min_river_inflow),
         ),
     )
     isempty(overrides) || (notes["overrides"] = Dict{String, Any}(String(k) => v for (k, v) in overrides))
@@ -593,19 +870,20 @@ end
 # --- compiled when the image is built ------------------------------------------------------
 
 "A small synthetic case with rain, a freeze and a thaw, for the precompile workload."
-function synthetic_case(dir::AbstractString, timestep::AbstractString, n::Int)
+function synthetic_case(dir::AbstractString, timestep::AbstractString, n::Int; abstr::Bool = false)
     dt = STEP_SECONDS[timestep]
     format = timestep == "PT1D" ? dateformat"yyyy-mm-dd" : dateformat"yyyy-mm-dd HH:MM"
     mkpath(joinpath(dir, "input"))
     mkpath(joinpath(dir, "output"))
     open(joinpath(dir, "input", "forcing.csv"), "w") do io
-        println(io, "time,pr,tas,pet")
+        println(io, abstr ? "time,pr,tas,pet,abstr" : "time,pr,tas,pet")
         for k in 0:(n - 1)
             day = k * dt / 86400
             pr = k % 5 == 0 ? 24.0 : (k % 3 == 0 ? 2.5 : 0.0)
             tas = 4.0 - 9.0 * cos(2pi * day / 20)
             pet = max(0.0, 2.0 + 1.5 * sin(2pi * day / 20))
-            println(io, Dates.format(DateTime(2000, 1, 1) + Second(dt * k), format), ",", pr, ",", tas, ",", pet)
+            print(io, Dates.format(DateTime(2000, 1, 1) + Second(dt * k), format), ",", pr, ",", tas, ",", pet)
+            println(io, abstr ? string(",", max(0.0, 0.5 * sin(2pi * day / 20))) : "")
         end
     end
     write(joinpath(dir, "input", "static.json"), JSON.json(Dict(
@@ -623,10 +901,10 @@ end
 
 @setup_workload begin
     @compile_workload begin
-        for (timestep, n) in (("PT1D", 60), ("PT1H", 72))
+        for (timestep, n, abstr) in (("PT1D", 60, false), ("PT1H", 72, false), ("PT1D", 60, true), ("PT1H", 72, true))
             dir = mktempdir()
             try
-                main(["--request", synthetic_case(dir, timestep, n)])
+                main(["--request", synthetic_case(dir, timestep, n; abstr)])
             finally
                 rm(dir; recursive = true, force = true)
             end
