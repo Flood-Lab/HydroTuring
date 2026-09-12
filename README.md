@@ -68,11 +68,12 @@ not.
 
 ## The probes
 
-Twenty-one: fifteen under mass, five under energy and one under momentum. Each was
-merged only after the acceptance gate saw it pass four physical models, a
-bucket that conserves water exactly, two hand-written FLEX models and the
-NWS's SAC-SMA with Snow-17, and fail a purpose-built broken one on the
-named criterion. A probe that fails a
+Twenty-one: fifteen under mass, five under energy and one under momentum. Each
+must pass its declared physical references and fail its purpose-built broken
+ones on the named criterion. The water-budget references include an exact
+bucket, two hand-written FLEX models and the NWS's SAC-SMA with Snow-17;
+energy probes declare references that provide their required thermal outputs.
+A probe that fails a
 physical model is examined before the model is; that is the first thing done
 with any probe pull request. Eleven of the twenty-one can be scored on a model
 that reports runoff and nothing else. `ht list` prints them;

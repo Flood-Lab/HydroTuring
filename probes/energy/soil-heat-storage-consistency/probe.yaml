@@ -41,6 +41,8 @@ criteria:
       temperature: tsoil_layer
       top: hfg
       bottom: hfg_bottom
+      # Starting engineering allowance relative to net heat retained, with a
+      # 1 W m-2 floor for weak exchange; absolute residuals avoid cancellation.
       threshold: 0.05
       floor: 1.0
       segment_column: _phase

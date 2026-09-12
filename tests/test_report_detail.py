@@ -34,6 +34,7 @@ HEADLINES = {
     "energy/evaporative-partition": ("partition_shift",),
     "energy/latent-heat-et-consistency": ("energy_closure", "flux_identity"),
     "energy/pet-consistency": ("demand_consistency",),
+    "energy/soil-heat-storage-consistency": ("soil_heat_storage",),
     "energy/surface-energy-closure": ("energy_closure_by_phase",),
     "mass/antecedent-monotonicity": ("antecedent_monotonicity",),
     "mass/area-invariance": ("invariance",),

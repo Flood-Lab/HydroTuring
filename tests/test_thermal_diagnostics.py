@@ -15,7 +15,7 @@ from hydroturing.criteria import get
 from hydroturing.criteria.base import make_window, reported_states
 from hydroturing.harness import run_probe, verify_adapter_contract
 from hydroturing.protocol import Case, ProtocolError, RunResult, read_result, stage
-from hydroturing.scoring import FAIL, INCOMPLETE
+from hydroturing.scoring import INCOMPLETE, NOT_SCORED
 from hydroturing.spec import SpecError, load_model, load_probe
 
 
@@ -120,7 +120,7 @@ def test_unreported_required_diagnostic_is_incomplete_before_execution(thermal_p
     model = replace(registry.find_model("reference_bucket"),
                     emits_fluxes=("hfg", "hfg_bottom"), emits_states=())
     outcome = run_probe(model, thermal_probe, [11])
-    assert outcome.verdict == FAIL
+    assert outcome.verdict == NOT_SCORED
     assert outcome.reason == INCOMPLETE
     assert outcome.missing == ["tsoil_layer"]
 
