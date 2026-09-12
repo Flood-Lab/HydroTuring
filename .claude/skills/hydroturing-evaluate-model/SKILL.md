@@ -75,9 +75,10 @@ places where following it took judgement.
   over every known state column present (`mrso`, `snw`, `canopy`, `gw`,
   `channel`), the probe's required ones first. A groundwater box under
   `gw`, water inside a unit hydrograph under `channel` (cumulative unrouted
-  minus routed flow). A store the model structurally lacks is reported as
-  zero *and documented as such* in the README and `run.json` — that is a
-  statement about the model, not a fabricated value. A flux the model does
+  minus routed flow). A store the model structurally lacks is not
+  emitted: leave the column out and say so under `not_reported` in
+  `run.json` and in the README, as `AGENTS.md` asks (`models/wflow_sbm` does
+  this for `gw`). A column of zeros would be a fabricated value. A flux the model does
   not compute is never fabricated; the probes that need it are N/A
   (INCOMPLETE) instead.
 - **Read structure from the checkpoint when the config disagrees.** δHBV's
