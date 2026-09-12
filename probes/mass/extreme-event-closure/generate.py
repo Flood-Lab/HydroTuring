@@ -8,13 +8,17 @@ defined against the synthetic baseline climate; the model's actual
 training distribution is not assumed known.
 
 Every seed supplies independent weather and 100-year calibration streams.
+After a 365-day spinup, select the median-wet year from twenty 365-day
+scored blocks: the annual depth closest to their median, with chronological
+tie-breaking. This confines the stress to one representative year while
+retaining the full continuous record for event and whole-window budgets.
 GEV distributions fitted by L-moments supply 1/3/7-day construction targets.
 Whole rainfall events are overlapped to exceed at least one of these
 duration-specific 100-year depths. Each chronological group stops at its
 first exceedance of any target; the remaining year-end group is retained
 even below target. Groups are then placed chronologically with one dry day
-between them, starting on May 1
-in the final scored year. These thresholds control construction only:
+between them, starting on May 1 in the selected scored year.
+These thresholds control construction only:
 event_water_closure scores all complete events.
 
 All calibration code lives here. No additional dependency or data download
@@ -29,10 +33,9 @@ import math
 import numpy as np
 import pandas as pd
 
-PERIOD_YEARS = 10
+PERIOD_YEARS = 20
 SPINUP_DAYS = 365
 N_STEPS = int(PERIOD_YEARS * 365) + SPINUP_DAYS
-FINAL_YEAR_START = N_STEPS - 365
 TARGET_RETURN_PERIOD = 100
 INTER_EVENT_DRY_DAYS = 1
 STORM_START_MONTH_DAY = (5, 1)
@@ -248,19 +251,55 @@ def pack_event_groups(
     return result, packed
 
 
+def select_median_wet_year(pr: np.ndarray) -> dict:
+    """Choose the scored 365-day block nearest the median annual rainfall.
+
+    Exclude spinup and use all twenty complete scored blocks. Daily depths
+    are expressed as integer micro-mm at the forcing's six-decimal precision
+    before summation. Twice the median is the sum of the two central annual
+    totals, so distances and ties are compared exactly without floating-point
+    ambiguity. Among equally close years choose the earliest chronological
+    block, also used to rank equal annual totals. The selected fraction is
+    descriptive, not a guarantee of a whole-record residual below 5%.
+    """
+    rain = np.asarray(pr, dtype=float)
+    rainfall_events(rain)
+    if len(rain) != N_STEPS:
+        raise ValueError(f"year selection expects the full {N_STEPS}-row case")
+    blocks = rain[SPINUP_DAYS:].reshape(PERIOD_YEARS, 365)
+    totals = [sum(int(round(float(value) * 1_000_000)) for value in block)
+              for block in blocks]
+    ordered = sorted(totals)
+    twice_median = ordered[(PERIOD_YEARS - 1) // 2] + ordered[PERIOD_YEARS // 2]
+    distances = [abs(2 * total - twice_median) for total in totals]
+    index = min(range(PERIOD_YEARS), key=lambda i: (distances[i], i))
+    ranked = sorted(range(PERIOD_YEARS), key=lambda i: (totals[i], i))
+    total_precip = sum(totals)
+    start = SPINUP_DAYS + index * 365
+    return {
+        "year_number": index + 1, "start_row": start, "stop_row": start + 365,
+        "baseline_precip_mm": totals[index] / 1_000_000,
+        "annual_precip_mm": [total / 1_000_000 for total in totals],
+        "median_precip_mm": twice_median / 2_000_000,
+        "distance_from_median_mm": distances[index] / 2_000_000,
+        "annual_rank_ascending": ranked.index(index) + 1,
+        "scored_precip_mm": total_precip / 1_000_000,
+        "selected_fraction_of_scored_precip": totals[index] / total_precip if total_precip else None,
+        "selection": "365-day scored block closest to median annual precipitation",
+        "tie_break": "earliest chronological block, using integer micro-mm distances",
+    }
+
+
 def generate(seed: int) -> tuple[pd.DataFrame, dict]:
     """Generate one continuous case with host-only overlap annotations."""
     forcing, static = generate_baseline(seed)
     baseline_rain = forcing["pr"].to_numpy().copy()
-    start, stop = FINAL_YEAR_START, N_STEPS
-    totals = baseline_rain[SPINUP_DAYS:].reshape(PERIOD_YEARS, 365).sum(axis=1)
-    selection = {
-        "year_number": PERIOD_YEARS, "start_row": start, "stop_row": stop,
-        "baseline_precip_mm": float(totals[-1]), "annual_precip_mm": totals.tolist(),
-        "selection": "final 365-day scored block",
+    selection = select_median_wet_year(baseline_rain)
+    start, stop = selection["start_row"], selection["stop_row"]
+    selection.update({
         "start_time": str(forcing["time"].iloc[start]),
         "end_time": str(forcing["time"].iloc[stop - 1]),
-    }
+    })
     calibration = calibrate_ddf(seed)
     thresholds = {d: calibration["return_levels_mm"][str(d)][str(TARGET_RETURN_PERIOD)]
                   for d in REPORT_DURATIONS}
@@ -271,7 +310,7 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
         ((dates.dt.month == month) & (dates.dt.day == day)).to_numpy()[start:stop]
     )
     if len(candidates) != 1:
-        raise ValueError("the final scored block must contain exactly one May 1 anchor")
+        raise ValueError("the selected scored block must contain exactly one May 1 anchor")
     anchor = start + int(candidates[0])
     rain, groups = pack_event_groups(rain, groups, anchor=anchor, window=(start, stop))
     forcing["pr"] = np.round(rain, 6)
@@ -302,7 +341,7 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
             "window_convention": "maximum D-day sum of the isolated event, zero outside it",
             "inter_event_dry_days": INTER_EVENT_DRY_DAYS,
             "anchor_row": anchor, "anchor_time": str(forcing["time"].iloc[anchor]),
-            "placement": "chronological groups from May 1 in the final scored year, separated by one dry day",
+            "placement": "chronological groups from May 1 in the selected scored year, separated by one dry day",
         },
         "groups": [{**g, "source_events": [list(pair) for pair in g["source_events"]]}
                    for g in groups],
@@ -566,7 +605,7 @@ def describe_modified_year(
     rain = forcing["pr"].to_numpy(dtype=float)
     rainfall_events(rain)
     if len(rain) != N_STEPS:
-        raise ValueError("modified-year description expects the full 4015-row case")
+        raise ValueError(f"modified-year description expects the full {N_STEPS}-row case")
     if (any(isinstance(v, bool) or not isinstance(v, (int, np.integer)) for v in (start, stop))
             or not SPINUP_DAYS <= start < stop <= N_STEPS
             or stop - start != 365 or (start - SPINUP_DAYS) % 365):
@@ -613,7 +652,11 @@ if __name__ == "__main__":
         summaries.extend({
             "seed": seed, "year_number": selected["year_number"],
             "year_start_time": selected["start_time"], "year_end_time": selected["end_time"],
-            "baseline_annual_precip_mm": selected["baseline_precip_mm"], **row,
+            "baseline_annual_precip_mm": selected["baseline_precip_mm"],
+            "median_annual_precip_mm": selected["median_precip_mm"],
+            "scored_precip_mm": selected["scored_precip_mm"],
+            "selected_fraction_of_scored_precip": selected["selected_fraction_of_scored_precip"],
+            **row,
         } for row in report["modified_year"])
         for d, levels in report["calibration"]["return_levels_mm"].items():
             ddf_rows.extend({
@@ -621,11 +664,15 @@ if __name__ == "__main__":
                 "depth_mm": depth, "extrapolates_record": int(t) > CALIBRATION_YEARS,
                 "duration_fit_crossing": int(t) in report["calibration"]["crossing_return_levels_years"],
             } for t, depth in levels.items())
-        print(f"seed={seed}; final scored year={selected['year_number']} "
+        print(f"seed={seed}; selected median-wet scored year={selected['year_number']} "
               f"({selected['start_time']} to {selected['end_time']}); "
               f"baseline precipitation={selected['baseline_precip_mm']:.3f} mm; "
               f"{report['target_exceeded_group_count']}/{report['group_count']} groups "
               f"exceed at least one {TARGET_RETURN_PERIOD}-year duration threshold")
+        fraction = selected["selected_fraction_of_scored_precip"]
+        if fraction is not None:
+            print(f"  median annual precipitation={selected['median_precip_mm']:.3f} mm; "
+                  f"selected year's share of scored precipitation={fraction:.3%}")
         print(f"  source events per group: {[g['source_event_count'] for g in report['groups']]}")
         if report["groups"]:
             print(f"  packed storms: {frame['time'].iloc[report['groups'][0]['start']]} to "

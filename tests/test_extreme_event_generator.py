@@ -1,4 +1,4 @@
-"""Greedy Q100 storms packed from May 1 with one dry day in the final year."""
+"""Greedy Q100 storms packed from May 1 in the median-wet scored year."""
 
 from __future__ import annotations
 
@@ -383,8 +383,9 @@ def test_packing_requires_a_positive_integer_dry_gap(generator, gap):
         generator.pack_event_groups(overlapped, groups, gap_days=gap)
 
 
-def test_baseline_preserves_existing_weather_formulas_on_the_record_substream(generator):
+def test_baseline_preserves_existing_weather_formulas_on_the_record_substream(generator, monkeypatch):
     original = load_generator(registry.find_probe("mass/catchment-closure"))
+    monkeypatch.setattr(original, "N_STEPS", generator.N_STEPS)
     # default_rng accepts a Generator: the original climate code can consume
     # the new record stream without depending on the former unsplit seed.
     expected, expected_static = original.generate(generator._rng(20260912, 0))
@@ -401,11 +402,78 @@ def test_record_and_calibration_streams_are_reproducible_and_independent(generat
     np.testing.assert_array_equal(generator._rng(42, 0).random(16), expected)
 
 
-def test_generate_modifies_the_final_year_even_when_an_earlier_year_is_wetter(generator, monkeypatch):
+def annual_rain_fixture(generator, totals):
+    """Give each scored block its supplied depth, excluding a wet spinup."""
+    rain = np.zeros(generator.N_STEPS)
+    rain[0] = 1_000_000
+    for i, total in enumerate(totals):
+        rain[365 + i * 365 + 1] = total
+    return rain
+
+
+@pytest.mark.parametrize("totals,expected_year,expected_rank", [
+    (list(range(1, 21)), 10, 10),
+    (list(range(20, 0, -1)), 10, 11),
+    ([7] * 20, 1, 1),
+])
+def test_median_wet_selection_uses_central_pair_and_earliest_tie(
+    generator, totals, expected_year, expected_rank,
+):
+    rain = annual_rain_fixture(generator, totals)
+    before = rain.copy()
+    selected = generator.select_median_wet_year(rain)
+    np.testing.assert_array_equal(rain, before)
+    assert selected["year_number"] == expected_year
+    assert selected["annual_rank_ascending"] == expected_rank
+    assert selected["median_precip_mm"] == np.median(totals)
+    assert selected["baseline_precip_mm"] == totals[expected_year - 1]
+    assert selected["annual_precip_mm"] == totals
+    assert selected["scored_precip_mm"] == sum(totals)
+    assert selected["selected_fraction_of_scored_precip"] == totals[expected_year - 1] / sum(totals)
+    assert selected["distance_from_median_mm"] == abs(totals[expected_year - 1] - np.median(totals))
+    assert (selected["start_row"], selected["stop_row"]) == (365 * expected_year, 365 * (expected_year + 1))
+    rain[:365] = 0
+    assert generator.select_median_wet_year(rain) == selected
+
+
+def test_six_decimal_annual_ties_are_exact_even_when_the_earlier_year_is_wetter(generator):
+    totals = [11.000001, 10] + list(range(1, 10)) + list(range(12, 21))
+    rain = annual_rain_fixture(generator, totals)
+    rain[366], rain[368] = 0.1, 10.900001
+    selected = generator.select_median_wet_year(rain)
+    assert selected["year_number"] == 1
+    assert selected["annual_rank_ascending"] == 11
+    assert selected["baseline_precip_mm"] == 11.000001
+    assert selected["median_precip_mm"] == 10.5000005
+    assert selected["distance_from_median_mm"] == 0.5000005
+
+
+def test_all_dry_scored_years_have_no_defined_precipitation_fraction(generator):
+    selected = generator.select_median_wet_year(annual_rain_fixture(generator, [0] * 20))
+    assert selected["year_number"] == 1
+    assert selected["scored_precip_mm"] == selected["median_precip_mm"] == 0
+    assert selected["selected_fraction_of_scored_precip"] is None
+    json.dumps(selected, allow_nan=False)
+
+
+def test_median_wet_year_fraction_is_reported_not_assumed_to_be_five_percent(generator):
+    selected = generator.select_median_wet_year(
+        annual_rain_fixture(generator, [0] * 9 + [10, 11] + [12] * 9),
+    )
+    assert selected["year_number"] == 10
+    assert selected["selected_fraction_of_scored_precip"] == 10 / 129
+    assert selected["selected_fraction_of_scored_precip"] > 0.05
+
+
+@pytest.mark.parametrize("length", [4015, 7664, 7666])
+def test_year_selection_rejects_missing_or_partial_scored_blocks(generator, length):
+    with pytest.raises(ValueError, match="full 7665-row"):
+        generator.select_median_wet_year(np.zeros(length))
+
+
+def test_generate_modifies_the_median_year_and_preserves_both_sides(generator, monkeypatch):
     baseline, static = generator.generate_baseline(42)
-    baseline["pr"] = 0.0
-    baseline.loc[0, "pr"] = 1_000_000
-    baseline.loc[[1461, 1463, 1465], "pr"] = [10000, 20000, 30000]
+    baseline["pr"] = annual_rain_fixture(generator, list(range(20)))
     baseline.loc[[3651, 3653, 3655], "pr"] = [2, 3, 4]
     monkeypatch.setattr(
         generator, "generate_baseline", lambda seed: (baseline.copy(deep=True), dict(static)),
@@ -414,7 +482,9 @@ def test_generate_modifies_the_final_year_even_when_an_earlier_year_is_wetter(ge
     selected = frame.attrs["rainfall_diagnostics"]["selection"]
     assert selected["year_number"] == 10
     assert (selected["start_row"], selected["stop_row"]) == (3650, 4015)
+    assert selected["median_precip_mm"] == 9.5
     pd.testing.assert_series_equal(frame["pr"].iloc[:3650], baseline["pr"].iloc[:3650])
+    pd.testing.assert_series_equal(frame["pr"].iloc[4015:], baseline["pr"].iloc[4015:])
     assert frame.loc[3773, "time"] == "2010-05-01"
     assert frame.loc[3773, "pr"] == 9
     assert frame.loc[[3651, 3653, 3655], "pr"].eq(0).all()
@@ -432,8 +502,8 @@ def test_may_first_anchor_uses_actual_calendar_dates_not_a_fixed_row_offset(
 ):
     baseline, static = generator.generate_baseline(42)
     baseline["time"] = pd.date_range(record_start, periods=len(baseline)).strftime("%Y-%m-%d")
-    baseline["pr"] = 0.0
-    baseline.loc[[3651, 3653], "pr"] = [2, 3]
+    baseline["pr"] = annual_rain_fixture(generator, list(range(1, 21)))
+    baseline.loc[[3651, 3653, 3655], "pr"] = [2, 3, 5]
     monkeypatch.setattr(
         generator, "generate_baseline", lambda seed: (baseline.copy(deep=True), dict(static)),
     )
@@ -444,10 +514,10 @@ def test_may_first_anchor_uses_actual_calendar_dates_not_a_fixed_row_offset(
     assert construction["anchor_time"] == expected_date
     assert group["start"] == expected_anchor
     assert frame.loc[expected_anchor, "time"] == expected_date
-    assert frame.loc[expected_anchor, "pr"] == 5
-    assert expected_anchor != generator.FINAL_YEAR_START + 120
-    assert frame.loc[[3651, 3653], "pr"].eq(0).all()
-    assert frame["pr"].sum() == 5
+    assert frame.loc[expected_anchor, "pr"] == 10
+    assert expected_anchor != 3650 + 120
+    assert frame.loc[[3651, 3653, 3655], "pr"].eq(0).all()
+    assert frame["pr"].sum() == baseline["pr"].sum()
 
 
 @pytest.mark.parametrize("seed", [7, 42, 20260912])
@@ -455,8 +525,8 @@ def test_generated_groups_use_own_seed_q100_and_preserve_weather_and_volume(gene
     baseline, baseline_static = generator.generate_baseline(seed)
     frame, static = generator.generate(seed)
     repeated, repeated_static = generator.generate(seed)
-    assert len(frame) == 4015
-    assert generator.FINAL_YEAR_START == 3650
+    assert len(frame) == 7665
+    assert generator.PERIOD_YEARS == 20
     assert generator.TARGET_RETURN_PERIOD == 100
     assert generator.INTER_EVENT_DRY_DAYS == 1
     assert generator.STORM_START_MONTH_DAY == (5, 1)
@@ -468,9 +538,9 @@ def test_generated_groups_use_own_seed_q100_and_preserve_weather_and_volume(gene
     assert static == baseline_static == repeated_static
     pd.testing.assert_frame_equal(frame[["time", "tas", "pet"]], baseline[["time", "tas", "pet"]])
     selected = diagnostics["selection"]
-    assert selected["year_number"] == 10
+    assert 1 <= selected["year_number"] <= 20
     start, stop = selected["start_row"], selected["stop_row"]
-    assert (start, stop) == (3650, 4015)
+    assert (start, stop) == (365 * selected["year_number"], 365 * (selected["year_number"] + 1))
     assert pd.Timestamp(selected["start_time"]) == pd.Timestamp(baseline["time"].iloc[start])
     assert pd.Timestamp(selected["end_time"]) == pd.Timestamp(baseline["time"].iloc[stop - 1])
     assert "modified_year" in diagnostics
@@ -478,19 +548,23 @@ def test_generated_groups_use_own_seed_q100_and_preserve_weather_and_volume(gene
     construction = diagnostics["construction"]
     assert construction["target_return_period_years"] == 100
     assert construction["inter_event_dry_days"] == 1
-    assert construction["anchor_row"] == 3773
-    assert construction["anchor_time"] == "2010-05-01"
+    anchor = construction["anchor_row"]
+    assert start <= anchor < stop
+    assert construction["anchor_time"] == baseline["time"].iloc[anchor]
+    assert pd.Timestamp(construction["anchor_time"]).strftime("%m-%d") == "05-01"
     thresholds = {int(d): value for d, value in construction["thresholds_mm"].items()}
     assert set(thresholds) == {1, 3, 7}
     for d, value in thresholds.items():
         assert value == diagnostics["calibration"]["return_levels_mm"][str(d)]["100"]
     pd.testing.assert_series_equal(frame["pr"].iloc[:start], baseline["pr"].iloc[:start])
+    pd.testing.assert_series_equal(frame["pr"].iloc[stop:], baseline["pr"].iloc[stop:])
     for a, b in [(0, len(frame)), (start, stop)]:
         assert frame["pr"].iloc[a:b].sum() == pytest.approx(
             baseline["pr"].iloc[a:b].sum(), abs=1e-9, rel=0,
         )
     assert frame["_regime"].iloc[start:stop].eq("anomaly").all()
     assert frame["_regime"].iloc[:start].eq("ordinary").all()
+    assert frame["_regime"].iloc[stop:].eq("ordinary").all()
     assert np.isfinite(frame[["pr", "tas", "pet"]].to_numpy()).all()
     assert (frame[["pr", "pet"]].to_numpy() >= 0).all()
 
@@ -498,13 +572,13 @@ def test_generated_groups_use_own_seed_q100_and_preserve_weather_and_volume(gene
         baseline["pr"].to_numpy(), start=start, stop=stop, thresholds=thresholds,
     )
     expected_rain, groups = generator.pack_event_groups(
-        overlapped, original_groups, anchor=3773, window=(start, stop),
+        overlapped, original_groups, anchor=anchor, window=(start, stop),
     )
     np.testing.assert_array_equal(frame["pr"], np.round(expected_rain, 6))
     assert diagnostics["group_count"] == len(groups)
     assert diagnostics["target_exceeded_group_count"] == sum(g["target_exceeded"] for g in groups)
     assert len(diagnostics["groups"]) == len(groups)
-    assert groups[0]["start"] == 3773
+    assert groups[0]["start"] == anchor
     for original, packed, reported in zip(original_groups, groups, diagnostics["groups"]):
         assert packed["original_start"] == reported["original_start"] == original["start"]
         assert packed["original_stop"] == reported["original_stop"] == original["stop"]
@@ -560,7 +634,7 @@ def test_annotations_and_ddf_construction_metadata_stay_off_model_inputs(probe, 
     stage(tmp_path, case, probe, registry.find_model("reference_bucket"))
     staged = pd.read_csv(tmp_path / "input" / "forcing.csv")
     assert list(staged.columns) == ["time", "pr", "tas", "pet"]
-    assert len(staged) == case.n_steps == 4015
+    assert len(staged) == case.n_steps == 7665
     assert {"_event_id", "_event_start", "_event_end", "_regime"} <= set(case.forcing.columns)
     assert "rainfall_diagnostics" in case.forcing.attrs
     request = json.loads((tmp_path / "request.json").read_text())
@@ -573,4 +647,4 @@ def test_annotations_and_ddf_construction_metadata_stay_off_model_inputs(probe, 
 
 def test_a_short_submitted_model_window_cannot_discard_the_experiment(probe):
     submitted = replace(registry.find_model("reference_bucket"), name="submitted_model", window_days=30)
-    assert resolve_window_days(submitted, probe) == 3650
+    assert resolve_window_days(submitted, probe) == 7300

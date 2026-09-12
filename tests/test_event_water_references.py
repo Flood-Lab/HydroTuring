@@ -10,6 +10,7 @@ from hydroturing.criteria import get
 from hydroturing.harness import build_case, load_generator
 from hydroturing.protocol import Case
 from hydroturing.runner import get_runner
+from hydroturing.seeds import gate_seeds
 
 
 @pytest.fixture(scope="module")
@@ -59,3 +60,22 @@ def test_existing_negative_loses_water_in_a_known_warm_wet_case(probe, tmp_path)
     # The saturated bucket has enough surface runoff to lose the full excess.
     assert negative.diagnostics["events"][0]["residual_mm"] == pytest.approx(35.75)
     assert negative.value == pytest.approx(35.75 / 120.0)
+
+
+@pytest.mark.parametrize("seed", gate_seeds("mass/extreme-event-closure", 5))
+def test_existing_negative_passes_aggregate_but_fails_event_closure(probe, seed, tmp_path):
+    # The gate requires the declared failure; this regression also requires
+    # aggregate closure and the other safeguards to pass on the SAME run.
+    # Twenty years or a median-wet selection alone do not guarantee this.
+    case = build_case(probe, seed)
+    model = registry.find_model("reference_in_sample")
+    run = get_runner(model).run(model, probe, case, tmp_path)
+    results = {
+        spec.name: get(spec.name)(run, probe, dict(spec.params))
+        for spec in probe.criteria
+    }
+    event = results.pop("event_water_closure")
+    assert not event.passed, event.message
+    assert event.value > event.threshold
+    for result in results.values():
+        assert result.passed, result.message

@@ -218,15 +218,18 @@ def test_changing_calibration_preserves_baseline_weather_history_and_rainfall_ma
     for frame in (forcing, alternate):
         for column in ("time", "tas", "pet"):
             np.testing.assert_array_equal(frame[column], baseline[column])
-        np.testing.assert_array_equal(frame.pr.iloc[:3650], baseline.pr.iloc[:3650])
+        selection = frame.attrs["rainfall_diagnostics"]["selection"]
+        start, stop = selection["start_row"], selection["stop_row"]
+        np.testing.assert_array_equal(frame.pr.iloc[:start], baseline.pr.iloc[:start])
+        np.testing.assert_array_equal(frame.pr.iloc[stop:], baseline.pr.iloc[stop:])
         assert frame.pr.sum() == pytest.approx(baseline.pr.sum(), rel=0, abs=1e-8)
-        assert frame.pr.iloc[3650:].sum() == pytest.approx(baseline.pr.iloc[3650:].sum(), rel=0, abs=1e-8)
+        assert frame.pr.iloc[start:stop].sum() == pytest.approx(baseline.pr.iloc[start:stop].sum(), rel=0, abs=1e-8)
     assert forcing.attrs["rainfall_diagnostics"]["calibration"]["years"] == 100
     assert alternate.attrs["rainfall_diagnostics"]["calibration"]["years"] == 50
     assert forcing.attrs["rainfall_diagnostics"]["selection"] == alternate.attrs["rainfall_diagnostics"]["selection"]
 
 
-def test_generated_diagnostics_identify_fixed_final_year_and_are_json_safe(generator):
+def test_generated_diagnostics_identify_median_wet_year_and_are_json_safe(generator):
     forcing, _ = generator.generate(20260912)
     baseline, _ = generator.generate_baseline(20260912)
     report = forcing.attrs["rainfall_diagnostics"]
@@ -234,12 +237,21 @@ def test_generated_diagnostics_identify_fixed_final_year_and_are_json_safe(gener
     assert "group_size" not in report
     assert report["group_count"] == forcing.loc[forcing["_event_id"] > 0, "_event_id"].nunique()
     assert report["group_count"] == len(report["groups"])
-    annual_rain = baseline.pr.to_numpy()[365:].reshape(10, 365).sum(axis=1)
+    annual_rain = baseline.pr.to_numpy()[365:].reshape(20, 365).sum(axis=1)
     selection = report["selection"]
-    start, stop = 3650, 4015
-    assert selection["year_number"] == 10
+    # Both central ranks are equidistant for an even sample: take the earlier
+    # chronological block rather than let floating-point subtraction choose.
+    ordered = np.argsort(annual_rain)
+    selected_index = min(ordered[9:11])
+    start, stop = 365 * (selected_index + 1), 365 * (selected_index + 2)
+    assert selection["year_number"] == selected_index + 1
     assert (selection["start_row"], selection["stop_row"]) == (start, stop)
-    assert selection["baseline_precip_mm"] == pytest.approx(annual_rain[-1])
+    assert selection["baseline_precip_mm"] == pytest.approx(annual_rain[selected_index])
+    assert selection["median_precip_mm"] == pytest.approx(np.median(annual_rain))
+    assert selection["scored_precip_mm"] == pytest.approx(annual_rain.sum())
+    assert selection["selected_fraction_of_scored_precip"] == pytest.approx(
+        annual_rain[selected_index] / annual_rain.sum(),
+    )
     np.testing.assert_allclose(selection["annual_precip_mm"], annual_rain)
     assert selection["start_time"] == baseline.time.iloc[start]
     assert selection["end_time"] == baseline.time.iloc[stop - 1]
@@ -259,8 +271,10 @@ def test_constructed_group_depths_and_strict_threshold_diagnostics_agree(generat
     assert construction["target_return_period_years"] == 100
     assert report["calibration"]["years"] == 100
     assert construction["inter_event_dry_days"] == 1
-    assert construction["anchor_row"] == 3773
-    assert construction["anchor_time"] == "2010-05-01"
+    anchor = construction["anchor_row"]
+    assert forcing.time.iloc[anchor] == construction["anchor_time"]
+    assert pd.Timestamp(construction["anchor_time"]).strftime("%m-%d") == "05-01"
+    start, stop = report["selection"]["start_row"], report["selection"]["stop_row"]
     assert isinstance(construction["placement"], str) and construction["placement"]
     assert isinstance(construction["window_convention"], str) and construction["window_convention"]
     thresholds = construction["thresholds_mm"]
@@ -274,12 +288,12 @@ def test_constructed_group_depths_and_strict_threshold_diagnostics_agree(generat
         assert group["event_id"] == index
         assert group["source_event_count"] == len(group["source_events"])
         assert group["source_event_count"] >= 1
-        assert 3650 <= group["start"] < group["stop"] <= 4015
+        assert start <= group["start"] < group["stop"] <= stop
         assert group["original_start"] == group["source_events"][0][0]
         assert group["original_stop"] - group["original_start"] == group["stop"] - group["start"]
         if index == 1:
             assert group["start"] == construction["anchor_row"]
-            assert forcing.time.iloc[group["start"]] == "2010-05-01"
+            assert forcing.time.iloc[group["start"]] == construction["anchor_time"]
         else:
             previous = report["groups"][index - 2]
             assert group["start"] == previous["stop"] + 1
@@ -403,7 +417,7 @@ def empty_forcing(generator):
     })
 
 
-@pytest.mark.parametrize("year_number", [1, 5, 10])
+@pytest.mark.parametrize("year_number", [1, 5, 20])
 def test_modified_year_window_can_use_prefix_and_durations_can_choose_different_storms(generator, year_number):
     forcing = empty_forcing(generator)
     first, stop = 365 * year_number, 365 * (year_number + 1)
@@ -425,7 +439,7 @@ def test_modified_year_window_can_use_prefix_and_durations_can_choose_different_
         assert record["end_time"] == forcing.time.iloc[first]
 
 
-@pytest.mark.parametrize("year_number", [1, 5, 10])
+@pytest.mark.parametrize("year_number", [1, 5, 20])
 def test_modified_year_maximum_includes_last_day_and_dry_gaps_but_excludes_stop(generator, year_number):
     forcing = empty_forcing(generator)
     start, stop = 365 * year_number, 365 * (year_number + 1)
@@ -473,12 +487,12 @@ def test_modified_year_description_requires_the_full_record(generator):
 
 
 @pytest.mark.parametrize("start, stop", [
-    (0, 365),             # Spinup is not one of the ten scored years.
+    (0, 365),             # Spinup is not one of the twenty scored years.
     (366, 731),           # A full-length window still has to align with the year blocks.
     (365, 729),
     (365, 731),
     (3650, 4016),
-    (4015, 4380),
+    (7665, 8030),
     (-365, 0),
 ])
 def test_modified_year_description_rejects_nonannual_or_out_of_record_bounds(generator, start, stop):
