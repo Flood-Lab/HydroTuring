@@ -122,6 +122,17 @@ for exactly the abstracted volume (net of return flow).
 *Discriminates:* models that treat abstraction as an unaccounted sink.
 Contributed by Yuanhang Liu.
 
+### `mass/gw-sw-exchange-consistency` &middot; **merged**
+A model reporting groundwater-river exchange must agree with itself: the two
+signed directional components (`gw_to_sw`, `sw_to_gw`) must sum to the
+reported net exchange, and recharge plus that net exchange must equal the
+change in aquifer storage. Groundwater-only, over a two-year daily case
+driven by seeded recharge and river stage.
+*Discriminates:* internally inconsistent exchange reporting through
+`reference_exchange_sign_error`, which closes its own groundwater balance
+exactly yet reports one directional component with the wrong sign.
+Contributed by Yaji Wang (University of Illinois Urbana-Champaign).
+
 ---
 
 ## Generalisation

@@ -10,7 +10,7 @@ import json
 import sys
 from pathlib import Path
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "gwex", "gw_to_sw", "sw_to_gw", "mrso", "snw", "canopy", "channel"]
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "gwex", "mrso", "snw", "canopy", "channel"]
 
 MODEL = {"name": "reference_bucket", "version": "1.0.0"}
 
@@ -104,15 +104,12 @@ def simulate(forcing, static, dt_days=1.0):
         baseflow -= divert
         removed += divert
 
-        net_exchange = -removed / dt_days
         rows.append({
             "time": step["time"],
             "pr": pr_rate,
             "evspsbl": (canopy_evap + soil_evap) / dt_days,
             "mrro": (surface + baseflow) / dt_days,
-            "gwex": net_exchange,
-            "gw_to_sw": max(net_exchange, 0.0),
-            "sw_to_gw": min(net_exchange, 0.0),
+            "gwex": -removed / dt_days,
             "mrso": soil,
             "snw": swe,
             "canopy": canopy,

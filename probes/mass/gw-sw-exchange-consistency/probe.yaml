@@ -28,12 +28,13 @@ case:
   timestep: PT1D
   period_years: 2
   spinup_days: 90
+  min_window_days: 180
   max_output_mb: 2.0
   max_runtime_s: 60
 
 criteria:
   - exchange_components:
-      rel_tol: 0.05
+      rel_tol: 1.0e-6
       abs_tol: 1.0e-6
 
   - groundwater_balance:
@@ -50,6 +51,11 @@ criteria:
       minimum_gross_mm: 0.1
 
 baselines:
+  # reference_bucket, flex_lumped, flex_topo and sacsma_snow17 do not consume
+  # gw_recharge/sw_stage_m, so this probe is N/A (INCOMPATIBLE) for them,
+  # exactly as it is for any model without a groundwater-exchange term.
+  # modflow6 is the only baseline that can be put to this probe's control
+  # volume today.
   must_pass: [modflow6]
   must_fail:
     reference_exchange_sign_error: exchange_components

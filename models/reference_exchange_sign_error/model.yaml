@@ -1,6 +1,10 @@
 name: reference_exchange_sign_error
 version: "0.1.0"
-description: Deliberately reports a positive river-to-groundwater component.
+description: >
+  A linear-reservoir aquifer with a genuine bidirectional river exchange
+  that closes its own groundwater balance exactly. Deliberately reports
+  the aquifer-to-river component (gw_to_sw) without its sign, so it no
+  longer sums to gwex; every other criterion in the probe passes.
 authors: [HydroTuring maintainers]
 license: PolyForm-Noncommercial-1.0.0
 runner: subprocess

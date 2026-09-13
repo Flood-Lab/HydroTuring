@@ -13,9 +13,10 @@ from hydroturing.spec import ProbeSpec
 def exchange_components(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     """Require directional components to sum to the declared net exchange.
 
-    The repository's convention is positive ``gwex`` into the catchment. This
-    probe uses ``gw_to_sw`` as the positive component and ``sw_to_gw`` as the
-    negative component, so ``gw_to_sw + sw_to_gw == gwex``.
+    The repository's convention is positive ``gwex`` into the catchment
+    (AGENTS.md). ``sw_to_gw`` (river losing to the aquifer) is the positive
+    component and ``gw_to_sw`` (aquifer losing to the river) is the negative
+    component, so ``gw_to_sw + sw_to_gw == gwex``.
     """
     w = make_window(run, probe)
     required = ("gw_to_sw", "sw_to_gw", "gwex")
@@ -29,8 +30,8 @@ def exchange_components(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
     residual = gw_to_sw + sw_to_gw - gwex
     denominator = np.maximum(np.maximum(np.abs(gw_to_sw), np.abs(sw_to_gw)), 1.0e-9)
     relative = float(np.max(np.abs(residual) / denominator))
-    sign_violation = bool((gw_to_sw < -1.0e-9).any() or (sw_to_gw > 1.0e-9).any())
-    rel_tol = float(params.get("rel_tol", 0.05))
+    sign_violation = bool((gw_to_sw > 1.0e-9).any() or (sw_to_gw < -1.0e-9).any())
+    rel_tol = float(params.get("rel_tol", 1.0e-6))
     abs_tol = float(params.get("abs_tol", 1.0e-6))
     max_abs = float(np.max(np.abs(residual)))
     ok = not sign_violation and bool(

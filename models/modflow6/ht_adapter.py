@@ -13,7 +13,6 @@ import shutil
 import tempfile
 
 import flopy
-import numpy as np
 
 MODEL = {"name": "modflow6", "version": "0.1.0"}
 COLUMNS = ["time", "gwex", "gw_to_sw", "sw_to_gw", "gw"]
@@ -36,7 +35,7 @@ def resolve_mf6_exe() -> str:
 
     system = platform.system().lower()
     if system == "windows":
-        candidates = [Path(r"D:\hydrowang\modflow\bin\mf6.exe")]
+        candidates = []
         executable_names = ("mf6.exe", "mf6")
     elif system == "linux":
         candidates = [
@@ -101,7 +100,8 @@ def run_modflow(forcing: list[dict], static: dict) -> list[dict]:
         flopy.mf6.ModflowGwfnpf(gwf, icelltype=1, k=K)
         flopy.mf6.ModflowGwfsto(
             gwf, iconvert=1, storagecoefficient=False,
-            ss=1.0e-5, sy=specific_yield,
+            ss=storage_coefficient, sy=specific_yield,
+            save_flows=True,
             steady_state={0: False},
             transient={period: True for period in range(nper)},
         )
@@ -126,21 +126,35 @@ def run_modflow(forcing: list[dict], static: dict) -> list[dict]:
         if not success:
             raise RuntimeError("MODFLOW 6 failed:\n" + "\n".join(output[-20:]))
 
-        head_file = gwf.output.head()
         budget_file = gwf.output.budget()
-        heads = head_file.get_alldata()
         rows = []
+        gw_mm = specific_yield * max(initial_head - BOTM, 0.0) * 1000.0
         for period, forcing_row in enumerate(forcing):
             q_records = budget_file.get_data(text="RIV", kstpkper=(0, period))[0]
-            # MODFLOW RIV q is positive into the aquifer. The probe's signed
-            # components are positive GW -> river and negative river -> GW.
+            # MODFLOW RIV q is positive into the aquifer, i.e. the river
+            # losing water to groundwater: sw_to_gw (>= 0) per AGENTS.md's
+            # gwex-positive-into-the-aquifer convention.
             q_m3_day = float(q_records["q"].sum())
             q_mm_day = q_m3_day / area_m2 * 1000.0
-            gw_to_sw = max(-q_mm_day, 0.0)
-            sw_to_gw = min(-q_mm_day, 0.0)
+            sw_to_gw = max(q_mm_day, 0.0)
+            gw_to_sw = min(q_mm_day, 0.0)
             gwex = gw_to_sw + sw_to_gw
-            mean_head = float(np.mean(heads[period, 0]))
-            gw_mm = specific_yield * max(mean_head - BOTM, 0.0) * 1000.0
+
+            # MODFLOW's own STO-SS/STO-SY budget terms, not a head-derived
+            # approximation: they are exact even with a non-uniform head
+            # field, and use aquifer_storage_coefficient (Ss) as well as
+            # specific yield. Positive q is water released FROM storage
+            # (storage decreasing), so the storage change is its negative.
+            # Unlike RIV/RCHA, MODFLOW 6 writes STO-SS/STO-SY as a dense
+            # per-cell array (one value per model cell), not a list of
+            # discrete (node, q) records, because storage change applies
+            # everywhere rather than at a few boundary cells. So it has no
+            # named "q" field: the array itself is the flow.
+            sto_ss = budget_file.get_data(text="STO-SS", kstpkper=(0, period))[0]
+            sto_sy = budget_file.get_data(text="STO-SY", kstpkper=(0, period))[0]
+            storage_release_m3_day = float(sto_ss.sum() + sto_sy.sum())
+            gw_mm += -storage_release_m3_day / area_m2 * 1000.0
+
             rows.append({
                 "time": forcing_row["time"],
                 "gwex": gwex,
@@ -148,7 +162,6 @@ def run_modflow(forcing: list[dict], static: dict) -> list[dict]:
                 "sw_to_gw": sw_to_gw,
                 "gw": gw_mm,
             })
-        head_file.close()
         budget_file.close()
         return rows
 

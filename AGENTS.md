@@ -53,6 +53,13 @@ budget that closes on its own yet misses the withdrawal; the probe scores that
 as a failure, not as INCOMPLETE, because such a model reports everything the
 criterion needs.
 
+A groundwater-exchange probe instead supplies `gw_recharge` (mm/day, direct
+recharge to the aquifer) and `sw_stage_m` (metres, the river stage the
+aquifer exchanges with) in the forcing, and expects `gwex`, its signed
+components `gw_to_sw`/`sw_to_gw`, and the `gw` state back. A model with no
+groundwater-exchange term is `N/A (INCOMPATIBLE)` on such a probe rather than
+scored, the same as any other declared-but-unconsumed input.
+
 ## The evaluation window
 
 A submitted model is not run over the full generated record. The harness
@@ -133,6 +140,8 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `mrro` | total runoff | mm/day |
 | `dis` | river discharge | m3/s |
 | `gwex` | a declared exchange with the outside: regional groundwater, inter-basin transfer; positive into the catchment | mm/day |
+| `gw_to_sw` | groundwater-to-river exchange component: the aquifer losing to the river, so it is never positive; a component of `gwex`, not an addition to it | mm/day |
+| `sw_to_gw` | river-to-groundwater exchange component: the river losing to the aquifer, so it is never negative; `gw_to_sw + sw_to_gw` must equal `gwex` | mm/day |
 | `sbl` | the sublimating share of `evspsbl`: a component of it, never an addition; report it if the model knows which kilograms left as ice | mm/day |
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
 | `hfss` | sensible heat flux, positive away from the surface | W/m2 |
