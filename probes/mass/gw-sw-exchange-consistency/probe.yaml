@@ -1,0 +1,61 @@
+id: mass/gw-sw-exchange-consistency
+
+title: Groundwater-river exchange and storage close the water budget
+
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Yaji Wang
+    affiliation: University of Illinois Urbana-Champaign
+
+description: >
+  A two-year daily aquifer case checks that a model reporting groundwater-river
+  exchange accounts for recharge, both signed exchange directions and aquifer
+  storage. This is intentionally a groundwater probe: canopy, soil, snow and
+  catchment runoff are outside its control volume.
+
+requires:
+  fluxes: [gwex, gw_to_sw, sw_to_gw]
+  states: [gw]
+  forcing: [gw_recharge, sw_stage_m]
+  static: [area_km2, aquifer_specific_yield, aquifer_storage_coefficient, river_conductance_m2_per_day, river_bottom_offset_m]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_years: 2
+  spinup_days: 90
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+criteria:
+  - exchange_components:
+      rel_tol: 0.05
+      abs_tol: 1.0e-6
+
+  - groundwater_balance:
+      recharge: gw_recharge
+      exchange: gwex
+      storage: gw
+      rel_tol: 0.01
+      abs_tol_mm: 2.0e-4
+
+  - state_bounds:
+      gw: [0.0, null]
+
+  - exchange_directions:
+      minimum_gross_mm: 0.1
+
+baselines:
+  must_pass: [modflow6]
+  must_fail:
+    reference_exchange_sign_error: exchange_components
+
+provenance: >
+  Synthetic. Generated at run time by generate.py from a recorded seed. The
+  forcing is generated at runtime. MODFLOW 6 receives recharge and river stage
+  as explicit inputs; RIV budget flows are mapped to the two signed exchange
+  components.

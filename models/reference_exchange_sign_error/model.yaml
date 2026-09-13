@@ -1,0 +1,14 @@
+name: reference_exchange_sign_error
+version: "0.1.0"
+description: Deliberately reports a positive river-to-groundwater component.
+authors: [HydroTuring maintainers]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: [python3, ht_adapter.py]
+timestep: PT1D
+emits:
+  fluxes: [gwex, gw_to_sw, sw_to_gw]
+  states: [gw]
+needs_forcing: [gw_recharge, sw_stage_m]
+needs_static: [area_km2, aquifer_specific_yield, aquifer_storage_coefficient, river_conductance_m2_per_day, river_bottom_offset_m]
+resources: {cpu: 1, memory_gb: 1, gpu: false}

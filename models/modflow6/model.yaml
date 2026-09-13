@@ -1,0 +1,20 @@
+name: modflow6
+version: "0.1.0"
+description: >
+  A local MODFLOW 6 transient groundwater model with one river cell. The
+  adapter maps RIV budget flows to signed groundwater-to-river and
+  river-to-groundwater exchange and reports aquifer storage.
+authors: [Local HydroTuring contributor]
+license: MODFLOW 6 public domain / local adapter
+runner: docker
+entrypoint: [python3, ht_adapter.py]
+timestep: PT1D
+emits:
+  fluxes: [gwex, gw_to_sw, sw_to_gw]
+  states: [gw]
+needs_forcing: [gw_recharge, sw_stage_m]
+needs_static: [area_km2, aquifer_storage_coefficient, aquifer_specific_yield, river_conductance_m2_per_day, river_bottom_offset_m]
+supports:
+  perturbation: false
+resources: {cpu: 1, memory_gb: 2, gpu: false}
+window_days: full
