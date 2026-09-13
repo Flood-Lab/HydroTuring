@@ -49,7 +49,7 @@ the two 365-day evaluation series point by point. For a flux $Y$ use
 $$
 d_Y =
 \frac{\max_t |Y_{N+3}(t)-Y_N(t)|}
-{\max(\operatorname{mean}_t |Y_N(t)|, 0.05\ \mathrm{mm\ day^{-1}})}.
+{\max(\mathrm{mean}_t |Y_N(t)|, 0.05\ \mathrm{mm\ day^{-1}})}.
 $$
 
 For a storage use the same expression with a 1 mm floor. The largest
