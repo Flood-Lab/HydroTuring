@@ -46,6 +46,10 @@ authors:
       Fisheries and Wildlife, Michigan State University, East Lansing, MI
       48823, USA
     orcid: "https://orcid.org/0000-0002-0607-2270"
+  - given-names: Kaihao
+    family-names: Long
+    affiliation: School of Geography and Planning, Sun Yat-sen University, Guangzhou 510006, China
+    orcid: "https://orcid.org/0000-0001-7578-3378"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT
