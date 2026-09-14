@@ -6,12 +6,12 @@ Does a model reach the same seasonal state cycle after repeated identical
 forcing, or does its answer still depend on how many cycles preceded it?
 
 The generator draws one 365-day rain-dominated weather sequence from a seed
-and maps it onto nine complete Gregorian years (3287 rows). February 29
+and maps it onto ten complete Gregorian years (3652 rows). February 29
 repeats February 28's value, so every January 1 and month/day is aligned
 between cycles even when a model reads the calendar. A preceding 365-day
 calendar year is emitted as real spin-up, giving closure a state row before
 the scored record. The host labels the evaluation year after five repetitions
-in `short` and after eight repetitions in `long`; those labels are stripped
+in `short` and after nine repetitions in `long`; those labels are stripped
 before either adapter runs.
 
 The probe asks whether the two selected cycles agree. It does not require a
@@ -28,18 +28,18 @@ X(t+365\ \mathrm{d})=X(t),
 $$
 
 an initialized physical model should converge to a repeatable seasonal orbit.
-Once it has reached that orbit, giving it three additional copies of the same
+Once it has reached that orbit, giving it four additional copies of the same
 forcing cannot change the following copy:
 
 $$
-Q_N(t)\approx Q_{N+3}(t),
+Q_N(t)\approx Q_{N+4}(t),
 $$
 
 and likewise for actual evapotranspiration and every reported physical store.
 
 The probe first establishes the conditioning empirically: the exact bucket,
 FLEX-Lumped, FLEX-Topo, and SAC-SMA/Snow-17 must all agree between the sixth
-and ninth copies for every gate seed. Their pass is evidence that five cycles
+and tenth copies for every gate seed. Their pass is evidence that five cycles
 are enough for this generated catchment, not a claim that five years is a
 universal spin-up length.
 
@@ -73,7 +73,7 @@ the initial state.
 `reference_restless` is the exact conservative bucket with an internal
 30-day clock that changes its recession coefficient. It closes its water
 budget and keeps each reported store within bounds, but its clock has a
-different phase after five and eight annual cycles. It fails only
+different phase after five and nine annual cycles. It fails only
 `spinup_cycle_invariance`.
 
 This is the intended hidden-state failure: an unmodelled state keeps evolving
@@ -120,6 +120,6 @@ on `spinup_cycle_invariance`; `reference_leaky`, `reference_cheater`, and
 these checks on an independent seed and verifies that adapters receive neither
 phase labels nor distinct case metadata. The acceptance threshold and floors
 are calibrated against the archived references: departures are 0.00% for the
-exact and FLEX references, 0.02% for CWatM, and 0.38% for LISFLOOD, so the
+exact and FLEX references, 0.02% for CWatM, and 0.36% for LISFLOOD, so the
 5% engineering rule retains a conservative margin while the absolute floors
 keep near-zero variables well-conditioned.

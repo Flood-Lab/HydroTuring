@@ -7,7 +7,7 @@ import pandas as pd
 
 CYCLE_DAYS = 365
 SHORT_CYCLES = 5
-EXTRA_CYCLES = 3
+EXTRA_CYCLES = 4
 TOTAL_CYCLES = SHORT_CYCLES + 1 + EXTRA_CYCLES
 SPINUP_DAYS = 365
 VARIANTS = ("short", "long")
@@ -45,12 +45,14 @@ def _cycle_day(times: pd.DatetimeIndex) -> np.ndarray:
 
     A real Gregorian axis contains leap days, while the synthetic weather
     cycle intentionally has 365 values.  Reusing February 28 on February 29
-    and shifting later dates back by one keeps every January 1 and every
-    month/day aligned across repetitions, so a model that reads the calendar
-    is not given a hidden one-day forcing perturbation.
+    explicitly, then shifting later dates back by one, keeps every January 1
+    and every month/day aligned across repetitions.  The scored comparison is
+    four cycles apart so both years have the same leap-day phase.
     """
     day = times.dayofyear.to_numpy() - 1
+    feb_29 = times.is_leap_year & (times.month == 2) & (times.day == 29)
     leap_after_feb = times.is_leap_year & (times.month > 2)
+    day = np.where(feb_29, 58, day)
     day = day - leap_after_feb.astype(int)
     return np.clip(day, 0, CYCLE_DAYS - 1)
 
