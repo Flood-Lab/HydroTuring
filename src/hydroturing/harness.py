@@ -12,7 +12,11 @@ import numpy as np
 import pandas as pd
 
 from hydroturing import SUITE_VERSION, criteria as criteria_mod
-from hydroturing.criteria.base import CriterionResult
+from hydroturing.criteria.base import (
+    FAIL as CRITERION_FAIL,
+    PASS as CRITERION_PASS,
+    CriterionResult,
+)
 from hydroturing.protocol import Case, RunResult
 from hydroturing.runner import get_runner
 from hydroturing.scoring import (
@@ -326,7 +330,7 @@ def evaluate_criteria(
             results.append(
                 CriterionResult(
                     name=criterion.name,
-                    status=FAIL if failed else PASS,
+                    status=CRITERION_FAIL if failed else CRITERION_PASS,
                     value=max(values, default=None),
                     threshold=worst_result.threshold,
                     message=message,

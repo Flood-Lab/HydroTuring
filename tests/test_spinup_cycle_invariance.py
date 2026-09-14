@@ -133,9 +133,7 @@ def test_minimum_window_keeps_both_host_selected_evaluation_cycles(probe):
     days = resolve_window_days(registry.find_model("reference_bucket"), probe, override=30)
     bounds = select_window(short, probe, days)
     assert bounds.days == PERIOD_DAYS
-    for case, expected_start in (
-        (short, SPINUP_DAYS + 5 * CYCLE_DAYS),
-        (long, SPINUP_DAYS + 8 * CYCLE_DAYS),
-    ):
+    for case in (short, long):
         kept = window_case(case, bounds)
-        np.testing.assert_array_equal(_evaluation_rows(kept), np.arange(expected_start, expected_start + CYCLE_DAYS))
+        expected = _evaluation_rows(case)
+        np.testing.assert_array_equal(_evaluation_rows(kept), expected)
