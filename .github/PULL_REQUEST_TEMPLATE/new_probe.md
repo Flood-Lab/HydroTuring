@@ -20,6 +20,7 @@ Every probe must separate the reference models. Fill in what `ht gate` reports:
 ## Checklist
 
 - [ ] There is an `accepted` proposal issue and this PR closes it
+- [ ] `authors` in `probe.yaml` names every author with `name`, `affiliation` and, where you have one, `orcid`, matching the proposal issue; CONTRIBUTORS.md, CITATION.cff and the paper's author list are built from it
 - [ ] `ht validate` passes
 - [ ] `ht gate --probe <id>` passes
 - [ ] The generator is deterministic given a seed and commits no data

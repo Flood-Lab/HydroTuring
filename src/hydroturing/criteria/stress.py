@@ -448,11 +448,18 @@ def antecedent_monotonicity(runs: dict[str, RunResult], probe: ProbeSpec, params
     than the extra water that was there.
 
     The `wet` variant adds rain before the storm and nothing during or after
-    it. Over the storm window the wet run's runoff must exceed the dry run's
-    by at least a share of the storm, and by no more than the antecedent
-    rain that was added. A memoryless model, one that runs off a fixed share
-    of each day's rain, answers both storms identically and fails the first;
-    a model that manufactures water fails the second.
+    it. The storm is the first rain after the last step on which the
+    variants differ, however many rainless days a probe leaves in between,
+    and the window opens on the storm and runs `window_days` from it. It
+    cannot open any earlier: the wet catchment is still draining the
+    antecedent rain in those quiet days, and that recession is not runoff
+    from a storm that has not yet fallen. Over the window the wet run's
+    runoff must exceed the dry run's by at least a share of the storm, the
+    unbroken run of rain the window opens on up to its first dry step, and
+    by no more than the antecedent rain that was added. A
+    memoryless model, one that runs off a fixed share of each day's rain,
+    answers both storms identically and fails the first; a model that
+    manufactures water fails the second.
     """
     driver = str(params.get("driver", "pr"))
     var = str(params.get("variable", "mrro"))
@@ -463,19 +470,26 @@ def antecedent_monotonicity(runs: dict[str, RunResult], probe: ProbeSpec, params
     wet = make_window(pick(runs, params, "perturbed", "wet"), probe)
     if len(dry.table) != len(wet.table):
         raise ValueError("the variants must have the same number of scored steps")
-    diff = wet.forcing[driver].to_numpy(dtype=float) - dry.forcing[driver].to_numpy(dtype=float)
+    rain = dry.forcing[driver].to_numpy(dtype=float)
+    diff = wet.forcing[driver].to_numpy(dtype=float) - rain
     added_steps = np.nonzero(np.abs(diff) > 1e-9)[0]
     if len(added_steps) == 0:
         raise ValueError("the variants carry the same driver; there is no antecedent rain")
     antecedent = float(dry.volume(diff).sum())
     if antecedent <= 0:
         raise ValueError("the wet variant must add rain, not remove it")
-    storm = int(added_steps[-1]) + 1  # the storm follows the last antecedent step
-    n = int(round(window_days / dry.dt_days))
-    stop = min(len(dry.table), storm + n)
-    storm_mm = float(dry.volume(dry.forcing[driver].to_numpy(dtype=float)[storm:stop]).sum())
-    if storm_mm <= 0:
+    # The variants carry the same rain from here on, so the first of it is
+    # the storm they share. It need not come on the next step.
+    after = int(added_steps[-1]) + 1
+    falls = np.nonzero(rain[after:] > 1e-9)[0]
+    if len(falls) == 0:
         raise ValueError("no storm follows the antecedent rain in the scored window")
+    storm = after + int(falls[0])
+    n = max(1, int(round(window_days / dry.dt_days)))
+    stop = min(len(dry.table), storm + n)
+    lull = np.nonzero(rain[storm:stop] <= 1e-9)[0]
+    storm_end = storm + int(lull[0]) if len(lull) else stop
+    storm_mm = float(dry.volume(rain[storm:storm_end]).sum())
 
     q_dry = float(dry.volume(dry.table[var].to_numpy(dtype=float)[storm:stop]).sum())
     q_wet = float(wet.volume(wet.table[var].to_numpy(dtype=float)[storm:stop]).sum())
@@ -502,8 +516,9 @@ def antecedent_monotonicity(runs: dict[str, RunResult], probe: ProbeSpec, params
             f"({extra / storm_mm:.2f} of it), within the {antecedent:.0f} mm it had been given"
             if ok else "; ".join(failures)
         ),
-        diagnostics={"antecedent_mm": antecedent, "storm_mm": storm_mm, "runoff_dry_mm": q_dry,
-                     "runoff_wet_mm": q_wet},
+        diagnostics={"antecedent_mm": antecedent, "storm_step": storm,
+                     "storm_time": str(dry.forcing["time"].iloc[storm]), "storm_mm": storm_mm,
+                     "runoff_dry_mm": q_dry, "runoff_wet_mm": q_wet},
     )
 
 

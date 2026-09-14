@@ -22,6 +22,23 @@ body:
         maintainer can make alone. See
         [CONTRIBUTING.md](https://github.com/Flood-Lab/HydroTuring/blob/main/CONTRIBUTING.md#credit).
 
+        Because accepted proposals accumulate towards authorship, the form
+        asks who is proposing. This is what CONTRIBUTORS.md and the paper's
+        author list are built from. A contact email is not asked for on a
+        public issue; the maintainer will ask for one privately if and when
+        your proposals cross the authorship line.
+
+  - type: input
+    id: proposer
+    attributes:
+      label: Proposer
+      description: >
+        Your full name as it should be printed, your affiliation with
+        department and city (or "independent"), and your ORCID if you have
+        one.
+      placeholder: "Jane Doe, Department of Civil Engineering, University of Somewhere, Boulder CO, 0000-0002-1825-0097"
+    validations: {required: true}
+
   - type: input
     id: model_name
     attributes:
@@ -168,5 +185,5 @@ body:
       options:
         - label: I have identified a reproducible code revision and have permission to use the linked code and weights for this evaluation.
           required: true
-        - label: I understand that HydroTuring may report PASS, VIOLATION, INCOMPLETE, INCOMPATIBLE, or ERROR.
+        - label: I understand that HydroTuring may report PASS, FAIL or N/A on each probe, with a reason of VIOLATION, INCOMPLETE, INCOMPATIBLE or ERROR.
           required: true

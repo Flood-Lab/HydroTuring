@@ -32,6 +32,9 @@ def test_repeated_forcing_contract(probe):
     assert a.forcing.to_csv(index=False) == b.forcing.to_csv(index=False)
     assert a.static == b.static
     assert not a.forcing.pr.equals(c.forcing.pr)
+    assert not a.forcing.pr.gt(0).equals(c.forcing.pr.gt(0))
+    assert not a.forcing.tas.equals(c.forcing.tas)
+    assert not a.forcing.pet.equals(c.forcing.pet)
     assert a.n_steps == 20075
     assert a.spinup_steps == 1825
     assert a.forcing.tas.min() > a.static["snow_threshold_degC"]
@@ -78,10 +81,34 @@ def test_reporter_changes_only_the_two_declared_terms(probe):
     forcing = case.forcing.to_dict("records")
     baseline = pd.DataFrame(exact(forcing, case.static))
     biased = pd.DataFrame(drift(forcing, case.static))
+    # Upstream's bucket now declares human withdrawals; this probe has none.
+    assert baseline.gwex.eq(0).all()
+    baseline = baseline.drop(columns="gwex")
     np.testing.assert_allclose(biased.mrro, baseline.mrro - 0.012, atol=1e-12)
     np.testing.assert_allclose(biased.mrso, baseline.mrso + 0.012 * np.arange(1, len(biased) + 1))
     pd.testing.assert_frame_equal(biased.drop(columns=["mrro", "mrso"]),
                                   baseline.drop(columns=["mrro", "mrso"]))
+
+
+@pytest.mark.parametrize("store,bias", [("gw", 0.012), ("channel", 0.012), ("mrso", 0.004)])
+def test_documented_capacity_only_detection_limit(probe, store, bias):
+    """Reproduce review counterexamples; passing bounds is not no-drift evidence.
+
+    These characterize the current scope, not an acceptance of the reporters
+    as physical. A future trend criterion must reverse these expectations.
+    """
+    exact = runpy.run_path(str(REPO_ROOT / "models/reference_bucket/ht_adapter.py"))["simulate"]
+    case = build_case(probe, 19)
+    table = pd.DataFrame(exact(case.forcing.to_dict("records"), case.static))
+    table["mrro"] -= bias
+    if store not in table:
+        table[store] = 0.0
+    table[store] += bias * np.arange(1, len(table) + 1)
+    run = RunResult(case, table, {}, 0)
+    scores = evaluate(run, probe)
+    assert table.mrro.min() >= 0
+    assert scores["closure"].value < 1e-10
+    assert all(c.passed for c in scores.values()), scores
 
 
 @pytest.mark.parametrize("name", ["reference_bucket", "flex_lumped", "flex_topo", "sacsma_snow17"])

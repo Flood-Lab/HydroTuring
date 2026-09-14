@@ -21,11 +21,17 @@ SCHEMA_DIR = REPO_ROOT / "schemas"
 # Canonical variable names. Water fluxes are mm per timestep-day; states are
 # mm. `dis` is m3 s-1, because that is what models report. The surface energy
 # fluxes are W m-2, positive away from the surface for the turbulent terms and
-# positive into the ground for `hfg`, which is the surface energy budget's
-# storage term: a model that reports it does not also need an energy state.
-# `sbl` is a component of `evspsbl`, never an addition to it.
-FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "sbl", "hfls", "hfss", "hfg")
+# positive into the ground at the actual soil surface for `hfg`. Adapters
+# must correct a deeper-boundary flux for heat storage above that depth;
+# subsurface storage is not also subtracted from the surface budget.
+# `sbl` is a component of `evspsbl`, never an addition to it. `rlus` is the
+# total upward longwave radiation, surface emission plus reflected downward
+# longwave, positive away from the surface.
+FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "sbl", "hfls", "hfss", "hfg", "rlus", "hfg_bottom")
 STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
+# Keep diagnostics out of STATE_VARS: closure sums every reported store,
+# and temperature must never be added to water storage.
+DIAG_VARS = ("ts", "tsoil_layer")
 
 UNITS = {
     "pr": "mm day-1",
@@ -40,6 +46,11 @@ UNITS = {
     "hfls": "W m-2",
     "hfss": "W m-2",
     "hfg": "W m-2",
+    "rlus": "W m-2",
+    # Instantaneous skin temperature; radiation uses kelvin, unlike forcing tas.
+    "ts": "K",
+    "hfg_bottom": "W m-2",
+    "tsoil_layer": "K",
     "mrso": "mm",
     "snw": "mm",
     "canopy": "mm",
@@ -72,9 +83,15 @@ FULL_WINDOW = "full"
 TRUSTED_SUBPROCESS_MODELS = {
     "reference_bucket",
     "reference_coupled",
+    "reference_diurnal_bias",
+    "reference_abstraction_blind",
+    "reference_soil_heat",
+    "reference_frozen_soil",
+    "reference_half_soil",
     "reference_two_head",
     "reference_constant_lambda",
     "reference_sublimation_blind",
+    "reference_ground_dodge",
     "reference_energy_leak",
     "reference_calendar",
     "reference_cheater",
@@ -98,6 +115,9 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_area_leak",
     "reference_overshooting",
     "reference_sublimating",
+    "reference_radiative",
+    "reference_air_emitter",
+    "reference_no_reflection",
 }
 
 
@@ -166,10 +186,17 @@ class ProbeSpec:
     # or a dry-down; such a probe asks for at least a year, and a submitted
     # model's window is widened to it.
     min_window_days: int = 0
+    # Missing diagnostic outputs cause INCOMPLETE, as for missing fluxes.
+    requires_diagnostics: tuple[str, ...] = ()
+    # Case-supplied inputs the verdict rests on: forcing columns and
+    # static.json keys a model must declare it consumes, or it is judged
+    # against values it never read and is INCOMPATIBLE instead.
+    requires_forcing: tuple[str, ...] = ()
+    requires_static: tuple[str, ...] = ()
 
     @property
     def required_vars(self) -> tuple[str, ...]:
-        return self.requires_fluxes + self.requires_states
+        return self.requires_fluxes + self.requires_states + self.requires_diagnostics
 
     @property
     def slug(self) -> str:
@@ -217,6 +244,27 @@ class ProbeSpec:
         """
         return self.variants[0] if self.variants else None
 
+    @property
+    def headline(self) -> tuple[str, ...]:
+        """The criteria this probe exists to score, in declaration order.
+
+        On a paired probe these are its paired criteria: the variants are run
+        for them alone, and every single-run criterion beside them is scored
+        on the control as a precondition. A probe with one case per seed has
+        no such mark, and its declaration order is no guide either, since a
+        precondition is often listed first. Its gate stands in: the criteria
+        its `must_fail` baselines are declared to trip, which are the
+        failures the probe is shown to catch.
+        """
+        # The package, not criteria.base: importing it is what fills the registry.
+        from hydroturing.criteria import is_paired  # noqa: PLC0415
+
+        paired = tuple(c.name for c in self.criteria if is_paired(c.name))
+        if paired:
+            return paired
+        caught = set(self.must_fail.values())
+        return tuple(c.name for c in self.criteria if c.name in caught)
+
 
 @dataclass(frozen=True)
 class ModelManifest:
@@ -241,6 +289,13 @@ class ModelManifest:
     # FULL_WINDOW for the whole record, or None to take the default for the
     # kind of model (see DEFAULT_WINDOW_DAYS).
     window_days: int | str | None = None
+    # Diagnostics the model reports in addition to its fluxes and states.
+    emits_diagnostics: tuple[str, ...] = ()
+    # Static inputs the adapter cannot run without.
+    needs_static: tuple[str, ...] = ()
+    # Optional inputs the adapter consumes whenever the case supplies them.
+    uses_forcing: tuple[str, ...] = ()
+    uses_static: tuple[str, ...] = ()
 
     @property
     def timestep(self) -> str:
@@ -252,14 +307,14 @@ class ModelManifest:
 
     @property
     def emitted(self) -> tuple[str, ...]:
-        return self.emits_fluxes + self.emits_states
+        return self.emits_fluxes + self.emits_states + self.emits_diagnostics
 
     def missing_for(self, probe: ProbeSpec) -> list[str]:
         """Variables the probe needs that this model never reports.
 
-        A non-empty result means the verdict is FAIL with reason INCOMPLETE:
-        the model cannot demonstrate conservation because it never says
-        enough to be checked.
+        A non-empty result means the probe is not scored, N/A with reason
+        INCOMPLETE: the model cannot demonstrate conservation because it never
+        says enough to be checked, and it has not violated it either.
         """
         return [v for v in probe.required_vars if v not in self.emitted]
 
@@ -342,6 +397,17 @@ def load_probe(path: str | Path) -> ProbeSpec:
             )
 
     requires = raw.get("requires", {})
+    # Refuse a required name no manifest can declare, as load_model refuses an
+    # unknown emission: a typo would make every model INCOMPLETE, and a flux
+    # asked for as a state would be met by the flux and never noticed.
+    unknown = [
+        name
+        for key, known in (("fluxes", FLUX_VARS), ("states", STATE_VARS), ("diagnostics", DIAG_VARS))
+        for name in requires.get(key, [])
+        if name not in known
+    ]
+    if unknown:
+        raise SpecError(f"{spec_file}: unknown variables in requires: {unknown}")
     return ProbeSpec(
         id=raw["id"],
         title=raw["title"],
@@ -352,6 +418,9 @@ def load_probe(path: str | Path) -> ProbeSpec:
         citation=raw.get("citation", ""),
         requires_fluxes=tuple(requires.get("fluxes", [])),
         requires_states=tuple(requires.get("states", [])),
+        requires_diagnostics=tuple(requires.get("diagnostics", [])),
+        requires_forcing=tuple(requires.get("forcing", [])),
+        requires_static=tuple(requires.get("static", [])),
         generator=case["generator"],
         n_seeds=case["n_seeds"],
         timestep=case["timestep"],
@@ -424,6 +493,7 @@ def load_model(path: str | Path) -> ModelManifest:
 
     unknown = [v for v in raw["emits"]["fluxes"] if v not in FLUX_VARS]
     unknown += [v for v in raw["emits"]["states"] if v not in STATE_VARS]
+    unknown += [v for v in raw["emits"].get("diagnostics", []) if v not in DIAG_VARS]
     if unknown:
         raise SpecError(f"{spec_file}: unknown variables in emits: {unknown}")
 
@@ -439,8 +509,12 @@ def load_model(path: str | Path) -> ModelManifest:
         timesteps=timesteps,
         emits_fluxes=tuple(raw["emits"]["fluxes"]),
         emits_states=tuple(raw["emits"]["states"]),
+        emits_diagnostics=tuple(raw["emits"].get("diagnostics", [])),
         runner=runner,
         needs_forcing=tuple(raw.get("needs_forcing", [])),
+        needs_static=tuple(raw.get("needs_static", [])),
+        uses_forcing=tuple(raw.get("uses_forcing", [])),
+        uses_static=tuple(raw.get("uses_static", [])),
         supports_perturbation=bool(raw.get("supports", {}).get("perturbation", False)),
         resources=raw.get("resources", {}),
         authors=tuple(raw.get("authors", [])),

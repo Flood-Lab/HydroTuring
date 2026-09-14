@@ -33,13 +33,21 @@ Every probe here is a few hundred lines at most.
 ## Cross-budget consistency
 
 A model can close its water budget and close its energy budget while being
-incoherent between them. The first probe that notices is merged; the second
-is the one we most want next.
+incoherent between them. Two probes now notice: one asks whether the two
+ledgers agree on a number, the other whether they agree under a change
+neither has seen. The snowmelt one is what we most want next.
 
 ### `energy/latent-heat-et-consistency` &middot; **merged**
 Latent heat must equal evapotranspiration times the latent heat of the phase
 change it underwent, at every step, with a temperature-dependent &lambda;.
 Filed under `energy` because the schema admits mass, energy and momentum.
+Contributed by Changming Li (SCUT).
+
+### `energy/evaporative-partition` &middot; **merged**
+One summer without rain under net radiation held fixed: the latent heat a
+drying surface gives up has nowhere to go but the sensible and ground fluxes,
+and the three changes must sum to zero. A counterfactual rather than a
+same-instant residual, so a model cannot fit its way past it.
 Contributed by Changming Li (SCUT).
 
 ### `coupled/snowmelt-energy-water` &middot; hard &middot; **unclaimed**
@@ -106,9 +114,12 @@ A branching network. Mass must close reach by reach, not only basin-wide.
 *Discriminates:* models that conserve globally while moving water between
 reaches non-physically.
 
-### `mass/human-abstraction` &middot; standard &middot; **unclaimed**
-Irrigation withdrawal and return flow, which must both appear in the budget.
+### `mass/human-abstraction` &middot; **merged**
+A prescribed net irrigation withdrawal must leave the budget: the same weather
+run with and without it, and the difference between the two runs must account
+for exactly the abstracted volume (net of return flow).
 *Discriminates:* models that treat abstraction as an unaccounted sink.
+Contributed by Yuanhang Liu.
 
 ---
 
@@ -120,17 +131,15 @@ the property survives a move — to another place, to another time, to a
 different question. Each has a template, so the harness work is done and what
 is left is the case.
 
-### `mass/extreme-event-closure` &middot; hard &middot; **unclaimed**
-`ht init-probe --template extrapolation-time`
-
-Ordinary years, then conditions outside anything earlier in the record. The
-budget must close over the anomalous stretch on its own terms, scored
-separately so nine ordinary years cannot dilute it.
-
-*Discriminates:* models that learned closure as a statistical regularity of
-their training distribution rather than as a structural property. This is the
-probe most likely to separate architecturally-constrained models from ones
-that merely look conservative in-sample.
+### `mass/extreme-event-closure` &middot; **merged**
+Overlap rainfall events in one median-wet year of a twenty-year record toward
+100-year depths from synthetic 1-, 3- and 7-day DDF fits. Check every complete
+precipitation event's water budget, including ordinary events, with a 5%
+relative tolerance and a 0.001 mm numerical floor.
+*Discriminates:* event-scale losses in `reference_in_sample` that pass
+whole-record closure. The fitted thresholds describe the synthetic climate,
+not the submitted model's unknown training range.
+Contributed by Taiqi Lian.
 
 ### `mass/ungauged-basin-closure` &middot; standard &middot; **unclaimed**
 `ht init-probe --template extrapolation-space`
@@ -144,28 +153,24 @@ one, which is the deployment case the field actually cares about. The work is
 in defending where the hull boundary sits; push one attribute out at a time,
 or you generate catchments no real place resembles and fail honest models.
 
-### `mass/precipitation-counterfactual` &middot; standard &middot; **unclaimed**
-`ht init-probe --template counterfactual`
+### `mass/precipitation-counterfactual` &middot; **merged**
+The same seed 20% wetter, 10% wetter and 20% drier: the water added or
+removed must be partitioned among evaporation, runoff and storage, no term
+may ignore or absorb it, and runoff must rise from drier to wetter. Catches
+closure by construction: `reference_cheater` closes exactly on every seed,
+yet its evaporation does not respond to added rain.
+Contributed by Qingyi Yang (Politecnico di Milano).
 
-The same seed twice, once wetter. The added water must appear in the
-difference between the reported budgets, split across evaporation, runoff and
-storage.
+### `mass/time-origin-invariance` &middot; **merged**
+By Siavash Shams. The same weather under a 28-year calendar shift that
+preserves seasons and leap days: evaporation, runoff and water stores agree
+to a relative tolerance of 1e-9. The control budget must close and its runoff
+and evaporation must respond to the forcing.
 
-*Discriminates:* closure by construction, structurally rather than
-circumstantially. A model that solves for a budget term as the residual closes
-perfectly on every seed forever, and today only its storage bounds catch it. A
-counterfactual asks where the extra water went, which construction cannot
-answer.
-
-### `mass/time-origin-invariance` &middot; starter &middot; **unclaimed**
-`ht init-probe --template invariance`
-
-The same weather under different dates. Nothing may move.
-
-*Discriminates:* date features and trend terms that survived from training. The
-cheapest probe in the suite and the hardest to tune towards, because there is
-no tolerance worth arguing about: the two runs agree to floating point or they
-do not. A good first contribution.
+*Discriminates:* calendar-year dependence through `reference_calendar`, whose
+recession changes with the year even while its water budget closes. See the
+[probe](probes/mass/time-origin-invariance) for the fixed calendar window and
+the normalization used to compare outputs.
 
 ---
 
@@ -174,12 +179,21 @@ do not. A good first contribution.
 ### `energy/pet-consistency` &middot; **merged**
 Evaporation follows demand when the model's own soil is wettest and water when it is driest; no energy flux needed.
 
-### `energy/surface-energy-closure` &middot; starter &middot; **unclaimed**
-Net radiation minus sensible minus latent minus ground heat flux, minus the
-change in stored energy.
-*Note:* the denominator is accumulated |Rn|, which crosses zero every night,
-so this probe **must** set an absolute floor as well as the 5 percent rule.
-The canonical energy probe and the natural first one.
+### `energy/surface-energy-closure` &middot; **merged**
+Hourly net radiation minus sensible, latent and ground heat flux must close
+within each contiguous day or night, without errors cancelling across hours
+or phases. The mean absolute residual is bounded by the larger of 5 percent
+of mean absolute net radiation and 2 W/m2. The boundary is a snow-free bare
+surface with negligible heat capacity; ground heat flux is measured at that
+surface, so no separate soil-storage term is subtracted.
+Contributed by Han Wang ([@cehw](https://github.com/cehw)).
+
+### `energy/soil-heat-storage-consistency` &middot; **merged**
+Heat entering a fixed soil layer minus heat leaving its base must agree
+with the layer temperature change times its prescribed heat capacity.
+Heating and recovery are scored separately, so a closed surface budget
+cannot hide a frozen or half-amplitude soil temperature.
+Contributed by Han Wang ([@cehw](https://github.com/cehw)).
 
 ### `energy/snowpack-cold-content` &middot; hard &middot; **unclaimed**
 The full snowpack energy budget including cold content and phase change. Melt
@@ -187,11 +201,16 @@ must not occur while the pack is below freezing.
 *Discriminates:* models that melt snow on a warm day regardless of whether
 the pack has the energy to melt.
 
-### `energy/radiation-consistency` &middot; standard &middot; **unclaimed**
-Outgoing longwave must be consistent with the reported surface temperature
-through Stefan-Boltzmann, given emissivity.
-*Discriminates:* models that predict surface temperature and radiation with
-separate heads that never have to agree.
+### `energy/radiation-consistency` &middot; **merged**
+The surface temperature a model reports and the upward longwave it reports
+must describe one gray surface at the emissivity it was given, hour by hour:
+`rlus = eps sigma ts^4 + (1 - eps) rlds` within 0.5 percent of the reported
+flux, with a 0.5 W/m2 floor. A same-instant identity, so nothing cancels
+across hours; net radiation stays a prescribed forcing.
+*Discriminates:* a model whose temperature and radiation heads never have to
+agree, through `reference_air_emitter`, which emits at the air temperature,
+and `reference_no_reflection`, which drops the reflected sky.
+Contributed by Xin Lan (Michigan State University).
 
 ---
 

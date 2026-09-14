@@ -94,6 +94,30 @@
             "type": "string"
           },
           "uniqueItems": true
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Non-water diagnostics read by criteria, such as surface or layer temperature. Excluded from water-storage sums; each criterion defines their time handling."
+        },
+        "forcing": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Forcing columns the verdict rests on. A model must list them in needs_forcing or uses_forcing, or it is INCOMPATIBLE: it may be using its own estimate instead."
+        },
+        "static": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "static.json keys the verdict rests on. A model must list them in needs_static or uses_static, or it is INCOMPATIBLE."
         }
       }
     },

@@ -29,3 +29,8 @@ is treated as rain, which conserves water and is wrong about timing.
 On the closure probe's first gate seed the budget closes to 4e-16 of the
 precipitation; runoff ratio 0.40, ET 0.66 of potential; runoff volume at
 the hourly step within 2.4 % of the daily one.
+
+With a prescribed human withdrawal in the forcing (`abstr`), the adapter
+takes it from the unsaturated store first and from the day's runoff second,
+and declares what it removed as a negative `gwex`; absent the column it is
+unchanged.

@@ -1,0 +1,101 @@
+id: mass/human-abstraction
+
+title: Prescribed irrigation withdrawal must leave the budget
+
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Yuanhang Liu
+    affiliation: Independent Researcher
+    github: kawh1111
+    orcid: 0009-0005-9633-6004
+
+description: >
+  The same weather twice: once natural, once with a prescribed seasonal
+  irrigation withdrawal carried in the forcing as a visible column. The
+  abstracted water must leave the reported budget — through lower
+  evaporation, lower runoff, lower final storage, or a declared exchange —
+  and the difference between the two runs must account for exactly the
+  prescribed volume, neither more nor less. A model that never reads the
+  human term passes every single-run criterion and is caught only here.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 10
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 60
+  min_window_days: 3650
+
+  # The first name is the control. The generator must produce identical
+  # weather for both and differ only in the prescribed abstraction.
+  variants: [natural, irrigated]
+
+criteria:
+  # The control run has to close on its own before the comparison means
+  # anything. This also pins reference_leaky, whose silent sink shows up
+  # here exactly as it does in mass/catchment-closure.
+  #
+  # `closure` is single-run, so it is scored on the control (natural) variant
+  # only. A PAIRED closure is deliberately not added. Against sum_pr the whole
+  # withdrawal is 4.3 to 4.6 percent of the window's rain on the gate seeds,
+  # under the 5 percent limit, so a model that removed the water and declared
+  # none of it would still close: the check could never fail for the reason it
+  # would exist. A leak of that size in both runs already shows in the
+  # control's closure, and a leak confined to the irrigated run moves the
+  # difference that human_abstraction scores. Nothing on this probe scores the
+  # irrigated run's own gwex.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  # The probe's actual assertion. The denominator is the abstracted volume,
+  # not the rain: ten years of unabstracted precipitation would otherwise
+  # dilute the signal by two orders of magnitude. A model that ignores the
+  # prescribed withdrawal fails by the whole abstracted volume — about a
+  # factor of twenty clear of the threshold, not at its boundary.
+  - human_abstraction:
+      control: natural
+      perturbed: irrigated
+      driver: abstr
+      terms: [evspsbl, mrro]
+      tolerance: 0.05
+      floor_mm: 5.0
+
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+
+baselines:
+  # The four physical baselines, each extended to read the prescribed
+  # abstraction (proof that real models can honour the term). Every one must
+  # pass; a model that ignores the column fails at 100 percent and calibrates
+  # nothing, which is why the baselines learn it rather than a separate exact
+  # bucket standing in for them.
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
+  must_fail:
+    # The exact same bucket, blind to the abstraction column. Both runs come
+    # out identical, so the residual is the whole prescribed volume.
+    reference_abstraction_blind: human_abstraction
+    # Its silent 15 percent sink shows in the control run's own closure.
+    reference_leaky: closure
+
+provenance: >
+  Synthetic. Both variants are generated at run time from one recorded seed;
+  the weather is drawn once and the abstraction schedule is fixed before the
+  branch, so the pair differs only in the human term. The withdrawal is a
+  prescribed NET rate (mm/day, gross abstraction minus return flow). That the
+  budget term is net rather than gross follows Perry (2007)
+  doi:10.1002/ird.323 and Doell & Siebert (2002) doi:10.1029/2001WR000355; no
+  gross-to-net fraction is applied here, because the generator's schedule is
+  already net.

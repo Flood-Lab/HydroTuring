@@ -6,7 +6,7 @@ description: >
   package (google-research/flood-forecasting at commit 828dfc5) with the
   published google-floodhub-settings-55-epochs weights. It predicts
   streamflow and nothing else, reported here as the day-0 member of each
-  day's forecast, so it is scored INCOMPLETE on every budget probe. The
+  day's forecast, so it is N/A (INCOMPLETE) on every budget probe. The
   radiation and pressure inputs the probe does not generate are mocked from
   the forcing for the synthetic test; README.md says how every input is
   filled.

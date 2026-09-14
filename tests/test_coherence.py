@@ -163,3 +163,126 @@ def test_a_model_with_no_snow_state_is_bounded_everywhere(winter):
         assert r.status == PASS, r.message
         assert r.diagnostics["bounded_steps"] == len(tas) - SPINUP
     assert run(evspsbl=evspsbl, tas=tas, hfls=outside, snw=None, pr=pr).status != PASS
+
+
+# --------------------------------------------------------------- partition_shift
+
+W_START, W_LEN = 40, 60
+
+
+def paired(d_latent, d_sensible, d_ground, rn=120.0, drift=0.0, label=True):
+    """Two runs differing only inside the marked window, by construction.
+
+    The control is flat and the perturbed run differs from it by exactly the
+    per-step changes asked for, so the identity the criterion asserts is
+    whatever the caller chose to make it."""
+    window = np.zeros(N)
+    window[W_START:W_START + W_LEN] = 1.0
+    columns = {"time": np.arange(N), "pr": np.zeros(N), "tas": np.full(N, 15.0),
+               "rn": np.full(N, rn), "_perturbed": window}
+    if label:
+        onset = np.zeros(N)
+        onset[W_START + 30:W_START + W_LEN] = 1.0
+        columns["_intensification"] = onset
+    control_forcing = pd.DataFrame(columns)
+    perturbed_forcing = control_forcing.copy()
+    perturbed_forcing["rn"] = control_forcing["rn"] + drift * window
+
+    def table(dle, dh, dg):
+        return pd.DataFrame({
+            "time": np.arange(N),
+            "hfls": 80.0 + dle * window,
+            "hfss": 30.0 + dh * window,
+            "hfg": 10.0 + dg * window,
+        })
+
+    def result(forcing, dle, dh, dg):
+        case = Case(probe_id="t", seed=1, forcing=forcing, static={}, spinup_steps=SPINUP)
+        return RunResult(case=case, table=table(dle, dh, dg), meta={}, wall_seconds=0.0)
+
+    return {
+        "control": result(control_forcing, 0.0, 0.0, 0.0),
+        "drought": result(perturbed_forcing, d_latent, d_sensible, d_ground),
+    }
+
+
+def shift(**kwargs):
+    params = {"control": "control", "perturbed": "drought"}
+    return get("partition_shift")(paired(**kwargs), None, params)
+
+
+def test_the_partition_identity_passes():
+    """Latent falls, sensible takes exactly what it gave up, ground stays put."""
+    r = shift(d_latent=-40.0, d_sensible=+40.0, d_ground=0.0)
+    assert r.status == PASS, r.message
+    assert r.diagnostics["d_evaporative_fraction"] < 0
+    assert r.diagnostics["onset"]["steps"] == 30
+
+
+def test_a_model_that_does_not_respond_is_caught():
+    """reference_two_head in miniature: its energy side never reads its water
+    side, so nothing moves at all."""
+    r = shift(d_latent=0.0, d_sensible=0.0, d_ground=0.0)
+    assert r.status != PASS
+    assert "barely moved" in r.message
+
+
+def test_energy_absorbed_by_the_ground_is_caught():
+    """reference_ground_dodge in miniature: the sum is satisfied and the
+    energy went into the soil instead of the air."""
+    r = shift(d_latent=-40.0, d_sensible=0.0, d_ground=+40.0)
+    assert r.status != PASS
+    assert "absorbed" in r.message
+
+
+def test_energy_that_does_not_add_up_is_caught():
+    r = shift(d_latent=-40.0, d_sensible=+10.0, d_ground=0.0)
+    assert r.status != PASS
+    assert "not zero" in r.message
+
+
+def test_a_driver_that_drifts_is_a_generator_fault_not_a_verdict():
+    """The identity holds only while net radiation is held fixed. A generator
+    that lets it drift should be diagnosed as a generator fault rather than
+    reported as a model failure."""
+    with pytest.raises(ValueError, match="held fixed"):
+        shift(d_latent=-40.0, d_sensible=+40.0, d_ground=0.0, drift=5.0)
+
+
+def test_the_intensification_stretch_is_reported_and_never_gated():
+    """Without the label the criterion still scores; with it, it also says how
+    much of the shift landed in the marked stretch."""
+    unlabelled = shift(d_latent=-40.0, d_sensible=+40.0, d_ground=0.0, label=False)
+    assert unlabelled.status == PASS
+    assert unlabelled.diagnostics["onset"] == {}
+
+
+def test_variants_that_disagree_about_the_window_are_a_generator_fault():
+    """The criterion indexes both variants with one mask, so a generator that
+    marks a different stretch in each, or produces records of different
+    lengths, has to be told so rather than crashing inside numpy or silently
+    comparing two unrelated stretches of record."""
+    runs = paired(d_latent=-40.0, d_sensible=+40.0, d_ground=0.0)
+    params = {"control": "control", "perturbed": "drought"}
+
+    moved = runs["drought"].case.forcing.copy()
+    shifted = np.zeros(N)
+    shifted[W_START + 5:W_START + W_LEN + 5] = 1.0
+    moved["_perturbed"] = shifted
+    runs["drought"].case.forcing = moved
+    with pytest.raises(ValueError, match="different steps"):
+        get("partition_shift")(runs, None, params)
+
+    dropped = moved.drop(columns=["_perturbed"])
+    runs["drought"].case.forcing = dropped
+    with pytest.raises(ValueError, match="perturbed variant has none"):
+        get("partition_shift")(runs, None, params)
+
+
+def test_variants_of_different_lengths_are_a_generator_fault():
+    runs = paired(d_latent=-40.0, d_sensible=+40.0, d_ground=0.0)
+    params = {"control": "control", "perturbed": "drought"}
+    runs["drought"].table = runs["drought"].table.iloc[:-10].reset_index(drop=True)
+    runs["drought"].case.forcing = runs["drought"].case.forcing.iloc[:-10].reset_index(drop=True)
+    with pytest.raises(ValueError, match="different scored lengths"):
+        get("partition_shift")(runs, None, params)

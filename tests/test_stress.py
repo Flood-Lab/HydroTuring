@@ -1,4 +1,5 @@
-"""Tests for the stress probes: causality, dry-down, steady state, extreme rain.
+"""Tests for the stress probes: causality, dry-down, steady state, extreme rain,
+antecedent memory.
 
 Each states a limit any correct physical model satisfies exactly. These
 check that the generators build the case they claim, that the exact bucket
@@ -13,12 +14,13 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from hydroturing import registry
 from hydroturing.criteria import get
 from hydroturing.harness import build_case, run_probe
-from hydroturing.protocol import RunResult, _opaque_case_metadata
+from hydroturing.protocol import Case, RunResult, _opaque_case_metadata
 from hydroturing.runner import get_runner
 from hydroturing.scoring import FAIL, PASS
 from hydroturing.seeds import gate_seeds
@@ -196,6 +198,101 @@ def test_extreme_rain_catches_amplification():
     runs["x10"] = RunResult(runs["x10"].case, table, runs["x10"].meta, 0.0)
     result = get("monotone_response")(runs, probe, _params(probe, "monotone_response"))
     assert not result.passed and "more than" in result.message
+
+
+# --- antecedent monotonicity ------------------------------------------------------
+
+
+def _antecedent_pair(gap, memory, next_day=0.0):
+    """A dry and a wet record around one 60 mm storm that falls `gap` rainless
+    days after the wet record's 120 mm of antecedent rain. The wet run drains
+    3 mm/day of that rain until the storm arrives, and then answers the storm
+    with `memory` mm/day more than the dry run for five days. `next_day` mm on
+    the day straight after the storm is part of it; a shower on the third
+    day, past a dry one, is weather."""
+    probe = registry.find_probe("mass/antecedent-monotonicity")
+    n, first = 90, 10
+    storm = first + 10 + gap
+    time = pd.date_range("2001-06-01", periods=n, freq="D").strftime("%Y-%m-%d")
+    runs = {}
+    for variant in ("dry", "wet"):
+        pr, mrro = np.zeros(n), np.zeros(n)
+        pr[2], mrro[2] = 8.0, 1.0                      # both: rain long before
+        pr[storm], mrro[storm:storm + 5] = 60.0, 6.0   # both: the same storm
+        pr[storm + 1] = next_day                       # both: its second day, if any
+        pr[storm + 3] = 5.0                            # both: a later shower
+        if variant == "wet":
+            pr[first:first + 10] = 12.0
+            mrro[first:storm] = 3.0
+            mrro[storm:storm + 5] += memory
+        case = Case(probe.id, 0, pd.DataFrame({"time": time, "pr": pr}), {}, spinup_steps=0)
+        runs[variant] = RunResult(case, pd.DataFrame({"time": time, "mrro": mrro}), {}, 0.0)
+    return probe, runs, time[storm]
+
+
+@pytest.mark.parametrize("gap", [0, 1, 10, 25])
+def test_antecedent_window_opens_on_the_storm_not_when_the_antecedent_rain_stops(gap):
+    """The wet run answers the storm exactly as the dry one does, so it has no
+    memory at the storm. A window opened when the antecedent rain stopped
+    would count its recession through the quiet days as storm runoff and
+    pass it."""
+    probe, runs, when = _antecedent_pair(gap, memory=0.0)
+    result = get("antecedent_monotonicity")(runs, probe, _params(probe, "antecedent_monotonicity"))
+    assert not result.passed and "at least" in result.message
+    assert result.diagnostics["runoff_wet_mm"] == pytest.approx(result.diagnostics["runoff_dry_mm"])
+    assert result.diagnostics["storm_time"] == when
+
+
+@pytest.mark.parametrize("gap", [0, 1, 10, 25])
+def test_antecedent_counts_only_runoff_from_the_storm_on(gap):
+    probe, runs, when = _antecedent_pair(gap, memory=1.0)
+    result = get("antecedent_monotonicity")(runs, probe, _params(probe, "antecedent_monotonicity"))
+    assert result.passed, result.message
+    assert result.diagnostics["storm_mm"] == pytest.approx(60.0)
+    assert result.diagnostics["runoff_dry_mm"] == pytest.approx(30.0)
+    assert result.diagnostics["runoff_wet_mm"] == pytest.approx(35.0)
+    assert result.diagnostics["storm_time"] == when
+
+
+def test_antecedent_storm_runs_to_its_first_dry_step():
+    probe, runs, when = _antecedent_pair(10, memory=1.0, next_day=12.0)
+    result = get("antecedent_monotonicity")(runs, probe, _params(probe, "antecedent_monotonicity"))
+    assert result.diagnostics["storm_mm"] == pytest.approx(72.0)
+    assert result.diagnostics["storm_time"] == when
+
+
+def test_antecedent_window_is_never_shorter_than_one_step():
+    probe, runs, _ = _antecedent_pair(10, memory=1.0)
+    params = {**_params(probe, "antecedent_monotonicity"), "window_days": 0.25}
+    result = get("antecedent_monotonicity")(runs, probe, params)
+    assert result.diagnostics["storm_mm"] == pytest.approx(60.0)
+    assert result.diagnostics["runoff_wet_mm"] - result.diagnostics["runoff_dry_mm"] == pytest.approx(1.0)
+
+
+def test_antecedent_needs_a_storm_after_the_antecedent_rain():
+    probe, runs, _ = _antecedent_pair(10, memory=0.0)
+    for run in runs.values():
+        run.case.forcing.loc[20:, "pr"] = 0.0
+    with pytest.raises(ValueError, match="no storm follows"):
+        get("antecedent_monotonicity")(runs, probe, _params(probe, "antecedent_monotonicity"))
+
+
+def test_antecedent_window_opens_on_the_generators_storm():
+    """On the probe's own forcing the criterion finds the storm the generator
+    placed, without being told how long the quiet stretch before it is."""
+    import importlib.util
+
+    probe = registry.find_probe("mass/antecedent-monotonicity")
+    spec = importlib.util.spec_from_file_location("antecedent_generator", probe.path / probe.generator)
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+    for seed in gate_seeds(probe.id, probe.n_seeds):
+        runs = {}
+        for variant in probe.variants:
+            case = build_case(probe, seed, variant)
+            runs[variant] = RunResult(case, pd.DataFrame({"mrro": np.zeros(case.n_steps)}), {}, 0.0)
+        result = get("antecedent_monotonicity")(runs, probe, _params(probe, "antecedent_monotonicity"))
+        assert result.diagnostics["storm_step"] == generator.STORM_DAY - runs["dry"].case.spinup_steps
 
 
 def test_streamflow_only_models_are_scored_on_every_stress_probe():

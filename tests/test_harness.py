@@ -15,13 +15,14 @@ import pytest
 
 from hydroturing import registry
 from hydroturing.harness import (
+    IncompatibleError,
     build_case,
     run_model,
     run_probe,
     verify_adapter_contract,
 )
 from hydroturing.protocol import ProtocolError, read_result, stage
-from hydroturing.scoring import FAIL, INCOMPATIBLE, INCOMPLETE, PASS, VIOLATION
+from hydroturing.scoring import ERROR, FAIL, INCOMPATIBLE, INCOMPLETE, NOT_SCORED, OK, PASS, VIOLATION
 from hydroturing.spec import SpecError
 from hydroturing.seeds import gate_seeds
 
@@ -103,9 +104,10 @@ def test_degenerate_model_is_caught(probe):
 
 def test_missing_variables_report_incomplete_not_violation(probe):
     """A streamflow-only model has not violated conservation. It has failed to
-    say enough to be checked, and the report must not conflate the two."""
+    say enough to be checked, and the report must not conflate the two: the
+    probe is not scored, so it is neither a pass nor a fail."""
     outcome = run_probe(registry.find_model("reference_streamflow_only"), probe, [11])
-    assert outcome.verdict == FAIL
+    assert outcome.verdict == NOT_SCORED
     assert outcome.reason == INCOMPLETE
     assert "evspsbl" in outcome.missing
 
@@ -113,9 +115,47 @@ def test_missing_variables_report_incomplete_not_violation(probe):
 def test_incompatible_timestep_is_reported_before_execution(probe):
     model = replace(registry.find_model("reference_bucket"), timesteps=("PT1H",))
     outcome = run_probe(model, probe, [11])
-    assert outcome.verdict == FAIL
+    assert outcome.verdict == NOT_SCORED
     assert outcome.reason == INCOMPATIBLE
     assert "timestep" in outcome.incompatible[0]
+
+
+def _rolled_up(*outcomes):
+    """The model verdict, reason and summary over probes with these outcomes."""
+    from hydroturing.scoring import ModelReport, ProbeOutcome
+
+    probes = [ProbeOutcome(f"mass/p{i}", "mass", v, r) for i, (v, r) in enumerate(outcomes)]
+    report = ModelReport("m", "1", "0.1.0", probes)
+    return report.verdict, report.reason, report.summary
+
+
+def test_a_probe_that_cannot_be_put_to_the_model_counts_neither_way():
+    """An N/A probe asked the model nothing. It must not fail a model that
+    passes everything else, must not mask a violation or an error, and is not
+    in the total the passes are counted out of."""
+    assert _rolled_up((PASS, OK), (NOT_SCORED, INCOMPLETE)) == (PASS, OK, "1/1 probes passed")
+    assert _rolled_up(
+        (FAIL, VIOLATION), (PASS, OK), (NOT_SCORED, INCOMPLETE), (NOT_SCORED, INCOMPATIBLE)
+    ) == (FAIL, VIOLATION, "1/2 probes passed")
+    assert _rolled_up((FAIL, ERROR), (FAIL, VIOLATION), (NOT_SCORED, INCOMPLETE))[:2] == (FAIL, ERROR)
+
+
+def test_a_model_no_probe_could_score_has_not_passed():
+    """Reporting nothing checkable must not earn a PASS, nor a count out of nothing."""
+    assert _rolled_up((NOT_SCORED, INCOMPATIBLE), (NOT_SCORED, INCOMPLETE)) == (
+        NOT_SCORED, INCOMPLETE, "no probe could be scored"
+    )
+    assert _rolled_up((NOT_SCORED, INCOMPATIBLE))[:2] == (NOT_SCORED, INCOMPATIBLE)
+    assert _rolled_up()[:2] == (FAIL, ERROR)
+
+
+def test_run_exits_1_for_a_model_no_probe_could_score(capsys):
+    """N/A is not a PASS, so CI keeps it in the scorecard beside the FAILs;
+    only ERROR exits 2."""
+    from hydroturing.cli import main
+
+    assert main(["run", "--model", "reference_streamflow_only", "--probe", "mass/catchment-closure"]) == 1
+    assert "N/A (INCOMPLETE)" in capsys.readouterr().out
 
 
 def test_missing_forcing_is_reported_as_incompatible(probe):
@@ -124,24 +164,153 @@ def test_missing_forcing_is_reported_as_incompatible(probe):
         needs_forcing=("pr", "unavailable_driver"),
     )
     outcome = run_probe(model, probe, [11])
+    assert outcome.verdict == NOT_SCORED
     assert outcome.reason == INCOMPATIBLE
     assert "unavailable_driver" in outcome.incompatible[0]
+
+
+def test_missing_static_is_reported_as_incompatible(probe):
+    """A static key the adapter would read and the case does not supply is an
+    incompatibility found before the run, not a KeyError inside the adapter."""
+    model = replace(registry.find_model("reference_bucket"), needs_static=("eps",))
+    outcome = run_probe(model, probe, [11])
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert outcome.incompatible == ["static does not provide eps"]
+
+
+@pytest.mark.parametrize("kind, name", [("forcing", "rlds"), ("static", "eps")])
+def test_optional_declaration_does_not_cancel_a_required_input(probe, kind, name):
+    model = replace(
+        registry.find_model("reference_bucket"),
+        **{f"needs_{kind}": (name,), f"uses_{kind}": (name,)},
+    )
+    outcome = run_probe(model, probe, [11])
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert outcome.incompatible == [f"{kind} does not provide {name}"]
+
+
+def test_undeclared_case_inputs_are_reported_as_incompatible(probe):
+    """A verdict that rests on a case-supplied input can only be given to a
+    model that says it read that input."""
+    rests_on = replace(probe, requires_forcing=("rlds",), requires_static=("eps",))
+    outcome = run_probe(registry.find_model("reference_bucket"), rests_on, [11])
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert "forcing rlds" in outcome.incompatible[0]
+    assert "static eps" in outcome.incompatible[1]
 
 
 def test_paired_probe_requires_declared_perturbation_support(probe):
     paired = replace(probe, variants=("control", "perturbed"))
     model = replace(registry.find_model("reference_bucket"), supports_perturbation=False)
     outcome = run_probe(model, paired, [11])
+    assert outcome.verdict == NOT_SCORED
     assert outcome.reason == INCOMPATIBLE
     assert "perturbation" in outcome.incompatible[0]
 
 
+def test_a_seed_the_model_cannot_consume_stops_the_probe_before_any_run(probe, monkeypatch):
+    """N/A has to mean the probe asked the model nothing. A case found
+    unusable on a later seed must stop the probe before the model runs on any
+    seed; otherwise failures already measured on the earlier seeds would be
+    discarded, and a failing model could pass."""
+    from hydroturing import harness
+
+    leaky = registry.find_model("reference_leaky")
+    seeds = gate_seeds(probe.id, 2)
+    assert run_probe(leaky, probe, seeds).verdict == FAIL
+
+    real_issues, real_runner = harness.compatibility_issues, harness.get_runner
+    ran = []
+
+    def issues(model, probe, case=None, **kwargs):
+        if case is not None and case.seed == seeds[1]:
+            return ["this seed's case cannot be consumed"]
+        return real_issues(model, probe, case, **kwargs)
+
+    class Counting:
+        def __init__(self, inner):
+            self.inner = inner
+
+        def run(self, model, probe, case, io_dir):
+            ran.append(case.seed)
+            return self.inner.run(model, probe, case, io_dir)
+
+    monkeypatch.setattr(harness, "compatibility_issues", issues)
+    monkeypatch.setattr(harness, "get_runner", lambda model: Counting(real_runner(model)))
+    outcome = run_probe(leaky, probe, seeds)
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert ran == []
+
+
+def test_an_exception_without_a_message_is_still_an_error(probe, monkeypatch):
+    """A bare assert or an exhausted next() carries no message. It is still
+    the machinery failing, so the reason is ERROR, not a FAIL with reason OK."""
+    from hydroturing import harness
+
+    class Broken:
+        def run(self, model, probe, case, io_dir):
+            raise AssertionError()
+
+    monkeypatch.setattr(harness, "get_runner", lambda model: Broken())
+    outcome = run_probe(registry.find_model("reference_bucket"), probe, [11])
+    assert (outcome.verdict, outcome.reason, outcome.error) == (FAIL, ERROR, "AssertionError")
+
+
+def test_run_exits_2_when_an_error_sits_beside_unscored_probes(monkeypatch):
+    """Unscored probes must not hide an error: ERROR still exits 2."""
+    from hydroturing import cli
+    from hydroturing.scoring import ModelReport, ProbeOutcome
+
+    report = ModelReport("m", "1", "0.1.0", [
+        ProbeOutcome("mass/a", "mass", NOT_SCORED, INCOMPLETE),
+        ProbeOutcome("mass/b", "mass", FAIL, ERROR, error="adapter crashed"),
+    ])
+    monkeypatch.setattr(cli, "run_model", lambda *args, **kwargs: report)
+    assert cli.main(["run", "--model", "reference_bucket", "--probe", "mass/catchment-closure"]) == 2
+
+
+def test_a_command_that_crashes_exits_2(monkeypatch, capsys):
+    """Python exits 1 on an uncaught exception, and CI accepts exit 1 as a
+    FAIL or an N/A. A crash nothing anticipated, such as a model.yaml that is
+    not YAML, is the harness failing and must exit 2 with its traceback."""
+    import yaml
+
+    from hydroturing import cli
+
+    def unreadable(name):
+        raise yaml.YAMLError(f"{name}/model.yaml is not YAML")
+
+    monkeypatch.setattr(cli.registry, "find_model", unreadable)
+    assert cli.main(["verify-adapter", "--model", "reference_bucket"]) == 2
+    assert cli.main(["run", "--model", "reference_bucket"]) == 2
+    assert "reference_bucket/model.yaml is not YAML" in capsys.readouterr().err
+
+
 def test_adapter_verification_runs_an_incomplete_model(probe):
-    """A scientific INCOMPLETE verdict must not skip the contract smoke test."""
+    """A probe that is N/A (INCOMPLETE) must not skip the contract smoke test."""
     model = registry.find_model("reference_streamflow_only")
     result = verify_adapter_contract(model, probe, gate_seeds(probe.id, 1)[0])
     assert len(result.table) == result.case.n_steps
     assert {"time", "mrro", "dis"} <= set(result.table.columns)
+
+
+def test_adapter_verification_does_not_run_a_probe_the_model_cannot_consume(probe, monkeypatch):
+    """A model needing a forcing the probe does not generate cannot be put to
+    it. That is the probe's N/A (INCOMPATIBLE), decided before the adapter is
+    invoked, and must not surface as the adapter breaking the contract."""
+    from hydroturing import harness
+
+    def no_runner(model):
+        raise AssertionError(f"the adapter of {model.name} was run")
+
+    monkeypatch.setattr(harness, "get_runner", no_runner)
+    model = replace(
+        registry.find_model("reference_bucket"),
+        needs_forcing=("pr", "unavailable_driver"),
+    )
+    with pytest.raises(IncompatibleError) as refused:
+        verify_adapter_contract(model, probe, gate_seeds(probe.id, 1)[0])
+    assert refused.value.issues == ["forcing does not provide unavailable_driver"]
 
 
 def test_all_seeds_must_pass(probe):
@@ -220,6 +389,93 @@ def test_request_hides_probe_identity_and_generator_seed(probe, tmp_path):
     assert "spinup_steps" not in request
     assert request["request"]["fluxes"] == list(model.emits_fluxes)
     assert request["request"]["states"] == list(model.emits_states)
+    assert request["request"]["diagnostics"] == list(model.emits_diagnostics)
+
+
+# --- diagnostics ------------------------------------------------------------
+# The third output category is threaded through the probe spec, the manifest,
+# the request, the contract check and the verdict. Each join is pinned here so
+# that a later change cannot drop one of them silently.
+
+
+def test_a_required_diagnostic_the_model_lacks_is_incomplete(probe):
+    needs_ts = replace(probe, requires_diagnostics=("ts",))
+    model = registry.find_model("reference_bucket")
+    assert "ts" in needs_ts.required_vars
+    assert model.missing_for(needs_ts) == ["ts"]
+    outcome = run_probe(model, needs_ts, [11])
+    assert outcome.verdict == NOT_SCORED
+    assert outcome.reason == INCOMPLETE
+    assert outcome.missing == ["ts"]
+
+
+def test_manifest_declares_diagnostics_under_their_own_key(tmp_path):
+    import shutil
+
+    from hydroturing.spec import load_model
+
+    target = tmp_path / "skin_model"
+    shutil.copytree(registry.MODELS_DIR / "_template", target)
+    manifest = target / "model.yaml"
+    manifest.write_text(
+        manifest.read_text()
+        .replace("name: _template", "name: skin_model")
+        .replace("  states: [", "  diagnostics: [ts]\n  states: [")
+    )
+    model = load_model(target)
+    assert model.emits_diagnostics == ("ts",)
+    assert "ts" in model.emitted
+    assert "ts" not in model.emits_fluxes + model.emits_states
+
+    manifest.write_text(manifest.read_text().replace("diagnostics: [ts]", "diagnostics: [skin]"))
+    with pytest.raises(SpecError, match="unknown variables"):
+        load_model(target)
+
+
+def test_required_diagnostics_are_read_from_probe_yaml_and_emitted_ones_reach_the_request(tmp_path):
+    import shutil
+
+    from hydroturing.spec import load_probe
+
+    source = registry.PROBES_DIR / "mass" / "catchment-closure"
+    target = tmp_path / "mass" / "catchment-closure"
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__"))
+    spec_file = target / "probe.yaml"
+    spec_file.write_text(
+        spec_file.read_text().replace(
+            "  states: [mrso, snw, canopy]\n", "  states: [mrso, snw, canopy]\n  diagnostics: [ts]\n", 1
+        )
+    )
+    needs_ts = load_probe(target)
+    assert needs_ts.requires_diagnostics == ("ts",)
+    assert needs_ts.required_vars[-1] == "ts"
+
+    model = replace(registry.find_model("reference_bucket"), emits_diagnostics=("ts",))
+    request_path = stage(tmp_path / "io", build_case(needs_ts, 1), needs_ts, model)
+    request = json.loads(request_path.read_text())
+    assert request["request"]["diagnostics"] == ["ts"]
+    assert request["units"]["ts"] == "K"
+
+
+def test_adapter_verification_rejects_a_declared_but_unreported_diagnostic(probe):
+    """Declaring `ts` and not writing it is a contract breach, not INCOMPLETE."""
+    model = replace(registry.find_model("reference_bucket"), emits_diagnostics=("ts",))
+    with pytest.raises(ProtocolError, match=r"missing requested variables: \['ts'\]"):
+        verify_adapter_contract(model, probe, gate_seeds(probe.id, 1)[0])
+
+
+def test_a_diagnostic_is_never_counted_as_a_store(probe):
+    from hydroturing.criteria.base import make_window, reported_states
+    from hydroturing.protocol import RunResult
+
+    case = build_case(probe, 3)
+    table = pd.DataFrame({
+        "time": case.forcing["time"], "mrso": 100.0, "snw": 0.0, "canopy": 0.0, "ts": 290.0,
+    })
+    run = RunResult(case=case, table=table, meta={}, wall_seconds=0.0)
+    window = make_window(run, probe)
+    assert "ts" not in reported_states(window, probe)
+    assert window.storage(reported_states(window, probe))[0] == pytest.approx(100.0)
 
 
 # --- container isolation ----------------------------------------------------
@@ -233,7 +489,7 @@ def test_container_runs_with_hardened_read_only_inputs(tmp_path):
     from hydroturing.runner.docker_runner import DockerRunner
 
     model = registry.find_model("reference_bucket")
-    argv = DockerRunner.command("docker", "img:1", model, tmp_path)
+    argv = DockerRunner.command("docker", "img:1", model, tmp_path, "hydroturing-test")
 
     assert argv[:3] == ["docker", "run", "--rm"]
     assert "--network" in argv and argv[argv.index("--network") + 1] == "none"
@@ -276,11 +532,11 @@ def test_cpu_request_is_capped_at_the_host(monkeypatch, tmp_path):
 
     model = replace(registry.find_model("reference_bucket"), resources={"cpu": 8, "memory_gb": 8})
     monkeypatch.setattr(docker_runner.os, "cpu_count", lambda: 4)
-    argv = DockerRunner.command("docker", "img:1", model, tmp_path)
+    argv = DockerRunner.command("docker", "img:1", model, tmp_path, "hydroturing-test")
     assert argv[argv.index("--cpus") + 1] == "4"
 
     monkeypatch.setattr(docker_runner.os, "cpu_count", lambda: 16)
-    argv = DockerRunner.command("docker", "img:1", model, tmp_path)
+    argv = DockerRunner.command("docker", "img:1", model, tmp_path, "hydroturing-test")
     assert argv[argv.index("--cpus") + 1] == "8"
 
 
@@ -299,6 +555,279 @@ def test_missing_daemon_is_reported_as_such(monkeypatch):
     )
     with pytest.raises(RunnerError, match="daemon is not reachable"):
         docker_runner.require_docker()
+
+
+def fake_docker(tmp_path, script):
+    """Write `script` as an executable `docker`, so build() runs without a daemon."""
+    import os
+    import shutil
+
+    sh = shutil.which("sh")
+    if os.name != "posix" or sh is None:
+        pytest.skip("the fake docker is a POSIX shell script")
+    docker = tmp_path / "docker"
+    docker.write_text(f"#!{sh}\n{script}\n")
+    docker.chmod(0o755)
+    return str(docker)
+
+
+def test_image_build_returns_when_docker_exits_not_when_its_output_closes(tmp_path):
+    """On Docker Desktop, `docker build` starts `docker-credential-desktop
+    get`, and that helper can be orphaned still holding the stderr it
+    inherited. Reading the build's output through a pipe then waits for an
+    end of file that never comes: `ht run` sat for seven minutes after the
+    image was built. This docker exits 0 at once and leaves such a child."""
+    import os
+    import shlex
+    import signal
+    import threading
+    import time
+
+    from hydroturing.runner import docker_runner
+
+    model = registry.find_model("reference_bucket")
+    pidfile = tmp_path / "helper.pid"
+    docker = fake_docker(tmp_path, f"sleep 30 &\necho $! > {shlex.quote(str(pidfile))}\nexit 0")
+
+    def end_helper():
+        # Once only, so a pid the system has since reused is never signalled.
+        try:
+            pid = int(pidfile.read_text())
+            pidfile.unlink()
+            os.kill(pid, signal.SIGTERM)
+        except (OSError, ValueError):
+            pass
+
+    # A regression blocks until the helper exits. The watchdog ends it after
+    # ten seconds, so the test fails on the assertion rather than hanging.
+    watchdog = threading.Timer(10, end_helper)
+    watchdog.start()
+    started = time.monotonic()
+    try:
+        tag = docker_runner.build(model, docker=docker)
+    finally:
+        elapsed = time.monotonic() - started
+        watchdog.cancel()
+        watchdog.join()
+        end_helper()
+
+    assert tag == docker_runner.image_tag(model)
+    assert elapsed < 5, f"build() returned after {elapsed:.1f} s, waiting on the orphan"
+
+
+def test_image_build_that_never_exits_names_the_image_and_the_credential_helper(tmp_path):
+    """A build can also stall inside docker, waiting on a credential helper
+    that never answers. It ends at the timeout with a reason, not silently."""
+    from hydroturing.runner import docker_runner
+    from hydroturing.runner.base import RunnerError
+
+    model = registry.find_model("reference_bucket")
+    docker = fake_docker(tmp_path, "exec sleep 30")
+    with pytest.raises(RunnerError, match="docker-credential-desktop") as raised:
+        docker_runner.build(model, docker=docker, timeout=0.5)
+    assert docker_runner.image_tag(model) in str(raised.value)
+
+
+def test_failed_image_build_still_reports_the_end_of_its_log(tmp_path):
+    """The build log is no longer read from a pipe; a failed build must
+    still say why it failed."""
+    from hydroturing.runner import docker_runner
+    from hydroturing.runner.base import RunnerError
+
+    model = registry.find_model("reference_bucket")
+    docker = fake_docker(tmp_path, "echo 'step 1/1: pip install failed' >&2\nexit 1")
+    with pytest.raises(RunnerError, match="image build failed\n    step 1/1: pip install failed"):
+        docker_runner.build(model, docker=docker)
+
+
+@pytest.mark.parametrize("kill_status", [0, 1], ids=["killed", "created-not-started"])
+def test_container_past_its_time_budget_is_killed_not_left_running(monkeypatch, tmp_path, kill_status):
+    """The timeout ends the docker client, not the container: after
+    extreme-rain timed out for google_flood_forecast, its container was still
+    running five minutes later and taking CPU from the cases behind it. A
+    timed-out run kills the container by the name it ran under, and removes
+    it by force when the kill fails, as on one created but never started."""
+    import shlex
+
+    from hydroturing.runner import docker_runner
+    from hydroturing.runner.base import RunnerError
+
+    calls = tmp_path / "calls"
+    calls.mkdir()
+    log = shlex.quote(str(calls))
+    docker = fake_docker(tmp_path, f"""case "$1" in
+  run) printf '%s\\n' "$@" > {log}/run; exec sleep 30 ;;
+  kill) printf '%s\\n' "$@" > {log}/kill; exit {kill_status} ;;
+  rm) printf '%s\\n' "$@" > {log}/rm ;;
+esac""")
+    monkeypatch.setattr(docker_runner, "require_docker", lambda: docker)
+
+    model = registry.find_model("reference_bucket")
+    # The fake must start and record its arguments inside the budget, so the
+    # budget leaves a loaded CI runner room for that and nothing more.
+    probe = replace(registry.find_probe("mass/catchment-closure"), max_runtime_s=2.0)
+    with pytest.raises(RunnerError, match=f"{model.name}: container exceeded the time budget for {probe.id}"):
+        docker_runner.DockerRunner().invoke(model, probe, tmp_path, tmp_path / "request.json")
+
+    run = (calls / "run").read_text().splitlines()
+    name = run[run.index("--name") + 1]
+    assert name.startswith(f"hydroturing-{model.name}-")
+    assert (calls / "kill").read_text().splitlines() == ["kill", name]
+    if kill_status == 0:
+        assert not (calls / "rm").exists()
+    else:
+        assert (calls / "rm").read_text().splitlines() == ["rm", "-f", name]
+
+
+@pytest.mark.parametrize(
+    "cut_off",
+    [KeyboardInterrupt(), RuntimeError("the docker client broke")],
+    ids=["interrupted", "crashed"],
+)
+def test_container_whose_run_is_cut_off_by_an_exception_is_killed(monkeypatch, tmp_path, cut_off):
+    """A timeout is not the only way the docker client can end with its
+    container still running. An interrupt ends it too, and so does any
+    exception the harness records as an ERROR before it starts the next case.
+    Sent to the harness alone, an interrupt left google_flood_forecast's
+    container computing for 34 s more, writing into an output directory no
+    one read. The container is killed by name either way, and the exception
+    goes on unchanged: an interrupt still has to stop the run, and an ERROR
+    keeps its reason."""
+    import shlex
+
+    from hydroturing.runner import docker_runner
+
+    calls = tmp_path / "calls"
+    calls.mkdir()
+    log = shlex.quote(str(calls))
+    docker = fake_docker(tmp_path, f"""case "$1" in
+  kill) printf '%s\\n' "$@" > {log}/kill ;;
+  rm) printf '%s\\n' "$@" > {log}/rm ;;
+esac""")
+    monkeypatch.setattr(docker_runner, "require_docker", lambda: docker)
+
+    # Raising in place of `docker run` stands in for an exception that arrives
+    # while it is in flight; the build before it and the kill after it reach
+    # the fake docker.
+    real_run = docker_runner.subprocess.run
+    run = []
+
+    def cut_off_run(argv, **kwargs):
+        if argv[1] == "run":
+            run.extend(argv)
+            raise cut_off
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(docker_runner.subprocess, "run", cut_off_run)
+
+    model = registry.find_model("reference_bucket")
+    probe = registry.find_probe("mass/catchment-closure")
+    with pytest.raises(type(cut_off)) as raised:
+        docker_runner.DockerRunner().invoke(model, probe, tmp_path, tmp_path / "request.json")
+
+    assert raised.value is cut_off
+    name = run[run.index("--name") + 1]
+    assert name.startswith(f"hydroturing-{model.name}-")
+    assert (calls / "kill").read_text().splitlines() == ["kill", name]
+    assert not (calls / "rm").exists()
+
+
+def test_sigterm_to_the_harness_kills_its_container_before_it_exits(tmp_path):
+    """SIGTERM's default action ends Python without running the runner's
+    cleanup, so `kill <pid>` or `timeout` left the container running, and its
+    docker client with it. `ht` turns SIGTERM into an exit that unwinds the
+    way Ctrl+C does: the container is killed by name, the client is gone, and
+    the process exits 143. The signal goes to the harness alone, as `kill
+    <pid>` sends it, so nothing but the harness can end the client."""
+    import os
+    import shlex
+    import signal
+    import subprocess
+    import sys
+    import time
+    from pathlib import Path
+
+    import hydroturing
+
+    calls = tmp_path / "calls"
+    calls.mkdir()
+    log = shlex.quote(str(calls))
+    # The record is renamed into place, so it exists only once it is complete
+    # and `docker run` is about to sleep.
+    fake_docker(tmp_path, f"""case "$1" in
+  info) echo 28.5.2 ;;
+  run) printf '%s\\n' "$@" > {log}/run.tmp; mv {log}/run.tmp {log}/run; exec sleep 30 ;;
+  kill) printf '%s\\n' "$@" > {log}/kill ;;
+  rm) printf '%s\\n' "$@" > {log}/rm ;;
+esac""")
+    env = dict(os.environ)
+    env["PATH"] = f"{tmp_path}{os.pathsep}{env.get('PATH', '')}"
+    src = str(Path(hydroturing.__file__).resolve().parents[1])
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [src, env.get("PYTHONPATH")]))
+    output = tmp_path / "ht.log"
+    archive = tmp_path / "result.csv"
+
+    with output.open("w") as out:
+        # A session of its own, so the harness's process group holds the
+        # harness, what it started, and nothing else.
+        harness = subprocess.Popen(
+            [sys.executable, "-m", "hydroturing.cli", "run", "--model", "reference_bucket",
+             "--runner", "docker", "--probe", "mass/catchment-closure", "--seed", "1",
+             "--workdir", str(tmp_path / "io"), "--csv", str(archive)],
+            env=env, stdout=out, stderr=subprocess.STDOUT, start_new_session=True,
+        )
+        try:
+            deadline = time.monotonic() + 60
+            while not (calls / "run").exists():
+                assert harness.poll() is None, output.read_text()
+                assert time.monotonic() < deadline, "the harness never reached docker run"
+                time.sleep(0.05)
+            harness.send_signal(signal.SIGTERM)
+            assert harness.wait(timeout=60) == 128 + signal.SIGTERM, output.read_text()
+        finally:
+            if harness.poll() is None:
+                harness.kill()
+                harness.wait()
+            # Whatever is still in the group outlived the harness: the docker
+            # client, if the harness did not end it. Signal 0 only asks.
+            try:
+                os.killpg(harness.pid, 0)
+                left_running = True
+                os.killpg(harness.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                left_running = False
+
+    run = (calls / "run").read_text().splitlines()
+    name = run[run.index("--name") + 1]
+    assert (calls / "kill").read_text().splitlines() == ["kill", name]
+    assert not left_running, "the docker client outlived the harness"
+    assert not archive.exists(), "a terminated run archived rows"
+
+
+@pytest.mark.parametrize("before", ["default", "ignored"])
+def test_cli_takes_over_sigterm_only_from_the_default_and_gives_it_back(monkeypatch, before):
+    """The tests, and any program embedding the harness, call cli.main()
+    in-process. It must leave the process's SIGTERM disposition as it found
+    it, and must not override a caller that ignores SIGTERM on purpose."""
+    import signal
+
+    from hydroturing import cli
+
+    disposition = {"default": signal.SIG_DFL, "ignored": signal.SIG_IGN}[before]
+    during = []
+    monkeypatch.setattr(cli, "cmd_list", lambda args: during.append(signal.getsignal(signal.SIGTERM)) or 0)
+    original = signal.signal(signal.SIGTERM, disposition)
+    try:
+        assert cli.main(["list"]) == 0
+        after = signal.getsignal(signal.SIGTERM)
+    finally:
+        signal.signal(signal.SIGTERM, original)
+
+    if before == "default":
+        assert during == [cli._exit_for_signal]
+    else:
+        assert during == [signal.SIG_IGN]
+    assert after == disposition
 
 
 def test_submitted_model_cannot_request_host_subprocess_access(tmp_path):
@@ -457,6 +986,25 @@ def test_unknown_criterion_is_rejected(tmp_path, monkeypatch):
         load_probe(target)
 
 
+@pytest.mark.parametrize("key,name", [("diagnostics", "skin"), ("states", "mrro")])
+def test_a_required_name_no_manifest_can_declare_is_rejected(key, name, tmp_path, monkeypatch):
+    """Reject unknown required outputs and variables in the wrong category."""
+    import yaml
+
+    from hydroturing import scaffold
+    from hydroturing.spec import load_probe
+
+    monkeypatch.setattr(scaffold, "PROBES_DIR", tmp_path / "probes")
+    target, _ = _scaffold_template(scaffold, tmp_path, "default", "unknown-requirement")
+    spec_file = target / "probe.yaml"
+    raw = yaml.safe_load(spec_file.read_text())
+    raw["requires"][key] = [name]
+    spec_file.write_text(yaml.safe_dump(raw, sort_keys=False))
+
+    with pytest.raises(SpecError, match="unknown variables in requires"):
+        load_probe(target)
+
+
 @pytest.mark.parametrize("kind", _template_kinds())
 def test_every_template_scaffolds_into_a_valid_probe(kind, tmp_path, monkeypatch):
     from hydroturing import scaffold
@@ -600,9 +1148,9 @@ def test_every_template_discriminates_out_of_the_box(kind, tmp_path, monkeypatch
 
 
 # --- report marks -----------------------------------------------------------
-# The verdict is a bit, so the report should read as one at a glance. The
-# marks are decoration over the words, never a replacement for them: a log
-# someone greps for FAIL has to keep finding it.
+# A scored verdict is a bit, so the report should read as one at a glance,
+# and N/A as neither value. The marks are decoration over the words, never a
+# replacement for them: a log someone greps for FAIL has to keep finding it.
 
 
 def _report(model_name):
@@ -639,6 +1187,29 @@ def test_ht_ascii_drops_the_marks_without_doubling_the_word(monkeypatch):
     assert "FAIL FAIL" not in text
     assert text.startswith("reference_leaky v1.0.0  ->  FAIL (VIOLATION)")
     assert "  FAIL  mass/catchment-closure" in text
+
+
+def test_an_unscored_probe_reads_as_neither_pass_nor_fail(monkeypatch):
+    """N/A is not a FAIL, so neither its mark nor its word may read as one.
+    The reason says why the probe was not scored, and the summary does not
+    count the model out of a probe that asked it nothing."""
+    from hydroturing import report
+
+    monkeypatch.setattr(report, "use_emoji", lambda: True)
+    unscored = _report("reference_streamflow_only")
+    text = report.to_text(unscored)
+    assert report.FAIL_MARK not in text and report.PASS_MARK not in text
+    assert text.count(report.NOT_SCORED_MARK) == 2  # model and probe
+    assert "N/A (INCOMPLETE)  [no probe could be scored]" in text
+    assert f"{report.NOT_SCORED_MARK} **N/A** (INCOMPLETE)" in report.to_markdown(unscored)
+
+    monkeypatch.setattr(report, "use_emoji", lambda: False)
+    text = report.to_text(unscored)
+    assert "FAIL" not in text
+    assert "  N/A   mass/catchment-closure" in text
+
+    rows = report.to_csv_rows(unscored, "2026-09-11")
+    assert (rows[0]["verdict"], rows[0]["reason"]) == ("N/A", "INCOMPLETE")
 
 
 def test_marks_are_dropped_when_the_stream_cannot_carry_them(monkeypatch):

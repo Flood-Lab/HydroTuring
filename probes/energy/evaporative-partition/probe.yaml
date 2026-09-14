@@ -1,0 +1,143 @@
+id: energy/evaporative-partition
+title: Energy a drying surface stops evaporating must warm the air
+law: energy
+track: synthetic
+version: 1
+
+authors:
+  - name: Changming Li
+    affiliation: South China University of Technology
+    orcid: 0000-0003-1793-1824
+
+description: >
+  Two runs of one seed carrying byte-identical net radiation, air temperature
+  and evaporative demand, differing only in that one of them loses four months
+  of summer rain. The case is an idealised seasonal drydown, not a flash
+  drought: the flash drought literature keys its definition on the rate of
+  intensification, and this window is far longer than that. What it shares
+  with a flash drought is the repartitioning, and the stretch in which that
+  repartitioning happens is marked and reported. Net radiation did not change, so the latent heat the drying
+  surface gives up has nowhere to go but the sensible and ground fluxes, and
+  the three changes must sum to zero. That is an identity rather than a
+  parameterisation. What the probe asks is whether the model can produce it:
+  whether its energy side knows that its water side ran out of water.
+  energy/latent-heat-et-consistency asks whether a model's two budgets agree
+  on one number. This one asks whether they agree under a change neither of
+  them has seen.
+
+requires:
+  fluxes: [pr, evspsbl, mrro, hfls, hfss, hfg]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 3
+  spinup_days: 365
+  variants: [control, drought]
+  max_output_mb: 3.0
+  max_runtime_s: 60
+  min_window_days: 730
+
+criteria:
+  # The identity, over the perturbed window. Scored on both variants at once.
+  - partition_shift:
+      control: control
+      perturbed: drought
+      latent: hfls
+      sensible: hfss
+      ground: hfg
+      driver: rn
+      window_label: _perturbed
+      # Reported, never gated: the stretch in which the reference model's
+      # shift actually accrues, so a report can state an intensification rate
+      # rather than only a four-month total. See the README.
+      intensification_label: _intensification
+      # The reference model's latent flux falls by 29 to 43 percent of the
+      # window's net radiation across seeds, so 10 percent is a response gate
+      # with a factor of three in hand rather than a threshold to tune.
+      min_shift: 0.10
+      # Over four months the ground heat store is a small residual of the
+      # surface budget. A model that lets it absorb the shift is claiming a
+      # soil heat capacity that does not exist.
+      max_ground_share: 0.20
+      tolerance: 0.05
+
+  # The two single-budget criteria, scored on the control run. A cross-budget
+  # claim means nothing unless each budget is closed on its own terms.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  - energy_closure:
+      driver: rn
+      sinks: [hfls, hfss, hfg]
+      threshold: 0.05
+      floor: 2.0
+
+  # Coherence between them, on the same terms as the sibling probe. A model
+  # that moves the right amount of energy while reporting a latent heat that
+  # contradicts its own evaporation has not passed anything.
+  - flux_identity:
+      flux: hfls
+      water: evspsbl
+      temperature: tas
+      rel_tol: 0.005
+      abs_floor: 0.5
+      # Optional, and the sibling probe's README explains why it is asked for
+      # rather than inferred: a pack loses water at its base too.
+      sublimation: sbl
+      phase_state: snw
+      snowfall_from: pr
+      snow_threshold_degC: 0.0
+
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro, evspsbl]
+
+  - forcing_fidelity:
+      variables: [pr]
+      rtol: 1.0e-6
+
+baselines:
+  must_pass: [reference_coupled]
+  must_fail:
+    reference_two_head: partition_shift
+    reference_ground_dodge: partition_shift
+    reference_energy_leak: energy_closure
+    reference_constant_lambda: flux_identity
+
+citation: >
+  Haghighi, E., Short Gianotti, D. J., Akbar, R., Salvucci, G. D., and
+  Entekhabi, D. (2018), Water Resources Research 54(3), 1831-1851,
+  doi:10.1002/2017WR021729, for the moisture-limited and energy-limited
+  regime framework the window is sized against; Dong, J., Dirmeyer, P. A.,
+  Lei, F., Anderson, M. C., Holmes, T. R. H., Hain, C., and Crow, W. T.
+  (2020), Geophysical Research Letters 47(21), doi:10.1029/2020GL090391, for
+  the evidence that the soil evaporation stress operator this probe
+  interrogates is what separates land surface models from one another; Otkin,
+  J. A., Svoboda, M., Hunt, E. D., Ford, T. W., Anderson, M. C., Hain, C., and
+  Basara, J. B. (2018), Bulletin of the American Meteorological Society 99(5),
+  911-919, doi:10.1175/BAMS-D-17-0149.1, for why this case is called a
+  seasonal drydown and not a flash drought; Beucler, T., Pritchard, M., Rasp,
+  S., Ott, J., Baldi, P., and Gentine, P. (2021), Physical Review Letters 126,
+  098302, doi:10.1103/PhysRevLett.126.098302, as the nearest prior art on
+  conservation in learned emulators, against which this probe's difference is
+  that it asserts a response to a counterfactual rather than a same-instant
+  residual.
+
+provenance: >
+  Synthetic. Both variants are generated at run time from one recorded seed
+  and differ only in precipitation over the marked window. Nothing is
+  committed as data, so there is nothing to memorise. The counterfactual half
+  of the pair does not exist in any observed record, which is why the probe
+  cannot be run on real data at all.

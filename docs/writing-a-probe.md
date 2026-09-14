@@ -52,6 +52,12 @@ probes/<law>/<slug>/
   README.md      the physics in prose
 ```
 
+`authors` in `probe.yaml` is the record the paper's author list is built
+from, so fill it in as it should be printed: `name` and `affiliation`
+(department and city, or "independent") for every author, and `orcid` where
+you have one. The build checks that every merged probe's authors carry an
+affiliation. See [CONTRIBUTING.md](../CONTRIBUTING.md#credit).
+
 `probes/mass/catchment-closure/` is the reference implementation. Read it
 before you start.
 
@@ -87,12 +93,13 @@ Every one is binary.
 | Criterion | Asserts | Scored over |
 | --- | --- | --- |
 | `closure` | the budget closes to within a share of the driving flux | one run |
+| `event_water_closure` | every complete precipitation event satisfies `abs(R) <= max(threshold * P, absolute_tolerance_mm)`; defaults 0.05 and 0.001 mm; reports the worst residual / allowance against 1, with up to 20 failed events and summary percentiles | complete post-spinup wet events in one run, using supplied rain and all reported water stores |
 | `state_bounds` | every reported storage stays physical | one run |
 | `et_plausible` | ET is non-negative and bounded by potential ET | one run |
 | `non_degenerate` | the partition and the response are non-trivial | one run |
 | `forcing_fidelity` | the model reports back the forcing it was given | one run |
 | `regime_transfer` | closure holds out of range as well as in range | labelled stretches |
-| `counterfactual_response` | added water is partitioned, not absorbed | paired runs |
+| `counterfactual_response` | added or removed water is partitioned, not absorbed; `perturbed` may name one variant or a list, each scored against the control | paired runs |
 | `invariance` | a transform the physics ignores changes nothing | paired runs |
 | `resolution_invariance` | integrated volumes agree between the same weather at two steps | paired runs at different steps |
 | `response_sign` | perturb one driver both ways, hold the rest: each response must point the way physics says, by a real share of the change in demand | paired runs |
@@ -105,6 +112,9 @@ Every one is binary.
 | `antecedent_monotonicity` | the same storm after more rain runs off more, and no more than the extra rain | paired runs |
 | `phase_invariance` | the same water as rain instead of snow leaves the integrated volumes within a share of the rain | paired runs |
 | `demand_consistency` | evaporation reaches demand when the model's own soil is wettest, never exceeds it, and falls when driest | one run |
+| `energy_closure_by_phase` | the mean absolute surface-energy residual in each contiguous day or night stays within the larger of the relative radiation tolerance and the absolute flux floor | one run, contiguous day/night blocks |
+| `radiative_identity` | upward longwave equals what the reported surface temperature emits plus the reflected downward longwave, at every step, within the larger of a relative tolerance and an absolute floor; emissivity comes from `static.json` | one run, instantaneous values |
+| `soil_heat_storage` | interval boundary heat input agrees with fixed-layer temperature change and prescribed heat capacity | one run, separate heating/recovery phases |
 | `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff | one run |
 
 Picking a denominator for `closure` and `regime_transfer`:
@@ -214,9 +224,18 @@ Snow-17, the operational model, ported from its Fortran. They are what calibrate
 tolerance: the resolution probe's limit was moved from 5 to 10 percent when
 FLEX-Topo, exactly conservative, moved 5.1 percent between an hourly and a
 daily step because its partition answers intensity. A probe pull request is
-run against these three before anything else. `must_fail` pins which criterion does
+run against these four before anything else. `must_fail` pins which criterion does
 the catching, so a probe cannot appear to work while catching things for the
 wrong reason.
+
+On a probe with one case per seed, `must_fail` also decides what the report
+says when a model passes: the `detail` column of `models/result.csv` names
+each criterion it lists, with that criterion's own message, and no other. A
+precondition no baseline is pinned to, such as `closure` declared ahead of
+the identity it protects, is therefore never reported as the probe's result.
+A probe with `variants` reports its paired criteria instead, since
+everything beside them is a precondition checked on the control.
+`tests/test_report_detail.py` pins what every merged probe reports.
 
 The reference models available today:
 
@@ -226,23 +245,45 @@ The reference models available today:
 | `flex_lumped` | lumped FLEX/HBV from chrimerss/HydrologicModels; conservative, nonlinear partition | nothing, it must pass |
 | `flex_topo` | FLEX-Topo, three landscape units sharing a groundwater store | nothing, it must pass |
 | `sacsma_snow17` | SAC-SMA + Snow-17 + gamma unit hydrograph, the NWS operational model | nothing, it must pass |
-| `reference_leaky` | hides a silent 15% sink | `closure` |
-| `reference_cheater` | solves for storage as whatever balances the budget; runoff is a fixed share of rain | `state_bounds`, `response_sign` |
+| `reference_leaky` | hides a silent 15% sink | `closure`, `counterfactual_response` |
+| `reference_cheater` | solves for storage as whatever balances the budget; runoff is a fixed share of rain | `state_bounds`, `response_sign`, `counterfactual_response` |
 | `reference_degenerate` | evaporates all precipitation, produces no runoff | `non_degenerate`, `counterfactual_response`, `response_sign` |
 | `reference_in_sample` | exact in range, leaks outside it | `regime_transfer` |
 | `reference_calendar` | recession drifts with the calendar year | `invariance` |
 | `reference_fixed_step` | treats every row as a day whatever the step is | `resolution_invariance` |
-| `reference_streamflow_only` | reports runoff only, from a store that never reads the temperature | scored `INCOMPLETE` on budget probes; `response_sign` |
+| `reference_streamflow_only` | reports runoff only, from a store that never reads the temperature | `N/A (INCOMPLETE)` on budget probes; `response_sign` |
 | `reference_anticipating` | reports runoff smoothed over a centred window, three days of the future in every value | `causality` |
 | `reference_climatology` | the seasonal mean, whatever the weather; never reads the rain | `dry_down` |
 | `reference_saturating` | daily runoff capped at 25 mm; flat beyond its training range | `monotone_response` |
 | `reference_restless` | a recession with its own thirty-day clock; never settles | `steady_state` |
+| `reference_slow_drift` | an exact bucket reporting a 0.012 mm/day runoff deficit as accumulating soil storage | `state_bounds` over a multi-decadal record |
 | `reference_overflowing` | reports its runoff plus 80% of the rain again | `runoff_bounds` |
 | `reference_area_leak` | loses a share of runoff that grows with the stated area | `invariance` (area) |
 | `reference_overshooting` | a derivative term sharpens its hydrograph | `response_nonnegativity` |
 | `reference_sublimating` | loses 40% of every snowfall unreported | `phase_invariance` |
 | `reference_thirsty` | evaporates a fixed share of its soil store whatever the demand | `demand_consistency` |
 | `reference_stuck_router` | a routing kernel summing to 0.9 | `routing_conservation` |
+| `reference_coupled` | the bucket with snow sublimation and a surface energy budget; every kilogram converted at the latent heat of the phase it actually underwent | nothing, it must pass the energy probes |
+| `reference_soil_heat` | a synthetic fixed-layer fixture with conductive boundary fluxes and temperature integrated consistently | nothing, it must pass `soil_heat_storage` |
+| `reference_frozen_soil` | keeps the conductive fluxes but reports a constant soil temperature | `soil_heat_storage` |
+| `reference_half_soil` | keeps the conductive fluxes but halves the reported temperature change | `soil_heat_storage` |
+| `reference_two_head` | a water head and an energy head that never meet; both budgets close and the latent heat implies an evaporation it never reported | `flux_identity`, `partition_shift` |
+| `reference_constant_lambda` | converts every kilogram at one latent heat of vaporisation | `flux_identity` |
+| `reference_sublimation_blind` | converts snow sublimation at the latent heat of vaporisation instead of sublimation | `flux_identity` |
+| `reference_energy_leak` | discards 15% of net radiation | `energy_closure` |
+| `reference_ground_dodge` | coherent and closed, but its sensible flux never reads the soil, so the ground flux absorbs a drydown's whole shift | `partition_shift` |
+| `reference_diurnal_bias` | shifts sensible heat to leave opposite day and night energy residuals that cancel over the full record | `energy_closure_by_phase` |
+| `reference_radiative` | the coupled reference with a skin: temperature from the sensible flux through a fixed conductance, upward longwave from that skin at the given emissivity | nothing, it must pass the radiation probe |
+| `reference_air_emitter` | reports the skin's temperature but emits at the air's, reflected sky unchanged | `radiative_identity` |
+| `reference_no_reflection` | reports emission alone as the total upward longwave, the reflected sky left out | `radiative_identity` |
+
+The three soil-heat references require incoming `rsds` and `rlds`, `tas`,
+`pr`, and explicit layer depth, areal heat capacity and initial temperature.
+They have no prescribed-`rn` input path or default thermal layer. Their
+manifests therefore mark cases without these inputs `N/A (INCOMPATIBLE)`.
+`reference_soil_heat` is a synthetic fixture; the optional
+[native Noah-MP validation](noahmp-soil-heat-validation.md) supplies separate
+physical-model evidence.
 
 If your probe needs a broken model that does not exist yet, add it under
 `models/` alongside the probe. A criterion with nothing that trips it is

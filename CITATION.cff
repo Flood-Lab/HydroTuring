@@ -7,6 +7,47 @@ authors:
     family-names: Li
     affiliation: University of Colorado Boulder
     email: chrimerss@gmail.com
+  # Probe authors, in order of first merged probe. One merged probe is
+  # co-authorship (CONTRIBUTING.md#credit); tests/test_docs_in_sync.py checks
+  # that every probe author appears here.
+  - given-names: Changming
+    family-names: Li
+    affiliation: South China University of Technology
+    orcid: "https://orcid.org/0000-0003-1793-1824"
+  - given-names: Siavash
+    family-names: Shams
+    affiliation: Department of Electrical Engineering, Columbia University, New York, NY, USA
+  - given-names: Han
+    family-names: Wang
+    affiliation: >-
+      Department of Civil and Environmental Engineering,
+      The Hong Kong University of Science and Technology, Hong Kong, China
+    orcid: "https://orcid.org/0000-0001-9771-1324"
+  - given-names: Qingyi
+    family-names: Yang
+    affiliation: >-
+      Department of Civil and Environmental Engineering (D.I.C.A.),
+      Politecnico di Milano, Milano 20133, Italy
+    orcid: "https://orcid.org/0009-0001-9836-4261"
+  - given-names: Yuanhang
+    family-names: Liu
+    affiliation: Independent Researcher
+    orcid: "https://orcid.org/0009-0005-9633-6004"
+  - given-names: Taiqi
+    family-names: Lian
+    affiliation: >-
+      Laboratory of Catchment Hydrology and Geomorphology,
+      École Polytechnique Fédérale de Lausanne (EPFL), 1951 Sion, Switzerland
+    orcid: "https://orcid.org/0009-0001-9658-4375"
+  - given-names: Xin
+    family-names: Lan
+    affiliation: >-
+      Center for Systems Integration and Sustainability, Department of
+      Fisheries and Wildlife, Michigan State University, East Lansing, MI
+      48823, USA
+    orcid: "https://orcid.org/0000-0002-0607-2270"
+  - given-names: Bing
+    family-names: Li
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

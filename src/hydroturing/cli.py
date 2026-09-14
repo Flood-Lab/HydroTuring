@@ -12,14 +12,21 @@
 from __future__ import annotations
 
 import argparse
+import signal
 import sys
+import threading
+import traceback
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import replace
 import tempfile
 from pathlib import Path
+from typing import NoReturn
 
 from hydroturing import SUITE_VERSION, __version__
 from hydroturing import registry
 from hydroturing.harness import (
+    IncompatibleError,
     resolve_window_days,
     run_model,
     run_probe,
@@ -41,7 +48,7 @@ from hydroturing.scaffold import (
     scaffold_probe,
     write_draft,
 )
-from hydroturing.scoring import ERROR, FAIL, PASS
+from hydroturing.scoring import ERROR, FAIL, INCOMPATIBLE, NOT_SCORED, PASS
 from hydroturing.seeds import gate_seeds
 from hydroturing.spec import (
     FULL_WINDOW,
@@ -211,33 +218,62 @@ def cmd_validate(args) -> int:
 
 
 def cmd_verify_adapter(args) -> int:
-    """Smoke test before any physics: does the adapter obey the contract?"""
+    """Smoke test before any physics: does the adapter obey the contract?
+
+    Exits as `ht run` does. 0: the contract holds. 1: the check is N/A,
+    because the model cannot consume the probe and the adapter was never
+    run. 2: the adapter or the harness failed.
+    """
     model = registry.find_model(args.model)
     probes = _all_probes(args)
     if not probes:
         print("no probes available to smoke test against")
-        return 1
+        return 2
     roots = _probe_roots(args)
     if args.probe:
-        probe = registry.find_probe(args.probe, roots)
+        candidates = [registry.find_probe(args.probe, roots)]
     else:
         # The closure probe is the reference implementation and the natural
-        # smoke test; fall back to the first probe the model's step fits.
-        ordered = sorted(probes, key=lambda p: (p.id != "mass/catchment-closure", p.id))
-        probe = next(
-            (p for p in ordered if all(model.supports_timestep(t) for t in p.timesteps)),
-            ordered[0],
-        )
+        # smoke test. A model that cannot consume it, at its step, with its
+        # forcing or on its window, is checked on the first probe it can
+        # consume instead: one it cannot is N/A for it and asks the adapter
+        # nothing.
+        candidates = sorted(probes, key=lambda p: (p.id != "mass/catchment-closure", p.id))
 
-    seed = gate_seeds(probe.id, 1)[0]
-    try:
-        workdir = Path(args.workdir) if args.workdir else None
-        result = verify_adapter_contract(model, probe, seed, workdir=workdir, window=args.window)
-    except Exception as exc:  # report a clean smoke-test failure, never a traceback
-        print(f"{prefix(False)}adapter contract FAILED for {model.name}:\n  {exc}")
+    workdir = Path(args.workdir) if args.workdir else None
+    result = None
+    refused = []
+    for probe in candidates:
+        seed = gate_seeds(probe.id, 1)[0]
+        try:
+            result = verify_adapter_contract(model, probe, seed, workdir=workdir, window=args.window)
+            break
+        except IncompatibleError as exc:
+            # Refused before the adapter is invoked, so trying the next probe
+            # costs a generated case, not an adapter run.
+            refused.append((probe, seed, exc))
+        except Exception as exc:  # report a clean smoke-test failure, never a traceback
+            # A bare assert has no message, and an empty detail would read as nothing wrong.
+            message = str(exc) or type(exc).__name__
+            print(f"{prefix(False)}adapter contract FAILED for {model.name} on {probe.id}:\n  {message}")
+            if args.csv:
+                _archive_contract(args.csv, model, probe, seed, error=message)
+            return 2
+
+    if result is None:
+        # The first refusal is the probe that was named, or the closure probe
+        # when the choice was left to the harness and no probe would do.
+        probe, seed, exc = refused[0]
+        subject, reasons = (probe.id, str(exc)) if args.probe else ("every probe", f"{probe.id}: {exc}")
+        print(
+            f"{prefix(None)}adapter contract not checked for {model.name}: {subject} is "
+            f"{NOT_SCORED} ({INCOMPATIBLE}) for this model, so the adapter was not run:\n"
+            f"  {reasons}"
+        )
         if args.csv:
-            _archive_contract(args.csv, model, probe, seed, error=str(exc))
+            _archive_contract(args.csv, model, probe, seed, incompatible=exc.issues)
         return 1
+
     if args.csv:
         path = _archive_contract(args.csv, model, probe, seed, result=result)
         print(f"appended 1 row to {path}")
@@ -255,10 +291,10 @@ def cmd_verify_adapter(args) -> int:
     return 0
 
 
-def _archive_contract(path, model, probe, seed, *, result=None, error=None) -> Path:
+def _archive_contract(path, model, probe, seed, *, result=None, error=None, incompatible=None) -> Path:
     row = contract_row(
         model.name, model.version, SUITE_VERSION, model.runner, probe.id, seed,
-        result=result, error=error,
+        result=result, error=error, incompatible=incompatible,
     )
     return append_csv_rows([row], path)
 
@@ -434,13 +470,58 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _exit_for_signal(signum, frame) -> NoReturn:
+    # The handler steps aside first, so a second SIGTERM ends the process at
+    # once, the way the first would have without it.
+    signal.signal(signum, signal.SIG_DFL)
+    raise SystemExit(128 + signum)
+
+
+@contextmanager
+def _exit_on_sigterm() -> Iterator[None]:
+    """Turn SIGTERM into SystemExit while a command runs.
+
+    By default SIGTERM ends Python on the spot, and no except or finally
+    clause runs. `kill <pid>`, `timeout` and a service manager stopping a job
+    all send it, and a Docker case under way then kept its container running:
+    the runner never got to kill it, and the docker client either outlived
+    the harness or passed the signal on to a model that need not stop on it.
+    As SystemExit the signal unwinds the way Ctrl+C does. The runner kills
+    the container, nothing records the case as a harness ERROR, and a run
+    stopped before its report is written archives no rows. The process exits
+    143, the status a shell reports for a process SIGTERM ended.
+
+    Only the default disposition is taken over, and it is put back when the
+    command ends, so a caller that ignores or handles SIGTERM itself, or that
+    calls main() in-process as the tests do, keeps what it had.
+    """
+    if (
+        threading.current_thread() is not threading.main_thread()
+        or signal.getsignal(signal.SIGTERM) != signal.SIG_DFL
+    ):
+        yield
+        return
+    signal.signal(signal.SIGTERM, _exit_for_signal)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    try:
-        return args.fn(args)
-    except (KeyError, SpecError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
+    with _exit_on_sigterm():
+        try:
+            return args.fn(args)
+        except (KeyError, SpecError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        except Exception:  # noqa: BLE001 - a crash nothing anticipated is a harness ERROR too
+            # Python exits 1 on an uncaught exception, and CI accepts exit 1
+            # as a FAIL or an N/A. A crash is neither, so it keeps its
+            # traceback and exits 2.
+            traceback.print_exc()
+            return 2
 
 
 if __name__ == "__main__":

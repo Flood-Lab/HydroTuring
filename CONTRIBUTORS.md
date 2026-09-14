@@ -28,8 +28,16 @@ long.
 | `mass/response-nonnegativity` | Zhi Li (CU Boulder) |
 | `mass/antecedent-monotonicity` | Zhi Li (CU Boulder) |
 | `mass/phase-counterfactual` | Zhi Li (CU Boulder) |
+| `mass/time-origin-invariance` | Siavash Shams (Columbia University) |
+| `mass/precipitation-counterfactual` | Qingyi Yang (Politecnico di Milano) |
+| `mass/human-abstraction` | Yuanhang Liu (Independent Researcher) |
+| `mass/extreme-event-closure` | Taiqi Lian (Laboratory of Catchment Hydrology and Geomorphology, École Polytechnique Fédérale de Lausanne (EPFL), 1951 Sion, Switzerland) |
 | `energy/pet-consistency` | Zhi Li (CU Boulder) |
 | `energy/latent-heat-et-consistency` | Changming Li (SCUT) |
+| `energy/evaporative-partition` | Changming Li (SCUT) |
+| `energy/surface-energy-closure` | Han Wang (The Hong Kong University of Science and Technology) |
+| `energy/radiation-consistency` | Xin Lan (Michigan State University) |
+| `energy/soil-heat-storage-consistency` | Han Wang (The Hong Kong University of Science and Technology) |
 | `momentum/routing-conservation` | Zhi Li (CU Boulder) |
 
 ## Models
@@ -44,8 +52,13 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | --- | --- | --- |
 | `google_flood_forecast` | Zhi Li (CU Boulder), [#1](../../issues/1) | HydroTuring maintainers |
 | `dhbv2` | Zhi Li (CU Boulder), [#2](../../issues/2) | HydroTuring maintainers |
+| `wflow_sbm` | Yuanhang Liu (Independent Researcher), [#29](../../issues/29) | HydroTuring maintainers |
+| `summa` | Yuanhang Liu (Independent Researcher), [#30](../../issues/30) | HydroTuring maintainers |
+| `cwatm` | Yuanhang Liu (Independent Researcher), [#28](../../issues/28) | HydroTuring maintainers |
+| `lisflood` | Yuanhang Liu (Independent Researcher), [#20](../../issues/20) | HydroTuring maintainers |
 
-Physical reference models, which every probe must pass:
+Physical reference models, which every compatible probe must pass when their
+outputs support its criteria:
 
 | Model | Author | Source |
 | --- | --- | --- |

@@ -33,7 +33,8 @@ Paths inside `request.json` are relative to the request file's directory.
 
 ```
 /io/request.json          read-only: opaque case id, model seed, timestep, n_steps, outputs
-/io/input/forcing.csv     read-only: columns time, pr, tas, pet (mm/day, degC, mm/day)
+/io/input/forcing.csv     read-only: columns time, pr, tas, pet (mm/day, degC, mm/day),
+                          and, when a probe prescribes a human withdrawal, abstr (mm/day, net)
 /io/input/static.json     read-only: catchment attributes
 /io/output/result.csv     write: one row per forcing row, spinup included
 /io/output/run.json       write: {"status": "ok"}
@@ -43,6 +44,14 @@ The model seed is deterministic for reproducible stochastic inference, but it
 is not the generator seed recorded in the host-side report. Exit 0 on success.
 There is no network. Do not attempt to download weights or data at run time;
 bake them into the image.
+
+Some probes prescribe a human withdrawal in the forcing as an `abstr` column
+(mm/day, net of return flow). Honouring it means removing that water from the
+stores and fluxes the model reports, and declaring whatever was actually
+removed as a negative `gwex`. A model that never reads the column reports a
+budget that closes on its own yet misses the withdrawal; the probe scores that
+as a failure, not as INCOMPLETE, because such a model reports everything the
+criterion needs.
 
 ## The evaluation window
 
@@ -127,12 +136,35 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `sbl` | the sublimating share of `evspsbl`: a component of it, never an addition; report it if the model knows which kilograms left as ice | mm/day |
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
 | `hfss` | sensible heat flux, positive away from the surface | W/m2 |
-| `hfg` | ground heat flux, positive into the ground; the storage term of the surface energy budget, so no energy state is needed | W/m2 |
+| `hfg` | ground heat flux at the actual soil surface, positive into the ground; a flux taken below the surface must be corrected for heat storage above that depth | W/m2 |
+| `rlus` | total upward longwave radiation at the surface: emission plus reflected downward longwave, positive away from the surface; row i's value is at row i's `time`, the same instant as row i's `rlds` | W/m2 |
+| `hfg_bottom` | downward heat flux through the bottom of the specified soil layer | W/m2 |
+| `tsoil_layer` | mean temperature of that soil layer at the end of the interval; a diagnostic, not a water store | K |
 | `mrso` | soil water storage | mm |
 | `snw` | snow water equivalent | mm |
 | `canopy` | canopy interception storage | mm |
 | `gw` | groundwater storage below the soil column | mm |
 | `channel` | water generated as runoff but not yet released by the model's routing | mm |
+| `ts` | surface (skin) temperature at row i's `time`, the same instant as row i's `rlds`; a diagnostic, declared under `emits.diagnostics`, neither integrated nor differenced by any budget | K |
+
+For `hfg`, an adapter mapping a plate-depth or deeper-boundary flux must use
+`G_surface = G_depth + (E_above_end - E_above_start) / dt`, with downward
+fluxes positive, `E_above` in J/m2 and `dt` in seconds. The storage and fluxes
+must cover the same area, layer and time interval; this relation assumes no
+other energy sources or sinks in that layer. Use the model's actual heat
+storage, not a value inferred from the surface-budget residual. Document the
+mapping and any unavailable terms. Once `hfg` is mapped to the surface, do
+not subtract subsurface heat storage again in the surface budget.
+
+Declare temperature under `emits.diagnostics: [tsoil_layer]`, never under
+`emits.states`. Probes request it through `requires.diagnostics`; it is
+excluded from water-storage sums. For soil heat storage, both boundary fluxes
+are interval means and the temperature is the mean over the same fixed layer
+at the interval end. The row's `time` still matches the forcing interval's
+start. Include spinup rows: the last spinup temperature is the first scored
+interval's initial temperature. Use native model outputs with matching layer
+boundaries and a declared heat capacity; do not reconstruct a boundary flux
+from the same temperature change the probe checks.
 
 A probe names the stores it requires. Report every store the model
 actually has, including ones the probe did not name: a groundwater zone
@@ -176,9 +208,33 @@ emits:
   states: []
 ```
 
-It will be scored `FAIL` with reason `INCOMPLETE`, which is the honest
-outcome. Fabricating an `evspsbl` column to avoid `INCOMPLETE` produces
-`VIOLATION` instead, which is worse and is also dishonest.
+Every probe that needs more than that will be `N/A` with reason
+`INCOMPLETE`, which is the honest outcome: not a fail, but a probe that
+cannot be put to the model, so it counts neither way. Fabricating an
+`evspsbl` column to avoid `INCOMPLETE` produces `VIOLATION` instead, which
+is worse and is also dishonest.
+
+`needs_forcing` and `needs_static` declare inputs the adapter cannot run
+without; a missing input makes the case `N/A (INCOMPATIBLE)`.
+`uses_forcing` and `uses_static` declare optional inputs: the adapter must
+consume them whenever supplied, but can run without them using a documented
+fallback. A probe's `requires.forcing` and `requires.static` accept either
+declaration. For example, `energy/radiation-consistency` requires consumption
+of `rlds` and `eps`; a model that does not declare it consumes both is
+`N/A (INCOMPATIBLE)` because it may be computing its own sky or emissivity.
+
+Declare diagnostic outputs under the optional key `diagnostics`, such as
+`[ts]` or `[tsoil_layer]`. They are excluded from water-storage sums.
+Each criterion defines their time handling: radiation reads instantaneous
+`ts`, while soil heat storage differences interval-end `tsoil_layer`.
+
+For soil heat storage, declare consumption of the prescribed layer depth,
+areal heat capacity and initial temperature, as well as the incoming
+radiation and air temperature. A model that cannot configure that control
+volume is `N/A (INCOMPATIBLE)`, not a failed energy budget. The synthetic
+reference represents a lumped layer from zero to the prescribed depth;
+its areal capacity already includes depth. Document the actual parameter
+and boundary mapping in `run.json`; metadata alone does not prove compliance.
 
 ## Verify before you submit
 
@@ -189,7 +245,14 @@ ht run --model <model-name>              # the actual evaluation
 
 `verify-adapter` runs a single seed, on the same window the evaluation will
 use, and checks the shape of what came back. Get that green before looking
-at any residual. Both commands take `--csv models/result.csv` to append what
+at any residual. Without `--probe` it checks the closure probe, or the first
+probe the model can consume when it cannot consume that one: a step it does
+not declare, a forcing or static input the probe does not generate, or a window that drops a
+stretch the probe scores makes a probe N/A (INCOMPATIBLE) for the model.
+When that is true of the probe named with `--probe`, or of every probe, the
+adapter is not run and the command exits 1, as `ht run` does for a model no
+probe could score. Exit 2 means the adapter broke the contract or the
+harness failed. Both commands take `--csv models/result.csv` to append what
 they found to the archive, and `--window DAYS|full` to override the
 manifest.
 
@@ -212,25 +275,39 @@ this list is caught before it lands rather than noticed a week later.
 For a merged probe:
 
 1. `README.md`: a row in the probes table, and a row in the reference-models
-   table for every reference model the probe adds. If the probe requires a
-   variable the physical models do not report, their standing changes from
-   "PASS, N of N" to "N of N+1, INCOMPLETE on ..." and the sentence above the
-   table that says what they must pass changes with it.
-2. `CONTRIBUTORS.md`: a row in the probes table naming the author. A merged
-   probe earns co-authorship, so this row is the record of that.
-3. `ROADMAP.md`: the entry moves from unclaimed to `**merged**`, under the
+   table for every reference model the probe adds. A model's standing counts
+   its passes out of the probes that could score it. A probe it is N/A on,
+   because it does not report a variable the probe needs or cannot consume
+   it, changes neither number, so "PASS, N of N" stays as it is; if that is
+   true of the physical models, only the sentence above the table that says
+   what they must pass changes. A probe that can score a model adds one to its
+   total, and one to its passes if the model passes it.
+2. `CONTRIBUTORS.md`: a row in the probes table naming the author with
+   their affiliation, as `Name (Institution)`. A merged probe earns
+   co-authorship, so this row is the record of that. The affiliation comes
+   from `authors` in the probe's `probe.yaml`; if it is missing there, ask
+   the author before merging rather than after, because the test that
+   checks it (`test_probe_authors_carry_an_affiliation`) fails the build.
+3. `CITATION.cff`: an `authors` entry for every probe author not already
+   listed, with `given-names`, `family-names`, `affiliation` and `orcid` as
+   a full `https://orcid.org/` URL. This is the software's author list and
+   the paper's starting point. Contact emails stay out of the repository;
+   ask for one privately at merge time.
+4. `ROADMAP.md`: the entry moves from unclaimed to `**merged**`, under the
    id the probe actually took, with the author named. Rewrite the paragraph
    above it if it counted the unclaimed entries.
 4. `site/index.html`, three times, once per language block: the row in
    `probes.rows` moves from the wanted block to the merged block under its
-   real id; every `N / M` in `models.rows` takes the new probe count; the
-   flowchart under "How it works" gains a labelled entry in the right pillar,
+   real id; an `N / M` in `models.rows` moves only for a model the new probe
+   can score, because M counts the probes that could ask that model
+   something and a probe it is N/A on is in neither number; the flowchart
+   under "How it works" gains a labelled entry in the right pillar,
    with an `infra.probe.<key>` translation in each language, measured against
    the pillar's width. The badge count is generated and needs nothing.
 5. `models/result.csv`: one row per evaluated model on the new probe, written
    by `ht run --model <name> --probe <id> --gate-seeds --csv models/result.csv`
-   rather than by hand. INCOMPLETE is a verdict and is archived like any
-   other.
+   rather than by hand. A probe that cannot be put to the model is archived
+   as `N/A` with its reason, like any other row.
 6. This file, if the probe introduced a variable: a row in the table above.
    `spec.py` accepts the name the moment it is in `FLUX_VARS`; nothing tells
    an adapter author it exists except this table.

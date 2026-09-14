@@ -25,14 +25,17 @@ STATIC = {
 
 def generate(seed: int) -> tuple[pd.DataFrame, dict]:
     rng = random.Random(seed)
+    phase = rng.uniform(0.0, 2 * math.pi)
+    wet_days = {start + rng.randrange(min(3, BLOCK_DAYS - start))
+                for start in range(0, BLOCK_DAYS, 3)}
     block = []
     for day in range(BLOCK_DAYS):
-        season = math.cos(2 * math.pi * (day % 365) / 365)
+        season = math.cos(2 * math.pi * (day % 365) / 365 + phase)
         block.append({
             "pr": round((5.4 + 1.2 * season) * rng.uniform(0.8, 1.2), 6)
-            if day % 3 == 0 else 0.0,
-            "tas": round(15.0 + 5.0 * season, 6),
-            "pet": round(1.0 - 0.3 * season, 6),
+            if day in wet_days else 0.0,
+            "tas": round(15.0 + 5.0 * season + rng.uniform(-0.5, 0.5), 6),
+            "pet": round(1.0 - 0.3 * season + rng.uniform(-0.05, 0.05), 6),
         })
     forcing = pd.DataFrame([block[i % BLOCK_DAYS] for i in range(N_STEPS)])
     # Model years have 365 steps; dates remain continuous across leap days.

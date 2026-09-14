@@ -15,9 +15,8 @@ Two kinds of expectation, declared per variable:
   unchanged   the transform must not move it at all
   scaled      it must move by exactly the declared factor
 
-Comparison is relative to the mean magnitude of the control run, so a variable
-that is legitimately near zero for most of the record is not judged against
-its own noise.
+Comparison is relative to the mean magnitude of the expected run, with a
+1e-12 denominator minimum for an empty store.
 """
 
 from __future__ import annotations
@@ -38,9 +37,21 @@ from hydroturing.spec import ProbeSpec
 
 def _deviation(control: np.ndarray, other: np.ndarray, factor: float) -> float:
     """Worst relative departure of `other` from `factor` times `control`."""
-    expected = factor * control
-    scale = max(float(np.abs(expected).mean()), 1e-12)
-    return float(np.abs(other - expected).max() / scale)
+    if not np.isfinite(factor):
+        raise ValueError("invariance needs a finite scaled factor")
+    with np.errstate(over="ignore", invalid="ignore"):
+        expected = factor * control
+        scale = max(float(np.abs(expected).mean()), 1e-12)
+        deviation = float(np.abs(other - expected).max() / scale)
+    # Finite inputs can still overflow the expectation or its mean. An
+    # infinite denominator would otherwise turn a real departure into zero.
+    if (
+        not np.isfinite(expected).all()
+        or not np.isfinite(scale)
+        or not np.isfinite(deviation)
+    ):
+        raise ValueError("invariance comparison produced a non-finite intermediate or deviation")
+    return deviation
 
 
 @criterion("invariance", paired=True)
@@ -84,11 +95,22 @@ def invariance(
     for var, factor in expectations:
         if var not in control.table.columns or var not in transformed.table.columns:
             raise ValueError(f"invariance needs '{var}' in the model result")
-        deviation = _deviation(
-            np.asarray(control.table[var], dtype=float),
-            np.asarray(transformed.table[var], dtype=float),
-            factor,
-        )
+        a = np.asarray(control.table[var], dtype=float)
+        b = np.asarray(transformed.table[var], dtype=float)
+        for role, default, values in (
+            ("control", "control", a), ("transformed", "transformed", b),
+        ):
+            n_bad = int((~np.isfinite(values)).sum())
+            if n_bad:
+                variant = str(params.get(role, default))
+                return CriterionResult(
+                    name="invariance", status=FAIL, threshold=rtol,
+                    message=f"'{var}' has {n_bad} non-finite values in variant '{variant}'",
+                    diagnostics={
+                        "variable": var, "variant": variant, "nonfinite_count": n_bad,
+                    },
+                )
+        deviation = _deviation(a, b, factor)
         deviations[var] = deviation
         if deviation > worst:
             worst_var, worst = var, deviation

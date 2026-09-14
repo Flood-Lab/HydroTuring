@@ -13,9 +13,15 @@ unfamiliar. Two things are added.
 Net radiation is generated from a clear-sky cycle at the catchment's latitude,
 attenuated by a seeded cloudiness process, with an albedo that switches when
 the air is below freezing and an outgoing longwave term that follows air
-temperature. It changes sign on winter days, which is deliberate: it is what
-forces the energy criteria to carry an absolute floor rather than a bare
-percentage.
+temperature. It averages under 20 W/m2 in the depth of winter and goes below
+zero on a handful of overcast days, which is deliberate: it is what forces the
+energy criteria to carry an absolute floor rather than a bare percentage.
+
+The shortwave cycle peaks at the summer solstice. The first release had the
+sign of its seasonal term flipped, so the year's strongest radiation and
+demand fell in the wet winter months and the soil never filled; the exact
+model's runoff was then almost pure baseflow and its correlation with recent
+rain was a coin toss against the `non_degenerate` threshold. See the README.
 
 Potential evapotranspiration is then derived from that net radiation by the
 Priestley-Taylor equation with alpha = 1.26, rather than being an independent
@@ -87,7 +93,7 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
     clearness = np.clip(0.72 + 0.18 * cloud, 0.35, 1.0)
 
     # Daily-mean incoming shortwave at 40 degN, and the surface it lands on.
-    rsds = (245.0 - 135.0 * np.cos(2 * np.pi * (doy - 172) / 365)) * clearness
+    rsds = (245.0 + 135.0 * np.cos(2 * np.pi * (doy - 172) / 365)) * clearness
     albedo = np.where(tas < STATIC["snow_threshold_degC"], 0.60, 0.23)
     longwave_out = np.clip(32.0 + 1.2 * tas, 15.0, 95.0) * (0.55 + 0.45 * clearness)
     rn = (1.0 - albedo) * rsds - longwave_out

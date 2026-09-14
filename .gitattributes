@@ -1,1 +1,6 @@
+# Store text with LF whatever the committer's platform or core.autocrlf.
+# Later lines win, so exceptions go below this one.
+* text=auto eol=lf
 ht.cmd text eol=crlf
+
+*.png binary

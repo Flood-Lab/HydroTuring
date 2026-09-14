@@ -6,9 +6,11 @@ over fifty years, not whether a fitted storage trend is exactly zero.
 
 ## Case
 
-A seed generates a five-year block of warm daily weather. Rain arrives every
-third day with a seasonal envelope and seeded amplitude; temperature remains
-between 10 and 20 degrees C, and PET between 0.7 and 1.3 mm/day. Repeat that
+A seed generates a five-year block of warm daily weather. One wet day is
+sampled within each consecutive three-day group (including the final partial
+group). The seasonal phase, rain depth, and daily temperature/PET anomalies
+are seeded. Temperature stays between 9.5 and 20.5 degrees C and PET between
+0.65 and 1.35 mm/day. Repeat that
 block for five years of spinup and fifty scored years (20,075 input rows).
 There is no imposed secular trend in the block totals. The case is periodic,
 not realistic stochastic weather or a statistically stationary process.
@@ -16,7 +18,8 @@ not realistic stochastic weather or a statistically stationary process.
 Model years contain 365 days. Gregorian timestamps advance continuously;
 seasonality follows the forcing index, not Gregorian day-of-year. The warm
 case avoids snow accumulation and isolates soil/canopy capacity. Each seed
-generates different rain, reproducibly, without a committed forcing dataset.
+generates different rain dates, rain depths, temperatures and PET, reproducibly,
+without a committed forcing dataset.
 
 The minimum evaluation window is 18,250 days, preventing the default submitted
 model flood-event window from discarding the long horizon. Model states run
@@ -77,18 +80,48 @@ This probe cannot detect every slow leak or a trend that remains within valid
 bounds. A model can fabricate bounded states and compensating fluxes and still
 pass; passing is not proof of physical understanding. Legitimate equilibration,
 seasonal storage, and declared groundwater exchange are not themselves failures.
+In particular, moving the reporting bias into `gw` or `channel` escapes the
+current finite soil-capacity check. The review counterexample tests reproduce
+this limitation; they do not certify these reporters as physical. A smaller
+soil bias can also escape until it reaches capacity. The detection floor is
+case-dependent, not a universal minimum detectable trend.
+
+Review requested a decision between this capacity-only scope and a separate
+total-storage trend criterion. That decision remains open. Adding an arbitrary
+groundwater capacity would not resolve it physically. A candidate trend test
+would compare late repeated-block means, with a documented tolerance and
+warmup sensitivity, and must first establish why a secular change is invalid
+for the tested system, including any declared groundwater exchange. No such
+criterion is claimed in this revision.
 The negative reporter can produce negative runoff in drier, unrelated cases;
 the tests explicitly exclude that alternative failure on this forcing.
 
 ## Reproduce
 
-The local gate passes all five fixed seeds for all four physical baselines,
-and the slow reporter fails only `state_bounds`. The focused tests also cover
-three independent seeds, reproducibility, prefix consistency and longer spinup.
-The archive records the three evaluated physical models as PASS and Google as
-INCOMPLETE (required budget variables absent). The local dhbv2 attempt is
-recorded as ERROR because Docker was unavailable, not as a physical violation;
-its container evaluation remains to be rerun before final acceptance.
+Re-run the gate after changes to forcing or upstream model implementations.
+The focused tests cover independent seeds, reproducibility, prefix consistency,
+longer spinup and the documented detection limits. Results from the original
+PR do not establish results for the revised generator.
+
+The revised gate passes all five fixed seeds for all four physical baselines;
+the slow reporter fails only `state_bounds`. The three evaluated physical
+models have regenerated PASS archive rows, and Google has N/A (INCOMPLETE).
+
+The previous local dhbv2 daemon failure has been removed from the published
+archive and replaced with a real five-seed Docker evaluation: FAIL (VIOLATION)
+on `state_bounds` only. The worst seed reports soil storage of 488-501 mm
+against the 320 mm capacity. This is an existing capacity mismatch, not evidence
+that dhbv2 develops a secular drift; its other four criteria pass.
+
+Each container emitted all 20,075 rows within the 300-second run limit, under
+the manifest's two-CPU/four-GB limits on local Docker Desktop. Adapter-reported
+wall times ranged from 66.65 to 121.16 seconds; result CSVs were
+3,090,736-3,110,230 bytes, below 10 MB. These are local measurements, not a
+GitHub-hosted runner benchmark, and exclude image construction.
+
+Evaluation of the new upstream submitted models (wflow_sbm, summa, cwatm and
+lisflood) remains required before merge. Missing evaluations are not filled
+with fabricated PASS, FAIL or N/A rows.
 
 ```sh
 ht validate

@@ -1,0 +1,21 @@
+name: reference_air_emitter
+version: "1.0.0"
+description: >
+  Negative control for energy/radiation-consistency. Uses reference_radiative's
+  skin temperature but emits longwave at air temperature, with reflected sky
+  unchanged. Only upward longwave differs from the positive control.
+authors: ["Xin Lan"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1H]
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg, rlus]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [ts]
+needs_forcing: [pr, tas, pet, rn]
+uses_forcing: [rlds]
+uses_static: [eps]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

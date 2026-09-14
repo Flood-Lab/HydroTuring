@@ -12,8 +12,8 @@ Requested in [issue #1](https://github.com/Flood-Lab/HydroTuring/issues/1).
 
 Streamflow, and nothing else. `mrro` is the model's own prediction in mm/day;
 `dis` is that depth times the catchment area, in m3/s. There is no
-evapotranspiration, no storage, and the adapter invents none, so on every
-budget probe the verdict is **FAIL (INCOMPLETE)**: the model has not violated
+evapotranspiration, no storage, and the adapter invents none, so every budget
+probe is **N/A (INCOMPLETE)**, not scored: the model has not violated
 conservation, it has declined to be falsifiable on it. That is the honest
 outcome for every streamflow-only model, and the reason the report carries a
 reason next to the verdict.
@@ -80,7 +80,7 @@ budget.
 | Check | Outcome |
 | --- | --- |
 | `ht verify-adapter` on `mass/catchment-closure`, gate seed 598896396 | contract OK: 395 rows in 19 s, columns `mrro`, `dis`, no missing products |
-| `ht run` on `mass/catchment-closure` | FAIL (INCOMPLETE): does not report `pr`, `evspsbl`, `mrso`, `snw`, `canopy` |
+| `ht run` on `mass/catchment-closure` | N/A (INCOMPLETE): does not report `pr`, `evspsbl`, `mrso`, `snw`, `canopy` |
 | `ht run` on `mass/resolution-invariance` | FAIL (VIOLATION): runoff volume differs by 66% of precipitation between hourly and daily runs of the same month (17%, 40%, 66% on the three gate seeds) |
 | `ht run` on `mass/warming-response` | FAIL (VIOLATION), marginal: the sign is right both ways on every seed, but under warming runoff falls by only 0.07 to 0.15 of the added demand (0.61 on one seed), under the 0.10 the probe requires on three of five seeds |
 | `ht run` on `mass/causality` | PASS: nothing changes before the added storm, to floating point, and runoff answers it by 0.32 of the added rain |
@@ -178,7 +178,7 @@ bucket does to within 1 percent.
 
 ```bash
 ht verify-adapter --model google_flood_forecast --csv models/result.csv   # builds the image, ~20 s per case
-ht run --model google_flood_forecast --gate-seeds --csv models/result.csv # INCOMPLETE, without starting the container
+ht run --model google_flood_forecast --gate-seeds --csv models/result.csv # budget probes N/A (INCOMPLETE), no container started for them
 ht verify-adapter --model google_flood_forecast --window full             # full record; exceeds the 60 s budget
 ```
 

@@ -20,9 +20,9 @@ def simulate(forcing, static):
 
     It predicts discharge and nothing else. It is not dishonest and it is not
     broken. It simply never says enough about its own water budget to be
-    checked, so its verdict is FAIL with reason INCOMPLETE rather than
-    VIOLATION. That distinction is the whole reason the report carries a
-    reason field next to the verdict.
+    checked, so a probe that needs more than discharge is N/A with reason
+    INCOMPLETE, rather than FAIL with VIOLATION. That distinction is the
+    whole reason the report carries a reason field next to the verdict.
     """
     area_m2 = static["area_km2"] * 1.0e6
     store = 60.0

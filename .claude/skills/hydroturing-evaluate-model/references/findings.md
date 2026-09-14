@@ -131,6 +131,49 @@ an added storm, fixed by sub-stepping the partition (documented deviation).
 `gwex` joined the contract: δHBV declares its regional groundwater term
 and closes to 1e-8 (adapter .3).
 
+## antecedent-monotonicity window (2026-09-11)
+
+`antecedent_monotonicity` opened its 30-day window on the step after the
+last antecedent rain, but the generator leaves ten rainless days before
+the storm, so the window started ten days early: the wet run's recession
+of antecedent water through those days was scored as storm runoff, and
+`storm_mm` summed all rain in the window rather than the storm. Found on
+wflow_sbm, whose `runoff_dry_mm`/`runoff_wet_mm` reproduced exactly when
+summed from 9 July rather than the storm of 19 July. The criterion now
+opens the window on the first rain after the last step on which the
+variants differ, and takes the share against the storm itself (the
+unbroken run of rain the window opens on), which is what probe.yaml and
+the README always said. `storm_time` in the diagnostics shows where the
+window opened; check it against the generator once when a criterion
+locates an event from the forcing.
+
+The shift took about a third of the apparent memory from the gate models
+(bucket 0.108 → 0.072 of window rain on the first gate seed). SAC-SMA's
+memory is genuinely small: its wet catchment holds 62 mm more soil water
+at the storm but evaporates most of it, returning 1.4 mm in 30 days and
+5.6 mm in a year. With the window moved and the old denominator it fell to
+0.019, under the 0.02 bound; against the storm it is 0.024. Over 200 seeds
+SAC-SMA falls below 0.02 on 4.0% before the fix, 11.5% with the window
+moved alone, and 2.0% with the storm as the denominator (minimum 0.011);
+the other physical models never go below 0.05 and the cheater is exactly 0.
+Taking the share against the storm does loosen the bound on the gate
+seeds, from 1.4–2.3 mm of extra runoff to 1.2 mm. Rain on the day after
+the storm joins it, since the run ends at the first dry step; that happens
+on 25 of the 200 seeds and changes none of these rates.
+`min_share` stays 0.02; 0.01 would clear all 200 seeds. All five archived
+models still pass; the lowest share on the gate seeds is dhbv2 0.21,
+google_flood_forecast 0.10, flex_lumped 0.17, flex_topo 0.11, sacsma_snow17
+0.024.
+
+wflow_sbm merged while the fix was in review, with its row scored on the
+old window. It still fails on the same two seeds, at 0.0013 and 0.0005 of
+the storm instead of −0.0011 and −0.0010: its wet month's water has been
+evaporated down to the rooting depth before the storm arrives, which no
+window placement changes. Its README's sensitivity table was re-scored
+from the kept per-setting runs, where the old criterion reproduces every
+entry; with roots through 99% of the column the second seed now clears the
+bound by a hair (0.020).
+
 ## Known open items
 
 - The `probe` workflow's `container` job has failed on every recorded run

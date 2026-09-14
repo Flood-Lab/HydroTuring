@@ -1,5 +1,5 @@
 name: reference_coupled
-version: "1.0.0"
+version: "1.1.0"
 description: >
   The bucket of reference_bucket with snow sublimation and a surface energy
   budget. Every kilogram of water that leaves the surface is converted to
@@ -13,7 +13,7 @@ authors: ["HydroTuring maintainers"]
 license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
-timestep: [PT1D]
+timestep: [PT1D, PT1H]
 emits:
   fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
   states: [mrso, snw, canopy, channel]

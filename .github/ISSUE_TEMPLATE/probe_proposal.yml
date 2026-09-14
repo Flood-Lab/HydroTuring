@@ -15,6 +15,27 @@ body:
         earns co-authorship on the benchmark paper. See
         [CONTRIBUTING.md](https://github.com/Flood-Lab/HydroTuring/blob/main/CONTRIBUTING.md#credit).
 
+        Because a merged probe is authorship, the form asks who you are up
+        front. What you write here goes into `authors` in your `probe.yaml`,
+        into CONTRIBUTORS.md and CITATION.cff, and onto the paper's author
+        list, so it does not have to be gathered again at submission time.
+        A contact email is not asked for on a public issue; the maintainer
+        will ask for one privately when the probe merges.
+
+  - type: textarea
+    id: authors
+    attributes:
+      label: Authors
+      description: >
+        One line per author, in the order they should appear: full name as it
+        should be printed, affiliation with department and city (or
+        "independent"), and ORCID if you have one. Every author listed here
+        is a co-author of the paper once the probe merges.
+      placeholder: |
+        Jane Doe, Department of Civil Engineering, University of Somewhere, Boulder CO, 0000-0002-1825-0097
+        Ada Lovelace, independent, 0000-0001-5109-3700
+    validations: {required: true}
+
   - type: dropdown
     id: law
     attributes:

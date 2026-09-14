@@ -13,7 +13,7 @@ other thirteen, and the two unit-hydrograph parameters, from the
 attributes alone; the HBV bucket model runs with them, three components in
 parallel, averaged. It is the first submission that carries explicit
 stores and an explicit evaporation, so it is the first that can be scored
-on closure rather than declared INCOMPLETE.
+on closure rather than left N/A (INCOMPLETE).
 
 ## Licence
 
