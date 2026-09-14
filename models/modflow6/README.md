@@ -21,9 +21,17 @@ adapter converts them from m3/day to mm/day over the model area and
 accumulates groundwater storage from the STO-SS and STO-SY release terms
 rather than reconstructing it from mean head.
 
-Sign mapping, per the repository's `gwex`-positive-into-the-aquifer
-convention (AGENTS.md):
+Sign mapping, per the probe's `gw_sw_exchange`-positive-into-the-aquifer
+convention (AGENTS.md) — not `gwex`, which is a declared exchange with the
+outside of the catchment rather than river-aquifer exchange within it:
 
 - MODFLOW RIV `q > 0` is river into aquifer, reported as positive `sw_to_gw`.
 - MODFLOW RIV `q < 0` is aquifer into river, reported as negative `gw_to_sw`.
-- `gwex = gw_to_sw + sw_to_gw`.
+- `gw_sw_exchange = gw_to_sw + sw_to_gw`.
+
+The image is pinned to `linux/amd64` (native on x86-64, emulated on
+arm64/Apple silicon): MODFLOW 6.7.0 ships no Linux arm64 build. `modflow6` is
+archived as a second, evidential baseline alongside the trusted
+`reference_exchange_exact`; it is not in the probe's `must_pass`, so the
+acceptance gate does not need Docker or a network fetch of the MODFLOW 6
+release to score `mass/gw-sw-exchange-consistency`.

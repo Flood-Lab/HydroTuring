@@ -13,21 +13,25 @@ from hydroturing.spec import ProbeSpec
 def exchange_components(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     """Require directional components to sum to the declared net exchange.
 
-    The repository's convention is positive ``gwex`` into the catchment
-    (AGENTS.md). ``sw_to_gw`` (river losing to the aquifer) is the positive
-    component and ``gw_to_sw`` (aquifer losing to the river) is the negative
-    component, so ``gw_to_sw + sw_to_gw == gwex``.
+    The net flux is named by ``net`` (default ``gw_sw_exchange``), not
+    ``gwex``: river-aquifer exchange moves water between two stores inside
+    the control volume, while ``gwex`` is a source or sink crossing the
+    catchment boundary (AGENTS.md, closure.py). ``sw_to_gw`` (river losing to
+    the aquifer) is the positive component and ``gw_to_sw`` (aquifer losing
+    to the river) is the negative component, so
+    ``gw_to_sw + sw_to_gw == net``.
     """
     w = make_window(run, probe)
-    required = ("gw_to_sw", "sw_to_gw", "gwex")
+    net_name = params.get("net", "gw_sw_exchange")
+    required = ("gw_to_sw", "sw_to_gw", net_name)
     missing = [name for name in required if name not in w.table.columns]
     if missing:
         raise ValueError(f"exchange_components needs {missing} in the model result")
 
     gw_to_sw = w.volume(w.table["gw_to_sw"])
     sw_to_gw = w.volume(w.table["sw_to_gw"])
-    gwex = w.volume(w.table["gwex"])
-    residual = gw_to_sw + sw_to_gw - gwex
+    net = w.volume(w.table[net_name])
+    residual = gw_to_sw + sw_to_gw - net
     denominator = np.maximum(np.maximum(np.abs(gw_to_sw), np.abs(sw_to_gw)), 1.0e-9)
     relative = float(np.max(np.abs(residual) / denominator))
     sign_violation = bool((gw_to_sw > 1.0e-9).any() or (sw_to_gw < -1.0e-9).any())
@@ -43,9 +47,9 @@ def exchange_components(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
         value=relative,
         threshold=rel_tol,
         message=(
-            "directional exchange components sum to gwex"
+            f"directional exchange components sum to {net_name}"
             if ok
-            else f"directional exchange is inconsistent with gwex (max residual {max_abs:.6g} mm)"
+            else f"directional exchange is inconsistent with {net_name} (max residual {max_abs:.6g} mm)"
         ),
         diagnostics={
             "max_abs_residual_mm": max_abs,

@@ -10,7 +10,7 @@ runner: docker
 entrypoint: [python3, ht_adapter.py]
 timestep: PT1D
 emits:
-  fluxes: [gwex, gw_to_sw, sw_to_gw]
+  fluxes: [gw_sw_exchange, gw_to_sw, sw_to_gw]
   states: [gw]
 needs_forcing: [gw_recharge, sw_stage_m]
 needs_static: [area_km2, aquifer_storage_coefficient, aquifer_specific_yield, river_conductance_m2_per_day, river_bottom_offset_m]

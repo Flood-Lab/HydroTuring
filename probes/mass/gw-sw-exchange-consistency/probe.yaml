@@ -17,7 +17,7 @@ description: >
   catchment runoff are outside its control volume.
 
 requires:
-  fluxes: [gwex, gw_to_sw, sw_to_gw]
+  fluxes: [gw_sw_exchange, gw_to_sw, sw_to_gw]
   states: [gw]
   forcing: [gw_recharge, sw_stage_m]
   static: [area_km2, aquifer_specific_yield, aquifer_storage_coefficient, river_conductance_m2_per_day, river_bottom_offset_m]
@@ -39,7 +39,7 @@ criteria:
 
   - groundwater_balance:
       recharge: gw_recharge
-      exchange: gwex
+      exchange: gw_sw_exchange
       storage: gw
       rel_tol: 0.01
       abs_tol_mm: 2.0e-4
@@ -54,14 +54,18 @@ baselines:
   # reference_bucket, flex_lumped, flex_topo and sacsma_snow17 do not consume
   # gw_recharge/sw_stage_m, so this probe is N/A (INCOMPATIBLE) for them,
   # exactly as it is for any model without a groundwater-exchange term.
-  # modflow6 is the only baseline that can be put to this probe's control
-  # volume today.
-  must_pass: [modflow6]
+  # reference_exchange_exact is a trusted, Docker-free reference that closes
+  # this probe's budget exactly, so the gate does not depend on building and
+  # running modflow6 (a 134 MB release plus flopy) to score anything.
+  # modflow6 is kept as a second, evidential baseline: a real MODFLOW 6 run,
+  # archived as a submitted model rather than gated on.
+  must_pass: [reference_exchange_exact]
   must_fail:
     reference_exchange_sign_error: exchange_components
 
 provenance: >
   Synthetic. Generated at run time by generate.py from a recorded seed. The
-  forcing is generated at runtime. MODFLOW 6 receives recharge and river stage
-  as explicit inputs; RIV budget flows are mapped to the two signed exchange
-  components.
+  forcing is generated at runtime. reference_exchange_exact and modflow6
+  receive recharge and river stage as explicit inputs; modflow6's RIV budget
+  flows are mapped to the two signed exchange components, which sum to
+  gw_sw_exchange, distinct from the boundary-crossing gwex.

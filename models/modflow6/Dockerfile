@@ -1,4 +1,8 @@
-FROM python:3.12-slim
+# MODFLOW 6.7.0 ships no Linux arm64 build (only linux/amd64, per its GitHub
+# release assets), so the image is pinned to linux/amd64: native on an
+# x86-64 host, emulated (e.g. Rosetta, QEMU) on an Apple-silicon or other
+# arm64 one. See models/lisflood/Dockerfile for the same pattern.
+FROM --platform=linux/amd64 python:3.12-slim
 
 ARG MF6_VERSION=6.7.0
 ARG MF6_SHA256=f83e743bac1b3009836a44e6e4aa4b4c522ac2e2c7d291e280db47f68353ebdc

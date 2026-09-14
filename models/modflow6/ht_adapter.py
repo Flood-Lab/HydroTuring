@@ -15,7 +15,7 @@ import tempfile
 import flopy
 
 MODEL = {"name": "modflow6", "version": "0.1.0"}
-COLUMNS = ["time", "gwex", "gw_to_sw", "sw_to_gw", "gw"]
+COLUMNS = ["time", "gw_sw_exchange", "gw_to_sw", "sw_to_gw", "gw"]
 NROW = 10
 NCOL = 10
 DELR = 100.0
@@ -132,13 +132,15 @@ def run_modflow(forcing: list[dict], static: dict) -> list[dict]:
         for period, forcing_row in enumerate(forcing):
             q_records = budget_file.get_data(text="RIV", kstpkper=(0, period))[0]
             # MODFLOW RIV q is positive into the aquifer, i.e. the river
-            # losing water to groundwater: sw_to_gw (>= 0) per AGENTS.md's
-            # gwex-positive-into-the-aquifer convention.
+            # losing water to groundwater: sw_to_gw (>= 0) per the probe's
+            # gw_sw_exchange-positive-into-the-aquifer convention. This is
+            # river-aquifer exchange, not gwex: both stores are inside the
+            # model's control volume.
             q_m3_day = float(q_records["q"].sum())
             q_mm_day = q_m3_day / area_m2 * 1000.0
             sw_to_gw = max(q_mm_day, 0.0)
             gw_to_sw = min(q_mm_day, 0.0)
-            gwex = gw_to_sw + sw_to_gw
+            gw_sw_exchange = gw_to_sw + sw_to_gw
 
             # MODFLOW's own STO-SS/STO-SY budget terms, not a head-derived
             # approximation: they are exact even with a non-uniform head
@@ -157,7 +159,7 @@ def run_modflow(forcing: list[dict], static: dict) -> list[dict]:
 
             rows.append({
                 "time": forcing_row["time"],
-                "gwex": gwex,
+                "gw_sw_exchange": gw_sw_exchange,
                 "gw_to_sw": gw_to_sw,
                 "sw_to_gw": sw_to_gw,
                 "gw": gw_mm,

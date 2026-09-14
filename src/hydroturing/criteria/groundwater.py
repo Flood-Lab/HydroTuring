@@ -11,11 +11,13 @@ from hydroturing.spec import ProbeSpec
 
 @criterion("groundwater_balance")
 def groundwater_balance(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
-    """Check recharge + net exchange (gwex, positive into the aquifer per
-    AGENTS.md) equals the change in groundwater storage."""
+    """Check recharge + net river-aquifer exchange (positive into the
+    aquifer) equals the change in groundwater storage. The exchange is a
+    named flux (default gw_sw_exchange), not gwex: this moves water between
+    two in-catchment stores rather than crossing the catchment boundary."""
     w = make_window(run, probe)
     recharge_name = params.get("recharge", "gw_recharge")
-    exchange_name = params.get("exchange", "gwex")
+    exchange_name = params.get("exchange", "gw_sw_exchange")
     storage_name = params.get("storage", "gw")
     for name in (recharge_name, exchange_name, storage_name):
         if name not in (w.forcing.columns if name == recharge_name else w.table.columns):
@@ -60,9 +62,9 @@ def groundwater_balance(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
 def exchange_directions(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     """Require both groundwater-to-river and river-to-groundwater flow.
 
-    Per the repository's gwex convention (positive into the aquifer),
-    gw_to_sw (aquifer losing to the river) is <= 0 and sw_to_gw (river
-    losing to the aquifer) is >= 0.
+    Per the repository's convention for gw_sw_exchange (positive into the
+    aquifer), gw_to_sw (aquifer losing to the river) is <= 0 and sw_to_gw
+    (river losing to the aquifer) is >= 0.
     """
     w = make_window(run, probe)
     for name in ("gw_to_sw", "sw_to_gw"):
