@@ -42,7 +42,10 @@ criteria:
       exchange: gw_sw_exchange
       storage: gw
       rel_tol: 0.01
-      abs_tol_mm: 2.0e-4
+      # gw sits at O(1e3) mm; 6-significant-figure output on a store that
+      # size rounds to about 1e-2 mm, so the floor has to clear that rather
+      # than only the recharge/exchange terms' own rounding.
+      abs_tol_mm: 2.0e-2
 
   - state_bounds:
       gw: [0.0, null]
@@ -51,9 +54,10 @@ criteria:
       minimum_gross_mm: 0.1
 
 baselines:
-  # reference_bucket, flex_lumped, flex_topo and sacsma_snow17 do not consume
-  # gw_recharge/sw_stage_m, so this probe is N/A (INCOMPATIBLE) for them,
-  # exactly as it is for any model without a groundwater-exchange term.
+  # reference_bucket, flex_lumped, flex_topo and sacsma_snow17 do not report
+  # gw_sw_exchange/gw_to_sw/sw_to_gw, so this probe is N/A (INCOMPLETE) for
+  # them (a missing output is checked before an unconsumed input), exactly
+  # as it is for any model without a groundwater-exchange term.
   # reference_exchange_exact is a trusted, Docker-free reference that closes
   # this probe's budget exactly, so the gate does not depend on building and
   # running modflow6 (a 134 MB release plus flopy) to score anything.

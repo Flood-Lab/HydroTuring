@@ -79,7 +79,7 @@ scored for them. A probe that fails a
 physical model is examined before the model is; that is the first thing done
 with any probe pull request. Eleven of the twenty-four can be scored on a model
 that reports runoff and nothing else. `ht list` prints them;
-[ROADMAP.md](ROADMAP.md#probes-we-want) has the nine more we want, all
+[ROADMAP.md](ROADMAP.md#probes-we-want) has the ten more we want, all
 unclaimed.
 
 | Probe | Law | What it asks | The broken model it catches |

@@ -18,8 +18,6 @@ MODEL = {"name": "modflow6", "version": "0.1.0"}
 COLUMNS = ["time", "gw_sw_exchange", "gw_to_sw", "sw_to_gw", "gw"]
 NROW = 10
 NCOL = 10
-DELR = 100.0
-DELC = 100.0
 TOP = 20.0
 BOTM = 0.0
 K = 1.0
@@ -74,6 +72,15 @@ def run_modflow(forcing: list[dict], static: dict) -> list[dict]:
     if not Path(mf6_exe).exists():
         raise RuntimeError(f"MODFLOW 6 executable not found: {mf6_exe}")
     area_m2 = float(static["area_km2"]) * 1.0e6
+    # Size the grid from area_km2 itself, so a case with a different area
+    # (not just the 1.0 the generator currently always emits) still has its
+    # RIV/RCHA/STO flows converted over the area they actually fell on,
+    # instead of silently assuming a fixed 1 km2 grid.
+    cell_side_m = (area_m2 / (NROW * NCOL)) ** 0.5
+    delr = delc = cell_side_m
+    # Dimensionless storage coefficient (storativity), not specific storage:
+    # storagecoefficient=True below tells flopy/MODFLOW to read `ss` that
+    # way, matching the name and the values the generator draws it from.
     storage_coefficient = float(static["aquifer_storage_coefficient"])
     specific_yield = float(static["aquifer_specific_yield"])
     river_conductance = float(static["river_conductance_m2_per_day"])
@@ -93,13 +100,13 @@ def run_modflow(forcing: list[dict], static: dict) -> list[dict]:
         )
         gwf = flopy.mf6.ModflowGwf(sim, modelname="ht_gw", save_flows=True)
         flopy.mf6.ModflowGwfdis(
-            gwf, nlay=1, nrow=NROW, ncol=NCOL, delr=DELR, delc=DELC,
+            gwf, nlay=1, nrow=NROW, ncol=NCOL, delr=delr, delc=delc,
             top=TOP, botm=BOTM,
         )
         flopy.mf6.ModflowGwfic(gwf, strt=initial_head)
         flopy.mf6.ModflowGwfnpf(gwf, icelltype=1, k=K)
         flopy.mf6.ModflowGwfsto(
-            gwf, iconvert=1, storagecoefficient=False,
+            gwf, iconvert=1, storagecoefficient=True,
             ss=storage_coefficient, sy=specific_yield,
             save_flows=True,
             steady_state={0: False},

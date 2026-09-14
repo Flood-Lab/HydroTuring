@@ -29,6 +29,17 @@ The only required store is `gw`. This is intentionally a groundwater probe:
 canopy, soil, snow and catchment runoff are outside its control volume, and a
 model is scored only on the groundwater state and exchange fluxes it reports.
 
+### Static parameters
+
+| Key | Meaning | Units |
+| --- | --- | --- |
+| `area_km2` | catchment/model area the fluxes are converted over | km2 |
+| `aquifer_specific_yield` | drainable porosity above the water table | dimensionless |
+| `aquifer_storage_coefficient` | storage coefficient (storativity), not specific storage | dimensionless |
+| `river_conductance_m2_per_day` | RIV package conductance between the river and the aquifer | m2/day |
+| `river_bottom_offset_m` | river stage minus riverbed elevation | m |
+| `aquifer_initial_head_m` | initial aquifer head, optional, defaults to 10.0 | m |
+
 ## The case
 
 `generate.py` creates two years of daily forcing after a 90-day spinup
@@ -61,14 +72,20 @@ build to score this probe. Neither is exercised by CI's Docker-free harness
 tests; `modflow6`'s own archive row is written separately with
 `ht run --model modflow6 --probe mass/gw-sw-exchange-consistency`.
 `reference_bucket`, `flex_lumped`, `flex_topo` and `sacsma_snow17` do not
-consume `gw_recharge`/`sw_stage_m`, so the probe is `N/A (INCOMPATIBLE)` for
-them, the same outcome as for any model without a declared
+report `gw_sw_exchange`/`gw_to_sw`/`sw_to_gw`, so the probe is
+`N/A (INCOMPLETE)` for them: a missing output is checked before an
+unconsumed input, the same outcome as for any model without a declared
 groundwater-exchange term.
 
-The groundwater balance uses a 1% relative tolerance and a `2e-4 mm` absolute
+The groundwater balance uses a 1% relative tolerance and a `2e-2 mm` absolute
 per-step floor, taken over the larger of the recharge and exchange terms so
-the allowance is not set by whichever is smaller. `exchange_components` is an
-exact identity and uses a `1e-6` relative tolerance.
+the allowance is not set by whichever is smaller. The floor is sized to clear
+common-precision output on the `gw` state, which sits at O(1e3) mm here: a
+model writing it to 6 significant figures rounds to about 1e-2 mm, which a
+tighter floor would reject regardless of physics. `exchange_components` is
+an exact identity and uses a `1e-6` relative tolerance; `gw_to_sw`/`sw_to_gw`
+sit at O(1e-1) to O(1e0) mm, so the same precision concern does not apply
+there.
 
 ## Baselines
 

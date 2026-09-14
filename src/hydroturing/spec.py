@@ -45,8 +45,8 @@ UNITS = {
     # is never added to gwex or counted as a source in closure.
     "gw_sw_exchange": "mm day-1",
     # Signed directional components of gw_sw_exchange, not of gwex. sw_to_gw
-    # is positive (river losing to the aquifer); gw_to_sw is negative
-    # (aquifer losing to the river).
+    # is positive into the aquifer (river losing to the aquifer); gw_to_sw
+    # is negative, out of the aquifer (aquifer losing to the river).
     "gw_to_sw": "mm day-1",
     "sw_to_gw": "mm day-1",
     # The sublimating share of `evspsbl`, not a flux in addition to it. A model

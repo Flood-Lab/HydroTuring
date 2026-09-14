@@ -60,9 +60,9 @@ signed components `gw_to_sw`/`sw_to_gw`, and the `gw` state back.
 `gw_sw_exchange` is not `gwex`: it moves water between two stores inside the
 model's own control volume (`gw` and `channel`), not across the catchment
 boundary, so it is never added to `gwex` or counted as a `closure` source. A
-model with no groundwater-exchange term is `N/A (INCOMPATIBLE)` on such a
-probe rather than scored, the same as any other declared-but-unconsumed
-input.
+model with no groundwater-exchange term does not report the components, and
+a missing output is checked before an unconsumed input, so it is
+`N/A (INCOMPLETE)` on such a probe rather than scored.
 
 ## The evaluation window
 
