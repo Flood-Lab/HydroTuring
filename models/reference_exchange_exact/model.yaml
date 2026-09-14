@@ -1,0 +1,19 @@
+name: reference_exchange_exact
+version: "0.1.0"
+description: >
+  A lagged-head linear-reservoir aquifer that closes its own groundwater
+  balance exactly and reports genuinely bidirectional, honestly-signed
+  exchange components. The physical must_pass baseline for
+  mass/gw-sw-exchange-consistency, so the acceptance gate scores this probe
+  without building or running modflow6.
+authors: [HydroTuring maintainers]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: [python3, ht_adapter.py]
+timestep: PT1D
+emits:
+  fluxes: [gw_sw_exchange, gw_to_sw, sw_to_gw]
+  states: [gw]
+needs_forcing: [gw_recharge, sw_stage_m]
+needs_static: [area_km2, aquifer_specific_yield, aquifer_storage_coefficient, river_conductance_m2_per_day, river_bottom_offset_m]
+resources: {cpu: 1, memory_gb: 1, gpu: false}

@@ -46,6 +46,10 @@ authors:
       Fisheries and Wildlife, Michigan State University, East Lansing, MI
       48823, USA
     orcid: "https://orcid.org/0000-0002-0607-2270"
+  - given-names: Yaji
+    family-names: Wang
+    affiliation: University of Illinois Urbana-Champaign
+    orcid: "https://orcid.org/0009-0001-7485-4696"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

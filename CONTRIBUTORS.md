@@ -31,6 +31,7 @@ long.
 | `mass/precipitation-counterfactual` | Qingyi Yang (Politecnico di Milano) |
 | `mass/human-abstraction` | Yuanhang Liu (Independent Researcher) |
 | `mass/extreme-event-closure` | Taiqi Lian (Laboratory of Catchment Hydrology and Geomorphology, École Polytechnique Fédérale de Lausanne (EPFL), 1951 Sion, Switzerland) |
+| `mass/gw-sw-exchange-consistency` | Yaji Wang (University of Illinois Urbana-Champaign) |
 | `energy/pet-consistency` | Zhi Li (CU Boulder) |
 | `energy/latent-heat-et-consistency` | Changming Li (SCUT) |
 | `energy/evaporative-partition` | Changming Li (SCUT) |
@@ -55,6 +56,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `summa` | Yuanhang Liu (Independent Researcher), [#30](../../issues/30) | HydroTuring maintainers |
 | `cwatm` | Yuanhang Liu (Independent Researcher), [#28](../../issues/28) | HydroTuring maintainers |
 | `lisflood` | Yuanhang Liu (Independent Researcher), [#20](../../issues/20) | HydroTuring maintainers |
+| `modflow6` | Yaji Wang (University of Illinois Urbana-Champaign), [#25](../../issues/25) | Yaji Wang (University of Illinois Urbana-Champaign) |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:
