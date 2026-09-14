@@ -11,7 +11,7 @@ authors:
 
 description: >
   One seeded 365-day rain-dominated weather cycle repeats unchanged. The host
-  compares the same evaluation cycle after five and after eight repetitions,
+  compares the same evaluation cycle after five and after nine repetitions,
   while the adapter receives identical forcing and metadata in both runs. Once
   physical references have reached their periodic seasonal attractor, their
   runoff, evaporation, and reported stores must agree. A hidden state that
@@ -26,17 +26,17 @@ case:
   generator: generate.py
   n_seeds: 3
   timestep: PT1D
-  # Nine calendar years contain two leap days; period_days keeps the host's
-  # expected row count equal to the actual calendar-aligned generator output.
-  period_days: 3287
-  period_years: 9
+  # Ten calendar years contain two leap days.  Four extra cycles put both
+  # selected evaluation years at the same leap-day phase (2007 vs 2011).
+  period_days: 3652
+  period_years: 10
   # One complete year supplies the state immediately before the scored
   # record.  With zero spin-up, closure would use the first row after the
   # first step as its initial state and drop that step's storage change.
   spinup_days: 365
   max_output_mb: 2.0
   max_runtime_s: 300
-  min_window_days: 3287
+  min_window_days: 3652
   variants: [short, long]
 
 criteria:
@@ -66,7 +66,10 @@ criteria:
       rtol: 1.0e-6
 
   - non_degenerate:
-      runoff_ratio: [0.02, 0.98]
+      # SAC-SMA can legitimately produce about 1.3% runoff for this seeded,
+      # semi-arid cycle; 1% excludes the zero-runoff degenerate reference
+      # without rejecting that physical low-runoff case.
+      runoff_ratio: [0.01, 0.98]
       min_flux_cv: 0.1
       min_response: 0.05
       cv_variables: [mrro, evspsbl]
@@ -79,7 +82,7 @@ criteria:
       threshold: 0.05
       # 5% is the suite engineering rule; the 0.05 mm/day and 1 mm floors
       # keep near-zero fluxes and empty stores numerically well-conditioned.
-      # Gate references span 0.00% to 0.38%, leaving a conservative margin.
+      # Gate references span 0.00% to 0.36%, leaving a conservative margin.
       flux_floor_mm_per_day: 0.05
       state_floor_mm: 1.0
 

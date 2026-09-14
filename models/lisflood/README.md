@@ -394,7 +394,7 @@ of their own.
 
 ## Result
 
-**FAIL (ERROR), 15 of 18 probes passed, 4 N/A (INCOMPLETE).** These are the
+**FAIL (ERROR), 16 of 19 probes passed, 4 N/A (INCOMPLETE).** These are the
 rows of the full gate-seed run of `5.0.0-onecell.5`, made on the emulated host
 described under "Native re-run". The verdict is ERROR because two probes ran
 out of time on that host. Any ERROR among the scored probes makes the verdict
@@ -427,18 +427,18 @@ commands and the row replacement.
     `closure` and `state_bounds` pass.
   - On a host fast enough for the budget, the first should PASS and the second
     be VIOLATION. The model's verdict would then be FAIL (VIOLATION), with 16
-    of 18 probes passed and 4 N/A.
+    of 19 probes passed and 4 N/A.
 - **VIOLATION, 1:** `mass/resolution-invariance`. Rain that falls within an
   hour runs off, so `mrro` differs by 13.0% of `pr` between PT1H and PT1D,
   against a 10% limit.
-- **PASS, 15:**
+- **PASS, 16:**
   - `energy/pet-consistency`;
   - `mass/antecedent-monotonicity`, `mass/area-invariance`,
     `mass/catchment-closure`, `mass/causality`, `mass/dry-down`,
     `mass/extreme-event-closure` and `mass/extreme-rain`;
   - `mass/phase-counterfactual`, `mass/response-nonnegativity`,
-    `mass/runoff-bounds`, `mass/steady-state`, `mass/time-origin-invariance`
-    and `mass/warming-response`;
+    `mass/runoff-bounds`, `mass/steady-state`, `mass/time-origin-invariance`,
+    `mass/spinup-cycle-invariance` and `mass/warming-response`;
   - `momentum/routing-conservation`.
 
   The budget closes to 1e-13 mm per step. The harness flags `suspicious_exact`
@@ -456,7 +456,7 @@ Against the `.2` rows:
   new since `.2`, is N/A too.
 - No other probe's verdict moved.
 
-The standing counts passes out of the 18 probes that could score LISFLOOD; the
+The standing counts passes out of the 19 probes that could score LISFLOOD; the
 four N/A energy probes are in neither number.
 
 Against the `.3` rows, `.4` changes the environmental-flow reserve and the

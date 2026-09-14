@@ -340,6 +340,14 @@ def evaluate_criteria(
                             for name, result in per_variant.items()
                         },
                         "worst_variant": worst_name,
+                        # Preserve closure's exact-budget diagnostic at the
+                        # aggregate level.  run_probe records flags from the
+                        # CriterionResult itself, while per-variant details
+                        # remain available for report inspection.
+                        "suspicious_exact": any(
+                            result.diagnostics.get("suspicious_exact", False)
+                            for result in per_variant.values()
+                        ),
                     },
                 )
             )

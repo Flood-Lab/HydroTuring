@@ -16,7 +16,7 @@ from hydroturing.seeds import gate_seeds
 
 VALIDATION_SEED = 20260912
 CYCLE_DAYS = 365
-PERIOD_DAYS = 3287
+PERIOD_DAYS = 3652
 SPINUP_DAYS = 365
 
 
@@ -52,7 +52,7 @@ def test_weather_repeats_exactly_and_host_selects_two_spinup_lengths(probe, seed
     assert short.forcing["pr"].sum() > 0.0
     assert short.forcing["tas"].min() > short.static["snow_threshold_degC"]
 
-    for case, expected_year in ((short, 2007), (long, 2010)):
+    for case, expected_year in ((short, 2007), (long, 2011)):
         rows = _evaluation_rows(case)
         assert len(rows) == CYCLE_DAYS
         assert pd.to_datetime(case.forcing["time"].iloc[rows[0]]).year == expected_year
@@ -111,6 +111,11 @@ def test_hidden_internal_clock_fails_while_its_budget_and_states_remain_valid(pr
     assert results["state_bounds"].passed
     assert results["non_degenerate"].passed
     assert results["spinup_cycle_invariance"].value > results["spinup_cycle_invariance"].threshold
+
+
+def test_exact_closure_flag_survives_per_variant_aggregation(probe):
+    outcome = run_probe(registry.find_model("reference_bucket"), probe, [VALIDATION_SEED])
+    assert f"suspicious_exact:{probe.id}" in outcome.flags
 
 
 @pytest.mark.parametrize(

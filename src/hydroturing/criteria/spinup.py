@@ -55,7 +55,7 @@ def _same_forcing(short, long) -> None:
 def spinup_cycle_invariance(
     runs: dict[str, RunResult], probe: ProbeSpec, params: dict[str, Any]
 ) -> CriterionResult:
-    """The same periodic year must not depend on three extra prior cycles.
+    """The same periodic year must not depend on four extra prior cycles.
 
     This is a state-space test, not a claim that one arbitrary year is enough
     for all catchments.  The generator supplies N and N+K copies of the same
