@@ -127,10 +127,10 @@ Contributed by Yuanhang Liu.
 ## Generalisation
 
 Conservation that holds only where a model was fitted is not conservation, it
-is a coincidence of the training distribution. These four probes ask whether
+is a coincidence of the training distribution. These probes ask whether
 the property survives a move — to another place, to another time, to a
-different question. Each has a template, so the harness work is done and what
-is left is the case.
+different question. Some use an existing criterion template; others, such as
+the spin-up probe, add a criterion because the case exposes a distinct failure.
 
 ### `mass/extreme-event-closure` &middot; **merged**
 Overlap rainfall events in one median-wet year of a twenty-year record toward
@@ -172,6 +172,18 @@ and evaporation must respond to the forcing.
 recession changes with the year even while its water budget closes. See the
 [probe](probes/mass/time-origin-invariance) for the fixed calendar window and
 the normalization used to compare outputs.
+
+### `mass/spinup-cycle-invariance` &middot; **merged**
+By Kaihao Long. One generated 365-day weather cycle repeats unchanged. The
+same evaluation year is compared after five and after nine copies: runoff,
+evaporation and reported stores must agree once the physical seasonal cycle
+has been reached.
+
+*Discriminates:* hidden initialization state that keeps evolving under
+identical annual forcing. `reference_restless` closes its water budget and
+keeps physical stores, but its internal clock has a different phase after the
+extra cycles. See the [probe](probes/mass/spinup-cycle-invariance) for the
+conditioning evidence from the physical references.
 
 ---
 

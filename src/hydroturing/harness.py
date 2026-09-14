@@ -12,7 +12,11 @@ import numpy as np
 import pandas as pd
 
 from hydroturing import SUITE_VERSION, criteria as criteria_mod
-from hydroturing.criteria.base import CriterionResult
+from hydroturing.criteria.base import (
+    FAIL as CRITERION_FAIL,
+    PASS as CRITERION_PASS,
+    CriterionResult,
+)
 from hydroturing.protocol import Case, RunResult
 from hydroturing.runner import get_runner
 from hydroturing.scoring import (
@@ -296,8 +300,60 @@ def evaluate_criteria(
     results = []
     for criterion in probe.criteria:
         fn = criteria_mod.get(criterion.name)
+        params = dict(criterion.params)
+        # Ordinary criteria historically judge the control run only.  A
+        # paired probe can opt into a per-variant precondition explicitly;
+        # this keeps existing probes unchanged while ensuring that a bad
+        # long-spinup run cannot hide behind a clean control run.
+        all_variants = bool(params.pop("all_variants", False))
+        if all_variants and not criteria_mod.is_paired(criterion.name):
+            per_variant = {
+                name: fn(run, probe, params) for name, run in runs.items()
+            }
+            failed = [
+                name for name, result in per_variant.items() if not result.passed
+            ]
+            values = [
+                result.value
+                for result in per_variant.values()
+                if result.value is not None
+            ]
+            worst_name, worst_result = max(
+                per_variant.items(),
+                key=lambda item: (
+                    float("-inf") if item[1].value is None else item[1].value
+                ),
+            )
+            message = "; ".join(
+                f"{name}: {result.message}" for name, result in per_variant.items()
+            )
+            results.append(
+                CriterionResult(
+                    name=criterion.name,
+                    status=CRITERION_FAIL if failed else CRITERION_PASS,
+                    value=max(values, default=None),
+                    threshold=worst_result.threshold,
+                    message=message,
+                    diagnostics={
+                        "variants": {
+                            name: result.diagnostics
+                            for name, result in per_variant.items()
+                        },
+                        "worst_variant": worst_name,
+                        # Preserve closure's exact-budget diagnostic at the
+                        # aggregate level.  run_probe records flags from the
+                        # CriterionResult itself, while per-variant details
+                        # remain available for report inspection.
+                        "suspicious_exact": any(
+                            result.diagnostics.get("suspicious_exact", False)
+                            for result in per_variant.values()
+                        ),
+                    },
+                )
+            )
+            continue
         subject = runs if criteria_mod.is_paired(criterion.name) else control
-        results.append(fn(subject, probe, dict(criterion.params)))
+        results.append(fn(subject, probe, params))
     return results
 
 

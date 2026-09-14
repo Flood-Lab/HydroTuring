@@ -51,6 +51,7 @@ HEADLINES = {
     "mass/response-nonnegativity": ("response_nonnegativity",),
     "mass/runoff-bounds": ("runoff_bounds",),
     "mass/steady-state": ("steady_state",),
+    "mass/spinup-cycle-invariance": ("spinup_cycle_invariance",),
     "mass/time-origin-invariance": ("invariance",),
     "mass/warming-response": ("response_sign",),
     "momentum/routing-conservation": ("routing_conservation",),

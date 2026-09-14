@@ -23,6 +23,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     radiation,
     regime,
     response,
+    spinup,
     stress,
     symmetry,
     thermal,
