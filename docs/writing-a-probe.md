@@ -107,6 +107,7 @@ Every one is binary.
 | `causality` | nothing may change before an added storm, and runoff must answer it after | paired runs |
 | `dry_down` | without rain, runoff and storages only fall, and no more drains than was held | one run, rainless record |
 | `steady_state` | under constant weather everything settles, runoff stays below the rain, and the budget balances | one run, constant record |
+| `spinup_cycle_invariance` | the same cycle of repeated periodic forcing agrees after N and N+K repetitions | paired runs, phase-labelled cycles |
 | `monotone_response` | scaling a storm up a ladder cannot lower runoff, add more runoff than rain, or fail to run off most of an extreme | paired runs, a ladder |
 | `runoff_bounds` | integrated runoff lies between rain minus demand minus storage and rain plus storage; needs runoff only | one run |
 | `response_nonnegativity` | after an added storm the perturbed runoff is never below the control's, on any step | paired runs |
@@ -274,9 +275,7 @@ The reference models available today:
 | `reference_anticipating` | reports runoff smoothed over a centred window, three days of the future in every value | `causality` |
 | `reference_climatology` | the seasonal mean, whatever the weather; never reads the rain | `dry_down` |
 | `reference_saturating` | daily runoff capped at 25 mm; flat beyond its training range | `monotone_response` |
-| `reference_restless` | a recession with its own thirty-day clock; never settles | `steady_state` |
-| `reference_slow_drift` | an exact bucket reporting a 0.012 mm/day runoff deficit as accumulating soil storage | `state_bounds`, `total_storage_drift` |
-| `reference_gw_slow_drift` | an exact bucket reporting a 0.001 mm/day runoff deficit as accumulating groundwater storage | `total_storage_drift` |
+| `reference_restless` | a recession with its own thirty-day clock; never settles | `steady_state`, `spinup_cycle_invariance` |`r`n| `reference_slow_drift` | an exact bucket reporting a 0.012 mm/day runoff deficit as accumulating soil storage | `state_bounds`, `total_storage_drift` |`r`n| `reference_gw_slow_drift` | an exact bucket reporting a 0.001 mm/day runoff deficit as accumulating groundwater storage | `total_storage_drift` |
 | `reference_overflowing` | reports its runoff plus 80% of the rain again | `runoff_bounds` |
 | `reference_area_leak` | loses a share of runoff that grows with the stated area | `invariance` (area) |
 | `reference_overshooting` | a derivative term sharpens its hydrograph | `response_nonnegativity` |

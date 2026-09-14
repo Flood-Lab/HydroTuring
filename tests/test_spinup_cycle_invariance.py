@@ -16,6 +16,8 @@ from hydroturing.seeds import gate_seeds
 
 VALIDATION_SEED = 20260912
 CYCLE_DAYS = 365
+PERIOD_DAYS = 3287
+SPINUP_DAYS = 365
 
 
 @pytest.fixture(scope="module")
@@ -31,19 +33,30 @@ def _evaluation_rows(case):
 def test_weather_repeats_exactly_and_host_selects_two_spinup_lengths(probe, seed):
     short = build_case(probe, seed, "short")
     long = build_case(probe, seed, "long")
-    assert short.n_steps == long.n_steps == 9 * CYCLE_DAYS
-    assert short.spinup_steps == long.spinup_steps == 0
+    assert short.n_steps == long.n_steps == PERIOD_DAYS + SPINUP_DAYS
+    assert short.spinup_steps == long.spinup_steps == SPINUP_DAYS
     assert short.static == long.static
     pd.testing.assert_frame_equal(short.forcing.drop(columns="_phase"), long.forcing.drop(columns="_phase"))
 
+    # Every calendar year maps back to the same 365-value cycle.  Leap years
+    # repeat February 28 rather than shifting all later forcing by one day.
+    scored = short.forcing.iloc[SPINUP_DAYS:].copy()
+    years = pd.to_datetime(scored["time"]).dt.year
     for column in ("pr", "tas", "pet"):
-        values = short.forcing[column].to_numpy()
-        np.testing.assert_array_equal(values[CYCLE_DAYS:], values[:-CYCLE_DAYS])
+        yearly = [scored.loc[years == year, column].to_numpy() for year in sorted(years.unique())]
+        assert all(len(values) in (365, 366) for values in yearly)
+        for values in yearly:
+            if len(values) == 366:
+                values = np.delete(values, 59)
+            np.testing.assert_array_equal(values, yearly[0][:365])
     assert short.forcing["pr"].sum() > 0.0
     assert short.forcing["tas"].min() > short.static["snow_threshold_degC"]
 
-    np.testing.assert_array_equal(_evaluation_rows(short), np.arange(5 * CYCLE_DAYS, 6 * CYCLE_DAYS))
-    np.testing.assert_array_equal(_evaluation_rows(long), np.arange(8 * CYCLE_DAYS, 9 * CYCLE_DAYS))
+    for case, expected_year in ((short, 2007), (long, 2010)):
+        rows = _evaluation_rows(case)
+        assert len(rows) == CYCLE_DAYS
+        assert pd.to_datetime(case.forcing["time"].iloc[rows[0]]).year == expected_year
+        np.testing.assert_array_equal(rows, np.arange(rows[0], rows[0] + CYCLE_DAYS))
 
 
 def test_adapters_receive_the_same_visible_case_metadata(probe, tmp_path):
@@ -59,6 +72,22 @@ def test_adapters_receive_the_same_visible_case_metadata(probe, tmp_path):
     assert requests[0] == requests[1]
     pd.testing.assert_frame_equal(visible[0], visible[1])
     assert "_phase" not in visible[0].columns
+
+
+def test_phase_scoped_preconditions_score_both_variants(probe):
+    from hydroturing.criteria.base import make_window
+    from hydroturing.protocol import RunResult
+
+    for variant in probe.variants:
+        case = build_case(probe, VALIDATION_SEED, variant)
+        assert case.spinup_steps == SPINUP_DAYS
+        rows = _evaluation_rows(case)
+        assert rows[0] > 0
+        assert len(rows) == CYCLE_DAYS
+        table = pd.DataFrame({name: np.zeros(case.n_steps) for name in ("mrso", "snw", "canopy")})
+        window = make_window(RunResult(case, table, {}, 0.0), probe, "evaluation")
+        assert len(window.table) == CYCLE_DAYS
+        assert window.state0.equals(table.iloc[rows[0] - 1])
 
 
 @pytest.mark.parametrize(
@@ -103,7 +132,10 @@ def test_minimum_window_keeps_both_host_selected_evaluation_cycles(probe):
     long = build_case(probe, VALIDATION_SEED, "long")
     days = resolve_window_days(registry.find_model("reference_bucket"), probe, override=30)
     bounds = select_window(short, probe, days)
-    assert bounds.days == 3285
-    for case, expected_start in ((short, 5 * CYCLE_DAYS), (long, 8 * CYCLE_DAYS)):
+    assert bounds.days == PERIOD_DAYS
+    for case, expected_start in (
+        (short, SPINUP_DAYS + 5 * CYCLE_DAYS),
+        (long, SPINUP_DAYS + 8 * CYCLE_DAYS),
+    ):
         kept = window_case(case, bounds)
         np.testing.assert_array_equal(_evaluation_rows(kept), np.arange(expected_start, expected_start + CYCLE_DAYS))
