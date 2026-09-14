@@ -31,18 +31,23 @@ def _evaluation(run: RunResult, label: str) -> tuple[np.ndarray, Any]:
 
 
 def _same_forcing(short, long) -> None:
-    visible = [name for name in short.columns if not name.startswith("_") and name != "time"]
-    missing = [name for name in visible if name not in long.columns]
-    if missing:
-        raise ValueError(f"long-spinup evaluation forcing is missing {missing}")
-    for name in visible:
+    # The comparison must cover both schemas.  Checking only short's columns
+    # would let an adapter or generator add a long-only driver unnoticed.
+    short_visible = {
+        name for name in short.columns if not name.startswith("_") and name != "time"
+    }
+    long_visible = {
+        name for name in long.columns if not name.startswith("_") and name != "time"
+    }
+    if short_visible != long_visible:
+        raise ValueError(
+            "evaluation forcing has different visible columns: "
+            f"short={sorted(short_visible)}, long={sorted(long_visible)}"
+        )
+    for name in sorted(short_visible):
         a = short[name].to_numpy()
         b = long[name].to_numpy()
-        try:
-            equal = np.allclose(a.astype(float), b.astype(float), rtol=0.0, atol=1e-12)
-        except (TypeError, ValueError):
-            equal = np.array_equal(a, b)
-        if not equal:
+        if not np.array_equal(a, b):
             raise ValueError(f"evaluation forcing differs for '{name}'")
 
 
@@ -66,7 +71,9 @@ def spinup_cycle_invariance(
     required = list(params.get("variables", ["evspsbl", "mrro", *probe.requires_states]))
     optional = list(params.get("optional", ["gwex", "gw", "channel"]))
     if threshold < 0.0 or flux_floor <= 0.0 or state_floor <= 0.0:
-        raise ValueError("spinup_cycle_invariance needs non-negative threshold and positive floors")
+        raise ValueError(
+            "spinup_cycle_invariance needs non-negative threshold and positive floors"
+        )
 
     short_run = pick(runs, params, "short", short_name)
     long_run = pick(runs, params, "long", long_name)
@@ -77,6 +84,8 @@ def spinup_cycle_invariance(
             "short- and long-spinup evaluations have different lengths "
             f"({len(short_rows)} and {len(long_rows)})"
         )
+    if short_rows[0] == long_rows[0]:
+        raise ValueError("short and long variants selected the same evaluation cycle")
     if short_run.case.dt_days != long_run.case.dt_days:
         raise ValueError("spinup variants must use the same timestep")
     _same_forcing(short_forcing, long_forcing)
@@ -90,21 +99,41 @@ def spinup_cycle_invariance(
         if in_short:
             variables.append(var)
 
+    # Score the aggregate inventory as well as individual stores.  Several
+    # small stores can each sit below the 1 mm floor while their combined
+    # drift is physically significant.
+    state_variables = [
+        var for var in STATE_VARS
+        if var in short_run.table.columns and var in long_run.table.columns
+    ]
+    if state_variables:
+        variables.append("total_reported_storage")
+
     deviations: dict[str, float] = {}
     failures: list[str] = []
     for var in variables:
-        if var not in short_run.table.columns or var not in long_run.table.columns:
-            raise ValueError(f"spinup_cycle_invariance needs '{var}' in both results")
-        a = short_run.table[var].to_numpy(dtype=float)[short_rows]
-        b = long_run.table[var].to_numpy(dtype=float)[long_rows]
+        if var == "total_reported_storage":
+            a = short_run.table[state_variables].to_numpy(dtype=float)[short_rows].sum(axis=1)
+            b = long_run.table[state_variables].to_numpy(dtype=float)[long_rows].sum(axis=1)
+        else:
+            if var not in short_run.table.columns or var not in long_run.table.columns:
+                raise ValueError(f"spinup_cycle_invariance needs '{var}' in both results")
+            a = short_run.table[var].to_numpy(dtype=float)[short_rows]
+            b = long_run.table[var].to_numpy(dtype=float)[long_rows]
         if not np.isfinite(a).all() or not np.isfinite(b).all():
             failures.append(f"'{var}' contains non-finite values")
             continue
-        floor = state_floor if var in STATE_VARS else flux_floor
+        floor = (
+            state_floor
+            if var in STATE_VARS or var == "total_reported_storage"
+            else flux_floor
+        )
         scale = max(float(np.abs(a).mean()), floor)
         deviations[var] = float(np.abs(b - a).max() / scale)
 
-    worst_var, worst = max(deviations.items(), key=lambda item: item[1], default=(None, 0.0))
+    worst_var, worst = max(
+        deviations.items(), key=lambda item: item[1], default=(None, 0.0)
+    )
     if worst > threshold:
         failures.append(
             f"'{worst_var}' differs by {worst:.2%} between the N- and N+K-cycle evaluations "
@@ -120,7 +149,8 @@ def spinup_cycle_invariance(
             "; ".join(failures)
             if failures
             else (
-                "the repeated forcing reaches the same evaluation-year response after N and N+K cycles "
+                "the repeated forcing reaches the same evaluation-year response after "
+                f"N and N+K cycles "
                 f"(worst {worst_var} departure {worst:.2%})"
             )
         ),
@@ -128,6 +158,7 @@ def spinup_cycle_invariance(
             "short_evaluation_start_row": int(short_rows[0]),
             "long_evaluation_start_row": int(long_rows[0]),
             "evaluation_rows": int(len(short_rows)),
+            "reported_storage_variables": state_variables,
             "deviations": deviations,
         },
     )

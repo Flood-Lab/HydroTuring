@@ -1,4 +1,4 @@
-"""One deterministic 365-day weather cycle, repeated for two spin-up lengths."""
+"""One deterministic annual cycle on a calendar-aligned repeated record."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ CYCLE_DAYS = 365
 SHORT_CYCLES = 5
 EXTRA_CYCLES = 3
 TOTAL_CYCLES = SHORT_CYCLES + 1 + EXTRA_CYCLES
+SPINUP_DAYS = 365
 VARIANTS = ("short", "long")
 
 STATIC = {
@@ -39,17 +40,49 @@ def _cycle(seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return pr, tas, pet
 
 
+def _cycle_day(times: pd.DatetimeIndex) -> np.ndarray:
+    """Map calendar dates to the 365 values in the synthetic annual cycle.
+
+    A real Gregorian axis contains leap days, while the synthetic weather
+    cycle intentionally has 365 values.  Reusing February 28 on February 29
+    and shifting later dates back by one keeps every January 1 and every
+    month/day aligned across repetitions, so a model that reads the calendar
+    is not given a hidden one-day forcing perturbation.
+    """
+    day = times.dayofyear.to_numpy() - 1
+    leap_after_feb = times.is_leap_year & (times.month > 2)
+    day = day - leap_after_feb.astype(int)
+    return np.clip(day, 0, CYCLE_DAYS - 1)
+
+
 def generate(seed: int, variant: str = "short") -> tuple[pd.DataFrame, dict]:
     if variant not in VARIANTS:
         raise ValueError(f"unknown variant {variant!r}; expected one of {VARIANTS}")
     pr, tas, pet = _cycle(seed)
+    period_start = pd.Timestamp("2002-01-01")
+    period_end = period_start + pd.DateOffset(years=TOTAL_CYCLES)
+    period_times = pd.date_range(
+        period_start, period_end - pd.Timedelta(days=1), freq="D"
+    )
+    spinup_times = pd.date_range("2001-01-01", periods=SPINUP_DAYS, freq="D")
+    times = spinup_times.append(period_times)
+    values = _cycle_day(times)
     forcing = pd.DataFrame({
-        "time": pd.date_range("2001-01-01", periods=TOTAL_CYCLES * CYCLE_DAYS, freq="D").strftime("%Y-%m-%d"),
-        "pr": np.round(np.tile(pr, TOTAL_CYCLES), 6),
-        "tas": np.round(np.tile(tas, TOTAL_CYCLES), 6),
-        "pet": np.round(np.tile(pet, TOTAL_CYCLES), 6),
+        "time": times.strftime("%Y-%m-%d"),
+        "pr": np.round(pr[values], 6),
+        "tas": np.round(tas[values], 6),
+        "pet": np.round(pet[values], 6),
     })
-    evaluation_cycle = SHORT_CYCLES if variant == "short" else SHORT_CYCLES + EXTRA_CYCLES
-    cycle_index = np.arange(TOTAL_CYCLES * CYCLE_DAYS) // CYCLE_DAYS
-    forcing["_phase"] = np.where(cycle_index == evaluation_cycle, "evaluation", "spinup_or_tail")
+    evaluation_year = period_start.year + (
+        SHORT_CYCLES if variant == "short" else SHORT_CYCLES + EXTRA_CYCLES
+    )
+    forcing["_phase"] = np.where(
+        forcing["time"].str[:4].astype(int).eq(evaluation_year),
+        "evaluation",
+        np.where(
+            forcing["time"].str[:4].astype(int).lt(period_start.year),
+            "spinup",
+            "spinup_or_tail",
+        ),
+    )
     return forcing, dict(STATIC)
