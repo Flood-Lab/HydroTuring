@@ -31,7 +31,13 @@ FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "sbl", "hfls", "hfss", "hfg
 STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
 # Keep diagnostics out of STATE_VARS: closure sums every reported store,
 # and temperature must never be added to water storage.
-DIAG_VARS = ("ts", "tsoil_layer", "stage")
+# `lwsnl` and `csnow` are here rather than in STATE_VARS for the same reason as
+# the line above: `lwsnl` is the liquid share *of* `snw`, not water in addition
+# to it, so adding it to a storage sum would count the same kilogram twice. It
+# is declared for the same reason `sbl` is -- a criterion cannot otherwise know
+# which part of a pack is ice, and a fall in `snw` is net water leaving the
+# pack rather than evidence of a phase change.
+DIAG_VARS = ("ts", "tsoil_layer", "stage", "lwsnl", "csnow")
 
 UNITS = {
     "pr": "mm day-1",
@@ -47,6 +53,15 @@ UNITS = {
     "hfss": "W m-2",
     "hfg": "W m-2",
     "rlus": "W m-2",
+    # Liquid water held in the snowpack, part of `snw` and never additional to
+    # it. `snw - lwsnl` is the ice, which is what a phase change moves.
+    "lwsnl": "mm",
+    # The pack's cold content: the energy still needed to bring its ice to 0 C.
+    # Reported as the energy itself rather than as a temperature, because that
+    # is the quantity a budget spends; a temperature would have to be converted
+    # back through an assumed heat capacity, which is wrong for every model
+    # whose capacity is not the assumed one. Zero for a ripe or empty pack.
+    "csnow": "J m-2",
     # Instantaneous skin temperature; radiation uses kelvin, unlike forcing tas.
     "ts": "K",
     "hfg_bottom": "W m-2",
@@ -91,6 +106,9 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_spatial_negative",
     "reference_bucket",
     "reference_coupled",
+    "reference_snow_energy",
+    "reference_degree_day",
+    "reference_warming_free",
     "reference_diurnal_bias",
     "reference_abstraction_blind",
     "reference_soil_heat",

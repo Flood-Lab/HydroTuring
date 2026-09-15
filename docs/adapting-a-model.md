@@ -37,7 +37,11 @@ correct outcome, and it is a different statement from `FAIL (VIOLATION)`.
 Inventing an evapotranspiration column to escape `INCOMPLETE` converts an
 honest limitation into a false claim, and the budget will not close anyway.
 
-Non-water outputs have an optional `diagnostics` group. A model that reports
+Outputs that are not a flux or a storage have an optional `diagnostics` group.
+Most are not water at all -- a surface or layer temperature, a pack's cold
+content -- but `lwsnl` is: it is the liquid share of `snw`, water already
+counted inside that storage, so it is declared here precisely because it must
+never be added to a water-storage sum beside `snw`. A model that reports
 soil-layer temperature and its boundary heat fluxes can declare:
 
 ```yaml

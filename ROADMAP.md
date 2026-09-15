@@ -33,9 +33,10 @@ Every probe here is a few hundred lines at most.
 ## Cross-budget consistency
 
 A model can close its water budget and close its energy budget while being
-incoherent between them. Two probes now notice: one asks whether the two
-ledgers agree on a number, the other whether they agree under a change
-neither has seen. The snowmelt one is what we most want next.
+incoherent between them. Three probes now notice: one asks whether the two
+ledgers agree on a number, one whether they agree under a change neither has
+seen, and one whether the energy budget paid for the ice the water budget
+says melted.
 
 ### `energy/latent-heat-et-consistency` &middot; **merged**
 Latent heat must equal evapotranspiration times the latent heat of the phase
@@ -50,13 +51,19 @@ and the three changes must sum to zero. A counterfactual rather than a
 same-instant residual, so a model cannot fit its way past it.
 Contributed by Changming Li (SCUT).
 
-### `coupled/snowmelt-energy-water` &middot; hard &middot; **unclaimed**
-
-Melt in the water budget must equal the energy consumed by melting divided by
-the latent heat of fusion.
-
-*Why it discriminates.* Same failure mode at the phase change, where it is
-most consequential for runoff timing.
+### `energy/snowmelt-energy-water` &middot; **merged**
+A pack built over a cold winter and then melted down over a dry block that opens
+below -14 &deg;C and warms through zero. The surface energy residual must equal
+what the pack absorbed, which is two terms: the latent heat of fusion for the
+ice that changed phase, and the cold content of warming the pack towards zero.
+The ice is `snw - lwsnl` rather than `snw`, because `snw` is total pack water
+in this suite's own adapters and a fall in it is water leaving rather than a
+phase change. The block carries no precipitation, so ice arriving cannot be
+mistaken for ice melting through a contract that has no snowfall flux. Catches
+a degree-day melt head bolted to an energy head that closes by itself, and
+separately a pack that warms for nothing. Filed under `energy` because the
+schema admits mass, energy and momentum.
+Contributed by Siddik Barbhuiya (IIT Mandi).
 
 ---
 

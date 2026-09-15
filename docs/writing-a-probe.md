@@ -115,6 +115,7 @@ Every one is binary.
 | `energy_closure_by_phase` | the mean absolute surface-energy residual in each contiguous day or night stays within the larger of the relative radiation tolerance and the absolute flux floor | one run, contiguous day/night blocks |
 | `radiative_identity` | upward longwave equals what the reported surface temperature emits plus the reflected downward longwave, at every step, within the larger of a relative tolerance and an absolute floor; emissivity comes from `static.json` | one run, instantaneous values |
 | `soil_heat_storage` | interval boundary heat input agrees with fixed-layer temperature change and prescribed heat capacity | one run, separate heating/recovery phases |
+| `melt_energy` | over a labelled melt block, the surface energy residual equals the fusion the reported ice change demanded plus what warming the pack cost; the ice is `snw - lwsnl` and the warming is `-d(csnow)`, both self-reported, so the two rows it differences carry seven contract checks, one of them read on every step | one run, labelled blocks |
 | `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff | one run |
 | `lag_time_bounds` | rainfall-to-runoff peak lag lies inside a broad duration-corrected Snyder envelope derived from public catchment geometry | paired runs, a geometry ladder |
 | `scaling_monotonicity` | peak lag does not materially reverse and grows by a resolvable amount across catchment scales | paired runs, a geometry ladder |
@@ -290,6 +291,9 @@ The reference models available today:
 | `reference_soil_heat` | a synthetic fixed-layer fixture with conductive boundary fluxes and temperature integrated consistently | nothing, it must pass `soil_heat_storage` |
 | `reference_frozen_soil` | keeps the conductive fluxes but reports a constant soil temperature | `soil_heat_storage` |
 | `reference_half_soil` | keeps the conductive fluxes but halves the reported temperature change | `soil_heat_storage` |
+| `reference_snow_energy` | an energy-balance snowpack: melt bought from its own surface budget, liquid held in the pore space and reported as `lwsnl`, cold content carried and reported as `csnow` | nothing, it must pass `energy/snowmelt-energy-water` |
+| `reference_degree_day` | the same pack melted on air temperature, with an energy budget that closes around its evaporation alone | `melt_energy` |
+| `reference_warming_free` | melts on the energy available and reports its cold content, but charges the budget for the fusion alone | `melt_energy` |
 | `reference_two_head` | a water head and an energy head that never meet; both budgets close and the latent heat implies an evaporation it never reported | `flux_identity`, `partition_shift` |
 | `reference_constant_lambda` | converts every kilogram at one latent heat of vaporisation | `flux_identity` |
 | `reference_sublimation_blind` | converts snow sublimation at the latent heat of vaporisation instead of sublimation | `flux_identity` |

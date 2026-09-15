@@ -324,8 +324,10 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <text x="396" y="229" class="probe" data-i18n="infra.probe.radiation">radiation</text>
       <circle cx="388" cy="239.5" r="2.4" fill="var(--pass)"/>
       <text x="396" y="243" class="probe" data-i18n="infra.probe.soilheat">soil heat</text>
-      <rect x="384" y="258" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
-      <text x="418" y="282" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
+      <circle cx="388" cy="253.5" r="2.4" fill="var(--pass)"/>
+      <text x="396" y="257" class="probe" data-i18n="infra.probe.snowmelt">snowmelt</text>
+      <rect x="384" y="272" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
+      <text x="418" y="296" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
       <rect x="472" y="100" width="92" height="250" rx="6" fill="var(--surface-2)"/>
       <text x="518" y="121" class="pillar" data-i18n="infra.momentum" text-anchor="middle">MOMENTUM</text>
       <text x="518" y="138" class="note" data-i18n="infra.momentum.s1" text-anchor="middle">routing conserves</text>
@@ -648,6 +650,7 @@ en: {
   "infra.probe.diurnal":"day / night",
   "infra.probe.radiation":"radiation",
   "infra.probe.soilheat":"soil heat",
+  "infra.probe.snowmelt":"snowmelt",
   "infra.probe.routing":"routing",
   "infra.probe.routinglag":"travel time",
   "infra.probe.rating":"stage rating",
@@ -732,10 +735,10 @@ en: {
 <tr><td class="mono">energy/surface-energy-closure</td><td>energy</td><td>Does each day and night close its hourly surface energy budget, without opposite errors cancelling?</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">energy/radiation-consistency</td><td>energy</td><td>Do the surface temperature and the upward longwave a model reports describe one surface, hour by hour, at the emissivity it was given?</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">energy/soil-heat-storage-consistency</td><td>energy</td><td>Does heat retained in a soil layer agree with its temperature change?</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">energy/snowmelt-energy-water</td><td>energy</td><td>A pack built over a cold winter and then melted down over a dry block that opens below -14 C and warms through zero: does the surface energy budget pay both the fusion for the ice that changed phase and the cold content of warming the pack?</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>momentum</td><td>The channel store is never negative and never holds more than its hydrograph can.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>momentum</td><td>Under the same one-day storm, runoff peak lag must match the Snyder-Hack geometric timescale and grow with basin scale.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>mass</td><td>Event water budgets under overlapping storms targeting synthetic 100-year rainfall depths.</td><td><span class="tag merged">merged</span></td></tr>
-<tr><td class="mono">coupled/snowmelt-energy-water</td><td>coupled</td><td>Melt in the water budget must match the energy spent melting.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>mass</td><td>Snowfall minus melt minus sublimation minus the change in snow water.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>mass</td><td>Fifty years with no trend in the forcing: storage must not drift.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">mass/routing-network-closure</td><td>mass</td><td>A branching network: mass must close reach by reach.</td><td><span class="tag wanted">wanted</span></td></tr>
@@ -859,6 +862,7 @@ es: {
   "infra.probe.diurnal":"día / noche",
   "infra.probe.radiation":"radiación",
   "infra.probe.soilheat":"calor suelo",
+  "infra.probe.snowmelt":"deshielo",
   "infra.probe.routing":"tránsito",
   "infra.probe.routinglag":"retardo",
   "infra.probe.rating":"curva de gasto",
@@ -943,10 +947,10 @@ es: {
 <tr><td class="mono">energy/surface-energy-closure</td><td>energía</td><td>¿Cierra el balance energético horario en cada día y cada noche, sin que se cancelen errores opuestos?</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">energy/radiation-consistency</td><td>energía</td><td>¿Describen la temperatura superficial y la onda larga ascendente que reporta un modelo una misma superficie, hora a hora, con la emisividad que se le dio?</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">energy/soil-heat-storage-consistency</td><td>energía</td><td>¿Concuerda el calor almacenado en el suelo con su cambio de temperatura?</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">energy/snowmelt-energy-water</td><td>energía</td><td>Un manto acumulado en invierno y fundido parcialmente en un bloque seco que empieza por debajo de -14 C y se calienta atravesando el cero: ¿paga el balance energético de superficie tanto el calor de fusión del hielo que cambió de fase como el contenido de frío de calentar el manto?</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>momento</td><td>El almacén del cauce nunca es negativo ni retiene más de lo que cabe en su hidrograma.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>momento</td><td>Ante la misma tormenta de un día, el retardo del pico de escorrentía debe ajustarse a la escala temporal geométrica de Snyder-Hack y aumentar con la escala de la cuenca.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>masa</td><td>Balances de agua por evento bajo tormentas superpuestas con objetivos sintéticos de lluvia de 100 años.</td><td><span class="tag merged">integrada</span></td></tr>
-<tr><td class="mono">coupled/snowmelt-energy-water</td><td>acoplada</td><td>El deshielo del balance hídrico debe coincidir con la energía gastada en fundir.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>masa</td><td>Nevada menos deshielo menos sublimación menos el cambio de agua en la nieve.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>masa</td><td>Cincuenta años sin tendencia en el forzamiento: el almacenamiento no debe derivar.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">mass/routing-network-closure</td><td>masa</td><td>Una red ramificada: la masa debe cerrar tramo a tramo.</td><td><span class="tag wanted">se busca</span></td></tr>
@@ -1070,6 +1074,7 @@ zh: {
   "infra.probe.diurnal":"昼夜闭合",
   "infra.probe.radiation":"辐射一致",
   "infra.probe.soilheat":"土层储热",
+  "infra.probe.snowmelt":"融雪耦合",
   "infra.probe.routing":"汇流演算",
   "infra.probe.routinglag":"传播时间",
   "infra.probe.rating":"水位流量关系",
@@ -1154,10 +1159,10 @@ zh: {
 <tr><td class="mono">energy/surface-energy-closure</td><td>能量</td><td>每个白天和夜晚的逐小时地表能量预算是否闭合，而没有依赖正负误差抵消？</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">energy/radiation-consistency</td><td>能量</td><td>模型报告的地表温度与上行长波辐射，在给定发射率下是否逐小时描述同一个表面？</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">energy/soil-heat-storage-consistency</td><td>能量</td><td>土层留存的热量是否与土温变化一致？</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">energy/snowmelt-energy-water</td><td>能量</td><td>积雪在寒冬累积，随后在一个干燥区段内部分融化：该区段起始温度低于 -14 C 并逐步升温越过冰点。地表能量预算是否既支付了发生相变的冰所需的熔化潜热，也支付了使积雪升温所需的冷储量？</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>动量</td><td>河道蓄水永不为负，也永不超过其单位线所能容纳的量。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>动量</td><td>在同一场单日暴雨下，径流峰值时滞必须符合 Snyder-Hack 几何时间尺度，并随流域尺度增大。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>质量</td><td>叠加降雨以超过合成气候的百年一遇雨量阈值，逐事件检查水量闭合。</td><td><span class="tag merged">已合入</span></td></tr>
-<tr><td class="mono">coupled/snowmelt-energy-water</td><td>耦合</td><td>水量收支中的融雪量必须与融化耗能一致。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>质量</td><td>降雪减融雪减升华减雪水当量变化。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>质量</td><td>五十年无趋势的驱动：蓄水不得漂移。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">mass/routing-network-closure</td><td>质量</td><td>分叉河网：质量须逐河段闭合。</td><td><span class="tag wanted">征集中</span></td></tr>

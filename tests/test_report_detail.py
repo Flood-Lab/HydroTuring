@@ -35,6 +35,7 @@ HEADLINES = {
     "energy/latent-heat-et-consistency": ("energy_closure", "flux_identity"),
     "energy/pet-consistency": ("demand_consistency",),
     "energy/radiation-consistency": ("radiative_identity",),
+    "energy/snowmelt-energy-water": ("melt_energy",),
     "energy/soil-heat-storage-consistency": ("soil_heat_storage",),
     "energy/surface-energy-closure": ("energy_closure_by_phase",),
     "mass/antecedent-monotonicity": ("antecedent_monotonicity",),
