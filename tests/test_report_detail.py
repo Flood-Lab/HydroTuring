@@ -56,6 +56,7 @@ HEADLINES = {
         "closure", "state_bounds", "et_plausible", "non_degenerate", "forcing_fidelity",
     ),
     "mass/warming-response": ("response_sign",),
+    "momentum/channel-routing-mass": ("recession_drainage",),
     "momentum/routing-conservation": ("routing_conservation",),
     "momentum/stage-discharge-monotonic": ("rating_monotonic", "rating_loop", "non_degenerate"),
 }
