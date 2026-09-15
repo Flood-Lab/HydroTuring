@@ -63,5 +63,7 @@ PT1D and PT1H, the whole hours Snow-17 is defined on.
 
 ## Result
 
-**PASS, 18 of 18 probes passed**, with the gate seeds (`ht run --model
+**PASS, 20 of 20 probes passed**, with the gate seeds (`ht run --model
 sacsma_snow17 --gate-seeds`).
+
+This includes `mass/ungauged-basin-closure`, which passes on all twelve fixed seeds; the five energy probes requiring outputs this model does not report remain N/A.

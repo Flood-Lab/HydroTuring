@@ -146,6 +146,7 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `gw` | groundwater storage below the soil column | mm |
 | `channel` | water generated as runoff but not yet released by the model's routing | mm |
 | `ts` | surface (skin) temperature at row i's `time`, the same instant as row i's `rlds`; a diagnostic, declared under `emits.diagnostics`, neither integrated nor differenced by any budget | K |
+| `stage` | the water level a gauge in the reach would read, derived from the reach's own water; a diagnostic, declared under `emits.diagnostics`, never a storage any budget is differenced over | m |
 
 For `hfg`, an adapter mapping a plate-depth or deeper-boundary flux must use
 `G_surface = G_depth + (E_above_end - E_above_start) / dt`, with downward
@@ -224,9 +225,11 @@ of `rlds` and `eps`; a model that does not declare it consumes both is
 `N/A (INCOMPATIBLE)` because it may be computing its own sky or emissivity.
 
 Declare diagnostic outputs under the optional key `diagnostics`, such as
-`[ts]` or `[tsoil_layer]`. They are excluded from water-storage sums.
-Each criterion defines their time handling: radiation reads instantaneous
-`ts`, while soil heat storage differences interval-end `tsoil_layer`.
+`[ts]`, `[tsoil_layer]` or `[stage]`. They are excluded from water-storage
+sums. Each criterion defines their time handling: radiation reads
+instantaneous `ts`, soil heat storage differences interval-end
+`tsoil_layer`, and the rating probes read the reported `stage` alongside
+the reach's discharge and store.
 
 For soil heat storage, declare consumption of the prescribed layer depth,
 areal heat capacity and initial temperature, as well as the incoming

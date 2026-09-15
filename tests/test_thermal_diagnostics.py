@@ -57,7 +57,9 @@ def _write_result(path, case, **columns):
 
 
 def test_optional_diagnostic_manifests_load_and_old_defaults_remain_empty(mass_probe, tmp_path):
-    model = registry.find_model("reference_bucket")
+    # reference_bucket reports the stage diagnostic now; reference_leaky is the
+    # shipped manifest without a diagnostics key, so it keeps the default.
+    model = registry.find_model("reference_leaky")
     assert model.emits_diagnostics == ()
     assert mass_probe.requires_diagnostics == ()
 

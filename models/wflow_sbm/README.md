@@ -262,11 +262,13 @@ ht run --model wflow_sbm --gate-seeds
 
 ## Result
 
-**FAIL (VIOLATION), 15 of 18 probes passed**, adapter `1.0.4-ht.4`, on the gate seeds, every
+**FAIL (VIOLATION), 16 of 19 probes passed**, adapter `1.0.4-ht.4`, on the gate seeds, every
 case on the full record (`window_days: full`).
 
 | Probe | Verdict | Reason | Detail |
 | --- | --- | --- | --- |
+| `mass/ungauged-basin-closure` | PASS | OK | All 12 fixed seeds pass; soil storage is nonzero, while reported day-end canopy storage is zero (see the [storage coverage table](../../probes/mass/ungauged-basin-closure/README.md#storage-bound-coverage)) |
+| `energy/soil-heat-storage-consistency` | N/A | INCOMPLETE | does not report the required layer heat-storage diagnostics |
 | `energy/evaporative-partition` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
 | `energy/latent-heat-et-consistency` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
 | `energy/pet-consistency` | PASS | OK | evaporation 0.96 of demand when the soil is wettest, 0.15 when driest |
@@ -290,7 +292,7 @@ case on the full record (`window_days: full`).
 | `mass/warming-response` | PASS | OK | runoff falls by 0.27 to 0.31 per unit of added demand |
 | `momentum/routing-conservation` | PASS | OK | the channel holds at most 0.17 of what a 15-day hydrograph of recent runoff allows |
 
-The four energy probes that need an energy output are N/A (INCOMPLETE) because wflow_sbm
+The five energy probes that need an energy output are N/A (INCOMPLETE) because wflow_sbm
 computes no latent, sensible or ground heat flux and no surface temperature; that is the
 model declining to be asked, not a failure.
 

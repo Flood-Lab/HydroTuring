@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from hydroturing import registry
-from hydroturing.criteria.base import get, make_window
+from hydroturing.criteria.base import get, make_window, reported_states, storage_at
 from hydroturing.harness import build_case, resolve_window_days, select_window
 from hydroturing.protocol import RunResult
 from hydroturing.runner import get_runner
@@ -25,6 +25,14 @@ def probe():
 
 def evaluate(run, probe):
     return {c.name: get(c.name)(run, probe, c.params) for c in probe.criteria}
+
+
+def drift_params(probe):
+    return next(c.params for c in probe.criteria if c.name == "total_storage_drift")
+
+
+def drift_result(run, probe):
+    return get("total_storage_drift")(run, probe, drift_params(probe))
 
 
 def test_repeated_forcing_contract(probe):
@@ -67,8 +75,11 @@ def test_drift_closes_but_only_long_record_exceeds_bounds(probe, seed, tmp_path)
     pd.testing.assert_frame_equal(short.table, long.table.iloc[:len(short.table)])
     assert long.table.mrro.min() >= 0
     short_scores, long_scores = evaluate(short, probe), evaluate(long, probe)
-    assert all(c.passed for c in short_scores.values()), short_scores
-    assert {name for name, c in long_scores.items() if not c.passed} == {"state_bounds"}
+    assert short_scores["closure"].passed
+    assert not short_scores["total_storage_drift"].passed
+    assert {name for name, c in long_scores.items() if not c.passed} == {
+        "state_bounds", "total_storage_drift",
+    }
     assert long_scores["closure"].value < 1e-10
     window = make_window(long, probe)
     assert window.state0.equals(long.table.iloc[1824])
@@ -86,17 +97,12 @@ def test_reporter_changes_only_the_two_declared_terms(probe):
     baseline = baseline.drop(columns="gwex")
     np.testing.assert_allclose(biased.mrro, baseline.mrro - 0.012, atol=1e-12)
     np.testing.assert_allclose(biased.mrso, baseline.mrso + 0.012 * np.arange(1, len(biased) + 1))
-    pd.testing.assert_frame_equal(biased.drop(columns=["mrro", "mrso"]),
-                                  baseline.drop(columns=["mrro", "mrso"]))
+    common = [c for c in biased.columns if c in baseline.columns and c not in {"mrro", "mrso"}]
+    pd.testing.assert_frame_equal(biased[common], baseline[common])
 
 
 @pytest.mark.parametrize("store,bias", [("gw", 0.012), ("channel", 0.012), ("mrso", 0.004)])
-def test_documented_capacity_only_detection_limit(probe, store, bias):
-    """Reproduce review counterexamples; passing bounds is not no-drift evidence.
-
-    These characterize the current scope, not an acceptance of the reporters
-    as physical. A future trend criterion must reverse these expectations.
-    """
+def test_trend_catches_bias_in_any_reported_store(probe, store, bias):
     exact = runpy.run_path(str(REPO_ROOT / "models/reference_bucket/ht_adapter.py"))["simulate"]
     case = build_case(probe, 19)
     table = pd.DataFrame(exact(case.forcing.to_dict("records"), case.static))
@@ -108,7 +114,46 @@ def test_documented_capacity_only_detection_limit(probe, store, bias):
     scores = evaluate(run, probe)
     assert table.mrro.min() >= 0
     assert scores["closure"].value < 1e-10
-    assert all(c.passed for c in scores.values()), scores
+    assert scores["state_bounds"].passed or store == "mrso"
+    assert not scores["total_storage_drift"].passed
+
+
+def test_total_storage_drift_uses_the_final_block_boundary(probe):
+    exact = runpy.run_path(str(REPO_ROOT / "models/reference_bucket/ht_adapter.py"))["simulate"]
+    case = build_case(probe, 19)
+    table = pd.DataFrame(exact(case.forcing.to_dict("records"), case.static))
+    table["gw"] = 0.0
+    run = RunResult(case, table.copy(), {}, 0)
+    clean = drift_result(run, probe)
+    assert clean.passed
+    window = make_window(run, probe)
+    states = reported_states(window, probe)
+    assert clean.diagnostics["block_start"] == 18250 - 1825
+    assert storage_at(window, states, clean.diagnostics["block_start"]) == pytest.approx(
+        clean.diagnostics["storage_start_mm"]
+    )
+
+    baseline_delta = clean.diagnostics["storage_delta_mm"]
+    adjustment = clean.threshold - baseline_delta - 1e-8
+    biased = table.copy()
+    biased.loc[18250:, "gw"] += adjustment
+    boundary = drift_result(RunResult(case, biased, {}, 0), probe)
+    assert boundary.passed
+    biased.loc[18250:, "gw"] += 2e-8
+    just_over = drift_result(RunResult(case, biased, {}, 0), probe)
+    assert not just_over.passed
+
+
+def test_total_storage_drift_integrates_precipitation_allowance(probe):
+    exact = runpy.run_path(str(REPO_ROOT / "models/reference_bucket/ht_adapter.py"))["simulate"]
+    case = build_case(probe, 19)
+    table = pd.DataFrame(exact(case.forcing.to_dict("records"), case.static))
+    table["gw"] = 0.0
+    run = RunResult(case, table, {}, 0)
+    result = drift_result(run, probe)
+    final_block_pr = case.forcing.pr.iloc[-1825:].sum()
+    assert result.threshold == pytest.approx(2e-4 * final_block_pr + 1e-6)
+    assert result.diagnostics["block_precipitation_mm"] == pytest.approx(final_block_pr)
 
 
 @pytest.mark.parametrize("name", ["reference_bucket", "flex_lumped", "flex_topo", "sacsma_snow17"])
@@ -144,6 +189,10 @@ def test_longer_spinup_preserves_discrimination(probe):
     spec = replace(probe, spinup_days=3650)
     run = RunResult(case, pd.DataFrame(simulate(forcing.to_dict("records"), case.static)), {}, 0)
     scores = evaluate(run, spec)
-    assert scores["closure"].passed and not scores["state_bounds"].passed
+    assert scores["closure"].passed
+    assert not scores["state_bounds"].passed
+    assert not scores["total_storage_drift"].passed
     short = replace(run, case=replace(case, forcing=forcing.iloc[:7300]), table=run.table.iloc[:7300])
-    assert all(c.passed for c in evaluate(short, spec).values())
+    short_scores = evaluate(short, spec)
+    assert short_scores["closure"].passed
+    assert not short_scores["total_storage_drift"].passed

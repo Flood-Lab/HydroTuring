@@ -105,8 +105,9 @@ a very common bug that a whole-catchment budget can absorb.
 
 ### `mass/multi-decadal-drift` &middot; **merged**
 Fifty years of repeated warm weather expose a runoff reporting deficit hidden
-in accumulating soil storage: the budget closes, but storage exceeds capacity.
-Checks physical bounds rather than rejecting every bounded trend.
+in accumulating storage: the budget closes, but physical capacity or repeated
+block total-storage drift exposes it. Checks all reported stores without
+inventing a finite groundwater capacity.
 Contributed by Bing Li (@hiter-joe).
 
 ### `mass/routing-network-closure` &middot; standard &middot; **unclaimed**
@@ -141,17 +142,13 @@ whole-record closure. The fitted thresholds describe the synthetic climate,
 not the submitted model's unknown training range.
 Contributed by Taiqi Lian.
 
-### `mass/ungauged-basin-closure` &middot; standard &middot; **unclaimed**
-`ht init-probe --template extrapolation-space`
-
-Every seed draws a catchment, and some draws sit outside the range models are
-normally fitted over. Every seed must pass, so the verdict turns on the
-corners.
-
-*Discriminates:* models fitted to a gauged sample and deployed on an ungauged
-one, which is the deployment case the field actually cares about. The work is
-in defending where the hull boundary sits; push one attribute out at a time,
-or you generate catchments no real place resembles and fail honest models.
+### `mass/ungauged-basin-closure` &middot; **merged**
+Full-window water budgets on one independently generated catchment per seed,
+with soil/canopy capacities sampled across an experimental reference domain.
+Uses native catchment-closure criteria, one exact reference and three physical references; annual
+residuals are separate diagnostics. Catches attribute-dependent budget,
+capacity, forcing and partition errors.
+Contributed by Shunan Zhou (Dalian University of Technology, Dalian, China).
 
 ### `mass/precipitation-counterfactual` &middot; **merged**
 The same seed 20% wetter, 10% wetter and 20% drier: the water added or
@@ -222,12 +219,13 @@ The channel store is never negative and never holds more than its hydrograph can
 ### `momentum/channel-routing-mass` &middot; starter &middot; **unclaimed**
 Inflow minus outflow minus the change in channel storage, per reach.
 
-### `momentum/stage-discharge-monotonic` &middot; standard &middot; **unclaimed**
+### `momentum/stage-discharge-monotonic` &middot; **merged**
 Steady-flow rating must be monotonic. Where a loop rating appears, it must be
 traversed in the physically correct direction, with the rising limb carrying
 more discharge at a given stage than the falling limb.
 *Discriminates:* models that fit a hydrograph while implying an impossible
 relationship between depth and flow.
+Contributed by Yuanhang Liu.
 
 ### `momentum/wave-celerity-bounds` &middot; hard &middot; **unclaimed**
 Kinematic wave celerity must be positive and near the Manning expectation for

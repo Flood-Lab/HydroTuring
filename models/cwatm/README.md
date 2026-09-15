@@ -18,7 +18,7 @@ adapter can read rather than reconstruct.
 
 ## Verdict
 
-**FAIL (VIOLATION)**, 14 of 18 probes passed, on the gate seeds and the full
+**FAIL (VIOLATION)**, 15 of 19 probes passed, on the gate seeds and the full
 record of every probe (`ht run --model cwatm --gate-seeds`). Four probes fail
 as VIOLATION, and they are not alike.
 
@@ -52,6 +52,8 @@ as VIOLATION, and they are not alike.
 
 | Probe | Result | Mechanism |
 | --- | --- | --- |
+| `mass/ungauged-basin-closure` | PASS | All 12 fixed seeds pass the native closure and companion checks; soil and canopy stores are nonzero (see the [storage coverage table](../../probes/mass/ungauged-basin-closure/README.md#storage-bound-coverage)) |
+| `energy/soil-heat-storage-consistency` | N/A (INCOMPLETE) | Required layer heat-storage diagnostics are not reported |
 | `energy/evaporative-partition`, `energy/latent-heat-et-consistency`, `energy/surface-energy-closure`, `energy/radiation-consistency` | N/A (INCOMPLETE) | CWatM reports no latent, sensible or ground heat flux, and no surface temperature or upward longwave (and the last two probes are hourly), so these probes cannot ask it anything |
 | `energy/pet-consistency` | VIOLATION: evaporation on the wettest fifth of soil days is 0.695 of demand on the worst seed (0.695–0.705; at least 0.7) | a land cover's transpiration, bare-soil and interception evaporation together cannot exceed `crop_correct × cropKC × ETRef`, and the fraction-weighted crop coefficient is 0.689; snow evaporation is added on top of that cap, which is why the ratio sits just above 0.689 (Sensitivity). **A packaging choice**: with `preferentialFlow = False` it passes at 0.708–0.712, and higher crop coefficients or more forest pass too |
 | `mass/resolution-invariance` | VIOLATION: runoff differs by 52.1 % of the rain between PT1H and PT1D (38.6–52.1 %), evaporation by 0.6 % | CWatM has no dt (below); its groundwater reservoir releases `recessionCoeff × storage` per step, so at PT1H it drains 24 times too fast |

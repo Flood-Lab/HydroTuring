@@ -1,0 +1,38 @@
+name: reference_spatial_et
+version: 1.0.0
+description: Causal attribute-dependent et fault. Diagnostic fixture for ungauged-basin-closure;
+  not a scientific model.
+authors:
+- Shunan Zhou
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint:
+- python3
+- ../_spatial_faults/ht_adapter.py
+- --fault
+- et
+timestep: PT1D
+emits:
+  fluxes:
+  - pr
+  - evspsbl
+  - mrro
+  - gwex
+  states:
+  - mrso
+  - snw
+  - canopy
+  - channel
+needs_forcing:
+- pr
+- tas
+- pet
+supports:
+  perturbation: true
+resources:
+  cpu: 1
+  memory_gb: 1
+  gpu: false
+
+# Existing adapter mappings; no change to model equations.
+needs_static: [soil_capacity_mm, canopy_capacity_mm]

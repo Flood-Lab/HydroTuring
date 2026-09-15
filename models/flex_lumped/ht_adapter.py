@@ -27,6 +27,13 @@ about timing, a limitation of the model rather than the adapter.
 Rates with a time in their units are rescaled to the step exactly as any
 submitted model's must be: per-day fractions as 1 - (1 - k)^dt, per-day
 amounts as amount * dt, the lag in days.
+
+A `stage` is also reported, as a diagnostic rather than a store: the depth
+Manning's normal-depth relation gives the reach's own discharge, so that
+`momentum/stage-discharge-monotonic` has a gauge to read. A `dis` in m3/s is
+reported alongside it — the same flow over the catchment area — so the rating
+can be drawn against discharge rather than against a store. Neither is
+differenced into any budget.
 """
 
 from __future__ import annotations
@@ -37,8 +44,17 @@ import json
 import sys
 from pathlib import Path
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel", "stage"]
 MODEL = {"name": "flex_lumped", "version": "1.0.0"}
+
+# Default reach geometry, used when the catchment does not hand one over.
+# These are the same defaults the reference rating adapters carry, so every
+# model judged on this probe is read in the same channel.
+DEFAULT_WIDTH_M = 18.0
+DEFAULT_SLOPE = 0.0015
+DEFAULT_MANNING_N = 0.035
+DEFAULT_REACH_LENGTH_M = 4500.0
+SECONDS_PER_DAY = 86400.0
 
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0, "PT15M": 1.0 / 96.0, "PT5M": 1.0 / 288.0, "PT1M": 1.0 / 1440.0}
 
@@ -78,6 +94,48 @@ def lag_weights(tlag_steps: float) -> list[float]:
 
 def per_step(fraction_per_day: float, dt: float) -> float:
     return 1.0 - (1.0 - fraction_per_day) ** dt
+
+
+def discharge_m3s(runoff_mm_per_day: float, static: dict) -> float:
+    """The reach's discharge, in m3/s, from the runoff over the catchment.
+
+    `mrro` is the model's own outflow — the fast reservoir's release plus the
+    slow reservoir's, both already passed through the lag — so it is the whole
+    of what the reach is carrying and nothing else needs adding to it.
+    """
+    area_km2 = float(static.get("area_km2", 0.0))
+    return max(runoff_mm_per_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
+
+
+def manning_depth(q_m3s: float, static: dict) -> float:
+    """The depth a steady flow makes in the reach's cross-section, in metres.
+
+    A stage is a *length* read off a staff gauge in a cross-section, and the
+    length is set by the flow passing through it. Manning's normal depth is
+    the honest bridge between the two:
+
+        Q   = w * h * (1/n) * h^(2/3) * S^(1/2)
+        h   = ( Q * n / (w * sqrt(S)) )^(3/5)
+
+    The flow is the reach's own discharge and nothing else. An earlier version
+    added the groundwater store divided by the step, which was wrong twice
+    over: that store's *release* is already inside `mrro` (the slow reservoir
+    drains into the runoff this model reports), so the term counted the same
+    water twice, and dividing the store rather than its release made the gauge
+    read the whole reservoir instead of the water leaving it — six times the
+    real flow at a daily step, and twenty-four times more again at an hourly
+    one, because the divisor shrinks with the step.
+
+    The depth is a function of the discharge at the same step, so this gauge
+    reports a single-valued rating: the model has one state carrying the storm
+    and the gauge reads it directly.
+    """
+    width_m = float(static.get("width_m", DEFAULT_WIDTH_M))
+    slope = float(static.get("slope", DEFAULT_SLOPE))
+    manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
+    if q_m3s <= 0.0 or width_m <= 0.0 or slope <= 0.0:
+        return 0.0
+    return (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
 
 
 def simulate(forcing: list[dict], static: dict, dt: float) -> list[dict]:
@@ -179,6 +237,13 @@ def simulate(forcing: list[dict], static: dict, dt: float) -> list[dict]:
         cum_gen += g
         cum_out += row["mrro"] * dt
         row["channel"] += cum_gen - cum_out
+        # The discharge the gauge reads is the reach's own outflow — the whole
+        # of what it is carrying, since the slow reservoir's drainage is
+        # already inside `mrro` — reported in m3/s so
+        # `momentum/stage-discharge-monotonic` can score the rating against
+        # discharge rather than against the store.
+        row["dis"] = discharge_m3s(row["mrro"], static)
+        row["stage"] = manning_depth(row["dis"], static)
     return rows
 
 

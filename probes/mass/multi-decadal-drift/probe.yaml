@@ -1,5 +1,5 @@
 id: mass/multi-decadal-drift
-title: Slow budget-compensating storage drift exceeds capacity over fifty years
+title: Slow budget-compensating storage drift over repeated climate
 law: mass
 track: synthetic
 version: 1
@@ -7,13 +7,15 @@ version: 1
 authors:
   - name: Bing Li
     github: hiter-joe
+    affiliation: Independent Researcher
 
 description: >
   Repeat seeded warm weather for fifty years after a five-year spinup.
   A small runoff reporting deficit can be hidden in invented storage while
-  the budget closes exactly. The long record exposes the accumulated error
-  when soil storage exceeds its physical capacity. Seasonal variation and
-  bounded trends are not themselves violations.
+  the budget closes exactly. The repeated climate exposes accumulated error
+  both when storage exceeds physical capacity and when total reported storage
+  keeps drifting across the final five-year block. Seasonal variation and
+  bounded equilibration are not themselves violations.
 
 requires:
   fluxes: [pr, evspsbl, mrro]
@@ -40,6 +42,10 @@ criteria:
       canopy: [0.0, canopy_capacity_mm]
       gw: [0.0, null]
       channel: [0.0, null]
+  - total_storage_drift:
+      block_days: 1825
+      relative_to_precipitation: 2.0e-4
+      absolute_tolerance_mm: 1.0e-6
   - et_plausible:
       max_ratio_to_pet: 1.0
       pet_variable: pet
@@ -56,6 +62,7 @@ baselines:
   must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
   must_fail:
     reference_slow_drift: state_bounds
+    reference_gw_slow_drift: total_storage_drift
 
 provenance: >
   Synthetic forcing generated from a seed at run time, with a repeated

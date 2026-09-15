@@ -504,7 +504,7 @@ through the split instead; its numbers are under What changed.
 ```
 ### HydroTuring `summa` v4.0.0-f787fa5.4
 
-FAIL (VIOLATION) · 8/21 probes passed · suite 0.1.0
+FAIL (VIOLATION) · 8/22 probes passed · suite 0.1.0
 ```
 
 It passes eight probes:
@@ -518,12 +518,12 @@ Against `4.0.0-f787fa5.3` no verdict changed. The fourth version's changes
 leave SUMMA's output the same bit for bit, and `flux_identity` still fails
 without `sbl`. The count was out of 20 because the suite gained
 `mass/human-abstraction`, which SUMMA fails because it has no human water use.
-It is out of 21 since `mass/extreme-event-closure` merged. SUMMA fails that
+It became out of 21 when `mass/extreme-event-closure` merged. SUMMA fails that
 probe on the canopy's `state_bounds` alone, holding up to 25 mm of ice against
 a 2 mm capacity on 68 steps, while every wet event's water budget closes to
 within 3e-4 of its allowance.
 `energy/radiation-consistency`, merged since, is N/A (INCOMPLETE): the adapter
-reports no `rlus` or `ts`, so the count stays out of 21.
+reports no `rlus` or `ts`. `energy/soil-heat-storage-consistency` is also N/A (INCOMPLETE), lacking its required layer diagnostics. `mass/ungauged-basin-closure` adds one scored FAIL, bringing the current count to 8 of 22.
 
 In `4.0.0-f787fa5.3` the threshold translation flipped no probe verdict
 against `4.0.0-f787fa5.2`. It moved one failure inside a probe and changed the
@@ -539,6 +539,7 @@ packaging had to make.
 
 | Probe | Failing criterion (worst seed) | Mechanism | Model or packaging |
 | --- | --- | --- | --- |
+| `mass/ungauged-basin-closure` | `state_bounds`: canopy excess up to 0.032 mm (11/12 seeds); `et_plausible`: ET/PET up to 1.506 (7/12); `non_degenerate`: runoff ratio about 0.001–0.004 (4/12). Closure passes on all 12 | All rain is intercepted; liquid above `scalarCanopyLiqMax` drains at 0.005 s-1. All 54 excess-storage steps contain liquid, in June–August with 12–33 mm/day rain; storage matches `Lmax + (R - E_canopy)/k` within 0.0021 mm. Interception evaporation takes 61–87% of rainfall. On the worst ET seed it alone reaches 1.23 PET, drawing about 17 W m-2 of sensible heat from the air. ET/PET fails in all sampled cases with P/PET ≥1.24; low-runoff cases lose 99–100% of rainfall to ET ([native diagnosis, #81](https://github.com/Flood-Lab/HydroTuring/issues/81#issuecomment-5667013442)) | Model drainage and interception under the shipped decisions at the daily step. The humidity mock affects the excess: RH 90% reduces the worst ET/PET to 0.86, but canopy bounds still fail. No adapter correction or verdict change is indicated |
 | `energy/latent-heat-et-consistency` | `flux_identity` (5 of 5 seeds); `state_bounds` canopy 12.3 to 25.0 mm above the 2 mm capacity (5 of 5) | a latent heat of vaporisation held at its 0 C value, and on 2 to 9 days a seed canopy ice sublimating at `LH_sub` with no snow on the ground (above). The canopy: rain frozen on it near 0 C, up to 27.0 mm of ice (section on the freezing canopy); a few warm days also end a few hundredths of a mm above capacity as liquid drains at 0.005 s-1 | model (constants; drainage law). The canopy ice is SUMMA with the shipped setup's decisions and default parameters (all rain intercepted, `snowUnloadingCoeff` 0), reached through the translated threshold |
 | `energy/evaporative-partition` | `partition_shift` (3 of 3); `flux_identity` (3 of 3); `state_bounds` canopy 4.1 and 16.9 mm (2 of 3) | SUMMA's net radiation responds to the drought through its surface temperature; constant latent heat; canopy ice | model; the size of the shift residual depends on the wind mock. The canopy ice is attributed as for latent-heat |
 | `energy/surface-energy-closure` | `energy_closure_by_phase`, 20 of 28 blocks (17 to 22 across seeds) | the gap between SUMMA's net radiation and `rn`: albedo by day, surface temperature by day and night; SUMMA's own budget passes every block | the mock cannot deliver `rn`, meeting the model's own surface temperature |

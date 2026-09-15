@@ -1,0 +1,99 @@
+id: momentum/stage-discharge-monotonic
+title: A stage reading rises with discharge, and loops the way a flood wave does
+law: momentum
+track: synthetic
+version: 1
+
+authors:
+  - name: Yuanhang Liu
+    affiliation: Independent Researcher
+    github: kawh1111
+    orcid: 0009-0005-9633-6004
+
+description: >
+  Four years of temperate weather in a single reach, with a sequence of
+  multi-day floods, for any model that reports the stage of its channel
+  alongside the discharge through it. A staff gauge imposes two constraints
+  that no water budget does. First, stage is single-valued in discharge:
+  read the reach at the same flow twice and the gauge reads the same level,
+  and a higher flow reads a higher level. Second, the rating is looped:
+  a flood wave steepens as it arrives, so at the same water in transit the
+  rising limb sits *lower* than the falling limb. A model that computes its
+  stage from the flow alone, rather than from the store it claims to describe,
+  has no loop to show and passes the second trivially;
+  one that has the loop inverted — high on the rise, low on the fall — fails
+  the second, and no mass or energy probe in the suite can see either.
+  Stage is a diagnostic the probe asks for, never one of the storages the
+  budget is differenced over.
+
+requires:
+  fluxes: [dis]
+  states: [channel]
+  diagnostics: [stage]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 4
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 300
+  min_window_days: 1460
+
+criteria:
+  - rating_monotonic:
+      bins: 12
+      tolerance: 0.0
+
+  - rating_loop:
+      bins: 12
+      tolerance: 0.0
+      abscissa: store
+      # The smallest separation the reach can resolve, in metres: two
+      # millimetres, about the reading error of a staff gauge. It is stated
+      # absolutely rather than as a fraction of the rating because the
+      # reference gauges are different instruments — one reads a channel
+      # section, one a floodplain sheet — and their spans differ by two orders
+      # of magnitude between seeds while the loop a gauge can resolve does
+      # not. A fraction of the span asks a wide, shallow sheet to resolve
+      # centimetres or not be read at all.
+      min_loop_m: 0.002
+
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [stage]
+
+baselines:
+  # The exact bucket has no reach to read, so it reports a stage it derives
+  # from its own store, and the two FLEX models route through a triangular
+  # lag whose contents are the reach. Unlike the bucket, all three of them
+  # report `dis` — the probe requires it — so the rating is genuinely drawn
+  # against discharge rather than against the store. All four are the real
+  # test.
+  #
+  # `reference_rating` is the honest gauge: two reservoirs with separated
+  # time constants, which is the only shape that produces a correctly-signed
+  # loop. It is in `must_pass` because the loop criterion's "the loop runs
+  # the right way" branch is otherwise exercised by nothing, and a dead
+  # branch is how the inverted-loop escape went unnoticed.
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17, reference_rating]
+  must_fail:
+    # A stage computed from a decaying running maximum of discharge rather
+    # than from the flow at the step: it ratchets up with each flood far
+    # faster than it relaxes (0.997 a day), so the rating steps down against
+    # its own history.
+    reference_rating_drift: rating_monotonic
+    # A rating read backwards: the gauge is high while the flood is still
+    # arriving and low once it is leaving. Monotone in discharge, so only
+    # the loop sees it.
+    reference_rating_inverted: rating_loop
+    # A flat gauge: the stage is reported as a constant, so there is no
+    # rating and no loop, only a number that does not vary.
+    reference_flat_stage: non_degenerate
+
+provenance: >
+  Synthetic. Generated at run time from a recorded seed, with a sequence of
+  multi-day floods in the second year. Nothing is committed as data.

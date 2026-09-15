@@ -1,0 +1,22 @@
+name: reference_rating_drift
+version: "1.0.0"
+description: >
+  The routed bucket with a drifting gauge. Stage is computed from a running
+  maximum of discharge rather than from the flow at the step, so the reading
+  climbs during the wet season and then stays high through every recession:
+  the same discharge is read at a lower stage on the way up than on the way
+  down, and the rating steps down against its own history. Pins the
+  monotonicity half of the rating probe.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [stage]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

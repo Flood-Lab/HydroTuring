@@ -44,9 +44,16 @@ from pathlib import Path
 
 from sacsma_snow17 import SacState, SnowState, gamma_uh, sac1, sac_storage, snow17
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel", "stage"]
 MODEL = {"name": "sacsma_snow17", "version": "1.0.0"}
 STEP_HOURS = {"PT1D": 24, "PT1H": 1}
+
+# Default reach geometry, used when the catchment does not hand one over.
+DEFAULT_WIDTH_M = 18.0
+DEFAULT_SLOPE = 0.0015
+DEFAULT_MANNING_N = 0.035
+DEFAULT_REACH_LENGTH_M = 4500.0
+SECONDS_PER_DAY = 86400.0
 
 # A mid-range parameter set from the NWS calibration guidance (Anderson
 # 2002) and CAMELS-scale calibrations; the catchment's capacity rescales the
@@ -68,6 +75,52 @@ def surface_pressure_hpa(elev_m: float) -> float:
     """The NCAR driver's fit of surface pressure to elevation."""
     e = elev_m / 100.0
     return 33.86 * (29.9 - 0.335 * e + 0.00022 * e ** 2.4)
+
+
+def discharge_m3s(runoff_mm_per_day: float, static: dict) -> float:
+    """The reach's discharge, in m3/s, from the runoff over the catchment.
+
+    `mrro` is what the unit hydrograph has released, and it already carries
+    every path out of the model — the surface runoff, the interflow and the
+    baseflow the lower zones drain — so it is the whole of what the reach is
+    carrying and nothing needs adding to it.
+    """
+    area_km2 = float(static.get("area_km2", 0.0))
+    return max(runoff_mm_per_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
+
+
+def manning_depth(q_m3s: float, static: dict) -> float:
+    """The depth a steady flow makes in the reach's cross-section, in metres.
+
+    A diagnostic rather than a store, reported so that
+    `momentum/stage-discharge-monotonic` has a gauge to read, and never
+    differenced into any budget. A stage is a length read off a staff gauge
+    in a cross-section, and the length is set by the flow through it, so
+    Manning's normal depth is the bridge between the two:
+
+        h = ( Q * n / (w * sqrt(S)) )^(3/5)
+
+    The flow is the model's own discharge and nothing else. An earlier version
+    added the lower-zone store divided by the step, which was wrong twice
+    over. That store's drainage is already inside `mrro` — SAC-SMA's `tci`
+    includes the baseflow the lower zones release — so the term counted the
+    same water twice; and dividing the store rather than its release made the
+    gauge read the whole reservoir instead of the water leaving it, which at a
+    daily step was forty-eight times the real flow and grew further as the
+    step shrank. The effect was not subtle: the gauge then correlated +1.00
+    with the seasonal lower-zone store, so the rating it drew was the annual
+    groundwater cycle rather than anything the reach did.
+
+    The depth is a function of the discharge at the same step, so this gauge
+    reports a single-valued rating: the model has one state carrying the storm
+    and the gauge reads it directly.
+    """
+    width_m = float(static.get("width_m", DEFAULT_WIDTH_M))
+    slope = float(static.get("slope", DEFAULT_SLOPE))
+    manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
+    if q_m3s <= 0.0 or width_m <= 0.0 or slope <= 0.0:
+        return 0.0
+    return (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
 
 
 def parameters(static: dict) -> tuple[dict, dict]:
@@ -154,6 +207,13 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         cum_in += g
         cum_out += row["mrro"] * dt_days
         row["channel"] = cum_in - cum_out
+        # The discharge the gauge reads is what the hydrograph has released —
+        # every path out of the model is inside `mrro`, the baseflow the lower
+        # zones drain included — in m3/s, so
+        # `momentum/stage-discharge-monotonic` can score the rating against
+        # discharge rather than against the store.
+        row["dis"] = discharge_m3s(row["mrro"], static)
+        row["stage"] = manning_depth(row["dis"], static)
     notes = {
         "port": "sacsma_snow17.py, checked against the f2py build of the Fortran",
         "parameters": {"sac": sac, "snow17": snow, "unit_hydrograph": UH},
