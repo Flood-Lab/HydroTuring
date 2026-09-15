@@ -313,16 +313,13 @@ def evaluate_criteria(
             failed = [
                 name for name, result in per_variant.items() if not result.passed
             ]
-            values = [
-                result.value
-                for result in per_variant.values()
-                if result.value is not None
-            ]
-            worst_name, worst_result = max(
+            # A failed variant must remain the aggregate result even when its
+            # criterion has no numeric value (for example, a non-finite output
+            # failure). This mirrors the worst-seed selection below: status is
+            # primary, then the largest absolute deviation is worst.
+            worst_name, worst_result = min(
                 per_variant.items(),
-                key=lambda item: (
-                    float("-inf") if item[1].value is None else item[1].value
-                ),
+                key=lambda item: (item[1].passed, -abs(item[1].value or 0.0)),
             )
             message = "; ".join(
                 f"{name}: {result.message}" for name, result in per_variant.items()
@@ -331,7 +328,7 @@ def evaluate_criteria(
                 CriterionResult(
                     name=criterion.name,
                     status=CRITERION_FAIL if failed else CRITERION_PASS,
-                    value=max(values, default=None),
+                    value=worst_result.value,
                     threshold=worst_result.threshold,
                     message=message,
                     diagnostics={

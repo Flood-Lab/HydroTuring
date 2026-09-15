@@ -61,12 +61,19 @@ variable-level departure must remain below 5 percent. Floors make empty snow
 or channel stores well-defined rather than granting them an accidental exact
 score.
 
+For `total_reported_storage`, the scale is the mean absolute sum of all stores
+reported by the model. In these cases soil moisture (`mrso`) is the largest
+store, so it naturally dominates that aggregate scale; the 1 mm floor still
+protects the score when every reported store is nearly empty.
+
 The criterion checks the complete visible forcing schema and values for exact
 equality before comparing outputs. It rejects an optional output that appears
 in only one variant, because the two runs would then make different reporting
-claims. The ordinary closure and state-bound preconditions are evaluated on
-the labelled evaluation cycle in both variants, with the preceding row used as
-the initial state.
+claims. The ordinary closure and state-bound preconditions are evaluated over
+the complete post-spinup record in both variants, with the row immediately
+before that record used as the initial state. This covers all ten repeated
+years; the `evaluation` label is reserved for the paired comparison of the two
+phase-aligned 365-day cycles.
 
 ## What it catches
 
@@ -94,6 +101,17 @@ this mass probe rather than nonphysical. The required outputs are the minimum
 needed to combine the cycle-invariance claim with closure and state-bound
 preconditions.
 
+The comparison is deliberately finite. A hidden clock whose period divides
+1461 days (four Gregorian years) can return to the same phase in both selected
+years and therefore evade this particular probe. The case should be extended
+or phase-shifted if a model exposes evidence of that kind of calendar lock.
+
+The deliberately permissive negative control `reference_cheater` also escapes
+all criteria on four of 200 gate seeds (43, 103, 164 and 186). Those seeds are
+reported as an explicit limitation of the discriminator; the other seeds and
+the named `reference_restless` control still establish that the probe catches
+the intended failure mode.
+
 ## Relationship to existing probes
 
 - `mass/steady-state` holds forcing constant and asks whether all variables
@@ -120,6 +138,6 @@ on `spinup_cycle_invariance`; `reference_leaky`, `reference_cheater`, and
 these checks on an independent seed and verifies that adapters receive neither
 phase labels nor distinct case metadata. The acceptance threshold and floors
 are calibrated against the archived references: departures are 0.00% for the
-exact and FLEX references, 0.02% for CWatM, and 0.36% for LISFLOOD, so the
+exact and FLEX references, 0.00% for CWatM, and 0.47% for LISFLOOD, so the
 5% engineering rule retains a conservative margin while the absolute floors
 keep near-zero variables well-conditioned.

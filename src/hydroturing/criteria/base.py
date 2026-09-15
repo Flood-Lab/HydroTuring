@@ -130,7 +130,7 @@ def make_window(run: RunResult, probe: ProbeSpec, phase: str | None = None) -> W
     case = run.case
     if phase is not None:
         if "_phase" not in case.forcing.columns:
-            raise ValueError(f"phase-scoped window needs a '_phase' forcing column")
+            raise ValueError("phase-scoped window needs a '_phase' forcing column")
         labels = case.forcing["_phase"].astype(str).to_numpy()
         indices = np.flatnonzero(labels == phase)
         if not len(indices):

@@ -47,7 +47,6 @@ criteria:
       sources: [gwex]
       # Closure is a precondition for both selected cycles, not just short.
       all_variants: true
-      phase: evaluation
 
   - state_bounds:
       mrso: [0.0, soil_capacity_mm]
@@ -56,7 +55,6 @@ criteria:
       gw: [0.0, null]
       channel: [0.0, null]
       all_variants: true
-      phase: evaluation
 
   # The denominator in closure is the supplied precipitation.  Require the
   # adapter to echo that same forcing instead of closing against a private,
@@ -82,7 +80,7 @@ criteria:
       threshold: 0.05
       # 5% is the suite engineering rule; the 0.05 mm/day and 1 mm floors
       # keep near-zero fluxes and empty stores numerically well-conditioned.
-      # Gate references span 0.00% to 0.36%, leaving a conservative margin.
+      # Gate references span 0.00% to 0.47%, leaving a conservative margin.
       flux_floor_mm_per_day: 0.05
       state_floor_mm: 1.0
 

@@ -9,7 +9,14 @@ import pandas as pd
 import pytest
 
 from hydroturing import registry
-from hydroturing.harness import build_case, resolve_window_days, run_probe, select_window, window_case
+from hydroturing.harness import (
+    build_case,
+    evaluate_criteria,
+    resolve_window_days,
+    run_probe,
+    select_window,
+    window_case,
+)
 from hydroturing.protocol import FORCING_FILE, stage
 from hydroturing.scoring import FAIL, PASS, VIOLATION
 from hydroturing.seeds import gate_seeds
@@ -74,20 +81,45 @@ def test_adapters_receive_the_same_visible_case_metadata(probe, tmp_path):
     assert "_phase" not in visible[0].columns
 
 
-def test_phase_scoped_preconditions_score_both_variants(probe):
+def test_full_record_preconditions_score_both_variants(probe):
     from hydroturing.criteria.base import make_window
     from hydroturing.protocol import RunResult
 
     for variant in probe.variants:
         case = build_case(probe, VALIDATION_SEED, variant)
         assert case.spinup_steps == SPINUP_DAYS
-        rows = _evaluation_rows(case)
-        assert rows[0] > 0
-        assert len(rows) == CYCLE_DAYS
         table = pd.DataFrame({name: np.zeros(case.n_steps) for name in ("mrso", "snw", "canopy")})
-        window = make_window(RunResult(case, table, {}, 0.0), probe, "evaluation")
-        assert len(window.table) == CYCLE_DAYS
-        assert window.state0.equals(table.iloc[rows[0] - 1])
+        window = make_window(RunResult(case, table, {}, 0.0), probe)
+        assert len(window.table) == PERIOD_DAYS
+        assert window.state0.equals(table.iloc[SPINUP_DAYS - 1])
+
+
+def test_all_variants_keeps_a_long_only_failure_with_no_value(probe, monkeypatch):
+    """A failed variant must not be hidden by a passing numeric result."""
+    from hydroturing.criteria.base import CriterionResult
+    from hydroturing.protocol import RunResult
+    from hydroturing import criteria as criteria_mod
+
+    cases = {variant: build_case(probe, VALIDATION_SEED, variant) for variant in probe.variants}
+    runs = {
+        variant: RunResult(case, pd.DataFrame(), {}, 0.0)
+        for variant, case in cases.items()
+    }
+
+    def fake_criterion(subject, _probe, _params):
+        if isinstance(subject, dict):
+            return CriterionResult("spinup_cycle_invariance", "pass", "ok", value=0.0)
+        variant = subject.case.probe_id.rsplit("@", 1)[-1]
+        if variant == "long":
+            return CriterionResult("closure", "fail", "long output invalid", value=None)
+        return CriterionResult("closure", "pass", "short output valid", value=0.01)
+
+    monkeypatch.setattr(criteria_mod, "get", lambda _name: fake_criterion)
+    results = evaluate_criteria(runs, probe, control="short")
+    closure = next(result for result in results if result.name == "closure")
+    assert not closure.passed
+    assert closure.value is None
+    assert closure.diagnostics["worst_variant"] == "long"
 
 
 @pytest.mark.parametrize(
