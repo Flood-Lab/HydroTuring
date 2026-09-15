@@ -152,6 +152,9 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_rating_drift",
     "reference_rating_inverted",
     "reference_flat_stage",
+    # Negative controls for mass/exchange-response.
+    "reference_noise_sink",
+    "reference_driven_exchange",
 }
 
 

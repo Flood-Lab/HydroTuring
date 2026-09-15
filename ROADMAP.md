@@ -139,6 +139,20 @@ the property survives a move — to another place, to another time, to a
 different question. Each has a template, so the harness work is done and what
 is left is the case.
 
+### `mass/exchange-response` &middot; **merged**
+A declared exchange must answer the driver it was given. Once a model closes
+its budget with `gwex`, that flux is identically minus the residual of
+everything else it reported, so neither its magnitude nor its timing on its own
+can separate an honest exchange from an invented one. The probe prescribes an
+external head as a forcing column and runs the same weather with the head as
+given, raised and lowered: for a model that declares it consumes the head,
+raising it must bring more water in and lowering it less. Reversal frequency is
+reported and never gated — a native MODFLOW aquifer behind an oscillating
+general-head boundary reverses its flux with no rain at all, and no bound on
+reversal follows from the external head unless the internal head is
+constrained too. Authored by Songkun Yan.
+*Discriminates:* models that declare the prescribed head and use the
+declared-exchange channel as a sink for the day's accounting error.
 ### `mass/extreme-event-closure` &middot; **merged**
 Overlap rainfall events in one median-wet year of a twenty-year record toward
 100-year depths from synthetic 1-, 3- and 7-day DDF fits. Check every complete

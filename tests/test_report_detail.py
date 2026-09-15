@@ -45,6 +45,7 @@ HEADLINES = {
     "mass/dry-down": ("dry_down",),
     "mass/extreme-event-closure": ("event_water_closure",),
     "mass/extreme-rain": ("monotone_response",),
+    "mass/exchange-response": ("exchange_response",),
     "mass/human-abstraction": ("human_abstraction",),
     "mass/phase-counterfactual": ("phase_invariance",),
     "mass/precipitation-counterfactual": ("counterfactual_response", "monotone_response"),
