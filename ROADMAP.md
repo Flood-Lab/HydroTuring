@@ -216,8 +216,13 @@ Contributed by Xin Lan (Michigan State University).
 ### `momentum/routing-conservation` &middot; **merged**
 The channel store is never negative and never holds more than its hydrograph can.
 
-### `momentum/channel-routing-mass` &middot; starter &middot; **unclaimed**
-Inflow minus outflow minus the change in channel storage, per reach.
+### `momentum/channel-routing-mass` &middot; **merged**
+On rainless stretches the channel store may only fall. The budget bounds how
+much the reach holds; this asks whether it moved for a reason.
+*Discriminates:* routers that lose or invent water inside their routing — the
+error is applied on every step, so the store rises where it can only drain,
+and it shows up long before any bound is reached.
+Contributed by Yuanhang Liu.
 
 ### `momentum/stage-discharge-monotonic` &middot; **merged**
 Steady-flow rating must be monotonic. Where a loop rating appears, it must be

@@ -116,6 +116,7 @@ Every one is binary.
 | `radiative_identity` | upward longwave equals what the reported surface temperature emits plus the reflected downward longwave, at every step, within the larger of a relative tolerance and an absolute floor; emissivity comes from `static.json` | one run, instantaneous values |
 | `soil_heat_storage` | interval boundary heat input agrees with fixed-layer temperature change and prescribed heat capacity | one run, separate heating/recovery phases |
 | `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff | one run |
+| `recession_drainage` | on steps where the forcing has been rainless for `settle_days` (a duration, converted to steps through the window's `dt_days`), the channel store must not rise by more than a relative floor; the share of such steps that rose is compared with `max_rising_fraction`. Steps the criterion cannot score — a missing store, a forcing with no rain, a record with no recession — fail it rather than crashing | one run |
 | `rating_monotonic` | stage does not fall against its running maximum as the abscissa rises: equal-count bin medians are taken over the abscissa and the summed running-maximum deficit is compared with an explicit `tolerance` when one is given, and otherwise with 8% of the rating's span. The share is that large because a stage read off a store is hysteretic by construction, and its binned rating dips below its own running maximum by a visible fraction of the span for that reason alone | one run |
 | `rating_loop` | where the gauge loops against the reach's store, the loop must be small enough to be noise or run the right way: at the same storage the rising limb sits lower than the falling one. A single-valued rating, or a loop below `min_loop_m` with an inconsistent sign across bins, is read as "no loop" and passes | one run |
 
@@ -263,7 +264,7 @@ The reference models available today:
 | `reference_overshooting` | a derivative term sharpens its hydrograph | `response_nonnegativity` |
 | `reference_sublimating` | loses 40% of every snowfall unreported | `phase_invariance` |
 | `reference_thirsty` | evaporates a fixed share of its soil store whatever the demand | `demand_consistency` |
-| `reference_stuck_router` | a routing kernel summing to 0.9 | `routing_conservation` |
+| `reference_stuck_router` | a routing kernel summing to 0.9, so the store grows without bound and rises on the steps where nothing enters | `routing_conservation` (its size), `recession_drainage` (its direction) |
 | `reference_rating` | the bucket with a real rating curve: yield enters a shallow floodplain and a deep channel reservoir, and the stage is the depth the channel's volume makes in a fixed bed | must pass `momentum/stage-discharge-monotonic` |
 | `reference_rating_drift` | derives its stage from a slowly decaying running maximum of discharge (`peak = max(q, 0.997 * peak)` per day), so the gauge ratchets up with each flood far faster than it relaxes | `rating_monotonic` |
 | `reference_rating_inverted` | reads the loop backwards, high while the flood is arriving and low once it is leaving | `rating_loop` |
