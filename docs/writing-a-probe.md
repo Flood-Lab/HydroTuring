@@ -258,6 +258,8 @@ The reference models available today:
 | `reference_climatology` | the seasonal mean, whatever the weather; never reads the rain | `dry_down` |
 | `reference_saturating` | daily runoff capped at 25 mm; flat beyond its training range | `monotone_response` |
 | `reference_restless` | a recession with its own thirty-day clock; never settles | `steady_state` |
+| `reference_slow_drift` | an exact bucket reporting a 0.012 mm/day runoff deficit as accumulating soil storage | `state_bounds`, `total_storage_drift` |
+| `reference_gw_slow_drift` | an exact bucket reporting a 0.001 mm/day runoff deficit as accumulating groundwater storage | `total_storage_drift` |
 | `reference_overflowing` | reports its runoff plus 80% of the rain again | `runoff_bounds` |
 | `reference_area_leak` | loses a share of runoff that grows with the stated area | `invariance` (area) |
 | `reference_overshooting` | a derivative term sharpens its hydrograph | `response_nonnegativity` |

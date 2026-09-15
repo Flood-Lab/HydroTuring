@@ -50,6 +50,9 @@ authors:
     family-names: Zhou
     affiliation: Dalian University of Technology, Dalian, China
     orcid: "https://orcid.org/0009-0006-4072-6799"
+  - given-names: Bing
+    family-names: Li
+    affiliation: Independent Researcher
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

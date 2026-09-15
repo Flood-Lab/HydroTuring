@@ -68,7 +68,7 @@ not.
 
 ## The probes
 
-Twenty-five: seventeen under mass, six under energy and two under momentum.
+Twenty-six: eighteen under mass, six under energy and two under momentum.
 Each was merged only after the acceptance gate saw it pass its declared
 exact reference and fail a purpose-built broken one on the named criterion.
 Four physical models, a bucket that conserves water exactly, two
@@ -76,7 +76,7 @@ hand-written FLEX models and the NWS's SAC-SMA with Snow-17, must pass
 every probe that can ask them anything; five of the six energy probes need
 outputs they do not report and are not scored for them. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Eleven of the twenty-five can be scored on a model
+with any probe pull request. Eleven of the twenty-six can be scored on a model
 that reports runoff and nothing else. `ht list` prints them;
 [ROADMAP.md](ROADMAP.md#probes-we-want) has the eight more we want, all
 unclaimed.
@@ -90,6 +90,7 @@ unclaimed.
 | [`mass/causality`](probes/mass/causality) | mass | One storm added mid-record: nothing may change before it, and runoff must answer after it. | `reference_anticipating` |
 | [`mass/dry-down`](probes/mass/dry-down) | mass | Two years without rain: runoff can only fall, and no more may drain than the catchment held. | `reference_climatology` |
 | [`mass/steady-state`](probes/mass/steady-state) | mass | Three years of the same day: does everything settle, and does the budget balance once it has? | `reference_restless` |
+| [`mass/multi-decadal-drift`](probes/mass/multi-decadal-drift) | mass | Fifty years of repeated warm weather: does total reported storage keep drifting? | `reference_slow_drift`, `reference_gw_slow_drift` |
 | [`mass/extreme-rain`](probes/mass/extreme-rain) | mass | The largest storm scaled up to ten times: runoff may not fall, nor exceed the rain that was added. | `reference_saturating` |
 | [`mass/extreme-event-closure`](probes/mass/extreme-event-closure) | mass | Overlap rainfall events toward fitted 100-year depths in one median-wet year of twenty; check each event's water budget so long-record averaging cannot hide a loss. | `reference_in_sample` |
 | [`mass/runoff-bounds`](probes/mass/runoff-bounds) | mass | Over ten years, is the runoff possible at all: at least rain minus demand minus storage, at most rain plus storage? The mass question a runoff-only model has to answer. | `reference_degenerate`, `reference_overflowing` |
@@ -176,6 +177,8 @@ between models.
 | `reference_climatology` | broken | emits the seasonal mean whatever falls, and keeps flowing without rain | caught by `dry_down` |
 | `reference_saturating` | broken | caps its daily runoff, so an extreme storm adds rain and no runoff | caught by `monotone_response` |
 | `reference_restless` | broken | a recession on an internal thirty-day clock, so it never settles | caught by `steady_state` |
+| `reference_slow_drift` | broken | a fixed runoff reporting deficit hidden in accumulating soil storage | caught by `state_bounds` and `total_storage_drift` over repeated five-year blocks |
+| `reference_gw_slow_drift` | broken | a fixed runoff reporting deficit hidden in accumulating groundwater storage | caught by `total_storage_drift` |
 | `reference_overflowing` | broken | reports its runoff plus 80% of the rain again, from nowhere | caught by `runoff_bounds` |
 | `reference_area_leak` | broken | loses a share of runoff that grows with the area it is told | caught by `invariance` (area) |
 | `reference_overshooting` | broken | a derivative term sharpens its hydrograph, so an added storm lowers later flow | caught by `response_nonnegativity` |
@@ -357,7 +360,7 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Twenty-five probes, seventeen mass, six energy, two momentum, synthetic track only. More
+Suite `0.1.0`, pre-release. Twenty-six probes, eighteen mass, six energy, two momentum, synthetic track only. More
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes; spatial and temporal closure, counterfactual response
 and invariance are represented in the suite. The roadmap lists the remaining

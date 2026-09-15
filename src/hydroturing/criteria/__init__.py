@@ -24,6 +24,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     rating,
     regime,
     response,
+    storage,
     stress,
     symmetry,
     thermal,
