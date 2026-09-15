@@ -101,6 +101,12 @@ class RunResult:
     table: pd.DataFrame
     meta: dict[str, Any]
     wall_seconds: float
+    # The manifest of the model that produced the table. A criterion whose
+    # verdict depends on what the model declared it consumes — a prescribed
+    # driver it may or may not have read — needs this; every other criterion
+    # ignores it. Optional so that callers building a RunResult by hand, as
+    # the tests do, need not supply one.
+    model: ModelManifest | None = None
 
 
 def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> Path:
@@ -199,7 +205,10 @@ def _validate_time_axis(table: pd.DataFrame, case: Case) -> None:
         )
 
 
-def read_result(io_dir: Path, case: Case, probe: ProbeSpec, wall_seconds: float) -> RunResult:
+def read_result(
+    io_dir: Path, case: Case, probe: ProbeSpec, wall_seconds: float,
+    model: ModelManifest | None = None,
+) -> RunResult:
     """Read and validate what the adapter produced."""
     _validate_output_files(io_dir, probe)
     csv_path = io_dir / RESULT_CSV
@@ -263,4 +272,4 @@ def read_result(io_dir: Path, case: Case, probe: ProbeSpec, wall_seconds: float)
             f"run.json reports n_steps={meta['n_steps']!r}, expected {case.n_steps}"
         )
 
-    return RunResult(case=case, table=table, meta=meta, wall_seconds=wall_seconds)
+    return RunResult(case=case, table=table, meta=meta, wall_seconds=wall_seconds, model=model)

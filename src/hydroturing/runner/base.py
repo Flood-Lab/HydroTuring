@@ -34,7 +34,7 @@ class Runner(ABC):
         started = time.monotonic()
         self.invoke(model, probe, io_dir, request_path)
         elapsed = time.monotonic() - started
-        return read_result(io_dir, case, probe, elapsed)
+        return read_result(io_dir, case, probe, elapsed, model=model)
 
     @abstractmethod
     def invoke(self, model: ModelManifest, probe: ProbeSpec, io_dir: Path, request_path: Path) -> None:

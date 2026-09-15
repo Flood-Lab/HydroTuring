@@ -42,6 +42,7 @@ long.
 | `momentum/routing-conservation` | Zhi Li (CU Boulder) |
 | `momentum/routing-lag-consistency` | Binlan Zhang (Institute of Mountain Hazards and Environment, Chinese Academy of Sciences, Chengdu, China) |
 | `momentum/stage-discharge-monotonic` | Yuanhang Liu (Independent Researcher) |
+| `mass/exchange-response` | Songkun Yan (University of Oklahoma) |
 
 ## Models
 

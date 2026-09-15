@@ -34,7 +34,8 @@ Paths inside `request.json` are relative to the request file's directory.
 ```
 /io/request.json          read-only: opaque case id, model seed, timestep, n_steps, outputs
 /io/input/forcing.csv     read-only: columns time, pr, tas, pet (mm/day, degC, mm/day),
-                          and, when a probe prescribes a human withdrawal, abstr (mm/day, net)
+                          and, when a probe prescribes a human withdrawal, abstr (mm/day, net);
+                          when a probe prescribes an external hydraulic head, gwh (m)
 /io/input/static.json     read-only: catchment attributes
 /io/output/result.csv     write: one row per forcing row, spinup included
 /io/output/run.json       write: {"status": "ok"}
@@ -52,6 +53,16 @@ removed as a negative `gwex`. A model that never reads the column reports a
 budget that closes on its own yet misses the withdrawal; the probe scores that
 as a failure, not as INCOMPLETE, because such a model reports everything the
 criterion needs.
+
+One probe prescribes an external hydraulic head in the forcing as a `gwh`
+column (metres). It is the head associated with the model's declared `gwex`,
+which is positive into the catchment. Listing `gwh` in `needs_forcing` or
+`uses_forcing` is a semantic opt-in, not a statement that the column was read:
+the model is asserting that its external exchange responds monotonically to
+this potential, as a general-head boundary does, and the probe holds it to that
+by raising and lowering the head in paired runs. A model whose exchange is not
+head-driven should not declare `gwh`; its response is then reported and not
+judged.
 
 ## The evaluation window
 
