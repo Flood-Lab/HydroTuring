@@ -96,6 +96,13 @@ stable regimes, or a slow external driver; then the probe's periodic-attractor
 assumption is not applicable until its case is redesigned or the model has
 made that external driver explicit.
 
+A FAIL can also mean that a physically valid but slow store has not settled
+within the prescribed spin-up. For example, CWatM with a slower groundwater
+recession differs by more than 5% after the probe's spin-up and converges after
+a much longer repeated history. That result is evidence that the prescribed
+spin-up is insufficient for this case; by itself it does not establish a
+physical violation or a hidden state.
+
 Similarly, a model with no reported evaporation or storage is incomplete for
 this mass probe rather than nonphysical. The required outputs are the minimum
 needed to combine the cycle-invariance claim with closure and state-bound

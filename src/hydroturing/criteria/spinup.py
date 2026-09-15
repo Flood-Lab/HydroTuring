@@ -135,9 +135,14 @@ def spinup_cycle_invariance(
         deviations.items(), key=lambda item: item[1], default=(None, 0.0)
     )
     if worst > threshold:
+        # A failed invariance check is intentionally diagnostic rather than a
+        # proof of unphysical behaviour: a slow but valid store may simply
+        # need more repeated cycles than this prescribed spin-up provides.
         failures.append(
             f"'{worst_var}' differs by {worst:.2%} between the N- and N+K-cycle evaluations "
-            f"(limit {threshold:.2%})"
+            f"(limit {threshold:.2%}). Outputs still differ after the prescribed spin-up; "
+            "insufficient spin-up is one possible cause, so this result alone does not "
+            "establish a physical violation."
         )
 
     return CriterionResult(
