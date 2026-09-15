@@ -50,10 +50,12 @@ from hydroturing.spec import ProbeSpec
 # The default store the criterion watches. `channel` is the reach's water in
 # transit, and it is the one the roadmap entry this probe claims is about.
 DEFAULT_STORE = "channel"
-# A step is in recession when this many consecutive steps, counting the step
-# itself, carried no rain. Three days lets the fastest surface response of a
-# typical event clear before the step is scored, so a small rise caused by the
-# tail of a storm that has not quite finished draining is not counted.
+# A step is in recession when it and the preceding `settle_days` carried no
+# rain. The parameter is a duration and is converted to steps through the
+# window's `dt_days`, so it means the same thing on an hourly record as on a
+# daily one. Three days lets the fastest surface response of a typical event
+# clear before the step is scored, so a small rise caused by the tail of a storm
+# that has not quite finished draining is not counted.
 DEFAULT_SETTLE_DAYS = 3
 # Rain below this rate, in mm/day, counts as no rain. The generators produce
 # exactly zero on dry days, so this only forgives rounding.
@@ -64,15 +66,21 @@ DRY_PR_MM_PER_DAY = 0.05
 # floor sits between them with an order of magnitude on each side.
 DEFAULT_RISE_FRACTION = 1e-4
 # The share of recession steps that may rise before the store is called
-# self-filling. Honest routers sit under 0.04; a router that loses a fixed
-# share of every step is near 0.9, since the loss is applied on every step and
-# nothing enters to hide it. A quarter sits with an order of magnitude of room
-# on the honest side and a factor of three on the failing one.
+# self-filling. The reference baselines sit at 0.00, but submitted land models
+# do not, and the honest side has to be read off them: `sacsma_snow17` rises on
+# 8.7% of its recession steps and `summa` on 1.5%, because a hillslope can go on
+# delivering water after the rain stops and the criterion tolerates that (the
+# lag is longer than `settle_days`, so those steps are scored). Against 8.7% a
+# quarter leaves about three times the room. A router that loses a fixed share of
+# every step sits above 0.85 — the loss is applied on every step and nothing
+# enters to hide it — so the same threshold is about three times below the
+# failing side.
 DEFAULT_MAX_RISING_FRACTION = 0.25
 # The first steps of the scored window are not scored: a unit hydrograph
 # starting from a zero store fills for the first few steps whatever the
 # weather, and that is arithmetic, not a violation. Excluding them keeps the
 # frequency honest without weakening the test anywhere the model is settled.
+# This one is a step count, not a duration, and is named as one.
 DEFAULT_SETTLE_STEPS = 30
 
 
@@ -122,8 +130,12 @@ def recession_drainage(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
     # all rainless. The comparison is against the forcing, so a model cannot
     # declare itself in recession to dodge the test.
     dry = pr <= DRY_PR_MM_PER_DAY
+    # `settle_days` is a duration and the mask walks steps: on a daily record the
+    # two are the same number, on an hourly one they are not, so convert rather
+    # than assume. `settle_steps` is a step count by name and is taken as one.
+    settle = max(1, int(round(settle_days / w.dt_days)))
     recession = np.copy(dry)
-    for k in range(1, settle_days + 1):
+    for k in range(1, settle + 1):
         recession[k:] &= dry[:-k]
     # The startup transient of the scored window is excluded, not scored.
     recession[: max(0, settle_steps)] = False

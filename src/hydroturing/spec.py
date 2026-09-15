@@ -119,7 +119,6 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_overflowing",
     "reference_thirsty",
     "reference_stuck_router",
-    "reference_leaky_router",
     "reference_area_leak",
     "reference_overshooting",
     "reference_sublimating",

@@ -108,7 +108,7 @@ unclaimed.
 | [`energy/soil-heat-storage-consistency`](probes/energy/soil-heat-storage-consistency) | energy | Does heat retained in a soil layer agree with its temperature change during heating and recovery? | `reference_frozen_soil`, `reference_half_soil` |
 | [`momentum/routing-conservation`](probes/momentum/routing-conservation) | momentum | The channel store is never negative and never holds more than its hydrograph can. | `reference_stuck_router` |
 | [`momentum/stage-discharge-monotonic`](probes/momentum/stage-discharge-monotonic) | momentum | Does the stage a model reports rise with its discharge, and does the rating loop the way a flood wave does, the rising limb sitting lower than the falling one at the same discharge? | `reference_rating_drift`, `reference_rating_inverted`, `reference_flat_stage` |
-| [`momentum/channel-routing-mass`](probes/momentum/channel-routing-mass) | momentum | On a stretch where no water enters the reach, does the channel store drain, or does it fill from nothing? | `reference_leaky_router` |
+| [`momentum/channel-routing-mass`](probes/momentum/channel-routing-mass) | momentum | On a stretch where no water enters the reach, does the channel store drain, or does it fill from nothing? | `reference_stuck_router` |
 
 ## Models
 
@@ -182,8 +182,7 @@ between models.
 | `reference_overshooting` | broken | a derivative term sharpens its hydrograph, so an added storm lowers later flow | caught by `response_nonnegativity` |
 | `reference_sublimating` | broken | loses 40% of every snowfall to an unreported sublimation | caught by `phase_invariance` |
 | `reference_thirsty` | broken | evaporates a fixed share of its soil store, never reading demand; conserves water exactly | caught by `demand_consistency` |
-| `reference_stuck_router` | broken | a routing kernel summing to 0.9, so a tenth of every day's runoff never leaves the channel, and the store grows without bound | caught by `routing_conservation` |
-| `reference_leaky_router` | broken | the same lossy kernel, caught by the direction of the error instead: the store rises on recession steps, when nothing is entering the reach | caught by `recession_drainage` |
+| `reference_stuck_router` | broken | a routing kernel summing to 0.9, so a tenth of every day's runoff never leaves the channel, and the store grows without bound | caught by `routing_conservation`, and by `recession_drainage` for the direction of the same error |
 | `reference_rating` | exact | the bucket with a real rating curve: yield enters a shallow floodplain and a deep channel reservoir with separated time constants, and the stage is the depth the channel's volume makes in a fixed bed, so the gauge rises with the flow and a falling recession sits above where it sat on the way up | must pass every criterion of `momentum/stage-discharge-monotonic` |
 | `reference_rating_drift` | broken | derives its stage from a slowly decaying running maximum of discharge (`peak = max(q, 0.997 * peak)` per day), so the gauge ratchets up with each flood far faster than it relaxes, stepping down only a fraction of a percent a day | caught by `rating_monotonic` |
 | `reference_rating_inverted` | broken | reads the loop backwards, high while the flood is arriving and low once it is leaving: monotone in discharge, so only the loop sees it | caught by `rating_loop` |

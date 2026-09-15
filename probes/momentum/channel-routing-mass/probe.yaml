@@ -24,7 +24,11 @@ description: >
   error is confined to the channel.
 
 requires:
-  fluxes: []
+  # `non_degenerate` scores `mrro`, which its `cv_variables` name, so the probe
+  # has to declare it: with no flux required, a submission that reports a
+  # discharge and a channel store but no runoff depth would be scored here, and
+  # the anti-degeneracy criterion would pass having checked nothing at all.
+  fluxes: [mrro]
   states: [channel]
 
 case:
@@ -59,10 +63,16 @@ baselines:
   # real test.
   must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
   must_fail:
-    # A triangular kernel summing to 0.9: a tenth of every day's runoff never
-    # leaves, and the shortfall accumulates in the channel store across every
-    # step of every recession.
-    reference_leaky_router: recession_drainage
+    # The lossy router: a three-day triangular kernel summing to 0.9, so a
+    # tenth of every day's runoff never leaves the reach.
+    # `momentum/routing-conservation` catches the size of that error against
+    # the store's bound; this probe catches its direction, because a shortfall
+    # applied on every step accumulates across every step of every recession,
+    # where nothing is entering to mask it. One baseline answering both
+    # questions is the pattern the mass probes already use for
+    # `reference_leaky`, and it keeps a second near-identical adapter — and a
+    # second entry in `TRUSTED_SUBPROCESS_MODELS` — out of the repository.
+    reference_stuck_router: recession_drainage
 
 provenance: >
   Synthetic. Generated at run time from a recorded seed, with four storms

@@ -93,7 +93,17 @@ def _frame(pr, tas, pet) -> pd.DataFrame:
 
 def generate(seed: int) -> tuple[pd.DataFrame, dict]:
     """Deterministic: the seed fully determines the record, and nothing is
-    read from disk."""
+    read from disk.
+
+    The weather is drawn first and the storms are added on top of it; the mask
+    `_recessions` returns then zeroes the rain over every post-storm spell.
+    That last step is what makes the drain the events leave behind rather than
+    the weather's own chance: without it the spells still carry the weather's
+    `p_wet` of about 0.25, the record has no uninterrupted dryness at all, and
+    the steps the criterion scores are runs of four dry days that happen to
+    fall out of the draws — a different test, and not the one the probe
+    describes.
+    """
     rng = np.random.default_rng(seed)
     pr, tas, pet = _weather(rng, N_STEPS)
     pr = pr.copy()
@@ -101,4 +111,5 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
         lo = SPINUP_DAYS + start
         hi = min(lo + days, N_STEPS)
         pr[lo:hi] += rate
+    pr[_recessions(N_STEPS)] = 0.0
     return _frame(pr, tas, pet), dict(STATIC)

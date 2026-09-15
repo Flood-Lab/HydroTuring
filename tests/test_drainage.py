@@ -3,7 +3,7 @@
 `recession_drainage` is a one-sided statement about a channel store: on steps
 where the forcing has been rainless, the store must not rise. The acceptance
 gate drives it with the physical models (which drain) and with
-`reference_leaky_router` (which fills), but a gate only exercises the paths its
+`reference_stuck_router` (which fills), but a gate only exercises the paths its
 baselines happen to take. These tests build the frames directly so the branches
 the gate never reaches — the relative floor, the `settle_days` window, the
 startup exclusion and the degenerate record — are pinned by construction.
