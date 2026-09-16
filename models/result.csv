@@ -477,12 +477,12 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-15,sacsma_snow17,1.0.0,0.1.0,subprocess,energy/snowmelt-energy-water,N/A,INCOMPLETE,not run,,"does not report sbl, hfls, hfss, hfg, lwsnl, csnow; model does not declare that it consumes forcing rn"
 2026-09-15,summa,4.0.0-f787fa5.4,0.1.0,docker,energy/snowmelt-energy-water,N/A,INCOMPLETE,not run,,"does not report sbl, lwsnl, csnow; model does not declare that it consumes forcing rn"
 2026-09-15,wflow_sbm,1.0.4-ht.4,0.1.0,docker,energy/snowmelt-energy-water,N/A,INCOMPLETE,not run,,"does not report sbl, hfls, hfss, hfg, lwsnl, csnow; model does not declare that it consumes forcing rn"
-2026-09-15,flex_lumped,1.1.0,0.1.0,subprocess,mass/exchange-response,PASS,OK,full record,1541944022 2048896136 408364603 915316717 1422268831,exchange_response: no exchange declared
-2026-09-15,flex_topo,1.0.0,0.1.0,subprocess,mass/exchange-response,PASS,OK,full record,1541944022 2048896136 408364603 915316717 1422268831,exchange_response: no exchange declared
-2026-09-15,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/exchange-response,PASS,OK,full record,1541944022 2048896136 408364603 915316717 1422268831,"exchange_response: the model does not declare it consumes 'gwh', so its response (+0.0 / +0.0 mm) is reported and not judged; stays available"
-2026-09-15,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/exchange-response,N/A,INCOMPLETE,not run,,"does not report pr, evspsbl, gwex, mrso, snw, canopy"
-2026-09-15,summa,4.0.0-f787fa5.4,0.1.0,docker,mass/exchange-response,N/A,INCOMPLETE,not run,,does not report gwex
-2026-09-15,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/exchange-response,FAIL,VIOLATION,full record,1541944022 2048896136 408364603 915316717 1422268831,"state_bounds: mrso leaves [0, 320] on 3650 steps (range 548 to 791)"
-2026-09-15,wflow_sbm,1.0.4-ht.4,0.1.0,docker,mass/exchange-response,PASS,OK,full record,1541944022 2048896136 408364603 915316717 1422268831,exchange_response: no exchange declared
-2026-09-15,cwatm,1.11-5baaadd.4,0.1.0,docker,mass/exchange-response,PASS,OK,full record,1541944022 2048896136 408364603 915316717 1422268831,exchange_response: no exchange declared
-2026-09-15,lisflood,5.0.0-onecell.5,0.1.0,docker,mass/exchange-response,PASS,OK,3650-day flood event,1541944022 2048896136 408364603 915316717 1422268831,exchange_response: no exchange declared
+2026-09-16,flex_lumped,1.1.0,0.1.0,subprocess,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh
+2026-09-16,flex_topo,1.0.0,0.1.0,subprocess,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh
+2026-09-16,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh
+2026-09-16,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/exchange-response,N/A,INCOMPLETE,not run,,"does not report pr, evspsbl, gwex, mrso, snw, canopy; model does not declare that it consumes forcing gwh"
+2026-09-16,summa,4.0.0-f787fa5.4,0.1.0,docker,mass/exchange-response,N/A,INCOMPLETE,not run,,does not report gwex; model does not declare that it consumes forcing gwh
+2026-09-16,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh
+2026-09-16,wflow_sbm,1.0.4-ht.4,0.1.0,docker,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh
+2026-09-16,cwatm,1.11-5baaadd.4,0.1.0,docker,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh
+2026-09-16,lisflood,5.0.0-onecell.5,0.1.0,docker,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh

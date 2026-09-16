@@ -20,22 +20,19 @@ description: >
   the suite checks is R = R0 + gwex; a model that closes has R about zero and
   therefore gwex about -R0 identically, to 2e-13 mm/day on a real
   implementation. Comparing the declared flux with the residual it closes is
-  the same number twice, and no bound on its magnitude can separate an honest
-  exchange from an invented one. A discriminator has to use information that is
-  not algebraically fixed by closure. This probe prescribes an external
-  hydraulic head `gwh` as a visible forcing column and runs the same weather
-  three times, with the head as given, raised by half a metre and lowered by
-  half a metre; `gwh` is the only quantity varied between the runs. A model
-  that lists `gwh` in needs_forcing or uses_forcing asserts that its declared
-  `gwex` responds monotonically to that potential, and is held to it: raising
-  the head must bring more water into the catchment and lowering it less, up
-  to a floating-point tolerance and with no physical minimum, since a boundary
-  of small conductance responds by a small amount and is physical. How often the exchange reverses, and
-  how that compares with the head, is reported and never gated: a physical
-  head-driven system can reverse its boundary flux as often as its own internal
-  head moves, which the case does not prescribe. A model that does not consume
-  the prescribed head is not judged on its response; one that declares no
-  exchange, or one below rounding error, passes.
+  the same number twice, and neither the magnitude of gwex nor its timing on
+  its own can separate an honest exchange from an invented one. A discriminator
+  has to use information that is not algebraically fixed by closure. This probe
+  prescribes an external hydraulic head `gwh` as a visible forcing column and
+  runs the same weather three times, with the head as given, raised by half a
+  metre and lowered by half a metre from the first scored step on, the spinup
+  identical across the three. A model that declares it consumes `gwh` asserts
+  that its declared exchange responds monotonically to that potential, and is
+  held to it: raising the head must bring more water in and lowering it less,
+  by at least a small share of the model's own gross exchange — a share that a
+  head-driven boundary of any conductance clears, and a token head term on top
+  of an accounting sink does not. A model that does not declare `gwh` is
+  INCOMPATIBLE and not scored. Reversal is reported and never gated.
 
 requires:
   # gwex is required, so a model that does not use the channel is N/A rather
@@ -43,6 +40,12 @@ requires:
   # needed for the availability bound and for the closure precondition.
   fluxes: [pr, evspsbl, mrro, gwex]
   states: [mrso, snw, canopy]
+  # The verdict rests on the prescribed head. A model that does not declare it
+  # consumes `gwh` has not claimed a head-driven exchange and is INCOMPATIBLE,
+  # N/A, rather than passed on a criterion that never judged it — the same
+  # footing as `rlds` on energy/radiation-consistency. Declaring it is the
+  # semantic opt-in AGENTS.md describes.
+  forcing: [gwh]
 
 case:
   generator: generate.py
@@ -57,7 +60,11 @@ case:
   max_runtime_s: 120
 
   # The first name is the control. The generator produces byte-identical
-  # weather for all three and differs only in the prescribed head.
+  # weather for all three and differs only in the prescribed head, and only
+  # from the first scored step: the spinup is identical, so a model enters the
+  # scored record in the same state in every variant and its answer to the
+  # shift falls inside the window that is scored. A fast aquifer given the
+  # shift during spinup has finished answering before scoring begins.
   variants: [control, raised, lowered]
 
 criteria:
@@ -70,27 +77,33 @@ criteria:
       sources: [gwex]
 
   # The probe's own question, a paired counterfactual on the prescribed head.
-  # For a model whose manifest declares it consumes `gwh`, G = sum gwex_t dt
-  # over the scored record must rise when the head is raised and fall when it
-  # is lowered, beyond a tolerance of `epsilon` * max(G_gross, 1 mm) that is
-  # for floating point only. No physical minimum: a small conductance gives a
-  # small response and is physical; what is excluded is no response, or the
-  # wrong sign. Nothing about the exchange's own timing is asserted: how often it reverses inside the rainless windows,
-  # and how that compares with the head's turning points, is reported as a
-  # diagnostic only, because a head-driven system's flux reverses as often as
-  # its internal head moves and the case does not prescribe that.
+  # For a model that declares it consumes `gwh`, G = sum gwex_t dt over the
+  # scored record must rise when the head is raised and fall when it is
+  # lowered, each by at least `min_response_share` of the control run's gross
+  # exchange (floored by `epsilon` for floating point). A share, not an
+  # absolute minimum: for a general-head boundary the response and the gross
+  # both scale with conductance, so their ratio does not, and a weak boundary
+  # is not penalised for being weak. The ratio's physical minimum for this
+  # head series is about dh / TV(gwh) = 2e-3, the fast-aquifer limit where
+  # both response and gross scale with storativity; 1e-3 sits under it.
+  # A token head term added to an accounting sink sits six orders of
+  # magnitude under it (reference_token_exchange). Reversal statistics are
+  # reported as diagnostics only, because a head-driven system's flux
+  # reverses as often as its internal head moves and the case does not
+  # prescribe that.
   #
-  # Calibration, all five gate seeds (README.md has the table):
-  # reference_driven_exchange answers a +0.5 m head with +3650 mm over the
-  # record and -0.5 m with -3197 to -3385 mm; reference_noise_sink, which
-  # declares the head and never reads it, answers both with exactly 0 mm. The
-  # tolerance is of the order of 1e-5 mm for either.
+  # Calibration, all five gate seeds (README.md has the table): see the
+  # numbers there for reference_driven_exchange (constant internal head),
+  # reference_evolving_exchange (internal head with a five-day time constant,
+  # the small response a real aquifer gives), reference_noise_sink (exactly 0)
+  # and reference_token_exchange (a millionth of its gross).
   - exchange_response:
       variable: gwex
       driver: gwh
       control: control
       raised: raised
       lowered: lowered
+      min_response_share: 1.0e-3
       epsilon: 1.0e-8
       # Diagnostics, never gated.
       quiescent_label: dry
@@ -122,17 +135,22 @@ criteria:
       cv_variables: [mrro, evspsbl]
 
 baselines:
-  # The four physical models plus a positive control built for this probe.
-  # None of the four consumes the prescribed head, so none is gated on its
-  # response; they must still pass closure, bounds and the availability law.
-  # reference_driven_exchange is the one that matters: it declares the head
-  # and follows it, so it answers the counterfactual, and it reverses inside
-  # the scored windows as its own head dynamics dictate. It must pass, and a
-  # probe that failed it would be punishing a model for doing what it was told.
-  must_pass:
-    [reference_bucket, flex_lumped, flex_topo, sacsma_snow17, reference_driven_exchange]
+  # The probe requires the prescribed head, so the four physical models, none
+  # of which declares it, are INCOMPATIBLE here and cannot stand as baselines —
+  # the footing energy/radiation-consistency stands on. Two positive controls
+  # declare it and follow it. reference_driven_exchange holds a constant
+  # internal head and answers with a sustained flux; reference_evolving_exchange
+  # lets its internal head move, is in equilibrium when scoring begins, and
+  # answers with the small transient a real aquifer gives — it is the one that
+  # would fail if the shift began during spinup, and the one the response
+  # floor is calibrated against. Two negative controls declare the head and do
+  # not follow it: reference_noise_sink answers with exactly zero, and
+  # reference_token_exchange adds a head term a million times too small to be
+  # anything but a token.
+  must_pass: [reference_driven_exchange, reference_evolving_exchange]
   must_fail:
     reference_noise_sink: exchange_response
+    reference_token_exchange: exchange_response
 
 provenance: >
   Synthetic. Generated at run time by generate.py from a recorded seed.

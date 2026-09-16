@@ -155,6 +155,8 @@ TRUSTED_SUBPROCESS_MODELS = {
     # Negative controls for mass/exchange-response.
     "reference_noise_sink",
     "reference_driven_exchange",
+    "reference_evolving_exchange",
+    "reference_token_exchange",
 }
 
 

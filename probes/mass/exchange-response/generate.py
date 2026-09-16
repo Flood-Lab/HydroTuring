@@ -7,7 +7,10 @@ thing changed: the external head it was given.
 
 Contract:
   - generate(seed, variant) returns (DataFrame, dict)
-  - the first variant is the control; the others shift `gwh` by a constant
+  - the first variant is the control; the others shift `gwh` by a constant,
+    **from the first scored step onward**: the spinup is byte-identical across
+    variants, so every model enters the scored record in the same state and
+    the response to the shift falls inside the window that is scored
   - the same (seed, variant) produces byte-identical output, and every column
     other than `gwh` is byte-identical across variants
 
@@ -53,7 +56,10 @@ N_STEPS = PERIOD_YEARS * 365 + SPINUP_DAYS
 
 # The control head, and the same head shifted up and down by a constant. The
 # shift is of the order of the head's own swing, so a genuinely head-driven
-# exchange answers it unmistakably; everything else is identical.
+# exchange answers it unmistakably; everything else is identical. The shift
+# starts with the scored record, not with the spinup: an aquifer that adjusts
+# quickly would otherwise have finished answering before scoring began, and
+# the paired difference would read as no response at all.
 VARIANTS = ("control", "raised", "lowered")
 HEAD_SHIFT_M = {"control": 0.0, "raised": +0.5, "lowered": -0.5}
 
@@ -108,7 +114,7 @@ def generate(seed: int, variant: str = "control") -> tuple[pd.DataFrame, dict]:
     # has no underscore and every model receives it.
     gwh = (10.0 + 0.15 * np.sin(2 * np.pi * (doy - 100) / 365)
            + 0.35 * np.sin(2 * np.pi * day / 20.0)
-           + HEAD_SHIFT_M[variant])
+           + np.where(day >= SPINUP_DAYS, HEAD_SHIFT_M[variant], 0.0))
 
     # The criterion is scored on the rainless windows, so they are labelled
     # rather than rediscovered from the rain. Columns beginning with an
@@ -136,7 +142,9 @@ if __name__ == "__main__":
     frame, static = generate(20260912)
     up, _ = generate(20260912, "raised")
     same = all((frame[c] == up[c]).all() for c in ("time", "pr", "tas", "pet", "_regime"))
-    print(f"variants differ only in gwh: {same}; shift {float((up['gwh'] - frame['gwh']).mean()):+.2f} m")
+    spin_same = (frame["gwh"][:SPINUP_DAYS] == up["gwh"][:SPINUP_DAYS]).all()
+    print(f"variants differ only in gwh: {same}; spinup gwh identical: {spin_same}; "
+          f"scored shift {float((up['gwh'] - frame['gwh'])[SPINUP_DAYS:].mean()):+.2f} m")
     annual_p = frame["pr"].sum() / (N_STEPS / 365)
     annual_pet = frame["pet"].sum() / (N_STEPS / 365)
     dry = int((frame["pr"] == 0).sum())

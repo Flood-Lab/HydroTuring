@@ -60,7 +60,8 @@ which is positive into the catchment. Listing `gwh` in `needs_forcing` or
 `uses_forcing` is a semantic opt-in, not a statement that the column was read:
 the model is asserting that its external exchange responds monotonically to
 this potential, as a general-head boundary does, and the probe holds it to that
-by raising and lowering the head in paired runs. A model whose exchange is not
+by raising and lowering the head in paired runs from the first scored step on,
+with the spinup identical across the runs. A model whose exchange is not
 head-driven should not declare `gwh`; its response is then reported and not
 judged.
 
