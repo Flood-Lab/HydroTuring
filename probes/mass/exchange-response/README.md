@@ -176,7 +176,7 @@ misreports its evaporation by a seeded ±30% and declares the difference as a
 groundwater exchange. It declares that it consumes the prescribed head, and
 never reads it. Its reported budget closes to **0.0000% of precipitation**; it
 passes `closure`, `forcing_fidelity`, `state_bounds` and `non_degenerate`, and
-it passes every one of the 27 probes currently in the suite. Because the harness
+it passes every one of the 28 probes currently in the suite. Because the harness
 holds the model seed fixed across variants and nothing it computes reads `gwh`,
 its exchange is identical with the head raised and lowered: **a response of
 exactly 0 both ways.**
