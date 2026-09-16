@@ -115,25 +115,22 @@ PR do not establish results for the revised generator.
 
 The revised gate passes all five fixed seeds for all four physical baselines;
 the soil slow reporter fails `state_bounds` and `total_storage_drift`, and the
-groundwater slow reporter fails `total_storage_drift`. The three evaluated
-physical models have regenerated PASS archive rows, and Google has N/A
-(INCOMPLETE).
+groundwater slow reporter fails `total_storage_drift`. The physical baselines
+have regenerated PASS archive rows, and Google has N/A (INCOMPLETE).
 
-The previous local dhbv2 daemon failure has been removed from the published
-archive and replaced with a real five-seed Docker evaluation: FAIL (VIOLATION)
-on `state_bounds` only. The worst seed reports soil storage of 488-501 mm
-against the 320 mm capacity. This is an existing capacity mismatch, not evidence
-that dhbv2 develops a secular drift; its other four criteria pass.
+The submitted-model archive rows on the gate seeds are:
 
-Each container emitted all 20,075 rows within the 300-second run limit, under
-the manifest's two-CPU/four-GB limits on local Docker Desktop. Adapter-reported
-wall times ranged from 66.65 to 121.16 seconds; result CSVs were
-3,090,736-3,110,230 bytes, below 10 MB. These are local measurements, not a
-GitHub-hosted runner benchmark, and exclude image construction.
-
-Evaluation of the new upstream submitted models (wflow_sbm, summa, cwatm and
-lisflood) remains required before merge. Missing evaluations are not filled
-with fabricated PASS, FAIL or N/A rows.
+- `wflow_sbm`: PASS; final-block total storage change is 0 mm.
+- `cwatm`: PASS; final-block total storage change is 5.68434e-14 mm.
+- `lisflood`: PASS; final-block total storage change is 1.23833e-06 mm over
+  its 18,250-day event window, which is the full scored record required by
+  this probe.
+- `summa`: FAIL (VIOLATION) on negative ET and runoff degeneracy. It passes
+  `total_storage_drift`: the final-block change is about -0.449 mm against a
+  0.658 mm allowance.
+- `dhbv2`: FAIL (VIOLATION) on `state_bounds` only. The worst seed reports
+  soil storage of 488-501 mm against the 320 mm capacity. This is an existing
+  capacity mismatch, not evidence that dhbv2 develops a secular drift.
 
 ```sh
 ht validate
