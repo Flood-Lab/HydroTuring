@@ -95,6 +95,7 @@ Every one is binary.
 | `closure` | the budget closes to within a share of the driving flux | one run |
 | `event_water_closure` | every complete precipitation event satisfies `abs(R) <= max(threshold * P, absolute_tolerance_mm)`; defaults 0.05 and 0.001 mm; reports the worst residual / allowance against 1, with up to 20 failed events and summary percentiles | complete post-spinup wet events in one run, using supplied rain and all reported water stores |
 | `state_bounds` | every reported storage stays physical | one run |
+| `total_storage_drift` | total reported water storage changes by no more than a precipitation-relative allowance over the final repeated block | one run |
 | `et_plausible` | ET is non-negative and bounded by potential ET | one run |
 | `non_degenerate` | the partition and the response are non-trivial | one run |
 | `forcing_fidelity` | the model reports back the forcing it was given | one run |
@@ -274,6 +275,8 @@ The reference models available today:
 | `reference_climatology` | the seasonal mean, whatever the weather; never reads the rain | `dry_down` |
 | `reference_saturating` | daily runoff capped at 25 mm; flat beyond its training range | `monotone_response` |
 | `reference_restless` | a recession with its own thirty-day clock; never settles | `steady_state` |
+| `reference_slow_drift` | an exact bucket reporting a 0.012 mm/day runoff deficit as accumulating soil storage | `state_bounds`, `total_storage_drift` |
+| `reference_gw_slow_drift` | an exact bucket reporting a 0.001 mm/day runoff deficit as accumulating groundwater storage | `total_storage_drift` |
 | `reference_overflowing` | reports its runoff plus 80% of the rain again | `runoff_bounds` |
 | `reference_area_leak` | loses a share of runoff that grows with the stated area | `invariance` (area) |
 | `reference_overshooting` | a derivative term sharpens its hydrograph | `response_nonnegativity` |

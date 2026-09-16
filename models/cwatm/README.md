@@ -18,7 +18,7 @@ adapter can read rather than reconstruct.
 
 ## Verdict
 
-**FAIL (VIOLATION)**, 15 of 19 probes passed, on the gate seeds and the full
+**FAIL (VIOLATION)**, 16 of 20 probes passed, on the gate seeds and the full
 record of every probe (`ht run --model cwatm --gate-seeds`). Four probes fail
 as VIOLATION, and they are not alike.
 
