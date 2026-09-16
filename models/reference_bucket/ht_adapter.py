@@ -10,12 +10,19 @@ import json
 import sys
 from pathlib import Path
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "gwex", "mrso", "snw", "canopy", "channel"]
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "channel", "stage"]
 
 MODEL = {"name": "reference_bucket", "version": "1.0.0"}
 
 
 EVAP_SHAPE = 0.5  # soil moisture at which evaporation reaches its potential rate
+
+SECONDS_PER_DAY = 86400.0
+
+# Default reach geometry, used when the catchment does not hand one over.
+DEFAULT_WIDTH_M = 18.0
+DEFAULT_SLOPE = 0.0015
+DEFAULT_MANNING_N = 0.035
 
 # Steps the contract can name, as a fraction of a day. Forcing and reported
 # fluxes are rates in mm per day at every step; the depth moved in one step
@@ -27,6 +34,50 @@ TIMESTEP_DAYS = {
     "PT5M": 1.0 / 288.0,
     "PT1M": 1.0 / 1440.0,
 }
+
+
+def stage_of(runoff_rate_mm_day: float, static: dict) -> float:
+    """The level a gauge in the reach would read, in metres.
+
+    The bucket does not route: runoff leaves the stores and the catchment in
+    the same step, so it holds no water in transit and its channel store is
+    identically zero. A reach that a flow passes straight through still has a
+    stage, though, and that is what a gauge in it would read — Manning normal
+    depth in the catchment's channel, strictly increasing in the flow.
+
+    The gauge reads the flow it is reporting and nothing else, so the rating
+    is a single-valued function of `dis` by construction. That is the honest
+    statement for this model: it has no second time constant, because it has
+    no store the water waits in, so its two limbs cannot separate by anything
+    a survey would resolve. Reading the gauge off the store instead would
+    report a constant zero, which is a number that carries no information
+    rather than a measurement.
+    """
+    return _manning(max(runoff_rate_mm_day, 0.0), static)
+
+
+def _manning(flow_rate_mm_day: float, static: dict) -> float:
+    area_km2 = float(static.get("area_km2", 0.0))
+    width_m = float(static.get("width_m", DEFAULT_WIDTH_M))
+    slope = float(static.get("slope", DEFAULT_SLOPE))
+    manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
+    if area_km2 <= 0.0 or width_m <= 0.0 or slope <= 0.0:
+        return 0.0
+    q_m3s = max(flow_rate_mm_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
+    if q_m3s <= 0.0:
+        return 0.0
+    return (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
+
+
+def discharge_m3s(runoff_rate_mm_day: float, static: dict) -> float:
+    """The flow through the reach, in m3/s, from the catchment's runoff.
+
+    The model holds no water in transit, so the flow through its reach is the
+    flow it generated. Reporting it is what lets a rating be drawn against a
+    discharge rather than against a store that is identically zero.
+    """
+    area_km2 = float(static.get("area_km2", 0.0))
+    return max(runoff_rate_mm_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
 
 
 def simulate(forcing, static, dt_days=1.0):
@@ -104,11 +155,13 @@ def simulate(forcing, static, dt_days=1.0):
         baseflow -= divert
         removed += divert
 
+        runoff = (surface + baseflow) / dt_days
         rows.append({
             "time": step["time"],
             "pr": pr_rate,
             "evspsbl": (canopy_evap + soil_evap) / dt_days,
-            "mrro": (surface + baseflow) / dt_days,
+            "mrro": runoff,
+            "dis": discharge_m3s(runoff, static),
             "gwex": -removed / dt_days,
             "mrso": soil,
             "snw": swe,
@@ -117,6 +170,7 @@ def simulate(forcing, static, dt_days=1.0):
             # routing, so the water in transit is identically zero. Reported,
             # not omitted, because it is a statement about the model.
             "channel": 0.0,
+            "stage": stage_of(runoff, static),
         })
     return rows
 

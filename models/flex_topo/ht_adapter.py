@@ -48,6 +48,11 @@ Deviations from the repository code, stated so they can be argued with:
 Stores reported, all area-weighted: canopy (Si), soil (Su), groundwater
 (the shared Ss), and the fast reservoirs plus the water inside the lag as
 `channel`. No snow module: snow is identically zero.
+
+A `stage` is also reported, as a diagnostic rather than a store: the depth
+the reach's stored water makes in the channel cross-section, so that
+`momentum/stage-discharge-monotonic` has a gauge to read. It is derived from
+`channel` and is never differenced into any budget.
 """
 
 from __future__ import annotations
@@ -58,9 +63,16 @@ import json
 import sys
 from pathlib import Path
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel", "stage"]
 MODEL = {"name": "flex_topo", "version": "1.0.0"}
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0, "PT15M": 1.0 / 96.0, "PT5M": 1.0 / 288.0, "PT1M": 1.0 / 1440.0}
+
+# Default reach geometry, used when the catchment does not hand one over.
+DEFAULT_WIDTH_M = 18.0
+DEFAULT_SLOPE = 0.0015
+DEFAULT_MANNING_N = 0.035
+DEFAULT_REACH_LENGTH_M = 4500.0
+SECONDS_PER_DAY = 86400.0
 
 # Wark catchment landscape fractions from the repository's HAND, slope and
 # basin grids with A_landscapes.py's rule (hillslope: slope > 11; plateau:
@@ -100,6 +112,39 @@ def lag_weights(tlag_steps: float) -> list[float]:
 
 def per_step(fraction_per_day: float, dt: float) -> float:
     return 1.0 - (1.0 - fraction_per_day) ** dt
+
+
+def stage_of(mrro_mm_per_day: float, static: dict, dt: float) -> float:
+    """The level a gauge in the reach would read, in metres.
+
+    A stage is a length read off a staff gauge in a cross-section, so it is
+    built from the water the reach is carrying rather than from a catchment
+    depth, and Manning's normal depth is the bridge between the two:
+
+        h = ( Q * n / (w * sqrt(S)) )^(3/5)
+
+    The flow is the reach's own drain: `mrro` is what the fast stores and the
+    water inside the triangular lag are releasing. The slow reservoir is
+    deliberately left out. It is the catchment's groundwater feeding the reach
+    over weeks, not water the reach holds, and folding it into the gauge would
+    tie the reading to the seasonal cycle instead of to the flood the reach
+    carries.
+
+    The flow is a *rate*, in mm/day: a stage is a reading a gauge would give at
+    an instant, so it cannot depend on how often the model writes a row. An
+    earlier version divided the store — a depth — by `dt`, which made the same
+    reach read 78x deeper at PT1M than at PT1D.
+    """
+    area_km2 = float(static.get("area_km2", 0.0))
+    width_m = float(static.get("width_m", DEFAULT_WIDTH_M))
+    slope = float(static.get("slope", DEFAULT_SLOPE))
+    manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
+    if area_km2 <= 0.0 or width_m <= 0.0 or slope <= 0.0 or dt <= 0.0:
+        return 0.0
+    q_m3s = max(mrro_mm_per_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
+    if q_m3s <= 0.0:
+        return 0.0
+    return (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
 
 
 def scaled_parameters(static: dict, dt: float) -> tuple[dict, dict]:
@@ -238,12 +283,25 @@ def simulate(forcing: list[dict], static: dict, dt: float) -> list[dict]:
             "gw": ss,
             "channel": sum(frac[n_] * sf[n_] for n_ in units),
         })
+    # Water that has left the units but not yet left the reach sits inside
+    # the triangular lag; `generated` minus `mrro` accumulates to exactly
+    # that, and it is *added* to the per-unit fast-reservoir stores reported
+    # above, so the `channel` state carries everything the reach holds
+    # between the hillslope and the outlet and every event's budget closes
+    # on it. The `stage` diagnostic is read *after* that addition, so the
+    # gauge sees the water the reach actually holds — fast stores plus the
+    # lag — and not the stores that water has already left.
     cum_gen = 0.0
     cum_out = 0.0
     for row, g in zip(rows, generated):
         cum_gen += g
         cum_out += row["mrro"] * dt
         row["channel"] += cum_gen - cum_out
+        # The discharge the gauge reads is the reach's own outflow, in m3/s, so
+        # `momentum/stage-discharge-monotonic` can score the rating against
+        # discharge rather than against the store.
+        row["dis"] = row["mrro"] * 1e-3 * static["area_km2"] * 1e6 / SECONDS_PER_DAY
+        row["stage"] = stage_of(row["mrro"], static, dt)
     return rows
 
 

@@ -1,0 +1,24 @@
+name: reference_rating
+version: "1.0.0"
+description: >
+  The bucket, with a real rating curve. Yield enters a shallow floodplain
+  reservoir and a deep channel reservoir whose residence times are separated
+  by an order of magnitude, and the stage is the depth the channel's volume
+  makes in a fixed bed. The gauge rises with the flow and, on a falling
+  recession, sits above where it sat on the way up at the same discharge,
+  because the floodplain is still carrying water the channel has not taken
+  up. It pins stage-discharge monotonicity from the passing side, and it is
+  the one reference model built to trace a correctly-signed loop.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [stage]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

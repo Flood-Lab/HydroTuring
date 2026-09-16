@@ -160,6 +160,9 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `gw` | groundwater storage below the soil column | mm |
 | `channel` | water generated as runoff but not yet released by the model's routing | mm |
 | `ts` | surface (skin) temperature at row i's `time`, the same instant as row i's `rlds`; a diagnostic, declared under `emits.diagnostics`, neither integrated nor differenced by any budget | K |
+| `stage` | the water level a gauge in the reach would read, derived from the reach's own water; a diagnostic, declared under `emits.diagnostics`, never a storage any budget is differenced over | m |
+| `lwsnl` | **every non-solid component of `snw`** at the end of row i's step, so that `snw - lwsnl` is the ice and nothing else. Liquid held in the pore space, and any other non-solid water the model counts inside `snw`: for Snow-17 that is `LIQW` together with the lagged excess and storage terms, since `snw` there is `WE + LIQW + exlag + storge`. Part of `snw` and never additional to it; a diagnostic, declared under `emits.diagnostics`, and excluded from every water-storage sum because counting it beside `snw` would count the same kilogram twice | mm |
+| `csnow` | the snowpack's **cold content** at the end of row i's step: the energy still needed to bring its ice to 0 °C, as a positive quantity, and zero for a ripe or empty pack. Reported as energy rather than as a temperature because that is what a budget spends, and because converting a temperature back through an assumed heat capacity is wrong for any model whose capacity differs; Snow-17 already carries it directly as `NEGHS`. A diagnostic, declared under `emits.diagnostics` | J m-2 |
 
 For `hfg`, an adapter mapping a plate-depth or deeper-boundary flux must use
 `G_surface = G_depth + (E_above_end - E_above_start) / dt`, with downward
@@ -238,9 +241,11 @@ of `rlds` and `eps`; a model that does not declare it consumes both is
 `N/A (INCOMPATIBLE)` because it may be computing its own sky or emissivity.
 
 Declare diagnostic outputs under the optional key `diagnostics`, such as
-`[ts]` or `[tsoil_layer]`. They are excluded from water-storage sums.
-Each criterion defines their time handling: radiation reads instantaneous
-`ts`, while soil heat storage differences interval-end `tsoil_layer`.
+`[ts]`, `[tsoil_layer]` or `[stage]`. They are excluded from water-storage
+sums. Each criterion defines their time handling: radiation reads
+instantaneous `ts`, soil heat storage differences interval-end
+`tsoil_layer`, and the rating probes read the reported `stage` alongside
+the reach's discharge and store.
 
 For soil heat storage, declare consumption of the prescribed layer depth,
 areal heat capacity and initial temperature, as well as the incoming

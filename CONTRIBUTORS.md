@@ -15,12 +15,14 @@ long.
 
 | Probe | Authors |
 | --- | --- |
+| `mass/ungauged-basin-closure` | Shunan Zhou (Dalian University of Technology, Dalian, China) |
 | `mass/catchment-closure` | Zhi Li (CU Boulder) |
 | `mass/resolution-invariance` | Zhi Li (CU Boulder) |
 | `mass/warming-response` | Zhi Li (CU Boulder) |
 | `mass/causality` | Zhi Li (CU Boulder) |
 | `mass/dry-down` | Zhi Li (CU Boulder) |
 | `mass/steady-state` | Zhi Li (CU Boulder) |
+| `mass/multi-decadal-drift` | Bing Li (Independent Researcher) |
 | `mass/extreme-rain` | Zhi Li (CU Boulder) |
 | `mass/runoff-bounds` | Zhi Li (CU Boulder) |
 | `mass/area-invariance` | Zhi Li (CU Boulder) |
@@ -38,7 +40,10 @@ long.
 | `energy/surface-energy-closure` | Han Wang (The Hong Kong University of Science and Technology) |
 | `energy/radiation-consistency` | Xin Lan (Michigan State University) |
 | `energy/soil-heat-storage-consistency` | Han Wang (The Hong Kong University of Science and Technology) |
+| `energy/snowmelt-energy-water` | Siddik Barbhuiya (IIT Mandi) |
 | `momentum/routing-conservation` | Zhi Li (CU Boulder) |
+| `momentum/routing-lag-consistency` | Binlan Zhang (Institute of Mountain Hazards and Environment, Chinese Academy of Sciences, Chengdu, China) |
+| `momentum/stage-discharge-monotonic` | Yuanhang Liu (Independent Researcher) |
 
 ## Models
 

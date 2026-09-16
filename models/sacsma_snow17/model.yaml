@@ -20,8 +20,9 @@ entrypoint: ["python3", "ht_adapter.py"]
 # Snow-17 is defined on whole hours: one day and one hour.
 timestep: [PT1D, PT1H]
 emits:
-  fluxes: [pr, evspsbl, mrro, gwex]
+  fluxes: [pr, evspsbl, mrro, dis, gwex]
   states: [mrso, snw, canopy, gw, channel]
+  diagnostics: [stage]
 needs_forcing: [pr, tas, pet]
 supports:
   perturbation: true
