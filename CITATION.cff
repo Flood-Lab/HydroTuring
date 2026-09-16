@@ -66,6 +66,9 @@ authors:
       School of Civil Engineering and Environmental Science,
       University of Oklahoma, Norman, OK, USA
     orcid: "https://orcid.org/0009-0008-3820-104X"
+  - given-names: Bing
+    family-names: Li
+    affiliation: Independent Researcher
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT
