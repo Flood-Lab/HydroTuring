@@ -9,10 +9,11 @@ COLUMNS = ["time", "gw_sw_exchange", "gw_to_sw", "sw_to_gw", "gw"]
 
 
 def simulate(forcing: list[dict], static: dict) -> list[dict]:
-    """A lagged-head aquifer that closes its own budget exactly, but on every
-    other scored step reports the sign of gw_to_sw flipped: a positive
-    aquifer-to-river term (should be <= 0) instead of negating it, so
-    gw_to_sw + sw_to_gw != gw_sw_exchange on those steps. The head lags a
+    """A lagged-head bookkeeping reference (not a linear-reservoir aquifer;
+    see reference_exchange_exact) that closes its own budget exactly, but
+    on every other scored step reports the sign of gw_to_sw flipped: a
+    positive aquifer-to-river term (should be <= 0) instead of negating it,
+    so gw_to_sw + sw_to_gw != gw_sw_exchange on those steps. The head lags a
     smoothed river stage rather than equilibrating to today's stage, so it
     genuinely runs both above and below the river bottom over the record;
     the untouched steps still carry a real negative gw_to_sw, so

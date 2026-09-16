@@ -35,17 +35,28 @@ case:
 criteria:
   - exchange_components:
       rel_tol: 1.0e-6
-      abs_tol: 1.0e-6
+      # A reach that both gains and loses on the same step has each signed
+      # component rounded to ordinary output precision before they are
+      # summed, which the identity's own rounding does not absorb at 1e-6;
+      # 1e-4 clears that while still catching a wrong sign or a dropped
+      # component.
+      abs_tol: 1.0e-4
 
   - groundwater_balance:
       recharge: gw_recharge
       exchange: gw_sw_exchange
       storage: gw
+      # A model with its own boundary term (a GHB or WEL package, a
+      # regional groundwater exchange) declares it as gwex; declared, it is
+      # added to the budget instead of showing up as an unexplained
+      # residual.
+      sources: [gwex]
       rel_tol: 0.01
-      # gw sits at O(1e3) mm; 6-significant-figure output on a store that
-      # size rounds to about 1e-2 mm, so the floor has to clear that rather
-      # than only the recharge/exchange terms' own rounding.
-      abs_tol_mm: 2.0e-2
+      # abs_tol_mm covers only the recharge/exchange terms' own rounding.
+      # The gw state's rounding is covered separately, scaled to the state's
+      # own magnitude (see groundwater_balance), so this floor does not need
+      # to be inflated to clear a state written at a large datum.
+      abs_tol_mm: 2.0e-4
 
   - state_bounds:
       gw: [0.0, null]

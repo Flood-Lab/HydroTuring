@@ -1,9 +1,13 @@
 name: reference_exchange_exact
 version: "0.1.0"
 description: >
-  A lagged-head linear-reservoir aquifer that closes its own groundwater
+  A lagged-head bookkeeping reference that closes its own groundwater
   balance exactly and reports genuinely bidirectional, honestly-signed
-  exchange components. The physical must_pass baseline for
+  exchange components. Its head tracks a smoothed river stage directly
+  rather than integrating net flux through a storage coefficient, so it is
+  not a linear-reservoir aquifer; needs_static declares
+  aquifer_storage_coefficient only because the probe's case provides it,
+  not because this adapter reads it. The physical must_pass baseline for
   mass/gw-sw-exchange-consistency, so the acceptance gate scores this probe
   without building or running modflow6.
 authors: [HydroTuring maintainers]

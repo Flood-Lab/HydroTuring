@@ -14,7 +14,7 @@ import tempfile
 
 import flopy
 
-MODEL = {"name": "modflow6", "version": "0.1.0"}
+MODEL = {"name": "modflow6", "version": "6.7.0-adapter.1"}
 COLUMNS = ["time", "gw_sw_exchange", "gw_to_sw", "sw_to_gw", "gw"]
 NROW = 10
 NCOL = 10

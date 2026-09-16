@@ -9,7 +9,7 @@ COLUMNS = ["time", "gw_sw_exchange", "gw_to_sw", "sw_to_gw", "gw"]
 
 
 def simulate(forcing: list[dict], static: dict) -> list[dict]:
-    """A lagged-head linear-reservoir aquifer that closes its own
+    """A lagged-head bookkeeping reference that closes its own
     groundwater balance exactly and reports its signed exchange components
     honestly, with no injected fault. The physical baseline for
     mass/gw-sw-exchange-consistency: trusted-subprocess, so the gate does
@@ -18,7 +18,10 @@ def simulate(forcing: list[dict], static: dict) -> list[dict]:
     The head lags a smoothed river stage rather than equilibrating to
     today's stage, so it genuinely runs both above and below the river
     bottom over the record, giving exchange_directions a real
-    reverse-direction magnitude on both sides."""
+    reverse-direction magnitude on both sides. This is not a
+    linear-reservoir aquifer: the head tracks the smoothed stage directly
+    rather than integrating net flux through a storage coefficient, and
+    aquifer_storage_coefficient is not read."""
     conductance = float(static["river_conductance_m2_per_day"])
     area_m2 = float(static["area_km2"]) * 1.0e6
     bottom_offset = float(static["river_bottom_offset_m"])

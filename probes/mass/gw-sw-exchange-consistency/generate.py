@@ -14,7 +14,6 @@ STATIC = {
     "aquifer_specific_yield": 0.20,
     "aquifer_storage_coefficient": 0.002,
     "aquifer_initial_head_m": 10.0,
-    "river_stage_reference_m": 10.0,
     "river_conductance_m2_per_day": 150.0,
     "river_bottom_offset_m": 1.0,
 }

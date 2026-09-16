@@ -28,10 +28,11 @@ Two simplifications from a single RIV cell:
 - `gw_to_sw` and `sw_to_gw` are never both nonzero on the same step, because
   one cell has one net flow direction per step. A case that reported "100 in,
   30 out, net 70" as "net 100" — the failure mode
-  [#40](../../issues/40) describes for a catchment with several
-  gaining and losing reaches at once — cannot arise here. A second river
-  cell at a different stage, with the adapter splitting each cell's `q` by
-  sign before summing, would exercise that; this baseline does not.
+  [Flood-Lab/HydroTuring#40](https://github.com/Flood-Lab/HydroTuring/issues/40)
+  describes for a catchment with several gaining and losing reaches at once —
+  cannot arise here. A second river cell at a different stage, with the
+  adapter splitting each cell's `q` by sign before summing, would exercise
+  that; this baseline does not.
 - `river_bottom_offset_m` sets the riverbed at `sw_stage_m - river_bottom_offset_m`,
   so it moves with the stage rather than staying at a fixed elevation.
   MODFLOW's RIV package caps river-to-aquifer leakage at the conductance
