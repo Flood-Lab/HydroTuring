@@ -60,6 +60,9 @@ authors:
       Indian Institute of Technology Mandi,
       Mandi, Himachal Pradesh, India
     orcid: "https://orcid.org/0000-0003-1278-5151"
+  - given-names: Bing
+    family-names: Li
+    affiliation: Independent Researcher
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT
