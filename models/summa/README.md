@@ -504,7 +504,7 @@ through the split instead; its numbers are under What changed.
 ```
 ### HydroTuring `summa` v4.0.0-f787fa5.4
 
-FAIL (VIOLATION) · 9/23 probes passed · suite 0.1.0
+FAIL (VIOLATION) · 9/24 probes passed · suite 0.1.0
 ```
 
 It passes nine probes:
@@ -523,7 +523,7 @@ probe on the canopy's `state_bounds` alone, holding up to 25 mm of ice against
 a 2 mm capacity on 68 steps, while every wet event's water budget closes to
 within 3e-4 of its allowance.
 `energy/radiation-consistency`, merged since, is N/A (INCOMPLETE): the adapter
-reports no `rlus` or `ts`. `energy/soil-heat-storage-consistency` is also N/A (INCOMPLETE), lacking its required layer diagnostics. `mass/ungauged-basin-closure` adds one scored FAIL, bringing the count to 8 of 22; `mass/spinup-cycle-invariance` passes, bringing the current standing to 9 of 23.
+reports no `rlus` or `ts`. `energy/soil-heat-storage-consistency` is also N/A (INCOMPLETE), lacking its required layer diagnostics. `mass/ungauged-basin-closure` adds one scored FAIL, bringing the count to 8 of 22; `mass/spinup-cycle-invariance` passes, bringing the current standing to 9 of 24.
 
 In `4.0.0-f787fa5.3` the threshold translation flipped no probe verdict
 against `4.0.0-f787fa5.2`. It moved one failure inside a probe and changed the
