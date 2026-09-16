@@ -63,16 +63,20 @@ baselines:
   # real test.
   must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
   must_fail:
-    # The lossy router: a three-day triangular kernel summing to 0.9, so a
-    # tenth of every day's runoff never leaves the reach.
-    # `momentum/routing-conservation` catches the size of that error against
-    # the store's bound; this probe catches its direction, because a shortfall
-    # applied on every step accumulates across every step of every recession,
-    # where nothing is entering to mask it. One baseline answering both
-    # questions is the pattern the mass probes already use for
-    # `reference_leaky`, and it keeps a second near-identical adapter — and a
-    # second entry in `TRUSTED_SUBPROCESS_MODELS` — out of the repository.
+    # A lossy router: a three-day triangular kernel summing to 0.9, so a tenth
+    # of every day's runoff never leaves the reach and the store walks away
+    # from its own history. `momentum/routing-conservation` catches that too,
+    # by its size.
     reference_stuck_router: recession_drainage
+    # The baseline that separates the two questions. Routing is exact and the
+    # water budget closes; the fault is a bounded inflow to the reach that the
+    # model never reports, 0.05 mm over the record, applied on rainless steps.
+    # It is small enough that the store never approaches the fifteen-day bound
+    # `momentum/routing-conservation` enforces — that probe passes this model —
+    # while this probe fails it, because the store rises on step after step
+    # where nothing entered. A bound sees an error that accumulates; this
+    # criterion sees one of any size, applied where nothing masks it.
+    reference_unreported_inflow: recession_drainage
 
 provenance: >
   Synthetic. Generated at run time from a recorded seed, with four storms
