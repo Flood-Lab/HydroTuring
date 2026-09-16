@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from itertools import combinations
 
 import numpy as np
 import pandas as pd
@@ -37,17 +38,19 @@ def _evaluation_rows(case):
 
 
 @pytest.mark.parametrize("seed", [7, VALIDATION_SEED])
-def test_weather_repeats_exactly_and_host_selects_two_spinup_lengths(probe, seed):
-    short = build_case(probe, seed, "short")
-    long = build_case(probe, seed, "long")
-    assert short.n_steps == long.n_steps == PERIOD_DAYS + SPINUP_DAYS
-    assert short.spinup_steps == long.spinup_steps == SPINUP_DAYS
-    assert short.static == long.static
-    pd.testing.assert_frame_equal(short.forcing.drop(columns="_phase"), long.forcing.drop(columns="_phase"))
+def test_weather_repeats_exactly_and_host_selects_three_spinup_lengths(probe, seed):
+    cases = {variant: build_case(probe, seed, variant) for variant in probe.variants}
+    assert all(case.n_steps == PERIOD_DAYS + SPINUP_DAYS for case in cases.values())
+    assert all(case.spinup_steps == SPINUP_DAYS for case in cases.values())
+    assert len({json.dumps(case.static, sort_keys=True) for case in cases.values()}) == 1
+    for left, right in combinations(cases.values(), 2):
+        pd.testing.assert_frame_equal(
+            left.forcing.drop(columns="_phase"), right.forcing.drop(columns="_phase")
+        )
 
     # Every calendar year maps back to the same 365-value cycle.  Leap years
     # repeat February 28 rather than shifting all later forcing by one day.
-    scored = short.forcing.iloc[SPINUP_DAYS:].copy()
+    scored = cases["short"].forcing.iloc[SPINUP_DAYS:].copy()
     years = pd.to_datetime(scored["time"]).dt.year
     for column in ("pr", "tas", "pet"):
         yearly = [scored.loc[years == year, column].to_numpy() for year in sorted(years.unique())]
@@ -56,13 +59,14 @@ def test_weather_repeats_exactly_and_host_selects_two_spinup_lengths(probe, seed
             if len(values) == 366:
                 values = np.delete(values, 59)
             np.testing.assert_array_equal(values, yearly[0][:365])
-    assert short.forcing["pr"].sum() > 0.0
-    assert short.forcing["tas"].min() > short.static["snow_threshold_degC"]
+    assert cases["short"].forcing["pr"].sum() > 0.0
+    assert cases["short"].forcing["tas"].min() > cases["short"].static["snow_threshold_degC"]
 
-    for case, expected_year in ((short, 2007), (long, 2011)):
+    expected_years = {"short": 2007, "plus3": 2010, "long": 2011}
+    for variant, case in cases.items():
         rows = _evaluation_rows(case)
         assert len(rows) == CYCLE_DAYS
-        assert pd.to_datetime(case.forcing["time"].iloc[rows[0]]).year == expected_year
+        assert pd.to_datetime(case.forcing["time"].iloc[rows[0]]).year == expected_years[variant]
         np.testing.assert_array_equal(rows, np.arange(rows[0], rows[0] + CYCLE_DAYS))
 
 
@@ -76,12 +80,13 @@ def test_adapters_receive_the_same_visible_case_metadata(probe, tmp_path):
         request_path = stage(io_dir, case, probe, model)
         requests.append(json.loads(request_path.read_text()))
         visible.append(pd.read_csv(io_dir / FORCING_FILE))
-    assert requests[0] == requests[1]
-    pd.testing.assert_frame_equal(visible[0], visible[1])
+    assert all(request == requests[0] for request in requests)
+    for frame in visible[1:]:
+        pd.testing.assert_frame_equal(visible[0], frame)
     assert "_phase" not in visible[0].columns
 
 
-def test_full_record_preconditions_score_both_variants(probe):
+def test_full_record_preconditions_score_all_variants(probe):
     from hydroturing.criteria.base import make_window
     from hydroturing.protocol import RunResult
 
@@ -92,6 +97,18 @@ def test_full_record_preconditions_score_both_variants(probe):
         window = make_window(RunResult(case, table, {}, 0.0), probe)
         assert len(window.table) == PERIOD_DAYS
         assert window.state0.equals(table.iloc[SPINUP_DAYS - 1])
+
+
+def test_phase_scoped_window_uses_the_row_before_the_labelled_block(probe):
+    from hydroturing.criteria.base import make_window
+    from hydroturing.protocol import RunResult
+
+    case = build_case(probe, VALIDATION_SEED, "short")
+    table = pd.DataFrame({"mrso": np.arange(case.n_steps, dtype=float)})
+    window = make_window(RunResult(case, table, {}, 0.0), probe, phase="evaluation")
+    rows = _evaluation_rows(case)
+    assert len(window.table) == CYCLE_DAYS
+    assert window.state0["mrso"] == rows[0] - 1
 
 
 def test_all_variants_keeps_a_long_only_failure_with_no_value(probe, monkeypatch):
@@ -150,6 +167,35 @@ def test_hidden_internal_clock_fails_while_its_budget_and_states_remain_valid(pr
     )
 
 
+@pytest.mark.parametrize("period", [2, 3, 4, 6, 8])
+def test_pairwise_offsets_catch_hidden_clocks_that_can_alias_one_offset(probe, period):
+    """N+3 and N+4 leave no short integer clock aligned in every comparison."""
+    from hydroturing.criteria.spinup import spinup_cycle_invariance
+    from hydroturing.protocol import RunResult
+
+    cycle_numbers = {"short": 5, "plus3": 8, "long": 9}
+    runs = {}
+    for variant, cycle in cycle_numbers.items():
+        case = build_case(probe, VALIDATION_SEED, variant)
+        level = 10.0 * (1.0 + 0.10 * (cycle % period))
+        table = pd.DataFrame(
+            {
+                "mrro": np.full(case.n_steps, level),
+                "evspsbl": np.full(case.n_steps, 2.0),
+            }
+        )
+        runs[variant] = RunResult(case, table, {}, 0.0)
+
+    result = spinup_cycle_invariance(
+        runs,
+        probe,
+        {"variants": ["short", "plus3", "long"], "variables": ["mrro"], "optional": []},
+    )
+    assert not result.passed
+    assert any("short<->plus3:mrro" in key for key in result.diagnostics["deviations"])
+    assert any("plus3<->long:mrro" in key for key in result.diagnostics["deviations"])
+
+
 def test_exact_closure_flag_survives_per_variant_aggregation(probe):
     outcome = run_probe(registry.find_model("reference_bucket"), probe, [VALIDATION_SEED])
     assert f"suspicious_exact:{probe.id}" in outcome.flags
@@ -169,13 +215,12 @@ def test_generic_guards_still_catch_their_own_failures(probe, model_name, criter
     assert criterion in outcome.failing
 
 
-def test_minimum_window_keeps_both_host_selected_evaluation_cycles(probe):
-    short = build_case(probe, VALIDATION_SEED, "short")
-    long = build_case(probe, VALIDATION_SEED, "long")
+def test_minimum_window_keeps_all_host_selected_evaluation_cycles(probe):
+    cases = [build_case(probe, VALIDATION_SEED, variant) for variant in probe.variants]
     days = resolve_window_days(registry.find_model("reference_bucket"), probe, override=30)
-    bounds = select_window(short, probe, days)
+    bounds = select_window(cases[0], probe, days)
     assert bounds.days == PERIOD_DAYS
-    for case in (short, long):
+    for case in cases:
         kept = window_case(case, bounds)
         expected = _evaluation_rows(case)
         np.testing.assert_array_equal(_evaluation_rows(kept), expected)

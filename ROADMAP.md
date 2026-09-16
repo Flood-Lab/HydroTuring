@@ -178,7 +178,7 @@ the normalization used to compare outputs.
 
 ### `mass/spinup-cycle-invariance` &middot; **merged**
 By Kaihao Long. One generated 365-day weather cycle repeats unchanged. The
-same evaluation year is compared after five and after nine copies: runoff,
+the same evaluation year is compared after five, eight, and nine copies: runoff,
 evaporation and reported stores must agree once the physical seasonal cycle
 has been reached.
 

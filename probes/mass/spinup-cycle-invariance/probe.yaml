@@ -1,5 +1,5 @@
 id: mass/spinup-cycle-invariance
-title: A periodic climate must forget four extra spin-up cycles
+title: A periodic climate must forget extra spin-up cycles
 law: mass
 track: synthetic
 version: 1
@@ -11,8 +11,8 @@ authors:
 
 description: >
   One seeded 365-day rain-dominated weather cycle repeats unchanged. The host
-  compares the same evaluation cycle after five and after nine repetitions,
-  while the adapter receives identical forcing and metadata in both runs. Once
+  compares the same evaluation cycle after five, eight, and nine repetitions,
+  while the adapter receives identical forcing and metadata in every run. Once
   physical references have reached their periodic seasonal attractor, their
   runoff, evaporation, and reported stores must agree. A hidden state that
   keeps evolving with the number of cycles instead of converging is exposed,
@@ -26,8 +26,9 @@ case:
   generator: generate.py
   n_seeds: 3
   timestep: PT1D
-  # Ten calendar years contain two leap days.  Four extra cycles put both
-  # selected evaluation years at the same leap-day phase (2007 vs 2011).
+  # Ten calendar years contain two leap days.  The three selected evaluation
+  # years are 2007, 2010, and 2011; all pairs are checked despite the real
+  # Gregorian calendar having leap days.
   period_days: 3652
   period_years: 10
   # One complete year supplies the state immediately before the scored
@@ -37,7 +38,7 @@ case:
   max_output_mb: 2.0
   max_runtime_s: 300
   min_window_days: 3652
-  variants: [short, long]
+  variants: [short, plus3, long]
 
 criteria:
   - closure:
@@ -73,14 +74,15 @@ criteria:
       cv_variables: [mrro, evspsbl]
 
   - spinup_cycle_invariance:
-      short: short
-      long: long
+      variants: [short, plus3, long]
       variables: [evspsbl, mrro, mrso, snw, canopy]
       optional: [gwex, gw, channel]
       threshold: 0.05
       # 5% is the suite engineering rule; the 0.05 mm/day and 1 mm floors
       # keep near-zero fluxes and empty stores numerically well-conditioned.
-      # Gate references span 0.00% to 0.47%, leaving a conservative margin.
+      # The four gate reference models each have a 0.00% departure in the
+      # calibrated run.  The archived 0.47% LISFLOOD result is a submitted
+      # model observation, not a gate-reference range.
       flux_floor_mm_per_day: 0.05
       state_floor_mm: 1.0
 
@@ -95,4 +97,7 @@ baselines:
 provenance: >
   Synthetic. A deterministic 365-day forcing cycle is generated from the
   recorded seed, then repeated nine times. Only host-side phase labels differ
-  between short and long variants; adapters receive the same visible inputs.
+  between short, plus3, and long variants; adapters receive the same visible
+  inputs. Pairwise N+3 and N+4 offsets are deliberate: their greatest common
+  divisor is one, so a hidden clock with a short integer period cannot align
+  with every comparison.
