@@ -1,0 +1,77 @@
+id: momentum/routing-lag-consistency
+title: Runoff peak lag follows the catchment geomorphic travel-time scale
+law: momentum
+track: synthetic
+version: 1
+
+authors:
+  - name: Binlan Zhang
+    github: binbinlan
+    affiliation: Institute of Mountain Hazards and Environment, Chinese Academy of Sciences, Chengdu, China
+    orcid: 0000-0001-9091-3185
+
+description: >
+  Four synthetic catchments receive byte-identical weather and the same
+  isolated one-day design storm. Hack's relation derives main-channel length
+  from area, and centroid channel length is half the main-channel length. A
+  rainfall-runoff response must peak on the travel-time scale derived from a
+  duration-corrected Snyder unit hydrograph, and its lag must grow across the
+  geometry ladder.
+  Only runoff output is required, so no internal routing state is needed; an
+  eligible rainfall-runoff model must still declare and consume precipitation
+  and all three geometry inputs.
+
+citation: "https://doi.org/10.1029/TR019i001p00447"
+
+requires:
+  fluxes: [mrro]
+  states: []
+  forcing: [pr]
+  static: [area_km2, main_channel_length_km, centroid_channel_length_km]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_days: 90
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 300
+  min_window_days: 90
+  variants: [small, medium, large, xlarge]
+
+criteria:
+  - lag_time_bounds:
+      event_column: _event_pr
+      runoff: mrro
+      lower_ratio: 0.5
+      upper_ratio: 2.0
+      discretization_tolerance_days: 0.5
+      baseline_days: 5
+      min_response_fraction: 0.01
+      min_pre_event_days: 10
+      min_post_event_days: 30
+
+  - scaling_monotonicity:
+      event_column: _event_pr
+      runoff: mrro
+      baseline_days: 5
+      min_response_fraction: 0.01
+      min_pre_event_days: 10
+      min_post_event_days: 30
+      reversal_tolerance_days: 0.5
+      min_span_days: 2.0
+
+baselines:
+  must_pass: [reference_snyder_router, flex_lumped]
+  must_fail:
+    # Returns the storm response immediately at every catchment scale.
+    reference_instant_router: lag_time_bounds
+    # Applies the in-bounds lag sequence 1, 2, 1, 3 days by ascending area.
+    reference_inverse_router: scaling_monotonicity
+
+provenance: >
+  Synthetic daily weather and a one-day design storm generated at run time
+  from a recorded seed. Areas form a fixed four-member ladder and both channel
+  lengths are derived with Hack's relation; no generated forcing or model
+  output is committed. Implements accepted proposal #8.

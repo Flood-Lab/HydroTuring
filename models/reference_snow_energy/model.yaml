@@ -1,0 +1,29 @@
+name: reference_snow_energy
+version: "1.0.0"
+description: >
+  An energy-balance snowpack that reports what it is made of. Melt is bought
+  with the energy its own surface budget makes available rather than read off
+  an air temperature, and the pack carries the two things a criterion cannot
+  otherwise see: the liquid water held in its pore space, so that the ice is
+  snw minus lwsnl rather than the whole pack, and its cold content, so that
+  energy which warmed a sub-freezing pack is distinguishable from energy that
+  melted a ripe one. Refreezing is credited as well as melt. Every joule is
+  accounted at the phase change it actually drove, so the identity between the
+  surface budget and the pack holds by construction. It is the model every
+  criterion of energy/snowmelt-energy-water must pass. If it ever fails one,
+  the criterion has drifted past what exact physics achieves and the criterion
+  is wrong rather than the model.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H]
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [lwsnl, csnow]
+needs_forcing: [pr, tas, pet, rn]
+needs_static: [soil_capacity_mm, canopy_capacity_mm, baseflow_coefficient, snow_threshold_degC]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

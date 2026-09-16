@@ -1,5 +1,5 @@
 name: flex_lumped
-version: "1.0.0"
+version: "1.1.0"
 description: >
   A lumped FLEX-type conceptual model, the "HBVMod" of Zhi Li's
   HydrologicModels repository (lumped_model/HBVMod.py): an interception
@@ -8,8 +8,11 @@ description: >
   reservoir, a fast linear reservoir, and a triangular lag. Written by hand
   from the physics and calibrated against a real catchment, so it is a
   physical model that every probe must pass: a probe that fails it is
-  measuring something other than physics. No snow module, so snow is
-  reported as identically zero.
+  measuring something other than physics. When channel geometry is
+  supplied, its native triangular-lag parameter is configured from an
+  independent constant-celerity channel travel time; otherwise it retains the
+  calibrated Wark value. No snow module, so snow is reported as identically
+  zero.
 authors: ["Zhi Li (model, github.com/chrimerss/HydrologicModels)", "HydroTuring maintainers (adapter)"]
 reference: "https://github.com/chrimerss/HydrologicModels/tree/master/lumped_model"
 license: PolyForm-Noncommercial-1.0.0
@@ -21,9 +24,12 @@ emits:
   states: [mrso, snw, canopy, gw, channel]
   diagnostics: [stage]
 needs_forcing: [pr, tas, pet]
+uses_static:
+  - soil_capacity_mm
+  - canopy_capacity_mm
+  - area_km2
+  - main_channel_length_km
+  - centroid_channel_length_km
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}
-
-# Existing adapter mappings; no change to model equations.
-uses_static: [soil_capacity_mm, canopy_capacity_mm]

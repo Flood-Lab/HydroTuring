@@ -1,0 +1,198 @@
+id: energy/snowmelt-energy-water
+title: Melt reported as water must be paid for out of the energy budget
+law: energy
+track: synthetic
+version: 1
+
+authors:
+  - name: Siddik Barbhuiya
+    affiliation: >-
+      Indian Institute of Technology Mandi,
+      Mandi, Himachal Pradesh, India
+    orcid: "0000-0003-1278-5151"
+    github: Barbhuiya12
+
+description: >
+  Build a snowpack over a cold winter, then melt it down over a dry block that
+  opens below -14 C and warms through zero. The block is not required to take
+  the pack away: the exact model leaves roughly half its opening ice, and how
+  much a model melts is deliberately not scored. Over that block the surface energy
+  residual is not required to vanish: it is required to equal what the pack
+  absorbed, which is two terms rather than one. The latent heat of fusion for
+  the ice that changed phase, and the cold content of warming the pack towards
+  zero. Filed under energy because the schema admits mass, energy and
+  momentum, as energy/latent-heat-et-consistency was for the same reason.
+  The ice is snw minus lwsnl and never snw itself: snw is the pack's total
+  water in this suite's own adapters, Snow-17 reporting WE + LIQW + lagged
+  excess and SUMMA reporting scalarSWE, so a fall in it is net water leaving
+  the pack rather than a phase change. Melt retained as liquid moves no snw at
+  all and drainage of older meltwater moves it with no fusion happening.
+  Cold content is a term of the balance rather than a property of the case,
+  because no case can guarantee a ripe pack for a model whose snow physics
+  differs from the reference's, and without csnow warming and fusion are the
+  same number to any criterion. The block carries no precipitation, which is
+  what keeps ice arriving from being mistaken for ice melting through a
+  contract with no snowfall flux, and the criterion refuses a block that is
+  not dry. Catches the common construction of a degree-day melt head bolted to
+  an energy head that closes by itself, and separately a pack that warms for
+  nothing. The budget is taken over the whole snowpack as a control volume:
+  net radiation in at the snow surface, latent and sensible heat out of it,
+  and hfg out at the snow-soil interface with the definition it carries
+  everywhere else in the suite, the ground heat flux at the actual soil
+  surface positive into the ground.
+
+requires:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy]
+  # `snw` is the pack's total water in this suite's own adapters: Snow-17
+  # reports WE + LIQW + lagged excess, SUMMA reports scalarSWE, ice plus
+  # liquid. A fall in it is net water leaving the pack, not a phase change, so
+  # the ice is `snw - lwsnl` and `csnow` is what separates energy that warmed a
+  # cold pack from energy that melted a ripe one. A model that does not report
+  # them is N/A (INCOMPLETE): the question cannot be put to it.
+  diagnostics: [lwsnl, csnow]
+  # The verdict rests on the case's precipitation and net radiation: the first
+  # is what makes the scored block dry and so makes melt observable at all, the
+  # second is the driver of the identity. A model that does not declare it
+  # consumes them may be running on its own, and is INCOMPATIBLE rather than
+  # judged against values it never read.
+  forcing: [pr, rn]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_days: 210
+  spinup_days: 30
+  # The whole record. A submitted model is otherwise scored on a 30-day window
+  # that slices one stage, and a window inside the accumulation stage asks
+  # nothing about melt at all.
+  min_window_days: 240
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+criteria:
+  # A precondition, not the probe. A model that leaks water reports a pack
+  # loss that was never melt, so the identity below would be measuring a leak.
+  # Nothing is pinned to it in `baselines`, so it is never reported as this
+  # probe's result.
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+
+  # The probe. Over the melt stage, mean(rn - hfls - hfss - hfg) must equal
+  # lambda_f times the ice the model says it lost, within 5 percent of that
+  # melt energy or 2 W/m2, whichever is larger. The floor is carried from
+  # energy/surface-energy-closure and for the same reason: the denominator
+  # goes to zero for a model that reports no pack. Note which of the two
+  # actually binds. The crossover is at a demand of 40 W/m2: below it 5 percent
+  # is under 2 W/m2 and the floor is the operative bound, above it the relative
+  # rule is. Both happen here, across the 17 to 42 W/m2 the reference models
+  # produce, so the effective band runs +/-5 to +/-12 percent rather than a
+  # flat 5. That is the floor doing its job, and it is how the floor already
+  # behaves in energy/surface-energy-closure, where every night block uses it.
+  # The case is deliberately not tuned to keep melt above the crossover: a
+  # model melting a thin pack demands under 1 W/m2, and five percent of that
+  # is a bound no honest model could meet.
+  - melt_energy:
+      driver: rn
+      sinks: [hfls, hfss, hfg]
+      pack: snw
+      liquid: lwsnl
+      cold_content: csnow
+      sublimation: sbl
+      threshold: 0.05
+      floor: 2.0
+      segment_column: _regime
+      scored_label: melt
+      snowfall_label: accumulation
+      # A model reporting no pack would satisfy the identity with two zeroes.
+      # How much of the pack it then melts is not scored: melting part of it
+      # and paying for exactly that part is correct coupling, and failing it
+      # for melting slowly would score a calibration choice as a violation.
+      min_peak_share_of_snowfall: 0.5
+      # `lwsnl` and `csnow` are the model's own statements about its own pack,
+      # and `ice_before` in particular is a self-report on one row that no other
+      # term constrains. Seven checks bound what those rows can say. Each is a
+      # property of *this* case rather than of snowpacks in general, which is
+      # why each is a parameter another probe can relax.
+      #
+      # The cap: what the reported ice would hold this far below the coldest air
+      # in the record, applied only to the rows the identity actually reads.
+      # Applying it to every row would assert a temperature bound on states the
+      # criterion never evaluates, and would refuse an honest Snow-17-type pack,
+      # which bounds its own deficit as a mass fraction (NEGHS <= 0.33 * WE,
+      # worth 52 K) and is legitimately colder than that on a thin early pack.
+      # The claim is not that a pack can never be colder than the air, but that
+      # the reported pack state must stay physically plausible where this
+      # identity reads it. `tas` is in degrees Celsius; the criterion refuses to
+      # run without it rather than quietly dropping the bound.
+      air_temperature: tas
+      cold_content_cap_margin_k: 10.0
+      # No liquid where the block opens. This case holds the air at or below
+      # -12 C through accumulation and -14 C into the block, so an honest model
+      # opens frozen; a pack elsewhere may legitimately hold liquid there.
+      # 1 mm, not a hair: a model with a smooth freezing curve holds trace
+      # liquid in a cold pack, and an attacker buying room here gains at most
+      # lambda_f * 1 mm / (60 * 86400) = 0.064 W/m2 against the 2 W/m2 floor.
+      # Relaxing this reopens the one-row flip: the specific-cold-content check
+      # below closes only the construction that copies the last row's csnow,
+      # not the one that scales it to the declared ice.
+      max_opening_liquid_mm: 1.0
+      # Specific cold content cannot rise across a block that opens cold and
+      # ends warm. It can rise legitimately over a block that ends colder, so a
+      # probe whose block does not end above freezing turns this off.
+      specific_cold_content_cannot_rise: true
+      # Absolute, and set where round-off cannot reach them: `bounds.py` uses
+      # 1e-6 mm for masses, and 1 J/m2 moves the block balance by under
+      # 1e-6 W/m2 while clearing the largest honest excess seen (2.2e-8 J/m2,
+      # over a 20-seed sweep; 1.1e-8 over the five gate seeds alone)
+      # by eight orders of magnitude.
+      mass_tolerance_mm: 1.0e-6
+      cold_content_tolerance_j: 1.0
+      # A dry block's `snw` cannot gain water. It bounds gains in that one
+      # store, so it is narrower than `closure` rather than a per-step form of
+      # it: `closure` is cumulative and spans every store, which is why a
+      # one-step excursion that returns nets to nothing there. `snw` alone and
+      # not snw+canopy, because the identity differences `snw - lwsnl` and
+      # summing the canopy in would let the same dip hide there.
+      #
+      # Deposition reported in `sbl` is netted out, so this covers unreported
+      # gain only; the honest references show at most 2.5e-13 mm per step.
+      #
+      # Coupled to `floor`, and the two must be changed together: a model that
+      # lowers the opening pack and closes the offset at g mm per step
+      # understates the demand by lambda_f * g / (dt * 86400) W/m2 whatever the
+      # block length, so at a daily step keeping that inside the floor needs
+      # g <= floor * 86400 / lambda_f = 0.518 mm. That is the *least* the
+      # tolerance lets through, not a ceiling: each step's gain is net of the
+      # drainage the model reports, so a pack reported not to drain while its
+      # runoff carries the water gets more room. That is a multi-row fiction
+      # and is named in the probe README's Scope rather than guarded; closing
+      # it needs a pack outflow flux, which #17 will add as `snmsl`.
+      max_pack_gain_mm_per_step: 0.5
+
+baselines:
+  # `must_pass` can only name models that emit what the probe requires, and
+  # reference_bucket, flex_lumped, flex_topo and sacsma_snow17 emit no energy
+  # fluxes at all, so they are N/A (INCOMPLETE) here. Every merged energy
+  # probe carries a single-model must_pass for the same structural reason.
+  must_pass: [reference_snow_energy]
+  must_fail:
+    # Melts a degree-day depth and closes its energy budget around whatever
+    # evaporated, so no fusion term ever enters it. This is the construction
+    # the probe exists to catch.
+    reference_degree_day: melt_energy
+    # Melts on the energy actually available and reports its cold content
+    # honestly, but charges the budget for the fusion alone, so the pack warms
+    # towards zero for nothing. Nothing else in the suite trips on this, and a
+    # probe that assumed a ripe pack rather than measuring one would not
+    # notice it at all, which is why the cold content is a term here.
+    reference_warming_free: melt_energy
+
+provenance: >
+  Synthetic. Generated at run time by generate.py from a recorded seed, so the
+  pack, the weather and the melt season differ with every seed and nothing is
+  committed as data. Proposal and agreed scope:
+  https://github.com/Flood-Lab/HydroTuring/issues/66.

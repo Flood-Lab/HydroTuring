@@ -42,7 +42,7 @@
         },
         "diagnostics": {
           "type": "array", "items": {"type": "string"}, "uniqueItems": true,
-          "description": "Non-water diagnostics such as surface or layer temperature. Excluded from water-storage sums; each criterion defines their time handling."
+          "description": "Diagnostics such as a surface or layer temperature, or the liquid share of a snowpack. Never added to any water-storage sum: `lwsnl` is water, but it is water already counted inside `snw`, so summing it beside `snw` would count the same kilogram twice. Each criterion defines their time handling."
         }
       }
     },

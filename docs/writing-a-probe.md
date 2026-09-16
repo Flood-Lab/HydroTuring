@@ -116,7 +116,10 @@ Every one is binary.
 | `energy_closure_by_phase` | the mean absolute surface-energy residual in each contiguous day or night stays within the larger of the relative radiation tolerance and the absolute flux floor | one run, contiguous day/night blocks |
 | `radiative_identity` | upward longwave equals what the reported surface temperature emits plus the reflected downward longwave, at every step, within the larger of a relative tolerance and an absolute floor; emissivity comes from `static.json` | one run, instantaneous values |
 | `soil_heat_storage` | interval boundary heat input agrees with fixed-layer temperature change and prescribed heat capacity | one run, separate heating/recovery phases |
+| `melt_energy` | over a labelled melt block, the surface energy residual equals the fusion the reported ice change demanded plus what warming the pack cost; the ice is `snw - lwsnl` and the warming is `-d(csnow)`, both self-reported, so the two rows it differences carry seven contract checks, one of them read on every step | one run, labelled blocks |
 | `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff | one run |
+| `lag_time_bounds` | rainfall-to-runoff peak lag lies inside a broad duration-corrected Snyder envelope derived from public catchment geometry | paired runs, a geometry ladder |
+| `scaling_monotonicity` | peak lag does not materially reverse and grows by a resolvable amount across catchment scales | paired runs, a geometry ladder |
 | `rating_monotonic` | stage does not fall against its running maximum as the abscissa rises: equal-count bin medians are taken over the abscissa and the summed running-maximum deficit is compared with an explicit `tolerance` when one is given, and otherwise with 8% of the rating's span. The share is that large because a stage read off a store is hysteretic by construction, and its binned rating dips below its own running maximum by a visible fraction of the span for that reason alone | one run |
 | `rating_loop` | where the gauge loops against the reach's store, the loop must be small enough to be noise or run the right way: at the same storage the rising limb sits lower than the falling one. A single-valued rating, or a loop below `min_loop_m` with an inconsistent sign across bins, is read as "no loop" and passes | one run |
 
@@ -231,6 +234,19 @@ run against these four before anything else. `must_fail` pins which criterion do
 the catching, so a probe cannot appear to work while catching things for the
 wrong reason.
 
+A probe whose verdict rests on a forcing or static input that none of the four
+consumes still needs a physical model in `must_pass`. An exact
+domain-specific reference may sit beside it but cannot replace it: the
+reference is written alongside the criterion and shares its assumptions, so a
+gate that only the reference passes tests the criterion against a copy of
+itself. Extend at least one
+physical model's adapter to use the input, bump the model's version and
+re-archive its rows, as `flex_lumped` maps channel geometry to its triangular
+lag for `momentum/routing-lag-consistency`. Declare the input under `requires`;
+the models that still cannot consume it are archived as N/A (INCOMPATIBLE). Do
+not add an input declaration to a model whose adapter does not actually use it
+merely to make the gate run.
+
 On a probe with one case per seed, `must_fail` also decides what the report
 says when a model passes: the `detail` column of `models/result.csv` names
 each criterion it lists, with that criterion's own message, and no other. A
@@ -267,6 +283,9 @@ The reference models available today:
 | `reference_sublimating` | loses 40% of every snowfall unreported | `phase_invariance` |
 | `reference_thirsty` | evaporates a fixed share of its soil store whatever the demand | `demand_consistency` |
 | `reference_stuck_router` | a routing kernel summing to 0.9 | `routing_conservation` |
+| `reference_snyder_router` | consumes public catchment geometry and routes rain with a conservative triangular unit hydrograph whose peak follows the duration-corrected Snyder lag from the excess-rainfall centroid | nothing, it must pass the routing-lag probe |
+| `reference_instant_router` | accepts the geometry but returns runoff in the rainfall row at every scale | `lag_time_bounds` |
+| `reference_inverse_router` | uses individually plausible lags that reverse once as catchment scale grows | `scaling_monotonicity` |
 | `reference_rating` | the bucket with a real rating curve: yield enters a shallow floodplain and a deep channel reservoir, and the stage is the depth the channel's volume makes in a fixed bed | must pass `momentum/stage-discharge-monotonic` |
 | `reference_rating_drift` | derives its stage from a slowly decaying running maximum of discharge (`peak = max(q, 0.997 * peak)` per day), so the gauge ratchets up with each flood far faster than it relaxes | `rating_monotonic` |
 | `reference_rating_inverted` | reads the loop backwards, high while the flood is arriving and low once it is leaving | `rating_loop` |
@@ -275,6 +294,9 @@ The reference models available today:
 | `reference_soil_heat` | a synthetic fixed-layer fixture with conductive boundary fluxes and temperature integrated consistently | nothing, it must pass `soil_heat_storage` |
 | `reference_frozen_soil` | keeps the conductive fluxes but reports a constant soil temperature | `soil_heat_storage` |
 | `reference_half_soil` | keeps the conductive fluxes but halves the reported temperature change | `soil_heat_storage` |
+| `reference_snow_energy` | an energy-balance snowpack: melt bought from its own surface budget, liquid held in the pore space and reported as `lwsnl`, cold content carried and reported as `csnow` | nothing, it must pass `energy/snowmelt-energy-water` |
+| `reference_degree_day` | the same pack melted on air temperature, with an energy budget that closes around its evaporation alone | `melt_energy` |
+| `reference_warming_free` | melts on the energy available and reports its cold content, but charges the budget for the fusion alone | `melt_energy` |
 | `reference_two_head` | a water head and an energy head that never meet; both budgets close and the latent heat implies an evaporation it never reported | `flux_identity`, `partition_shift` |
 | `reference_constant_lambda` | converts every kilogram at one latent heat of vaporisation | `flux_identity` |
 | `reference_sublimation_blind` | converts snow sublimation at the latent heat of vaporisation instead of sublimation | `flux_identity` |

@@ -1,0 +1,23 @@
+name: reference_warming_free
+version: "1.0.0"
+description: >
+  The same snowpack, melting on the energy actually available and reporting its
+  cold content honestly, but charging its surface budget for the fusion alone.
+  The pack climbs from sub-freezing towards zero on energy that was never taken
+  from anywhere. It exists so that the cold-content term of
+  energy/snowmelt-energy-water has something that trips it: a probe which
+  assumed a ripe pack instead of measuring one would not notice this at all.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H]
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [lwsnl, csnow]
+needs_forcing: [pr, tas, pet, rn]
+needs_static: [soil_capacity_mm, canopy_capacity_mm, baseflow_coefficient, snow_threshold_degC]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
