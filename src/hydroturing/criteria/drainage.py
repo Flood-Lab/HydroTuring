@@ -24,9 +24,18 @@ filling from a zero state, moves the store by a fraction of a percent of
 its own scale. Taking the worst step would fail such a model on one
 startup sample. Taking the *share of recession steps on which the store
 rose* separates the two populations cleanly instead: an honest router sits
-near zero, a router that loses or invents water rises on nearly every
-recession step, because the error is applied every step and nothing is
-entering to mask it.
+near zero, and a reach that receives water it never generated rises on the
+steps where nothing else is moving the store.
+
+What this criterion asks is *which way the store moved*, and the answer does
+not depend on how large the error is — only on whether it is applied where
+nothing enters to mask it. That is what makes it a different question from
+`momentum/routing-conservation`, which asks *how much* the reach holds and
+catches a leak by its size. A leak that accumulates is caught by both; an
+inflow that does not accumulate is caught only here, and
+`reference_unreported_inflow` is the baseline that shows it: exact routing, a
+budget that closes to the floating point, and a bounded inflow the model never
+reports, far enough inside the store bound that the bound cannot see it.
 
 A rise is only counted when it is larger than a relative floor, so that the
 floating-point dust of a per-step renormalisation is not scored as a rise.
@@ -68,13 +77,15 @@ DEFAULT_RISE_FRACTION = 1e-4
 # The share of recession steps that may rise before the store is called
 # self-filling. The reference baselines sit at 0.00, but submitted land models
 # do not, and the honest side has to be read off them: `sacsma_snow17` rises on
-# 8.7% of its recession steps and `summa` on 1.5%, because a hillslope can go on
-# delivering water after the rain stops and the criterion tolerates that (the
-# lag is longer than `settle_days`, so those steps are scored). Against 8.7% a
-# quarter leaves about three times the room. A router that loses a fixed share of
-# every step sits above 0.85 — the loss is applied on every step and nothing
-# enters to hide it — so the same threshold is about three times below the
-# failing side.
+# 8.7% of its recession steps and `summa` on 1.5%. On SAC-SMA those steps are
+# not a slow hillslope still delivering water — the reviewer's analysis of this
+# archive puts 93% to 98% of them on a day the evaporative demand drops, against
+# half of all recession steps, which points to riparian evaporation drawn from
+# channel inflow. So a rainless step is not a step on which nothing moves the
+# store, for a model that couples the reach to the atmosphere, and
+# `max_rising_fraction` is what absorbs that. The lossy baseline sits at 0.57 to
+# 0.67 over the gate seeds, so a quarter is about three times the honest share
+# and about a third of the failing one.
 DEFAULT_MAX_RISING_FRACTION = 0.25
 # The first steps of the scored window are not scored: a unit hydrograph
 # starting from a zero store fills for the first few steps whatever the

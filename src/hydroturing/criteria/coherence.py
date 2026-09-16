@@ -585,3 +585,553 @@ def partition_shift(
             "onset": onset,
         },
     )
+
+
+def _as_bool(value, default=True):
+    """`bool("false")` is True, and an empty YAML value is None, not False."""
+    if value is None:
+        return default
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text == "":
+            return default
+        return text not in ("0", "false", "no", "off")
+    return bool(value)
+
+
+@criterion("melt_energy")
+def melt_energy(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
+    """Melt reported as water must equal the melt the energy budget paid for.
+
+    The third place the two ledgers meet, after vaporisation in
+    `flux_identity` and the drydown partition in `partition_shift`. A model
+    can melt a degree-day depth and close a surface energy budget that never
+    mentions fusion; both budgets balance and no single-budget criterion sees
+    it. Here the surface residual is not required to vanish. It is required to
+    be the melt energy:
+
+        mean(rn - hfls - hfss - hfg)  ==  [lambda_f * M + dU] / (N * dt * 86400)
+
+    with `M` the ice the model says it lost. Two properties of the case make
+    `M` observable through a contract that carries neither a melt flux nor a
+    snowfall flux:
+
+    Neither term is inferred from `snw` alone. `snw` is the pack's total water
+    in this suite's own adapters -- Snow-17 reports WE + LIQW + lagged excess
+    and SUMMA reports scalarSWE, ice plus liquid -- so a fall in `snw` is net
+    water leaving the pack and not evidence of a phase change. Melt retained
+    as liquid moves no `snw` at all, and drainage of water that melted days
+    earlier moves it without any fusion happening now. The ice is therefore
+    taken as `snw - lwsnl`, and only its change is charged at the latent heat
+    of fusion:
+
+        M = -d(snw - lwsnl) - sum(sbl dt)
+
+    This criterion is deliberately narrow: it is written for a block that opens
+    cold and closes warm. Refreezing is not scored and no credit for it exists:
+    a block with net ice gain fails `M > 0`, and refreezing inside a block that
+    then re-melts leaves both endpoints unchanged and is invisible to an
+    integrated balance. Two of the
+    checks below -- no liquid on the opening row, and specific cold content not
+    rising across the block -- are consequences of that same precondition, and
+    each is a parameter a probe with a different block can relax.
+
+    Cold content is a term, not an assumption. A pack below freezing spends
+    energy warming towards zero that does no melting, and
+
+        dU = -( csnow_end - csnow_start )
+
+    is what that costs, with `csnow` the pack's cold content: the energy still
+    needed to bring its ice to 0 C. Requiring it is what makes warming and
+    fusion distinguishable; without it the two are the same number to any
+    criterion, whatever the case is engineered to do. It is asked for as the
+    energy rather than as a pack temperature because that is the quantity a
+    budget spends -- Snow-17 already carries it as `NEGHS` -- and because
+    converting a temperature back through an assumed heat capacity is wrong for
+    any model whose capacity differs from the assumed one.
+
+    One property of the case is still load-bearing: the scored block carries
+    no precipitation, so no snowfall adds ice the contract cannot see. The
+    criterion refuses a block that is not dry rather than measuring it.
+
+    Scored over each block the generator labels, so a stretch where the pack
+    is building cannot dilute the stretch where it is going.
+    """
+    driver = str(params.get("driver", "rn"))
+    sinks = list(params.get("sinks", ["hfls", "hfss", "hfg"]))
+    pack = str(params.get("pack", "snw"))
+    liquid_var = str(params.get("liquid", "lwsnl"))
+    cold_content = str(params.get("cold_content", "csnow"))
+    # The cap below is the cold content the reported ice would hold at
+    # `cap_margin_k` beneath the coldest air in the record, applied only to the
+    # rows the identity reads. It bounds how much of its own fusion a model can
+    # cancel by declaring the pack cold on a boundary row; it is not a claim
+    # that a pack can never be colder than the air.
+    c_ice = float(params.get("specific_heat_ice", 2100.0))  # J kg-1 K-1
+    cap_margin_k = float(params.get("cold_content_cap_margin_k", 10.0))
+    air = str(params.get("air_temperature", "tas"))
+    # Absolute, and set where round-off cannot reach them. `bounds.py` uses
+    # 1e-6 mm for masses; 1 J m-2 of cold content moves the block balance by
+    # under 1e-6 W m-2, and the largest excess an honest reference shows on the
+    # specific-cold-content check below is 2.2e-8 J m-2 over a 20-seed sweep.
+    mass_tol = float(params.get("mass_tolerance_mm", 1.0e-6))
+    energy_tol = float(params.get("cold_content_tolerance_j", 1.0))
+    # This case opens its block frozen, so an honest model carries no liquid
+    # there. That is a property of this generated case and not of snowpacks in
+    # general, which is why it is a parameter a different probe can relax.
+    # 1 mm rather than a hair: a model with a smooth freezing curve holds trace
+    # liquid in a cold pack, and an attacker buying room here gains at most
+    # lambda_f * 1 mm / (60 * 86400) = 0.064 W m-2 against a 2 W m-2 floor.
+    max_opening_liquid = float(params.get("max_opening_liquid_mm", 1.0))
+    check_specific_cold = _as_bool(params.get("specific_cold_content_cannot_rise"), True)
+    # A dry block's pack cannot gain water. This bounds gains in the pack alone
+    # and is not a per-step form of `closure`, which is cumulative and spans
+    # every store: a one-step excursion in one store that returns nets to
+    # nothing there, which is why `closure` cannot see any of this.
+    #
+    # The tolerance is coupled to `floor`, and to the step. A model that lowers
+    # the opening pack and closes the offset gradually at `g` mm per step
+    # understates the demand by
+    #
+    #     lambda_f * g / (dt * 86400)   W m-2
+    #
+    # independent of block length, because the total gain divides by the same
+    # number of steps. Keeping that inside the floor needs
+    # g <= floor * dt * 86400 / lambda_f, which is 0.518 mm at a daily step and
+    # the 2 W m-2 floor -- but only 0.0216 mm at PT1H, where this same 0.5 mm
+    # would let about 46 W m-2 through. A sub-daily probe reusing this
+    # criterion has to set `max_pack_gain_mm_per_step` from its own step.
+    #
+    # That figure is also the *least* the tolerance lets through, not a ceiling:
+    # each step's gain is net of the drainage the model reports, so a pack
+    # reported not to drain while its runoff carries the water away gets more
+    # room. That is a multi-row fiction, named in the probe's Scope rather than
+    # guarded; closing it needs a pack outflow flux.
+    #
+    # Deposition a model reports in `sbl` is netted out below and needs no
+    # allowance; what is left is unreported gain. Change `floor`, the step or
+    # this tolerance and check the other two.
+    max_pack_gain = float(params.get("max_pack_gain_mm_per_step", 0.5))
+    sublimation_var = str(params.get("sublimation", "sbl"))
+    threshold = float(params.get("threshold", 0.05))
+    floor = float(params.get("floor", 2.0))
+    lam_f = float(params.get("lambda_fusion", LAMBDA_F))
+    segment_column = str(params.get("segment_column", "_regime"))
+    scored_label = str(params.get("scored_label", "melt"))
+    # The pack the case builds has to actually appear, or a model that reports
+    # no snow at all would satisfy the identity with two zeroes. A share, not a
+    # depth, so it holds for any seed.
+    #
+    # How much of that pack a model then melts is deliberately not scored. A
+    # model that melts part of it and pays for exactly that part is coupled
+    # correctly, which is the only thing this criterion is entitled to judge;
+    # failing it for melting slowly would score a calibration choice as a
+    # conservation violation. See the probe README, "Scope".
+    min_peak_share = float(params.get("min_peak_share_of_snowfall", 0.5))
+    snowfall_label = str(params.get("snowfall_label", "accumulation"))
+    precipitation = str(params.get("precipitation", "pr"))
+    dry_tolerance_mm = float(params.get("dry_tolerance_mm", 1e-9))
+
+    w = make_window(run, probe)
+    if driver not in w.forcing.columns:
+        raise ValueError(
+            f"melt_energy needs forcing column '{driver}'; this probe's "
+            "generator does not produce it"
+        )
+    for var in (*sinks, pack, liquid_var, cold_content):
+        if var not in w.table.columns:
+            raise ValueError(f"melt_energy needs '{var}' in the model result")
+
+    # Beside the other column checks, not further down: a table that trips a
+    # contract check while `tas` is missing should report the missing column
+    # rather than whichever check it happened to reach first.
+    if air not in w.forcing.columns:
+        raise ValueError(
+            f"melt_energy needs forcing column '{air}', in degrees Celsius, to "
+            f"bound '{cold_content}' on the rows the identity reads. The cold "
+            "content is a model's own statement about its own pack; without it "
+            "the bound silently disappears and a model can cancel its own fusion "
+            "by declaring the pack cold on one row"
+        )
+
+    coldest = float(w.forcing[air].to_numpy(dtype=float).min())
+
+    blocks_all = segments(w, segment_column)
+    scored = [b for b in blocks_all if b[0] == scored_label]
+    if not scored:
+        raise ValueError(
+            f"melt_energy found no '{scored_label}' block in column "
+            f"'{segment_column}'; the generator has to label the stretch the "
+            "pack is melting over"
+        )
+
+    # The melt inference `M = -d(snw - lwsnl) - sum(sbl dt)` is only melt where nothing
+    # is being added to the pack. This generator builds a dry block for exactly
+    # that reason, but a probe reusing the criterion might not, and snowfall
+    # inside the block nets out of the pack change and quietly shrinks the melt.
+    # Refuse rather than measure the wrong thing.
+    if precipitation not in w.forcing.columns:
+        raise ValueError(
+            f"melt_energy needs forcing column '{precipitation}' to check that "
+            "the scored block is dry. The melt inference rests on nothing being "
+            "added to the pack, and a criterion that cannot check its own "
+            "precondition must not measure past it"
+        )
+    else:
+        rain = w.forcing[precipitation].to_numpy(dtype=float)
+        for label, start, stop in scored:
+            fell = float(w.volume(rain[start:stop]).sum())
+            if fell > dry_tolerance_mm:
+                raise ValueError(
+                    f"melt_energy scores '{label}' as a melt block, but "
+                    f"{fell:.3f} mm of '{precipitation}' falls within it. Melt "
+                    "is inferred from the pack, which holds only where nothing "
+                    "is added to it: the scored block has to be dry"
+                )
+
+    drive = w.forcing[driver].to_numpy(dtype=float)
+    fluxes = w.table[sinks].to_numpy(dtype=float)
+    snw = w.table[pack].to_numpy(dtype=float)
+    lwsnl = w.table[liquid_var].to_numpy(dtype=float)
+    # The pack's cold content as the model reports it, J m-2 and positive. No
+    # round trip through a temperature and an assumed heat capacity: this is
+    # the quantity the budget spends, and the one Snow-17 already carries.
+    csnow = w.table[cold_content].to_numpy(dtype=float)
+    # The ice, which is the only thing a phase change moves.
+    ice = snw - lwsnl
+    subl = (
+        w.table[sublimation_var].to_numpy(dtype=float)
+        if sublimation_var in w.table.columns
+        else np.zeros(len(w.table))
+    )
+
+    # `subl` belongs here because it feeds `melted` below. Without it a NaN in
+    # one sbl row is not reported as the contract violation it is: it
+    # propagates into the melt and the demand, and the criterion fails with a
+    # message reading "melt of nan mm demands nan W/m2".
+    finite = (
+        np.isfinite(drive)
+        & np.isfinite(fluxes).all(axis=1)
+        & np.isfinite(snw)
+        & np.isfinite(lwsnl)
+        & np.isfinite(csnow)
+        & np.isfinite(subl)
+    )
+    if not finite.all():
+        n_bad = int((~finite).sum())
+        return CriterionResult(
+            name="melt_energy",
+            status=FAIL,
+            message=(
+                f"non-finite snow, sublimation or energy values on {n_bad} "
+                "scored steps"
+            ),
+            diagnostics={"non_finite_steps": n_bad},
+        )
+
+    # --- what the model reported has to be a pack at all -------------------
+    #
+    # Each of these is a contract violation rather than physics, and says so,
+    # because each is a route by which a self-reported diagnostic on a single
+    # boundary row could otherwise decide a verdict.
+    def contract(message, value, **diag):
+        return CriterionResult(
+            name="melt_energy", status=FAIL, value=value,
+            message="contract: " + message, diagnostics=diag,
+        )
+
+    for column, values, tol in (
+        (pack, snw, mass_tol), (liquid_var, lwsnl, mass_tol),
+        (cold_content, csnow, energy_tol),
+    ):
+        if np.any(values < -tol):
+            worst = int(np.argmin(values))
+            return contract(
+                f"'{column}' is {float(values[worst]):.3g} on {int((values < -tol).sum())} "
+                "scored steps. A stored mass and a cold content are both "
+                "non-negative; a negative one on the step before the block "
+                "would move the measured melt by its whole value",
+                float(values[worst]), column=column, min_value=float(values[worst]),
+            )
+    if np.any(ice < -mass_tol):
+        worst = int(np.argmin(ice))
+        return contract(
+            f"'{liquid_var}' exceeds '{pack}' on {int((ice < -mass_tol).sum())} scored "
+            f"steps, worst {float(lwsnl[worst]):.1f} mm of liquid in a "
+            f"{float(snw[worst]):.1f} mm pack. The liquid is held inside the pack "
+            "and cannot be more than all of it",
+            float(ice[worst]), min_ice_mm=float(ice[worst]),
+        )
+    empty_but_cold = (ice <= mass_tol) & (csnow > energy_tol)
+    if empty_but_cold.any():
+        worst = int(np.argmax(empty_but_cold))
+        return contract(
+            f"'{cold_content}' is {float(csnow[worst]):.3g} J/m2 on "
+            f"{int(empty_but_cold.sum())} steps carrying no ice. Cold content is "
+            "the energy needed to bring ice to 0 C, and there is none to bring",
+            float(csnow[worst]), steps=int(empty_but_cold.sum()),
+        )
+
+    # The rows whose self-reports can actually move the verdict: the step before
+    # each block, where `ice_before` and `csnow_before` are read, and its last
+    # step, where `ice_after` and `csnow_after` are. Everything between them is
+    # never read by the identity, and asserting a physical bound on states the
+    # criterion does not evaluate would be a stronger claim than this probe is
+    # entitled to make.
+    def boundary(start, stop):
+        if start <= 0:
+            before = (float(w.state0[pack]) - float(w.state0[liquid_var]),
+                      float(w.state0[liquid_var]), float(w.state0[cold_content]))
+        else:
+            before = (float(ice[start - 1]), float(lwsnl[start - 1]),
+                      float(csnow[start - 1]))
+        after = (float(ice[stop - 1]), float(lwsnl[stop - 1]), float(csnow[stop - 1]))
+        return before, after
+
+    # This case opens its block frozen -- the air is at or below -12 C through
+    # accumulation and at or below -14 C for the block's first twenty days -- so
+    # an honest model carries no liquid there. Without this, `ice_before` is a
+    # self-report on a single row that no other term constrains, and moving it
+    # moves the melt attributed to the model. The share guard above cannot
+    # oppose that, because it is evaluated on the same row and moves with it.
+    #
+    # This is a property of the generated case, not of snowpacks: a pack may
+    # legitimately hold liquid at the start of a melt block elsewhere, which is
+    # why the tolerance is a parameter.
+    for label, start, stop in scored:
+        (_, liquid_before, _), _ = boundary(start, stop)
+        if liquid_before > max_opening_liquid:
+            return contract(
+                f"'{liquid_var}' is {liquid_before:.3g} mm on the step before "
+                f"the '{label}' block, over the {max_opening_liquid:g} mm "
+                f"allowed. This probe opens its block on a frozen pack -- the "
+                f"coldest air in the record is {coldest:.1f} C -- so an honest "
+                "model carries no liquid there; liquid declared on that row "
+                "moves the ice the melt is measured from, and no other term "
+                "constrains it",
+                liquid_before, block=label, opening_liquid_mm=liquid_before,
+            )
+
+    # A dry block's pack cannot gain water. It bounds gains in `snw` alone and
+    # is not a per-step form of `closure`, which is cumulative and spans every
+    # store: `ice_before` is read only to be differenced, so a dip on that row
+    # moves the melt attributed to the model and nothing else notices.
+    #
+    # Deposition a model reports in `sbl` is netted out here, so an honest pack
+    # that gains water by deposition passes whatever the tolerance.
+    # `snw` alone, which is the store the identity differences. Summing the
+    # canopy with it would leave the same dip reachable by moving the water
+    # into `canopy` on the opening row: the sum does not move, and nothing
+    # else looks at either store.
+    for label, start, stop in scored:
+        prior = float(w.state0[pack]) if start <= 0 else float(snw[start - 1])
+        series = np.concatenate(([prior], snw[start:stop]))
+        gain = np.diff(series) + w.volume(subl[start:stop])
+        if gain.size and float(gain.max()) > max_pack_gain:
+            worst = int(np.argmax(gain))
+            when = w.forcing["time"].iloc[start + worst] if "time" in w.forcing else (
+                start + worst
+            )
+            return contract(
+                f"'{pack}' gains {float(gain[worst]):.3g} mm of water in one step "
+                f"of the '{label}' block, at {when}, over the {max_pack_gain:g} mm "
+                "allowed. The block carries no precipitation, so a pack that "
+                "grows was not reported consistently, and a one-step excursion "
+                "that returns nets to nothing in any cumulative check",
+                float(gain[worst]), block=label, step=str(when),
+                max_gain_mm=float(gain.max()),
+            )
+
+    # Cold content per unit ice cannot rise over a block that opens cold and
+    # ends warm. Inflating `csnow_before` to buy room raises the demand by at
+    # least as much. This closes one *construction* of the opening-row flip --
+    # the one that copies the last row's cold content -- and not the route:
+    # scaled to the declared ice instead, the excess is round-off and this
+    # check is silent, leaving only the opening-liquid check. It does close the
+    # variant that sets the last row's cold content at the cap.
+    #
+    # Tied to the same case precondition: specific cold content may legitimately
+    # rise over a block that ends colder than it began, through refreezing or
+    # renewed cooling, so a probe whose block does not end warm turns this off.
+    if check_specific_cold:
+        for label, start, stop in scored:
+            (ice_b, _, csnow_b), (ice_a, _, csnow_a) = boundary(start, stop)
+            if ice_b > mass_tol and ice_a > mass_tol:
+                allowed = ice_a * csnow_b / ice_b
+                if csnow_a > allowed + energy_tol:
+                    return contract(
+                        f"'{cold_content}' per unit ice rises over the '{label}' "
+                        f"block: {csnow_a:.4g} J/m2 on {ice_a:.1f} mm of ice "
+                        f"against the {allowed:.4g} J/m2 that the opening state "
+                        "allows. This check assumes a block that opens cold and "
+                        "ends warm, where the pack left cannot be colder per "
+                        "kilogram than the pack it started from; a probe whose "
+                        "block ends colder sets "
+                        "specific_cold_content_cannot_rise false",
+                        csnow_a, block=label, allowed_j=allowed,
+                    )
+
+    # The reported pack state has to stay physically plausible on the rows this
+    # identity reads, which is narrower than saying a pack can never be colder
+    # than the air. Snow-17 bounds its own deficit as a mass fraction
+    # (NEGHS <= 0.33 * WE, worth 52 K) rather than as a temperature, and a thin
+    # pack early in accumulation is legitimately colder than a temperature
+    # bound allows. Those rows are never read by the identity, so they are not
+    # bounded here.
+    for label, start, stop in scored:
+        (ice_b, _, csnow_b), (ice_a, _, csnow_a) = boundary(start, stop)
+        for where, ice_row, csnow_row in (
+            ("the step before", ice_b, csnow_b), ("the last step of", ice_a, csnow_a),
+        ):
+            with np.errstate(over="ignore", invalid="ignore"):
+                cap = c_ice * ice_row * max(0.0, -(coldest - cap_margin_k))
+            if np.isfinite(cap) and csnow_row > cap + energy_tol:
+                return contract(
+                    f"'{cold_content}' is {csnow_row:.3g} J/m2 on {where} the "
+                    f"'{label}' block, carrying {ice_row:.1f} mm of ice, above "
+                    f"the {cap:.3g} J/m2 that ice would hold at "
+                    f"{coldest - cap_margin_k:.1f} C, {cap_margin_k:.0f} K below "
+                    "the coldest air in the record. The reported pack state has "
+                    "to stay physically plausible on the rows this identity "
+                    "reads",
+                    csnow_row, block=label, row=where, cap_j=float(cap),
+                )
+
+    # Measured on the ice standing at the step before the block opens, not on
+    # the peak anywhere in the window. A peak lets a model that melts and drains
+    # its pack before the block still satisfy the guard, and lets one boundary
+    # row decide it. The winter here stays at or below -12 C, so an honest model
+    # still holds all of its snowfall when the block opens.
+    opening = [
+        (float(w.state0[pack]) - float(w.state0[liquid_var])) if start <= 0
+        else float(ice[start - 1])
+        for _, start, _ in scored
+    ]
+    peak = float(max(opening)) if opening else 0.0
+    snowfall = sum(
+        float(w.volume(w.forcing[precipitation].to_numpy(dtype=float)[start:stop]).sum())
+        for label, start, stop in blocks_all
+        if label == snowfall_label
+    )
+    if snowfall > 0.0 and peak < min_peak_share * snowfall:
+        return CriterionResult(
+            name="melt_energy",
+            status=FAIL,
+            value=peak,
+            threshold=min_peak_share * snowfall,
+            message=(
+                f"no pack to melt: {peak:.1f} mm of ice where the block opens, "
+                f"against {snowfall:.1f} mm of snowfall, under the "
+                f"{min_peak_share:.0%} the case requires"
+            ),
+            diagnostics={"peak_swe_mm": peak, "snowfall_mm": snowfall},
+        )
+
+    # Finite inputs can still overflow: a melt large enough sends `demanded` to
+    # infinity, and with it the allowance, so `gap <= allowance` becomes
+    # `inf <= inf` and a meaningless run reports PASS. Same defence the
+    # radiation criterion carries, and for the same reason.
+    with np.errstate(over="ignore", invalid="ignore"):
+        residual = drive - fluxes.sum(axis=1)
+    seconds = w.dt_days * SECONDS_PER_DAY
+    blocks = []
+    for label, start, stop in scored:
+        # Ice at the step before the block, through the shared helper that owns
+        # the off-by-one, and at its last step.
+        if start <= 0:
+            ice_before = float(w.state0[pack]) - float(w.state0[liquid_var])
+            csnow_before = float(w.state0[cold_content])
+        else:
+            ice_before = float(ice[start - 1])
+            csnow_before = float(csnow[start - 1])
+        ice_after, csnow_after = float(ice[stop - 1]), float(csnow[stop - 1])
+
+        with np.errstate(over="ignore", invalid="ignore"):
+            # Fusion: only the ice that changed phase, sublimation removed.
+            melted = -(ice_after - ice_before) - float(w.volume(subl[start:stop]).sum())
+            # Cold content: what warming a sub-freezing pack cost, which does
+            # no melting and which no case can be engineered to rule out.
+            # Spending it reduces the deficit, so the energy is minus the change.
+            d_internal = -(csnow_after - csnow_before)
+            n = stop - start
+            demanded = (lam_f * melted + d_internal) / (n * seconds)
+            available = float(residual[start:stop].mean())
+            gap = abs(available - demanded)
+            allowance = max(threshold * abs(demanded), floor)
+        if not all(np.isfinite(v) for v in
+                   (melted, d_internal, demanded, available, gap, allowance)):
+            return CriterionResult(
+                name="melt_energy",
+                status=FAIL,
+                message=(
+                    f"the melt-energy calculation overflowed on the "
+                    f"'{label}' block; the reported pack or surface fluxes are "
+                    "outside the range the identity can be evaluated in"
+                ),
+                diagnostics={
+                    "block": label,
+                    "melt_mm": melted,
+                    "demanded_w_m2": demanded,
+                    "available_w_m2": available,
+                },
+            )
+        left = float(snw[stop - 1])
+        # Reported so a reviewer can see how far the melt got, never scored.
+        blocks.append({
+            "label": label,
+            "start": start,
+            "stop": stop,
+            "melt_mm": melted,
+            "fusion_w_m2": lam_f * melted / (n * seconds),
+            "cold_content_w_m2": d_internal / (n * seconds),
+            "demanded_w_m2": demanded,
+            "available_w_m2": available,
+            "gap_w_m2": gap,
+            "allowance_w_m2": allowance,
+            "slack": gap / allowance if allowance > 0 else float("inf"),
+            "snw_end_mm": left,
+            "share_of_peak_left": left / peak if peak > 0 else 0.0,
+            "passed": gap <= allowance and melted > 0.0,
+        })
+
+    stalled = [b for b in blocks if b["melt_mm"] <= 0.0]
+    if stalled:
+        return CriterionResult(
+            name="melt_energy",
+            status=FAIL,
+            value=stalled[0]["melt_mm"],
+            threshold=0.0,
+            message=(
+                f"the pack did not melt over the {scored_label} block: "
+                f"{stalled[0]['melt_mm']:.2f} mm lost from a {peak:.1f} mm pack "
+                "under forcing well above freezing"
+            ),
+            diagnostics={"blocks": blocks, "peak_swe_mm": peak},
+        )
+
+    failed = sum(not b["passed"] for b in blocks)
+    worst = max(blocks, key=lambda b: b["slack"])
+    return CriterionResult(
+        name="melt_energy",
+        status=PASS if failed == 0 else FAIL,
+        value=worst["slack"],
+        threshold=1.0,
+        message=(
+            f"melt of {worst['melt_mm']:.1f} mm demands "
+            f"{worst['demanded_w_m2']:.2f} W/m2 and the surface budget has "
+            f"{worst['available_w_m2']:.2f} W/m2"
+            + (
+                f"; agree within {worst['allowance_w_m2']:.2f} W/m2"
+                if failed == 0
+                # Signed, because the failing branch fires in both directions
+                # and "paid for melt that never appeared as water" is the
+                # opposite defect from "melted ice it never paid for".
+                else (
+                    f"; {'short by' if worst['available_w_m2'] < worst['demanded_w_m2'] else 'over by'}"
+                    f" {worst['gap_w_m2']:.2f} W/m2, past the "
+                    f"{worst['allowance_w_m2']:.2f} W/m2 allowed"
+                )
+            )
+        ),
+        diagnostics={"blocks": blocks, "peak_swe_mm": peak, "n_blocks": len(blocks)},
+    )

@@ -35,6 +35,7 @@ HEADLINES = {
     "energy/latent-heat-et-consistency": ("energy_closure", "flux_identity"),
     "energy/pet-consistency": ("demand_consistency",),
     "energy/radiation-consistency": ("radiative_identity",),
+    "energy/snowmelt-energy-water": ("melt_energy",),
     "energy/soil-heat-storage-consistency": ("soil_heat_storage",),
     "energy/surface-energy-closure": ("energy_closure_by_phase",),
     "mass/antecedent-monotonicity": ("antecedent_monotonicity",),
@@ -58,6 +59,10 @@ HEADLINES = {
     "mass/warming-response": ("response_sign",),
     "momentum/channel-routing-mass": ("recession_drainage",),
     "momentum/routing-conservation": ("routing_conservation",),
+    "momentum/routing-lag-consistency": (
+        "lag_time_bounds",
+        "scaling_monotonicity",
+    ),
     "momentum/stage-discharge-monotonic": ("rating_monotonic", "rating_loop", "non_degenerate"),
 }
 

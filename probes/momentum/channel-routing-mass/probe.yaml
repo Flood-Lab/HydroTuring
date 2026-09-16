@@ -16,12 +16,13 @@ description: >
   water in transit as the channel store. That store is generated runoff not
   yet released, and this is its mass shadow: when no water is entering the
   reach, the only thing the store can do is drain. An honest router falls,
-  step after step, until the next storm arrives; a router that loses or
-  invents water inside its routing has to apply that error on every one of
-  those steps, and the store rises where it should fall. The budget in
-  `momentum/routing-conservation` bounds the store but never asks whether
-  it moved for a reason, and no closure test sees it either, because the
-  error is confined to the channel.
+  step after step, until the next storm arrives. A reach that receives water
+  it never generated rises on those steps instead, and because what is read
+  is the direction of the change rather than its size, the error does not
+  have to be large: `reference_unreported_inflow` stays far inside the store
+  bound and still fails here. The budget in `momentum/routing-conservation`
+  asks how much the reach holds; this asks which way it moved, and no closure
+  test sees either, because the error is confined to the channel.
 
 requires:
   # `non_degenerate` scores `mrro`, which its `cv_variables` name, so the probe

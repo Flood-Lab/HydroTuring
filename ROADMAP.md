@@ -33,9 +33,10 @@ Every probe here is a few hundred lines at most.
 ## Cross-budget consistency
 
 A model can close its water budget and close its energy budget while being
-incoherent between them. Two probes now notice: one asks whether the two
-ledgers agree on a number, the other whether they agree under a change
-neither has seen. The snowmelt one is what we most want next.
+incoherent between them. Three probes now notice: one asks whether the two
+ledgers agree on a number, one whether they agree under a change neither has
+seen, and one whether the energy budget paid for the ice the water budget
+says melted.
 
 ### `energy/latent-heat-et-consistency` &middot; **merged**
 Latent heat must equal evapotranspiration times the latent heat of the phase
@@ -50,13 +51,19 @@ and the three changes must sum to zero. A counterfactual rather than a
 same-instant residual, so a model cannot fit its way past it.
 Contributed by Changming Li (SCUT).
 
-### `coupled/snowmelt-energy-water` &middot; hard &middot; **unclaimed**
-
-Melt in the water budget must equal the energy consumed by melting divided by
-the latent heat of fusion.
-
-*Why it discriminates.* Same failure mode at the phase change, where it is
-most consequential for runoff timing.
+### `energy/snowmelt-energy-water` &middot; **merged**
+A pack built over a cold winter and then melted down over a dry block that opens
+below -14 &deg;C and warms through zero. The surface energy residual must equal
+what the pack absorbed, which is two terms: the latent heat of fusion for the
+ice that changed phase, and the cold content of warming the pack towards zero.
+The ice is `snw - lwsnl` rather than `snw`, because `snw` is total pack water
+in this suite's own adapters and a fall in it is water leaving rather than a
+phase change. The block carries no precipitation, so ice arriving cannot be
+mistaken for ice melting through a contract that has no snowfall flux. Catches
+a degree-day melt head bolted to an energy head that closes by itself, and
+separately a pack that warms for nothing. Filed under `energy` because the
+schema admits mass, energy and momentum.
+Contributed by Siddik Barbhuiya (IIT Mandi).
 
 ---
 
@@ -216,12 +223,30 @@ Contributed by Xin Lan (Michigan State University).
 ### `momentum/routing-conservation` &middot; **merged**
 The channel store is never negative and never holds more than its hydrograph can.
 
+### `momentum/routing-lag-consistency` &middot; **merged**
+Four synthetic catchments receive the same isolated one-day storm. Their
+areas and Hack-derived channel lengths define duration-corrected Snyder lag
+scales. Each runoff peak must fall inside a factor-of-two Snyder envelope with
+a half-day daily-resolution allowance; adjacent lags may not reverse by more
+than half a day, and the smallest-to-largest lag span must reach two days.
+`reference_snyder_router` passes with a conservative triangular unit
+hydrograph, `reference_instant_router` fails the lag bounds, and
+`reference_inverse_router` fails the scaling criterion. A model must declare
+that it consumes precipitation, area and both channel-length fields; otherwise
+the result is N/A (INCOMPATIBLE), not pass or fail.
+Contributed by Binlan Zhang (Institute of Mountain Hazards and Environment,
+Chinese Academy of Sciences, Chengdu, China; GitHub: binbinlan; ORCID:
+https://orcid.org/0000-0001-9091-3185).
+
 ### `momentum/channel-routing-mass` &middot; **merged**
-On rainless stretches the channel store may only fall. The budget bounds how
-much the reach holds; this asks whether it moved for a reason.
-*Discriminates:* routers that lose or invent water inside their routing — the
-error is applied on every step, so the store rises where it can only drain,
-and it shows up long before any bound is reached.
+Inflow minus outflow minus the change in channel storage, per reach.
+The shipped implementation asks a one-sided version of that question — on
+rainless steps, the channel store may not rise — because the contract carries
+no inflow to the reach: there is no inflow variable, and `dis` is `mrro` times
+area, so the residual the proposal describes cannot be formed. The probe README
+records the departure, the reason for it and what it costs.
+*Discriminates:* a reach that rises from nothing, of any size and at any
+distance from the bound the channel store is held to.
 Contributed by Yuanhang Liu.
 
 ### `momentum/stage-discharge-monotonic` &middot; **merged**
