@@ -140,6 +140,17 @@ def test_all_variants_keeps_a_long_only_failure_with_no_value(probe, monkeypatch
 
 
 @pytest.mark.parametrize(
+    ("value", "expected"),
+    [("false", False), ("0", False), ("off", False), ("true", True), ("1", True)],
+)
+def test_harness_boolean_options_honour_quoted_yaml_values(value, expected):
+    """Quoted YAML booleans must keep their written meaning."""
+    from hydroturing.harness import _as_bool
+
+    assert _as_bool(value, default=False) is expected
+
+
+@pytest.mark.parametrize(
     "model_name", ["reference_bucket", "flex_lumped", "flex_topo", "sacsma_snow17"]
 )
 def test_physical_references_reach_the_same_cycle_on_an_independent_seed(probe, model_name):
