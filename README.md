@@ -68,15 +68,16 @@ not.
 
 ## The probes
 
-Twenty-nine: eighteen under mass, seven under energy and four under momentum.
+Thirty: nineteen under mass, seven under energy and four under momentum.
 Each was merged only after the acceptance gate saw it pass its declared
 exact reference and fail a purpose-built broken one on the named criterion.
 Four physical models, a bucket that conserves water exactly, two
 hand-written FLEX models and the NWS's SAC-SMA with Snow-17, must pass
-every probe that can ask them anything; six of the seven energy probes need
-outputs they do not report and are not scored for them. A probe that fails a
+every probe that can ask them anything; six of the seven energy probes and
+the groundwater-exchange probe need outputs they do not report and are not
+scored for them. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Twelve of the twenty-nine require no model output
+with any probe pull request. Twelve of the thirty require no model output
 beyond runoff. That output-only count includes `momentum/routing-lag-consistency`,
 which is eligible only when the model also declares that it consumes `pr` and
 the three geometry inputs `area_km2`, `main_channel_length_km` and
@@ -104,6 +105,7 @@ unclaimed.
 | [`mass/time-origin-invariance`](probes/mass/time-origin-invariance) | mass | The same weather under a 28-year calendar shift that preserves seasons and leap days: evaporation, runoff and water stores must agree. | `reference_calendar`, `reference_degenerate`, `reference_leaky` |
 | [`mass/precipitation-counterfactual`](probes/mass/precipitation-counterfactual) | mass | The same seed 20% wetter, 10% wetter and 20% drier: the water added or removed must be partitioned among evaporation, runoff and storage, and runoff must rise from drier to wetter. | `reference_cheater`, `reference_leaky`, `reference_degenerate` |
 | [`mass/human-abstraction`](probes/mass/human-abstraction) | mass | A prescribed net irrigation withdrawal must leave the budget: the same weather run with and without it, and the difference must account for exactly the abstracted volume. | `reference_abstraction_blind`, `reference_leaky` |
+| [`mass/gw-sw-exchange-consistency`](probes/mass/gw-sw-exchange-consistency) | mass | A model reporting groundwater-river exchange: do recharge, the net exchange (`gw_sw_exchange`, distinct from `gwex`) and the two signed directional components, and aquifer storage all agree? | `reference_exchange_sign_error` |
 | [`energy/pet-consistency`](probes/energy/pet-consistency) | energy | Evaporation reaches demand when the model's own soil is wettest, stays below it, and falls when the soil is driest. | `reference_thirsty` |
 | [`energy/latent-heat-et-consistency`](probes/energy/latent-heat-et-consistency) | energy | The evaporation a model reports as water and the evaporation implied by the latent heat it reports: are they the same evaporation? | `reference_two_head`, `reference_constant_lambda`, `reference_sublimation_blind`, `reference_energy_leak` |
 | [`energy/evaporative-partition`](probes/energy/evaporative-partition) | energy | One summer without rain under net radiation that did not change: the latent heat a drying surface gives up has to warm the air. | `reference_two_head`, `reference_ground_dodge` |
@@ -214,6 +216,7 @@ the probe cannot ask the declared model interface this question.
 | `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | N/A (INCOMPLETE) on budget probes; caught by `response_sign` |
 | `reference_in_sample` | broken | removes surface runoff above a fixed 55 mm daily precipitation cutoff | caught by `event_water_closure` |
 | `reference_calendar` | broken | a recession that drifts with the calendar year | caught by `invariance` (time origin) |
+| `reference_exchange_sign_error` | broken | a genuinely bidirectional aquifer-river exchange that closes its own groundwater balance exactly, but reports the aquifer-to-river component's sign flipped on every other step | caught by `exchange_components` |
 
 ## How a case is generated
 
@@ -382,7 +385,7 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Twenty-nine probes, eighteen mass, seven energy, four momentum, synthetic track only. More
+Suite `0.1.0`, pre-release. Thirty probes, nineteen mass, seven energy, four momentum, synthetic track only.
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes; spatial and temporal closure, counterfactual response
 and invariance are represented in the suite. The roadmap lists the remaining
