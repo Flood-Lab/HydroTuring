@@ -55,12 +55,11 @@ UNITS = {
     # is negative, out of the aquifer (aquifer losing to the river).
     "gw_to_sw": "mm day-1",
     "sw_to_gw": "mm day-1",
-    # A boundary term acting on gw alone (a GHB or WEL package, a regional
-    # groundwater exchange), positive into the aquifer. Unlike gwex, which
-    # crosses the whole catchment's boundary and may be taken from any
-    # reported store, gw_boundary is scoped to the aquifer control volume
-    # that groundwater_balance checks, so it is never ambiguous about which
-    # store a declared source acted on.
+    # Every other flux across the aquifer's boundary (a GHB or WEL package,
+    # regional groundwater exchange), positive into the aquifer. The part that
+    # also crosses the catchment boundary is reported in gwex as well, and no
+    # budget adds the two. groundwater_balance credits this column to gw,
+    # never gwex, because gwex may leave from any reported store.
     "gw_boundary": "mm day-1",
     # The sublimating share of `evspsbl`, not a flux in addition to it. A model
     # that reports it is stating which part of its evaporation left the surface

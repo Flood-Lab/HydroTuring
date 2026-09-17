@@ -8,6 +8,12 @@ from hydroturing.criteria.base import FAIL, PASS, CriterionResult, criterion, ma
 from hydroturing.protocol import RunResult
 from hydroturing.spec import ProbeSpec
 
+# A directional component may sit this far on the wrong side of zero before
+# its sign counts as reversed: float noise, not a share of the flow.
+SIGN_TOL_MM = 1.0e-9
+# Keeps a ratio finite when a configuration allows no residual at all.
+_TINY = float(np.finfo(float).tiny)
+
 
 @criterion("groundwater_balance")
 def groundwater_balance(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
@@ -74,18 +80,16 @@ def groundwater_balance(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
     cumulative_ok = abs(cumulative_residual) <= cumulative_allowed
     ok = step_ok and cumulative_ok
     relative_total = float(np.abs(cumulative_residual) / max(total_recharge, 1.0e-12))
-    # `threshold` reports the tolerance actually applied to `value`, not
-    # rel_tol on its own: cumulative_allowed is max(rel_tol * total_recharge,
-    # 2 * step_floor), and the second term can be the binding one (a small
-    # recharge total, or a gw datum whose rounding sets the floor), in which
-    # case a run can pass with value above rel_tol, or fail below it. Stating
-    # rel_tol here would describe a threshold this criterion no longer uses.
-    applied_threshold = cumulative_allowed / max(total_recharge, 1.0e-12)
+    # Two checks with two different allowances, so no single residual can be
+    # set against one threshold. Report each residual as a share of its own
+    # allowance and keep the worse: the run fails exactly when this exceeds 1.
+    step_ratio = float(np.max(np.abs(residual) / np.maximum(allowed, _TINY)))
+    cumulative_ratio = abs(cumulative_residual) / max(cumulative_allowed, _TINY)
     return CriterionResult(
         name="groundwater_balance",
         status=PASS if ok else FAIL,
-        value=relative_total,
-        threshold=applied_threshold,
+        value=max(step_ratio, cumulative_ratio),
+        threshold=1.0,
         message=(
             f"groundwater balance closes; max step residual {max_abs:.6g} mm"
             if ok
@@ -101,6 +105,9 @@ def groundwater_balance(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
             "max_abs_step_residual_mm": max_abs,
             "step_floor_mm": step_floor,
             "cumulative_allowed_mm": cumulative_allowed,
+            "step_ratio": step_ratio,
+            "cumulative_ratio": cumulative_ratio,
+            "cumulative_residual_share_of_recharge": relative_total,
         },
     )
 
@@ -130,18 +137,24 @@ def exchange_components(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
     residual = gw_to_sw + sw_to_gw - net
     denominator = np.maximum(np.maximum(np.abs(gw_to_sw), np.abs(sw_to_gw)), 1.0e-9)
     relative = float(np.max(np.abs(residual) / denominator))
-    sign_violation = bool((gw_to_sw > 1.0e-9).any() or (sw_to_gw < -1.0e-9).any())
+    # How far a component strays onto the wrong side of zero.
+    sign_excess = max(float(np.max(gw_to_sw)), -float(np.min(sw_to_gw)), 0.0)
+    sign_violation = sign_excess > SIGN_TOL_MM
     rel_tol = float(params.get("rel_tol", 1.0e-6))
     abs_tol = float(params.get("abs_tol", 1.0e-6))
     max_abs = float(np.max(np.abs(residual)))
-    ok = not sign_violation and bool(
-        np.all(np.abs(residual) <= np.maximum(rel_tol * denominator, abs_tol))
-    )
+    allowed = np.maximum(rel_tol * denominator, abs_tol)
+    residual_ok = bool(np.all(np.abs(residual) <= allowed))
+    ok = not sign_violation and residual_ok
+    # Each arm as a share of its own tolerance, the worse one reported, so
+    # the run fails exactly when this exceeds 1.
+    residual_ratio = float(np.max(np.abs(residual) / np.maximum(allowed, _TINY)))
+    sign_ratio = sign_excess / SIGN_TOL_MM
     return CriterionResult(
         name="exchange_components",
         status=PASS if ok else FAIL,
-        value=relative,
-        threshold=rel_tol,
+        value=max(residual_ratio, sign_ratio),
+        threshold=1.0,
         message=(
             f"directional exchange components sum to {net_name}"
             if ok
@@ -150,6 +163,7 @@ def exchange_components(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
         diagnostics={
             "max_abs_residual_mm": max_abs,
             "max_relative_residual": relative,
+            "sign_excess_mm": sign_excess,
             "minimum_gw_to_sw": float(np.min(gw_to_sw)),
             "maximum_sw_to_gw": float(np.max(sw_to_gw)),
         },

@@ -8,10 +8,9 @@ exchange with the outside of the catchment (regional groundwater, an
 inter-basin transfer) and `closure.py` counts it as a source in the
 whole-catchment budget. River-aquifer exchange moves water between two
 stores that are both inside a catchment model's control volume (`gw` and
-`channel`), so a catchment model that also declared it as `gwex` would double
-its water balance's opinion of that flow, and `mass/catchment-closure` would
-misread an internal transfer as a source or sink crossing the boundary. This
-probe also accepts two signed directional components:
+`channel`). A catchment model that declared it as `gwex` would have
+`mass/catchment-closure` count that internal transfer as water crossing the
+boundary. This probe also accepts two signed directional components:
 
 - `sw_to_gw >= 0`: surface water losing to the aquifer (into the aquifer,
   same sign as `gw_sw_exchange`)
@@ -30,7 +29,7 @@ WEL package or a regional groundwater exchange, is added if the model
 declares it and is otherwise zero: a model without that column is not
 penalized for a boundary term it does not have, but one with a real
 boundary term and no `gw_boundary` column is scored on an incomplete budget
-and fails. `gw_boundary` is deliberately not `gwex`: `gwex` is a declared
+and fails. The criterion does not read `gwex` for this: `gwex` is a declared
 exchange with the outside of the whole catchment (regional groundwater, an
 inter-basin transfer, a prescribed withdrawal) and may be taken from any
 store the model reports, not necessarily the aquifer, so `closure.py`
@@ -39,8 +38,16 @@ store it left. Crediting `gwex` to this probe's aquifer-only budget would
 pass a model that took the same withdrawal from the channel or soil column
 instead, where `gw` never changed and the probe would be right to see an
 unexplained residual. A model whose boundary term genuinely acts on the
-aquifer reports it as `gw_boundary`, scoped to this control volume, rather
-than `gwex`. The only required store is `gw`. This is intentionally a
+aquifer reports it as `gw_boundary`, scoped to this control volume.
+
+Where a boundary flow on the aquifer also crosses the catchment boundary,
+such as regional groundwater outflow or a well that exports water out of
+the basin, the model reports it in both columns: `gwex` for the
+whole-catchment budgets and `gw_boundary` for this one. No criterion adds
+the two. A well that pumps aquifer water onto fields inside the catchment
+is `gw_boundary` but not `gwex`.
+
+The only required store is `gw`. This is intentionally a
 groundwater probe: canopy, soil, snow and catchment runoff are outside its
 control volume, and a model is scored only on the groundwater state and
 exchange fluxes it reports.
@@ -78,7 +85,10 @@ regardless of the model's physics.
 | `state_bounds` | Prevents negative aquifer storage. |
 | `exchange_directions` | Requires both gaining and losing river exchange over the scored record. |
 
-`reference_exchange_exact` is the physical `must_pass` baseline: a trusted,
+`reference_exchange_exact` is the exact `must_pass` baseline, under the
+exception in `docs/writing-a-probe.md` for a process none of the four
+physical models has: none of them exchanges water between an aquifer and a
+river. It is a trusted,
 Docker-free bookkeeping reference that closes its own groundwater balance
 exactly and reports genuinely bidirectional exchange. CI's gate job runs
 `ht gate`, which runs `reference_exchange_exact` as that `must_pass`, so it
@@ -111,18 +121,30 @@ asked for. The record's cumulative residual must also be within `max(1% of
 total recharge, 2x the per-step floor)`. Rounding a stored state cancels
 out once the steps are summed; a per-step shortfall that recurs in the
 same direction, such as an unmodeled leak out of the aquifer, does not, and
-can otherwise hide under a per-step floor sized for rounding. Honest
-output closes both checks at full precision, at 6 significant figures, and
-at 8 significant figures under any datum shift; at 6 significant figures a
-`gw` datum shifted 10,000 mm or more from zero can exceed the capped floor
-and fail on rounding alone that has nothing to do with the model's
-physics. Report `gw` at full precision, or at least 8 significant figures.
-`exchange_components` is an
-exact identity and uses a `1e-6` relative tolerance and a `1e-4 mm`
-absolute floor: a reach that both gains and loses on the same step has
-`gw_to_sw` and `sw_to_gw` each rounded to ordinary output precision before
-they are summed, which the identity's own rounding does not absorb at a
-tighter floor.
+can otherwise hide under a per-step floor sized for rounding. The criterion
+reports the larger of the worst step's residual and the cumulative residual,
+each divided by its own allowance, against a threshold of 1.
+
+Honest output closes both checks as long as the rounding increment of `gw`
+is no coarser than the per-step floor:
+
+- full precision always works;
+- 8 significant figures work while `gw` stays below 1,000,000 mm;
+- 6 significant figures work only while `gw` stays below 10,000 mm;
+- fixed decimals need at least four places (0.0001 mm): near zero the floor
+  is 2e-4 mm, and three places fail.
+
+Coarser output fails on rounding alone, whatever the model's physics.
+Report `gw` at full precision.
+
+`exchange_components` is an exact identity and uses a `1e-6` relative
+tolerance and a `1e-4 mm` absolute floor: a reach that both gains and loses
+on the same step has `gw_to_sw` and `sw_to_gw` each rounded to ordinary
+output precision before they are summed, which the identity's own rounding
+does not absorb at a tighter floor. A component may sit no more than
+`1e-9 mm` on the wrong side of zero. The criterion reports the worse of the
+residual and the sign excess, each divided by its own tolerance, against a
+threshold of 1.
 
 ## Baselines
 

@@ -58,8 +58,6 @@ def _run(probe, table: pd.DataFrame) -> RunResult:
 
 
 def gate_seed(probe) -> int:
-    from hydroturing.seeds import gate_seeds
-
     return gate_seeds(probe.id, 1)[0]
 
 
@@ -250,3 +248,61 @@ def test_two_reach_case_still_catches_a_net_that_omits_a_component(probe, params
     run = RunResult(case=case, table=broken, meta={}, wall_seconds=0.0)
     result = exchange_components(run, probe, params)
     assert result.status == FAIL, result.message
+
+
+def test_value_exceeds_the_threshold_exactly_when_an_arm_fails(probe, params):
+    """`value` is the worse of residual / allowance and sign excess / sign
+    tolerance, against a threshold of 1. A pass reports at most 1, including
+    the two-reach case where abs_tol rather than rel_tol sets the allowance,
+    and a failure on either arm reports more than 1."""
+    passing = exchange_components(_run(probe, _base_table(probe)), probe, params)
+    assert passing.status == PASS
+    assert passing.threshold == 1.0
+    assert passing.value <= 1.0
+
+    seed = gate_seed(probe)
+    two_reach_run = RunResult(
+        case=build_case(probe, seed), table=_two_reach_table(probe, seed), meta={}, wall_seconds=0.0
+    )
+    two_reach = exchange_components(two_reach_run, probe, params)
+    assert two_reach.status == PASS
+    assert 0.0 < two_reach.value <= 1.0
+
+    sign_broken = _base_table(probe)
+    sign_broken["gw_to_sw"] = sign_broken["gw_to_sw"].abs()
+    sign_broken["gw_sw_exchange"] = sign_broken["gw_to_sw"] + sign_broken["sw_to_gw"]
+    sign_result = exchange_components(_run(probe, sign_broken), probe, params)
+    assert sign_result.status == FAIL
+    assert sign_result.value > 1.0
+
+    residual_broken = _base_table(probe)
+    residual_broken["gw_sw_exchange"] = residual_broken["gw_to_sw"]
+    residual_result = exchange_components(_run(probe, residual_broken), probe, params)
+    assert residual_result.status == FAIL
+    assert residual_result.value > 1.0
+
+
+@pytest.mark.parametrize(("excursion", "expected"), [(1.0e-6, FAIL), (1.0e-8, FAIL), (1.0e-10, PASS)])
+def test_the_sign_tolerance_is_float_noise(probe, params, excursion, expected):
+    """The sign tolerance is float noise, not a share of the flow: a
+    gw_to_sw of +1e-6 or +1e-8 mm on one scored step, with the net adjusted
+    so the residual stays zero, fails, and +1e-10 mm passes."""
+    table = _base_table(probe)
+    step = len(table) - 10
+    assert table.loc[step, "gw_to_sw"] == 0.0
+    table.loc[step, "gw_to_sw"] = excursion
+    table["gw_sw_exchange"] = table["gw_to_sw"] + table["sw_to_gw"]
+    result = exchange_components(_run(probe, table), probe, params)
+    assert result.status == expected, result.message
+    assert result.diagnostics["max_abs_residual_mm"] < 1e-9
+
+
+def test_the_net_parameter_names_the_column_that_is_checked(probe, params):
+    """With `net` pointing at another column, that column is the one the
+    components must sum to, and the default `gw_sw_exchange` is ignored."""
+    table = _base_table(probe)
+    table["custom_net"] = table["gw_sw_exchange"]
+    table["gw_sw_exchange"] = 0.0
+    run = _run(probe, table)
+    assert exchange_components(run, probe, dict(params, net="custom_net")).status == PASS
+    assert exchange_components(run, probe, params).status == FAIL

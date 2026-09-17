@@ -31,10 +31,15 @@ The five cases asked for:
      boundary term is credited only when declared under the name the probe
      actually asks for, not under `gwex`.
 
-Also covered: the criterion's reported `threshold` must match the
-tolerance actually applied to `value` (cumulative_allowed / total_recharge,
-not rel_tol on its own), since the pass rule now includes a floor term
-rel_tol alone does not describe.
+Also covered:
+  * `value` is the worse of the two residuals as a share of its own
+    allowance, against a threshold of 1, so a run fails exactly when its
+    value exceeds 1;
+  * the probe's own rel_tol and abs_tol_mm are the reviewed values;
+  * the storage-scaled floor lets honest output through at the precision the
+    probe README asks for, scales with the reported store, and is capped at
+    0.05 mm;
+  * a non-zero exchange enters the budget with its sign.
 """
 
 from __future__ import annotations
@@ -132,11 +137,9 @@ def _tiny_recharge_case(probe, scale: float = 1.0e-6):
     probe's own gate-seed scale, `rel_tol * total_recharge` always
     dominates (see `_tolerances`'s docstring), so this scaled-down case is
     the only way to exercise the floor-dominated branch of
-    `cumulative_allowed` at all -- and, in turn, the only way to tell
-    `threshold=applied_threshold` apart from `threshold=rel_tol` in a test
-    that isn't vacuously true for both.
+    `cumulative_allowed` at all.
     """
-    case, recharge = _case_and_recharge(probe)
+    case, _ = _case_and_recharge(probe)
     scaled_forcing = case.forcing.copy()
     scaled_forcing["gw_recharge"] = scaled_forcing["gw_recharge"] * scale
     scaled_case = dataclasses.replace(case, forcing=scaled_forcing)
@@ -267,26 +270,50 @@ def test_an_alternating_half_millimetre_error_fails_the_per_step_check_alone():
     assert abs(result.diagnostics["cumulative_residual_mm"]) <= result.diagnostics["cumulative_allowed_mm"]
 
 
-def test_reported_threshold_matches_the_cumulative_check_actually_applied():
-    """`value` is |cumulative residual| / total_recharge and `threshold`
-    must be the tolerance that number was actually checked against --
-    cumulative_allowed / total_recharge -- not rel_tol on its own.
+def test_value_exceeds_the_threshold_exactly_when_a_check_fails():
+    """`value` is the larger of the worst per-step residual / allowance and
+    the cumulative residual / cumulative allowance, against a threshold of
+    1. Both failure modes must show a value above 1, and a pass a value of
+    at most 1: the alternating error fails the per-step check while its
+    cumulative residual is ~0, and the leak riding under the per-step floor
+    fails the cumulative check while every step is within its allowance.
+    """
+    probe = _probe()
+    params = _params(probe)
+    case, recharge = _case_and_recharge(probe)
+    window_recharge = _window_slice(case, recharge)
+    _, _, _, per_step_allowed, _ = _tolerances(probe, params, window_recharge)
+    n = len(case.forcing)
 
-    At this probe's own gate-seed scale, `rel_tol * total_recharge` always
-    dominates `2 * step_floor` in `cumulative_allowed` (see `_tolerances`'s
-    docstring), so `threshold == rel_tol` and `threshold ==
-    cumulative_allowed / total_recharge` agree there and a test built on
-    the gate seed alone cannot tell a correct `threshold` from a merely
-    coincidental one. `_tiny_recharge_case` scales recharge down instead,
-    which makes the floor term (`2 * abs_tol_mm`) the one that binds:
-    there, a systematic leak sized so `value` sits well ABOVE `rel_tol`
-    (0.01) still PASSES, because the floor-derived `cumulative_allowed` it
-    is actually checked against is far looser than `rel_tol *
-    total_recharge` would be. A `threshold` that reported `rel_tol` would
-    show `value > threshold` on a run the criterion itself marked PASS --
-    a plainly wrong pairing to report -- so recomputing the exact formula
-    the criterion uses is the only way this test can hold both facts (a
-    passing run, and a value above rel_tol) without contradicting itself.
+    exact = groundwater_balance(_run(case, _table(case, np.cumsum(recharge))), probe, params)
+    assert exact.status == PASS
+    assert exact.threshold == 1.0
+    assert exact.value <= 1.0
+
+    alt_full = np.where(np.arange(n) % 2 == 0, 0.5, -0.5)
+    alternating = groundwater_balance(
+        _run(case, _table(case, np.cumsum(recharge - alt_full))), probe, params
+    )
+    assert alternating.status == FAIL
+    assert alternating.value > 1.0
+    assert alternating.diagnostics["cumulative_ratio"] <= 1.0 < alternating.diagnostics["step_ratio"]
+
+    leak_full = np.zeros(n)
+    leak_full[case.spinup_steps :] = 0.99 * per_step_allowed
+    drifting = groundwater_balance(
+        _run(case, _table(case, np.cumsum(recharge - leak_full))), probe, params
+    )
+    assert drifting.status == FAIL
+    assert drifting.value > 1.0
+    assert drifting.diagnostics["step_ratio"] <= 1.0 < drifting.diagnostics["cumulative_ratio"]
+
+
+def test_a_pass_on_the_floor_dominated_allowance_still_reports_value_at_most_one():
+    """With recharge scaled down, `2 * step_floor` is the cumulative
+    allowance that binds. A systematic leak at 90% of that allowance passes,
+    although it is far more than rel_tol of the (tiny) recharge. The run's
+    value must still be at most 1, and the share of recharge is kept as a
+    diagnostic.
     """
     probe = _probe()
     params = _params(probe)
@@ -324,17 +351,10 @@ def test_reported_threshold_matches_the_cumulative_check_actually_applied():
         f"test setup error: expected this leak to pass on the floor-"
         f"dominated cumulative allowance; got {result.message}"
     )
-    assert result.value > rel_tol, (
-        "test setup error: expected value to exceed rel_tol despite the "
-        "PASS, which is the scenario this test exists to check"
-    )
-    expected_threshold = cumulative_allowed / total_recharge
-    assert result.threshold == pytest.approx(expected_threshold)
-    assert result.value < result.threshold, (
-        "a PASSing run must show value below the threshold it was "
-        "actually measured against, even though value exceeds rel_tol "
-        "here"
-    )
+    assert result.diagnostics["cumulative_residual_share_of_recharge"] == pytest.approx(expected_value)
+    assert result.diagnostics["cumulative_ratio"] == pytest.approx(0.9)
+    assert result.threshold == 1.0
+    assert result.value <= 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -478,3 +498,103 @@ def test_declaring_the_outflow_as_gwex_instead_of_gw_boundary_still_fails():
     table["gwex"] = -daily_outflow
     result = groundwater_balance(_run(case, table), probe, params)
     assert result.status == FAIL, result.message
+
+
+# ---------------------------------------------------------------------------
+# 6. The reviewed tolerances, the storage-scaled floor and its cap, and the
+#    exchange term's sign.
+# ---------------------------------------------------------------------------
+
+
+def test_the_probes_tolerances_are_the_reviewed_values():
+    """Every test above reads rel_tol and abs_tol_mm from probe.yaml, so
+    loosening them there would loosen those tests with them. Pin the values
+    that were reviewed."""
+    params = _params(_probe())
+    assert params["rel_tol"] == pytest.approx(0.01)
+    assert params["abs_tol_mm"] == pytest.approx(2.0e-4)
+
+
+def _rounded(values: np.ndarray, fmt: str) -> np.ndarray:
+    return np.array([float(fmt % v) for v in values])
+
+
+@pytest.mark.parametrize(
+    ("datum", "fmt"),
+    [(2000.0, "%.6g"), (1.0e5, "%.8g"), (5.0e5, "%.8g")],
+)
+def test_honest_output_passes_at_the_precision_the_readme_allows(datum, fmt):
+    """6 significant figures below 10,000 mm and 8 below 1,000,000 mm: the
+    storage-scaled term of the floor absorbs that rounding. Without it (a
+    floor of abs_tol_mm alone), or with the cap set far below 0.05 mm, these
+    fail."""
+    probe = _probe()
+    params = _params(probe)
+    case, recharge = _case_and_recharge(probe)
+    gw = _rounded(datum + np.cumsum(recharge), fmt)
+    result = groundwater_balance(_run(case, _table(case, gw)), probe, params)
+    assert result.status == PASS, result.message
+
+
+@pytest.mark.parametrize(("datum", "fmt"), [(1.0e4, "%.6g"), (1.0e6, "%.8g")])
+def test_output_coarser_than_the_capped_floor_fails(datum, fmt):
+    """Once `gw` is written in steps coarser than the 0.05 mm cap, honest
+    output fails on rounding alone, which is why the README asks for full
+    precision."""
+    probe = _probe()
+    params = _params(probe)
+    case, recharge = _case_and_recharge(probe)
+    gw = _rounded(datum + np.cumsum(recharge), fmt)
+    result = groundwater_balance(_run(case, _table(case, gw)), probe, params)
+    assert result.status == FAIL, result.message
+
+
+def _alternating_storage_error(n: int, amplitude: float) -> np.ndarray:
+    """A storage error of `amplitude` on every other row. The storage change,
+    and so the residual, alternates between +amplitude and -amplitude, and
+    the record's residual sums to at most one amplitude."""
+    return amplitude * (np.arange(n) % 2)
+
+
+@pytest.mark.parametrize(("amplitude", "expected"), [(0.045, PASS), (0.055, FAIL)])
+def test_the_storage_floor_is_capped_at_five_hundredths_of_a_millimetre(amplitude, expected):
+    """At a 1e6 mm datum the uncapped term would be 10 mm. With the cap, a
+    0.045 mm per-step error passes and a 0.055 mm one fails."""
+    probe = _probe()
+    params = _params(probe)
+    case, recharge = _case_and_recharge(probe)
+    n = len(case.forcing)
+    gw = LARGE_DATUM + np.cumsum(recharge) + _alternating_storage_error(n, amplitude)
+    result = groundwater_balance(_run(case, _table(case, gw)), probe, params)
+    assert result.diagnostics["step_floor_mm"] == pytest.approx(0.05)
+    assert result.status == expected, result.message
+
+
+@pytest.mark.parametrize(("datum", "expected"), [(2000.0, PASS), (0.0, FAIL)])
+def test_the_storage_floor_scales_with_the_reported_store(datum, expected):
+    """A 0.015 mm per-step error sits inside the 0.02 mm floor of a store
+    near 2,000 mm, but not inside the 2e-4 mm floor of a store that never
+    exceeds about 16 mm."""
+    probe = _probe()
+    params = _params(probe)
+    case, recharge = _case_and_recharge(probe)
+    n = len(case.forcing)
+    gw = datum + np.cumsum(recharge) + _alternating_storage_error(n, 0.015)
+    result = groundwater_balance(_run(case, _table(case, gw)), probe, params)
+    assert result.status == expected, result.message
+
+
+def test_the_exchange_term_enters_the_budget_with_its_sign():
+    """Every other test here reports no exchange. A bidirectional exchange
+    that the store follows closes the budget; the same table with the
+    exchange's sign flipped does not."""
+    probe = _probe()
+    params = _params(probe)
+    case, recharge = _case_and_recharge(probe)
+    n = len(case.forcing)
+    exchange = 0.2 * np.sin(2.0 * np.pi * np.arange(n) / 90.0)
+    gw = np.cumsum(recharge + exchange)
+    honest = groundwater_balance(_run(case, _table(case, gw, exchange)), probe, params)
+    assert honest.status == PASS, honest.message
+    flipped = groundwater_balance(_run(case, _table(case, gw, -exchange)), probe, params)
+    assert flipped.status == FAIL, flipped.message
