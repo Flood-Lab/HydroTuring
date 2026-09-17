@@ -98,12 +98,16 @@ stable regimes, or a slow external driver; then the probe's periodic-attractor
 assumption is not applicable until its case is redesigned or the model has
 made that external driver explicit.
 
-A FAIL can also mean that a physically valid but slow store has not settled
-within the prescribed spin-up. For example, CWatM with a slower groundwater
-recession differs by more than 5% after the probe's spin-up and converges after
-a much longer repeated history. That result is evidence that the prescribed
-spin-up is insufficient for this case; by itself it does not establish a
-physical violation or a hidden state.
+A FAIL means that the model did not reproduce the same evaluation cycle after
+different amounts of identical prior history. The result identifies a failure
+of cycle invariance under the prescribed spin-up, but it does not identify the
+mechanism. A hidden state and a physical store that has not yet settled can
+produce the same observable signature.
+
+Longer spin-up can help distinguish these cases. In the packaged CWatM
+diagnostic, a slow-groundwater configuration converged after 40 years of
+repeated forcing. This is evidence for that configuration, not a universal
+40-year requirement for every model or generated case.
 
 Similarly, a model with no reported evaporation or storage is incomplete for
 this mass probe rather than nonphysical. The required outputs are the minimum

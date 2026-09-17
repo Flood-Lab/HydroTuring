@@ -172,8 +172,9 @@ def test_hidden_internal_clock_fails_while_its_budget_and_states_remain_valid(pr
     assert results["non_degenerate"].passed
     assert results["spinup_cycle_invariance"].value > results["spinup_cycle_invariance"].threshold
     assert (
-        "Outputs still differ after the prescribed spin-up; insufficient spin-up is one "
-        "possible cause, so this result alone does not establish a physical violation."
+        "The model did not reproduce the same evaluation cycle after different amounts "
+        "of identical prior history. This signature does not identify the mechanism: it "
+        "may reflect a hidden state or a physical store that has not yet settled."
         in results["spinup_cycle_invariance"].message
     )
 

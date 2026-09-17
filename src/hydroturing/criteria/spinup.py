@@ -133,9 +133,10 @@ def spinup_cycle_invariance(
     if worst > threshold:
         failures.append(
             f"'{worst_var}' differs by {worst:.2%} between the paired evaluations "
-            f"(limit {threshold:.2%}). Outputs still differ after the prescribed spin-up; "
-            "insufficient spin-up is one possible cause, so this result alone does not "
-            "establish a physical violation."
+            f"(limit {threshold:.2%}). The model did not reproduce the same evaluation "
+            "cycle after different amounts of identical prior history. This signature "
+            "does not identify the mechanism: it may reflect a hidden state or a "
+            "physical store that has not yet settled."
         )
 
     return CriterionResult(
