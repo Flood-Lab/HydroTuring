@@ -37,6 +37,46 @@ correct outcome, and it is a different statement from `FAIL (VIOLATION)`.
 Inventing an evapotranspiration column to escape `INCOMPLETE` converts an
 honest limitation into a false claim, and the budget will not close anyway.
 
+Outputs that are not a flux or a storage have an optional `diagnostics` group.
+Most are not water at all -- a surface or layer temperature, a pack's cold
+content -- but `lwsnl` is: it is the liquid share of `snw`, water already
+counted inside that storage, so it is declared here precisely because it must
+never be added to a water-storage sum beside `snw`. A model that reports
+soil-layer temperature and its boundary heat fluxes can declare:
+
+```yaml
+emits:
+  fluxes: [hfg, hfg_bottom]
+  states: []
+  diagnostics: [tsoil_layer]
+```
+
+`tsoil_layer` is the layer-mean temperature in kelvin at each interval's end;
+it is never included in water-storage sums. `hfg` and `hfg_bottom` are the
+interval-mean downward heat fluxes in W/m2 at the actual soil surface and at
+the bottom of that same layer. The row timestamp remains the forcing
+interval's start. Emit the temperature during spinup too, so the last spinup
+row supplies the initial temperature of the first scored interval. Document
+the layer bounds and heat capacity. Use the model's own fluxes, not fluxes
+reconstructed from the temperature change being checked. Missing diagnostics
+that the manifest does not declare give `N/A (INCOMPLETE)`. Declaring a
+diagnostic but omitting it from the output is a protocol error. The separate
+`ts` diagnostic is instantaneous surface temperature for radiative checks;
+it cannot replace the interval-end mean-layer `tsoil_layer`.
+
+For the soil-storage probe, the control volume extends from the surface to
+`soil_layer_depth_m`, with prescribed `soil_heat_capacity_areal` and
+`soil_temperature_initial`. Configure that layer before running the model.
+The effective areal capacity already includes its thickness; it is not a
+coefficient to fit from the output. A model unable to represent these
+conditions is `N/A (INCOMPATIBLE)`, not a physics violation.
+
+The probe's `requires.forcing` and `requires.static` must match inputs the
+model declares in `needs_*` or `uses_*`. Declare only inputs the adapter
+actually consumes, and document their mapping to native parameters. Layer
+metadata makes that mapping auditable; a matching declaration alone does not
+prove that the model used it. See the [soil-storage case](../probes/energy/soil-heat-storage-consistency/README.md).
+
 ## 2. Write the adapter
 
 Read `/io/request.json`, read the forcing, call your model, write the table.
@@ -88,7 +128,7 @@ from a malformed table tells you nothing.
 It runs on the closure probe, or on the first probe your model can consume
 when it cannot consume that one: a model driven by net radiation is checked
 on an energy probe, because the closure probe generates none. A probe the
-model cannot consume, at its step, with its forcing or on its window, is N/A
+model cannot consume, at its step, with its forcing or static inputs, or on its window, is N/A
 (INCOMPATIBLE) for it. When that is true of the probe named with `--probe`,
 or of every probe, the adapter is not run and the command exits 1, as
 `ht run` does for a model no probe could score. Exit 0 is a contract that

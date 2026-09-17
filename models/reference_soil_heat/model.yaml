@@ -1,0 +1,24 @@
+name: reference_soil_heat
+version: "1.0.0"
+description: >
+  Conductive heat storage in one homogeneous layer beneath a zero-capacity
+  bare skin. Incoming shortwave/longwave drives a radiative surface solve.
+  Native flux equations are integrated over each interval and layer
+  temperature is reported at its end. The case configures the layer depth,
+  areal heat capacity and initial temperature. The fixed-capacity
+  layer has no evaporation, phase change, advection or internal heat sources.
+  Synthetic positive reference for energy/soil-heat-storage-consistency.
+authors: ["Han Wang"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1H
+emits:
+  fluxes: [pr, hfls, hfss, hfg, hfg_bottom]
+  states: []
+  diagnostics: [tsoil_layer]
+needs_forcing: [pr, tas, rsds, rlds]
+needs_static: [soil_heat_capacity_areal, soil_layer_depth_m, soil_temperature_initial]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

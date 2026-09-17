@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from hydroturing.spec import TIMESTEP_DAYS, ModelManifest, ProbeSpec, UNITS
@@ -128,13 +129,18 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
             # invariant across probes and prevents it identifying the criterion.
             "fluxes": list(model.emits_fluxes),
             "states": list(model.emits_states),
+            "diagnostics": list(model.emits_diagnostics),
         },
         "input": {"forcing": FORCING_FILE, "static": STATIC_FILE},
         "output": {"table": RESULT_CSV, "run": RUN_FILE},
         "units": {v: UNITS[v] for v in model.emitted if v in UNITS},
         "notes": (
             "States are absolute storages, not tendencies. The harness "
-            "differences them itself."
+            "differences them itself. Row i's ts and rlus are instantaneous "
+            "values at row i's time, the same instant as row i's rlds, "
+            "when supplied. Row i's tsoil_layer is the mean temperature of "
+            "the specified layer at the interval end; hfg and hfg_bottom "
+            "are interval-mean boundary fluxes for the soil-storage check."
         ),
     }
     request_path = io_dir / REQUEST_FILE
@@ -230,8 +236,12 @@ def read_result(io_dir: Path, case: Case, probe: ProbeSpec, wall_seconds: float)
 
     for var in probe.required_vars:
         col = pd.to_numeric(table[var], errors="coerce")
-        if col.isna().any():
-            n_bad = int(col.isna().sum())
+        # Preserve existing columns' criterion-level infinity handling,
+        # including instantaneous ts. The new layer endpoint is required
+        # to be finite at the contract boundary, including spinup rows.
+        invalid = ~np.isfinite(col) if var == "tsoil_layer" else col.isna()
+        if invalid.any():
+            n_bad = int(invalid.sum())
             raise ProtocolError(f"column '{var}' has {n_bad} non-finite values")
         table[var] = col
 

@@ -1,0 +1,19 @@
+name: reference_inverse_router
+version: "1.0.0"
+description: >
+  Deliberately wrong geometry-aware reference for the routing-lag probe. It
+  conserves routed runoff and remains causal, but makes travel time decrease
+  once along the ascending Snyder-Hack geometry ladder.
+authors: [binbinlan]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: [python3, ht_adapter.py]
+timestep: PT1D
+emits:
+  fluxes: [mrro]
+  states: []
+needs_forcing: [pr]
+needs_static: [area_km2, main_channel_length_km, centroid_channel_length_km]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

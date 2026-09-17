@@ -15,7 +15,7 @@ import re
 import pytest
 import yaml
 
-from hydroturing.spec import FLUX_VARS, REPO_ROOT, STATE_VARS, load_model, load_probe
+from hydroturing.spec import DIAG_VARS, FLUX_VARS, REPO_ROOT, STATE_VARS, load_model, load_probe
 
 PROBES = {p.id: p for p in (load_probe(x) for x in REPO_ROOT.glob("probes/*/*/probe.yaml"))}
 PROBE_IDS = sorted(PROBES)
@@ -197,7 +197,7 @@ def test_site_flowchart_shows_every_probe():
         assert html.count(f'"{key}":') == 3, f"{key} lacks a translation in one of the three languages"
 
 
-@pytest.mark.parametrize("variable", FLUX_VARS + STATE_VARS)
+@pytest.mark.parametrize("variable", FLUX_VARS + STATE_VARS + DIAG_VARS)
 def test_agents_doc_defines_every_variable(variable):
     assert f"| `{variable}` |" in read("AGENTS.md"), (
         f"{variable} is accepted by spec.py but the table in AGENTS.md does not define it"

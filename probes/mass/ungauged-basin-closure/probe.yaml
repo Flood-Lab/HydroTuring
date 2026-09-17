@@ -1,0 +1,92 @@
+id: mass/ungauged-basin-closure
+title: Water balance integrity across declared catchment attribute domains
+law: mass
+track: synthetic
+version: 1
+authors:
+- name: Shunan Zhou
+  affiliation: Dalian University of Technology, Dalian, China
+  orcid: 0009-0006-4072-6799
+  github: Davidanan
+description: One independent catchment per seed samples soil and canopy capacities
+  across an experiment-defined reference domain. Native criteria check the complete
+  reported water budget, state bounds, ET, variability and supplied precipitation.
+requires:
+  fluxes:
+  - pr
+  - evspsbl
+  - mrro
+  states:
+  - mrso
+  - snw
+  - canopy
+case:
+  generator: generate.py
+  n_seeds: 12
+  timestep: PT1D
+  period_years: 10
+  spinup_days: 730
+  min_window_days: 3650
+  max_output_mb: 2.0
+  max_runtime_s: 60
+criteria:
+- closure:
+    denominator: sum_pr
+    threshold: 0.05
+    sinks:
+    - evspsbl
+    - mrro
+    sources:
+    - gwex
+- state_bounds:
+    mrso:
+    - 0
+    - soil_capacity_mm
+    snw:
+    - 0
+    - null
+    canopy:
+    - 0
+    - canopy_capacity_mm
+    gw:
+    - 0
+    - null
+    channel:
+    - 0
+    - null
+- et_plausible:
+    max_ratio_to_pet: 1.0
+    pet_variable: pet
+- non_degenerate:
+    runoff_ratio:
+    - 0.02
+    - 0.98
+    min_flux_cv: 0.1
+    cv_variables:
+    - mrro
+    - evspsbl
+    min_response: 0.05
+- forcing_fidelity:
+    variables:
+    - pr
+    rtol: 1.0e-06
+baselines:
+  must_pass:
+  - reference_bucket
+  - flex_lumped
+  - flex_topo
+  - sacsma_snow17
+  must_fail:
+    reference_cheater: state_bounds
+    reference_degenerate: non_degenerate
+    reference_spatial_loss: closure
+    reference_spatial_gain: closure
+    reference_spatial_capacity: state_bounds
+    reference_spatial_forcing: forcing_fidelity
+    reference_spatial_et: et_plausible
+    reference_spatial_negative: non_degenerate
+    reference_spatial_frozen: non_degenerate
+provenance: Synthetic daily rainfall–runoff scenarios generated from recorded seeds.
+  Soil and canopy capacities define an experimental reference domain; no calibration
+  or training-data boundary is inferred. Physical support, generator settings and
+  diagnostic limitations are documented in the README.

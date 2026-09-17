@@ -1,0 +1,21 @@
+name: reference_flat_stage
+version: "1.0.0"
+description: >
+  The routed bucket that reports a stage at all times equal to a constant.
+  The reading is plausible-looking and the discharge is honest, but the
+  gauge carries no information: it does not vary, so there is no rating to
+  read and no loop to form. Pins the degeneracy check on the stage itself —
+  a number that never moves cannot be a measurement.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [stage]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

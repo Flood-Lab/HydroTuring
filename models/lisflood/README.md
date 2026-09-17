@@ -394,19 +394,25 @@ of their own.
 
 ## Result
 
-**FAIL (ERROR), 14 of 17 probes passed, 3 N/A (INCOMPLETE).** These are the
+**FAIL (ERROR), 17 of 20 probes passed, 5 N/A (INCOMPLETE).** These are the
 rows of the full gate-seed run of `5.0.0-onecell.5`, made on the emulated host
 described under "Native re-run". The verdict is ERROR because two probes ran
 out of time on that host. Any ERROR among the scored probes makes the verdict
 FAIL (ERROR), whatever the other probes score.
 
+The `mass/extreme-event-closure` row was added when that probe merged, from
+`5.0.0-onecell.5` on the same host. Its five twenty-year cases (7,665 rows
+each) finished in 134 s together, case generation included, against a 300 s
+budget for each case, and every wet event closes to 1e-13 mm.
+
 **The two ERROR rows are provisional.** They come from the emulated host and
 are to be replaced by a native x86-64 evaluation; "Native re-run" gives the
 commands and the row replacement.
 
-- **N/A (INCOMPLETE), 3, not scored:** `energy/evaporative-partition`,
-  `energy/latent-heat-et-consistency` and `energy/surface-energy-closure`.
-  LISFLOOD reports no heat fluxes, so these probes cannot ask it anything.
+- **N/A (INCOMPLETE), 5, not scored:** `energy/evaporative-partition`,
+  `energy/latent-heat-et-consistency`, `energy/surface-energy-closure` and
+  `energy/radiation-consistency`, plus `energy/soil-heat-storage-consistency`. LISFLOOD reports no heat fluxes and no
+  surface temperature, so these probes cannot ask it anything.
   They are neither a pass nor a fail, and do not decide the verdict.
 - **ERROR, 2:** `mass/precipitation-counterfactual` and
   `mass/human-abstraction`. The container exceeded the 60 s budget, because a
@@ -420,20 +426,20 @@ commands and the row replacement.
     none. That leaves a residual of 82.9 to 66.7% against a 5% limit;
     `closure` and `state_bounds` pass.
   - On a host fast enough for the budget, the first should PASS and the second
-    be VIOLATION. The model's verdict would then be FAIL (VIOLATION), with 15
-    of 17 probes passed and 3 N/A.
+    be VIOLATION. The model's verdict would then be FAIL (VIOLATION), with 17
+    of 19 probes passed and 5 N/A.
 - **VIOLATION, 1:** `mass/resolution-invariance`. Rain that falls within an
   hour runs off, so `mrro` differs by 13.0% of `pr` between PT1H and PT1D,
   against a 10% limit.
-- **PASS, 14:**
+- **PASS, 16:**
   - `energy/pet-consistency`;
   - `mass/antecedent-monotonicity`, `mass/area-invariance`,
-    `mass/catchment-closure`, `mass/causality`, `mass/dry-down` and
-    `mass/extreme-rain`;
+    `mass/catchment-closure`, `mass/causality`, `mass/dry-down`,
+    `mass/extreme-event-closure` and `mass/extreme-rain`;
   - `mass/phase-counterfactual`, `mass/response-nonnegativity`,
     `mass/runoff-bounds`, `mass/steady-state`, `mass/time-origin-invariance`
     and `mass/warming-response`;
-  - `momentum/routing-conservation`.
+  - `momentum/routing-conservation` and `mass/ungauged-basin-closure`.
 
   The budget closes to 1e-13 mm per step. The harness flags `suspicious_exact`
   on `mass/catchment-closure` and `mass/time-origin-invariance`; "What the
@@ -446,11 +452,12 @@ Against the `.2` rows:
 - `mass/precipitation-counterfactual` is ERROR on this host in both.
 - `mass/human-abstraction` is new since `.2`.
 - The three energy-flux probes were FAIL (INCOMPLETE) under the earlier
-  roll-up and are N/A (INCOMPLETE) under main's.
+  roll-up and are N/A (INCOMPLETE) under main's; `energy/radiation-consistency`,
+  new since `.2`, is N/A too.
 - No other probe's verdict moved.
 
-The standing counts passes out of the 17 probes that could score LISFLOOD; the
-three N/A energy-flux probes are in neither number.
+The standing counts passes out of the 19 probes that could score LISFLOOD; the
+five N/A energy probes are in neither number.
 
 Against the `.3` rows, `.4` changes the environmental-flow reserve and the
 channel's bottom width, bankfull depth and gradient to the headwater values.

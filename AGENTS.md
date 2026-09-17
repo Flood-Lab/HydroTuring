@@ -137,11 +137,18 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
 | `hfss` | sensible heat flux, positive away from the surface | W/m2 |
 | `hfg` | ground heat flux at the actual soil surface, positive into the ground; a flux taken below the surface must be corrected for heat storage above that depth | W/m2 |
+| `rlus` | total upward longwave radiation at the surface: emission plus reflected downward longwave, positive away from the surface; row i's value is at row i's `time`, the same instant as row i's `rlds` | W/m2 |
+| `hfg_bottom` | downward heat flux through the bottom of the specified soil layer | W/m2 |
+| `tsoil_layer` | mean temperature of that soil layer at the end of the interval; a diagnostic, not a water store | K |
 | `mrso` | soil water storage | mm |
 | `snw` | snow water equivalent | mm |
 | `canopy` | canopy interception storage | mm |
 | `gw` | groundwater storage below the soil column | mm |
 | `channel` | water generated as runoff but not yet released by the model's routing | mm |
+| `ts` | surface (skin) temperature at row i's `time`, the same instant as row i's `rlds`; a diagnostic, declared under `emits.diagnostics`, neither integrated nor differenced by any budget | K |
+| `stage` | the water level a gauge in the reach would read, derived from the reach's own water; a diagnostic, declared under `emits.diagnostics`, never a storage any budget is differenced over | m |
+| `lwsnl` | **every non-solid component of `snw`** at the end of row i's step, so that `snw - lwsnl` is the ice and nothing else. Liquid held in the pore space, and any other non-solid water the model counts inside `snw`: for Snow-17 that is `LIQW` together with the lagged excess and storage terms, since `snw` there is `WE + LIQW + exlag + storge`. Part of `snw` and never additional to it; a diagnostic, declared under `emits.diagnostics`, and excluded from every water-storage sum because counting it beside `snw` would count the same kilogram twice | mm |
+| `csnow` | the snowpack's **cold content** at the end of row i's step: the energy still needed to bring its ice to 0 °C, as a positive quantity, and zero for a ripe or empty pack. Reported as energy rather than as a temperature because that is what a budget spends, and because converting a temperature back through an assumed heat capacity is wrong for any model whose capacity differs; Snow-17 already carries it directly as `NEGHS`. A diagnostic, declared under `emits.diagnostics` | J m-2 |
 
 For `hfg`, an adapter mapping a plate-depth or deeper-boundary flux must use
 `G_surface = G_depth + (E_above_end - E_above_start) / dt`, with downward
@@ -151,6 +158,16 @@ other energy sources or sinks in that layer. Use the model's actual heat
 storage, not a value inferred from the surface-budget residual. Document the
 mapping and any unavailable terms. Once `hfg` is mapped to the surface, do
 not subtract subsurface heat storage again in the surface budget.
+
+Declare temperature under `emits.diagnostics: [tsoil_layer]`, never under
+`emits.states`. Probes request it through `requires.diagnostics`; it is
+excluded from water-storage sums. For soil heat storage, both boundary fluxes
+are interval means and the temperature is the mean over the same fixed layer
+at the interval end. The row's `time` still matches the forcing interval's
+start. Include spinup rows: the last spinup temperature is the first scored
+interval's initial temperature. Use native model outputs with matching layer
+boundaries and a declared heat capacity; do not reconstruct a boundary flux
+from the same temperature change the probe checks.
 
 A probe names the stores it requires. Report every store the model
 actually has, including ones the probe did not name: a groundwater zone
@@ -200,6 +217,30 @@ cannot be put to the model, so it counts neither way. Fabricating an
 `evspsbl` column to avoid `INCOMPLETE` produces `VIOLATION` instead, which
 is worse and is also dishonest.
 
+`needs_forcing` and `needs_static` declare inputs the adapter cannot run
+without; a missing input makes the case `N/A (INCOMPATIBLE)`.
+`uses_forcing` and `uses_static` declare optional inputs: the adapter must
+consume them whenever supplied, but can run without them using a documented
+fallback. A probe's `requires.forcing` and `requires.static` accept either
+declaration. For example, `energy/radiation-consistency` requires consumption
+of `rlds` and `eps`; a model that does not declare it consumes both is
+`N/A (INCOMPATIBLE)` because it may be computing its own sky or emissivity.
+
+Declare diagnostic outputs under the optional key `diagnostics`, such as
+`[ts]`, `[tsoil_layer]` or `[stage]`. They are excluded from water-storage
+sums. Each criterion defines their time handling: radiation reads
+instantaneous `ts`, soil heat storage differences interval-end
+`tsoil_layer`, and the rating probes read the reported `stage` alongside
+the reach's discharge and store.
+
+For soil heat storage, declare consumption of the prescribed layer depth,
+areal heat capacity and initial temperature, as well as the incoming
+radiation and air temperature. A model that cannot configure that control
+volume is `N/A (INCOMPATIBLE)`, not a failed energy budget. The synthetic
+reference represents a lumped layer from zero to the prescribed depth;
+its areal capacity already includes depth. Document the actual parameter
+and boundary mapping in `run.json`; metadata alone does not prove compliance.
+
 ## Verify before you submit
 
 ```bash
@@ -211,7 +252,7 @@ ht run --model <model-name>              # the actual evaluation
 use, and checks the shape of what came back. Get that green before looking
 at any residual. Without `--probe` it checks the closure probe, or the first
 probe the model can consume when it cannot consume that one: a step it does
-not declare, a forcing the probe does not generate, or a window that drops a
+not declare, a forcing or static input the probe does not generate, or a window that drops a
 stretch the probe scores makes a probe N/A (INCOMPATIBLE) for the model.
 When that is true of the probe named with `--probe`, or of every probe, the
 adapter is not run and the command exits 1, as `ht run` does for a model no

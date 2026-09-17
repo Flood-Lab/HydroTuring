@@ -35,3 +35,7 @@ supports:
 resources: {cpu: 1, memory_gb: 2, gpu: false}
 
 window_days: full
+
+# Existing adapter mappings; no change to model equations.
+needs_static: [soil_capacity_mm]
+uses_static: [canopy_capacity_mm]

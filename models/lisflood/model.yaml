@@ -49,3 +49,7 @@ resources: {cpu: 1, memory_gb: 2, gpu: false}
 # about 90 s under amd64 emulation (87 and 92 s when left to finish): over the
 # 60 s budget of the two probes that score one in a container. README.md says
 # how to re-run those natively.
+
+# Existing adapter mappings; no change to model equations.
+needs_static: [canopy_capacity_mm]
+uses_static: [soil_capacity_mm]

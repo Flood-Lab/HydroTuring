@@ -27,8 +27,8 @@ IMAGE_PREFIX = "hydroturing"
 BUILD_TIMEOUT_S = 1800
 
 # How long `docker kill`, and then `docker rm -f`, may take to end a container
-# that ran past its budget. Either normally returns within seconds; the limit
-# is for a daemon that has stopped answering, so the budget error still
+# whose run was cut off. Either normally returns within seconds; the limit is
+# for a daemon that has stopped answering, so whatever cut the run off still
 # reaches the caller instead of a second hang.
 KILL_TIMEOUT_S = 30
 
@@ -125,9 +125,12 @@ def kill_container(docker: str, name: str) -> None:
     refused. Nothing is retried. A container neither command finds has
     already gone or was not yet created, and one created afterwards is never
     started, because `docker run` starts it from the client, which is dead.
-    It takes no CPU, but stays until removed by hand. A command that cannot
-    be run at all is skipped, so the caller's budget error is the one
-    reported.
+    It takes no CPU, but stays until removed by hand. The client is still
+    alive only when a signal landed while subprocess was starting it, a
+    window well under a millisecond, and that client can go on to start its
+    container. A command that cannot be run at all is skipped, so the caller
+    still reports whatever cut the run off: the budget error, the interrupt
+    or the exception.
     """
     for argv in ([docker, "kill", name], [docker, "rm", "-f", name]):
         try:
@@ -163,8 +166,8 @@ class DockerRunner(Runner):
         request are mounted read-only; only the output directory is writable.
         The image's own working directory is preserved so a relative entrypoint
         resolves exactly as it did when the image was built. The container
-        takes the caller's `name`, so a run cut off at its time budget can be
-        found and killed.
+        takes the caller's `name`, so a run cut off, at its time budget, by an
+        interrupt or by an exception, can be found and killed.
         """
         resources = model.resources or {}
         request_path = (io_dir / "request.json").resolve()
@@ -223,6 +226,19 @@ class DockerRunner(Runner):
             raise RunnerError(
                 f"{model.name}: container exceeded the time budget for {probe.id}"
             ) from None
+        except BaseException:
+            # Any other way the client ends early can leave the container
+            # running too. An interrupt that reaches only the harness does:
+            # subprocess kills the client, and the model never hears of it.
+            # Ctrl+C at a terminal also reaches the client, which forwards it
+            # to the model, but a model need not stop on it. `ht` turns
+            # SIGTERM into SystemExit, which arrives here the same way. An
+            # exception the harness records as an ERROR leaves the container
+            # beside the next case. So it is killed here as well, and the
+            # exception goes on unchanged: an interrupt still stops the run,
+            # and an ERROR keeps its reason.
+            kill_container(docker, name)
+            raise
 
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-12:]

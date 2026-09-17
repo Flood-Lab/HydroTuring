@@ -94,6 +94,30 @@
             "type": "string"
           },
           "uniqueItems": true
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Diagnostics read by criteria, such as a surface or layer temperature, or the liquid share of a snowpack. Never added to any water-storage sum: `lwsnl` is water, but it is water already counted inside `snw`, so summing it beside `snw` would count the same kilogram twice. Each criterion defines their time handling."
+        },
+        "forcing": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Forcing columns the verdict rests on. A model must list them in needs_forcing or uses_forcing, or it is INCOMPATIBLE: it may be using its own estimate instead."
+        },
+        "static": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "static.json keys the verdict rests on. A model must list them in needs_static or uses_static, or it is INCOMPATIBLE."
         }
       }
     },

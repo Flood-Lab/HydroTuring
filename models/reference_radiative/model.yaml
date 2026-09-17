@@ -1,0 +1,23 @@
+name: reference_radiative
+version: "1.0.0"
+description: >
+  Positive control for energy/radiation-consistency. Retains the water and
+  energy core of reference_coupled, diagnoses skin temperature from sensible
+  heat through a fixed conductance, and reports emission plus reflected sky
+  at the supplied emissivity. The radiation identity holds by construction;
+  the diagnosed temperature is an approximation.
+authors: ["Xin Lan"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1H]
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg, rlus]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [ts]
+needs_forcing: [pr, tas, pet, rn]
+uses_forcing: [rlds]
+uses_static: [eps]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

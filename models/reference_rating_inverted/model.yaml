@@ -1,0 +1,22 @@
+name: reference_rating_inverted
+version: "1.0.0"
+description: >
+  The routed bucket whose rating is read backwards. Stage is a strictly
+  increasing function of the channel store, so it never falls as discharge
+  rises and the monotonicity check passes outright — but because the store
+  peaks after the discharge does, the gauge is high while the flood is still
+  arriving and low once it is leaving. The loop is inverted, and only the
+  loop criterion can see it. Pins the hysteresis half of the rating probe.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [stage]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

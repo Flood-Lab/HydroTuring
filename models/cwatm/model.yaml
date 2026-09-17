@@ -44,3 +44,6 @@ resources: {cpu: 1, memory_gb: 2, gpu: false}
 # The closure probe is defined over the ten-year record and a one-cell
 # CWatM runs it well inside the probe's time budget.
 window_days: full
+
+# Existing adapter mappings; no change to model equations.
+uses_static: [soil_capacity_mm, canopy_capacity_mm]

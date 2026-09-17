@@ -33,6 +33,36 @@ authors:
     family-names: Liu
     affiliation: Independent Researcher
     orcid: "https://orcid.org/0009-0005-9633-6004"
+  - given-names: Taiqi
+    family-names: Lian
+    affiliation: >-
+      Laboratory of Catchment Hydrology and Geomorphology,
+      École Polytechnique Fédérale de Lausanne (EPFL), 1951 Sion, Switzerland
+    orcid: "https://orcid.org/0009-0001-9658-4375"
+  - given-names: Xin
+    family-names: Lan
+    affiliation: >-
+      Center for Systems Integration and Sustainability, Department of
+      Fisheries and Wildlife, Michigan State University, East Lansing, MI
+      48823, USA
+    orcid: "https://orcid.org/0000-0002-0607-2270"
+  - given-names: Shunan
+    family-names: Zhou
+    affiliation: Dalian University of Technology, Dalian, China
+    orcid: "https://orcid.org/0009-0006-4072-6799"
+  - given-names: Binlan
+    family-names: Zhang
+    affiliation: Institute of Mountain Hazards and Environment, Chinese Academy of Sciences, Chengdu, China
+    orcid: "https://orcid.org/0000-0001-9091-3185"
+  - given-names: Siddik
+    family-names: Barbhuiya
+    affiliation: >-
+      Indian Institute of Technology Mandi,
+      Mandi, Himachal Pradesh, India
+    orcid: "https://orcid.org/0000-0003-1278-5151"
+  - given-names: Bing
+    family-names: Li
+    affiliation: Independent Researcher
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

@@ -1,0 +1,21 @@
+name: reference_no_reflection
+version: "1.0.0"
+description: >
+  Negative control for energy/radiation-consistency. Reports surface emission
+  alone as total upward longwave, omitting (1 - eps) times the downward
+  longwave. Only upward longwave differs from reference_radiative.
+authors: ["Xin Lan"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1H]
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg, rlus]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [ts]
+needs_forcing: [pr, tas, pet, rn]
+uses_forcing: [rlds]
+uses_static: [eps]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

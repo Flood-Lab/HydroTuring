@@ -24,9 +24,20 @@ SCHEMA_DIR = REPO_ROOT / "schemas"
 # positive into the ground at the actual soil surface for `hfg`. Adapters
 # must correct a deeper-boundary flux for heat storage above that depth;
 # subsurface storage is not also subtracted from the surface budget.
-# `sbl` is a component of `evspsbl`, never an addition to it.
-FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "sbl", "hfls", "hfss", "hfg")
+# `sbl` is a component of `evspsbl`, never an addition to it. `rlus` is the
+# total upward longwave radiation, surface emission plus reflected downward
+# longwave, positive away from the surface.
+FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "sbl", "hfls", "hfss", "hfg", "rlus", "hfg_bottom")
 STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
+# Keep diagnostics out of STATE_VARS: closure sums every reported store,
+# and temperature must never be added to water storage.
+# `lwsnl` and `csnow` are here rather than in STATE_VARS for the same reason as
+# the line above: `lwsnl` is the liquid share *of* `snw`, not water in addition
+# to it, so adding it to a storage sum would count the same kilogram twice. It
+# is declared for the same reason `sbl` is -- a criterion cannot otherwise know
+# which part of a pack is ice, and a fall in `snw` is net water leaving the
+# pack rather than evidence of a phase change.
+DIAG_VARS = ("ts", "tsoil_layer", "stage", "lwsnl", "csnow")
 
 UNITS = {
     "pr": "mm day-1",
@@ -41,6 +52,21 @@ UNITS = {
     "hfls": "W m-2",
     "hfss": "W m-2",
     "hfg": "W m-2",
+    "rlus": "W m-2",
+    # Liquid water held in the snowpack, part of `snw` and never additional to
+    # it. `snw - lwsnl` is the ice, which is what a phase change moves.
+    "lwsnl": "mm",
+    # The pack's cold content: the energy still needed to bring its ice to 0 C.
+    # Reported as the energy itself rather than as a temperature, because that
+    # is the quantity a budget spends; a temperature would have to be converted
+    # back through an assumed heat capacity, which is wrong for every model
+    # whose capacity is not the assumed one. Zero for a ripe or empty pack.
+    "csnow": "J m-2",
+    # Instantaneous skin temperature; radiation uses kelvin, unlike forcing tas.
+    "ts": "K",
+    "hfg_bottom": "W m-2",
+    "tsoil_layer": "K",
+    "stage": "m",
     "mrso": "mm",
     "snw": "mm",
     "canopy": "mm",
@@ -71,10 +97,23 @@ FULL_WINDOW = "full"
 # These repository-owned baselines are the only code allowed to bypass the
 # container boundary. A submitted manifest cannot opt itself into host access.
 TRUSTED_SUBPROCESS_MODELS = {
+    "reference_spatial_capacity",
+    "reference_spatial_et",
+    "reference_spatial_forcing",
+    "reference_spatial_frozen",
+    "reference_spatial_gain",
+    "reference_spatial_loss",
+    "reference_spatial_negative",
     "reference_bucket",
     "reference_coupled",
+    "reference_snow_energy",
+    "reference_degree_day",
+    "reference_warming_free",
     "reference_diurnal_bias",
     "reference_abstraction_blind",
+    "reference_soil_heat",
+    "reference_frozen_soil",
+    "reference_half_soil",
     "reference_two_head",
     "reference_constant_lambda",
     "reference_sublimation_blind",
@@ -91,6 +130,8 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_climatology",
     "reference_saturating",
     "reference_restless",
+    "reference_slow_drift",
+    "reference_gw_slow_drift",
     # Physical models from chrimerss/HydrologicModels: must pass every probe.
     "flex_lumped",
     "flex_topo",
@@ -101,6 +142,18 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_area_leak",
     "reference_overshooting",
     "reference_sublimating",
+    "reference_radiative",
+    "reference_air_emitter",
+    "reference_no_reflection",
+    # Geometry-aware positive and deliberately wrong routing-lag baselines.
+    "reference_snyder_router",
+    "reference_instant_router",
+    "reference_inverse_router",
+    # Rating probes' own baselines: the momentum gauge suite runs in-process.
+    "reference_rating",
+    "reference_rating_drift",
+    "reference_rating_inverted",
+    "reference_flat_stage",
 }
 
 
@@ -169,10 +222,17 @@ class ProbeSpec:
     # or a dry-down; such a probe asks for at least a year, and a submitted
     # model's window is widened to it.
     min_window_days: int = 0
+    # Missing diagnostic outputs cause INCOMPLETE, as for missing fluxes.
+    requires_diagnostics: tuple[str, ...] = ()
+    # Case-supplied inputs the verdict rests on: forcing columns and
+    # static.json keys a model must declare it consumes, or it is judged
+    # against values it never read and is INCOMPATIBLE instead.
+    requires_forcing: tuple[str, ...] = ()
+    requires_static: tuple[str, ...] = ()
 
     @property
     def required_vars(self) -> tuple[str, ...]:
-        return self.requires_fluxes + self.requires_states
+        return self.requires_fluxes + self.requires_states + self.requires_diagnostics
 
     @property
     def slug(self) -> str:
@@ -265,6 +325,13 @@ class ModelManifest:
     # FULL_WINDOW for the whole record, or None to take the default for the
     # kind of model (see DEFAULT_WINDOW_DAYS).
     window_days: int | str | None = None
+    # Diagnostics the model reports in addition to its fluxes and states.
+    emits_diagnostics: tuple[str, ...] = ()
+    # Static inputs the adapter cannot run without.
+    needs_static: tuple[str, ...] = ()
+    # Optional inputs the adapter consumes whenever the case supplies them.
+    uses_forcing: tuple[str, ...] = ()
+    uses_static: tuple[str, ...] = ()
 
     @property
     def timestep(self) -> str:
@@ -276,7 +343,7 @@ class ModelManifest:
 
     @property
     def emitted(self) -> tuple[str, ...]:
-        return self.emits_fluxes + self.emits_states
+        return self.emits_fluxes + self.emits_states + self.emits_diagnostics
 
     def missing_for(self, probe: ProbeSpec) -> list[str]:
         """Variables the probe needs that this model never reports.
@@ -366,6 +433,17 @@ def load_probe(path: str | Path) -> ProbeSpec:
             )
 
     requires = raw.get("requires", {})
+    # Refuse a required name no manifest can declare, as load_model refuses an
+    # unknown emission: a typo would make every model INCOMPLETE, and a flux
+    # asked for as a state would be met by the flux and never noticed.
+    unknown = [
+        name
+        for key, known in (("fluxes", FLUX_VARS), ("states", STATE_VARS), ("diagnostics", DIAG_VARS))
+        for name in requires.get(key, [])
+        if name not in known
+    ]
+    if unknown:
+        raise SpecError(f"{spec_file}: unknown variables in requires: {unknown}")
     return ProbeSpec(
         id=raw["id"],
         title=raw["title"],
@@ -376,6 +454,9 @@ def load_probe(path: str | Path) -> ProbeSpec:
         citation=raw.get("citation", ""),
         requires_fluxes=tuple(requires.get("fluxes", [])),
         requires_states=tuple(requires.get("states", [])),
+        requires_diagnostics=tuple(requires.get("diagnostics", [])),
+        requires_forcing=tuple(requires.get("forcing", [])),
+        requires_static=tuple(requires.get("static", [])),
         generator=case["generator"],
         n_seeds=case["n_seeds"],
         timestep=case["timestep"],
@@ -448,6 +529,7 @@ def load_model(path: str | Path) -> ModelManifest:
 
     unknown = [v for v in raw["emits"]["fluxes"] if v not in FLUX_VARS]
     unknown += [v for v in raw["emits"]["states"] if v not in STATE_VARS]
+    unknown += [v for v in raw["emits"].get("diagnostics", []) if v not in DIAG_VARS]
     if unknown:
         raise SpecError(f"{spec_file}: unknown variables in emits: {unknown}")
 
@@ -463,8 +545,12 @@ def load_model(path: str | Path) -> ModelManifest:
         timesteps=timesteps,
         emits_fluxes=tuple(raw["emits"]["fluxes"]),
         emits_states=tuple(raw["emits"]["states"]),
+        emits_diagnostics=tuple(raw["emits"].get("diagnostics", [])),
         runner=runner,
         needs_forcing=tuple(raw.get("needs_forcing", [])),
+        needs_static=tuple(raw.get("needs_static", [])),
+        uses_forcing=tuple(raw.get("uses_forcing", [])),
+        uses_static=tuple(raw.get("uses_static", [])),
         supports_perturbation=bool(raw.get("supports", {}).get("perturbation", False)),
         resources=raw.get("resources", {}),
         authors=tuple(raw.get("authors", [])),

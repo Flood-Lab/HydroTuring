@@ -33,9 +33,10 @@ Every probe here is a few hundred lines at most.
 ## Cross-budget consistency
 
 A model can close its water budget and close its energy budget while being
-incoherent between them. Two probes now notice: one asks whether the two
-ledgers agree on a number, the other whether they agree under a change
-neither has seen. The snowmelt one is what we most want next.
+incoherent between them. Three probes now notice: one asks whether the two
+ledgers agree on a number, one whether they agree under a change neither has
+seen, and one whether the energy budget paid for the ice the water budget
+says melted.
 
 ### `energy/latent-heat-et-consistency` &middot; **merged**
 Latent heat must equal evapotranspiration times the latent heat of the phase
@@ -50,13 +51,19 @@ and the three changes must sum to zero. A counterfactual rather than a
 same-instant residual, so a model cannot fit its way past it.
 Contributed by Changming Li (SCUT).
 
-### `coupled/snowmelt-energy-water` &middot; hard &middot; **unclaimed**
-
-Melt in the water budget must equal the energy consumed by melting divided by
-the latent heat of fusion.
-
-*Why it discriminates.* Same failure mode at the phase change, where it is
-most consequential for runoff timing.
+### `energy/snowmelt-energy-water` &middot; **merged**
+A pack built over a cold winter and then melted down over a dry block that opens
+below -14 &deg;C and warms through zero. The surface energy residual must equal
+what the pack absorbed, which is two terms: the latent heat of fusion for the
+ice that changed phase, and the cold content of warming the pack towards zero.
+The ice is `snw - lwsnl` rather than `snw`, because `snw` is total pack water
+in this suite's own adapters and a fall in it is water leaving rather than a
+phase change. The block carries no precipitation, so ice arriving cannot be
+mistaken for ice melting through a contract that has no snowfall flux. Catches
+a degree-day melt head bolted to an energy head that closes by itself, and
+separately a pack that warms for nothing. Filed under `energy` because the
+schema admits mass, energy and momentum.
+Contributed by Siddik Barbhuiya (IIT Mandi).
 
 ---
 
@@ -103,12 +110,12 @@ Snowfall minus melt minus sublimation minus the change in SWE.
 *Discriminates:* models that quietly lose water at the rain-snow transition,
 a very common bug that a whole-catchment budget can absorb.
 
-### `mass/multi-decadal-drift` &middot; starter &middot; **unclaimed**
-Fifty years with no trend in the forcing. Total storage must not drift
-secularly.
-*Discriminates:* a leak too small to trip a ten-year 5 percent threshold but
-large enough to be unphysical over a climate-relevant record. Good first
-probe: the criterion already exists, the case is the contribution.
+### `mass/multi-decadal-drift` &middot; **merged**
+Fifty years of repeated warm weather expose a runoff reporting deficit hidden
+in accumulating storage: the budget closes, but physical capacity or repeated
+block total-storage drift exposes it. Checks all reported stores without
+inventing a finite groundwater capacity.
+Contributed by Bing Li (@hiter-joe).
 
 ### `mass/routing-network-closure` &middot; standard &middot; **unclaimed**
 A branching network. Mass must close reach by reach, not only basin-wide.
@@ -132,29 +139,23 @@ the property survives a move — to another place, to another time, to a
 different question. Each has a template, so the harness work is done and what
 is left is the case.
 
-### `mass/extreme-event-closure` &middot; hard &middot; **unclaimed**
-`ht init-probe --template extrapolation-time`
+### `mass/extreme-event-closure` &middot; **merged**
+Overlap rainfall events in one median-wet year of a twenty-year record toward
+100-year depths from synthetic 1-, 3- and 7-day DDF fits. Check every complete
+precipitation event's water budget, including ordinary events, with a 5%
+relative tolerance and a 0.001 mm numerical floor.
+*Discriminates:* event-scale losses in `reference_in_sample` that pass
+whole-record closure. The fitted thresholds describe the synthetic climate,
+not the submitted model's unknown training range.
+Contributed by Taiqi Lian.
 
-Ordinary years, then conditions outside anything earlier in the record. The
-budget must close over the anomalous stretch on its own terms, scored
-separately so nine ordinary years cannot dilute it.
-
-*Discriminates:* models that learned closure as a statistical regularity of
-their training distribution rather than as a structural property. This is the
-probe most likely to separate architecturally-constrained models from ones
-that merely look conservative in-sample.
-
-### `mass/ungauged-basin-closure` &middot; standard &middot; **unclaimed**
-`ht init-probe --template extrapolation-space`
-
-Every seed draws a catchment, and some draws sit outside the range models are
-normally fitted over. Every seed must pass, so the verdict turns on the
-corners.
-
-*Discriminates:* models fitted to a gauged sample and deployed on an ungauged
-one, which is the deployment case the field actually cares about. The work is
-in defending where the hull boundary sits; push one attribute out at a time,
-or you generate catchments no real place resembles and fail honest models.
+### `mass/ungauged-basin-closure` &middot; **merged**
+Full-window water budgets on one independently generated catchment per seed,
+with soil/canopy capacities sampled across an experimental reference domain.
+Uses native catchment-closure criteria, one exact reference and three physical references; annual
+residuals are separate diagnostics. Catches attribute-dependent budget,
+capacity, forcing and partition errors.
+Contributed by Shunan Zhou (Dalian University of Technology, Dalian, China).
 
 ### `mass/precipitation-counterfactual` &middot; **merged**
 The same seed 20% wetter, 10% wetter and 20% drier: the water added or
@@ -191,17 +192,29 @@ surface with negligible heat capacity; ground heat flux is measured at that
 surface, so no separate soil-storage term is subtracted.
 Contributed by Han Wang ([@cehw](https://github.com/cehw)).
 
+### `energy/soil-heat-storage-consistency` &middot; **merged**
+Heat entering a fixed soil layer minus heat leaving its base must agree
+with the layer temperature change times its prescribed heat capacity.
+Heating and recovery are scored separately, so a closed surface budget
+cannot hide a frozen or half-amplitude soil temperature.
+Contributed by Han Wang ([@cehw](https://github.com/cehw)).
+
 ### `energy/snowpack-cold-content` &middot; hard &middot; **unclaimed**
 The full snowpack energy budget including cold content and phase change. Melt
 must not occur while the pack is below freezing.
 *Discriminates:* models that melt snow on a warm day regardless of whether
 the pack has the energy to melt.
 
-### `energy/radiation-consistency` &middot; standard &middot; **unclaimed**
-Outgoing longwave must be consistent with the reported surface temperature
-through Stefan-Boltzmann, given emissivity.
-*Discriminates:* models that predict surface temperature and radiation with
-separate heads that never have to agree.
+### `energy/radiation-consistency` &middot; **merged**
+The surface temperature a model reports and the upward longwave it reports
+must describe one gray surface at the emissivity it was given, hour by hour:
+`rlus = eps sigma ts^4 + (1 - eps) rlds` within 0.5 percent of the reported
+flux, with a 0.5 W/m2 floor. A same-instant identity, so nothing cancels
+across hours; net radiation stays a prescribed forcing.
+*Discriminates:* a model whose temperature and radiation heads never have to
+agree, through `reference_air_emitter`, which emits at the air temperature,
+and `reference_no_reflection`, which drops the reflected sky.
+Contributed by Xin Lan (Michigan State University).
 
 ---
 
@@ -210,15 +223,31 @@ separate heads that never have to agree.
 ### `momentum/routing-conservation` &middot; **merged**
 The channel store is never negative and never holds more than its hydrograph can.
 
+### `momentum/routing-lag-consistency` &middot; **merged**
+Four synthetic catchments receive the same isolated one-day storm. Their
+areas and Hack-derived channel lengths define duration-corrected Snyder lag
+scales. Each runoff peak must fall inside a factor-of-two Snyder envelope with
+a half-day daily-resolution allowance; adjacent lags may not reverse by more
+than half a day, and the smallest-to-largest lag span must reach two days.
+`reference_snyder_router` passes with a conservative triangular unit
+hydrograph, `reference_instant_router` fails the lag bounds, and
+`reference_inverse_router` fails the scaling criterion. A model must declare
+that it consumes precipitation, area and both channel-length fields; otherwise
+the result is N/A (INCOMPATIBLE), not pass or fail.
+Contributed by Binlan Zhang (Institute of Mountain Hazards and Environment,
+Chinese Academy of Sciences, Chengdu, China; GitHub: binbinlan; ORCID:
+https://orcid.org/0000-0001-9091-3185).
+
 ### `momentum/channel-routing-mass` &middot; starter &middot; **unclaimed**
 Inflow minus outflow minus the change in channel storage, per reach.
 
-### `momentum/stage-discharge-monotonic` &middot; standard &middot; **unclaimed**
+### `momentum/stage-discharge-monotonic` &middot; **merged**
 Steady-flow rating must be monotonic. Where a loop rating appears, it must be
 traversed in the physically correct direction, with the rising limb carrying
 more discharge at a given stage than the falling limb.
 *Discriminates:* models that fit a hydrograph while implying an impossible
 relationship between depth and flow.
+Contributed by Yuanhang Liu.
 
 ### `momentum/wave-celerity-bounds` &middot; hard &middot; **unclaimed**
 Kinematic wave celerity must be positive and near the Manning expectation for
