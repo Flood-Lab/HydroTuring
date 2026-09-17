@@ -322,8 +322,10 @@ untested.
 ## Before opening a PR
 
 The pull request comes from your fork and closes the proposal issue. Title it
-`[PROBE: <law>] <description>`. Review is two passes, one on the physics and
-one on the implementation.
+`[PROBE: <law>] <description>`. Two reviewers from the pool for its
+conservation law review the physics and the implementation, and it is merged
+once both approve and the acceptance gate is green. The pool is listed in
+[GOVERNANCE.md](../GOVERNANCE.md#reviewer-pool).
 
 ```bash
 ht validate
