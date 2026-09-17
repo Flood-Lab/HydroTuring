@@ -49,8 +49,13 @@ def groundwater_balance(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
     # error that scales with the state's own magnitude, not with recharge or
     # exchange, and that scale is the model's choice of datum, not a probe
     # constant. Scale a second floor to the state so a model reporting `gw`
-    # at a different offset is not penalized for its own rounding.
-    storage_floor = 1.0e-5 * float(np.max(np.abs(storage)))
+    # at a different offset is not penalized for its own rounding. `gw` is
+    # an absolute storage, not a recharge or exchange volume, so this floor
+    # is capped rather than left to scale without bound: an uncapped floor
+    # lets a model raise its own tolerance by reporting `gw` at a larger
+    # offset, hiding a fixed-size leak or an unexplained storage jump behind
+    # a floor sized to a datum the probe never asked for.
+    storage_floor = min(1.0e-5 * float(np.max(np.abs(storage))), 0.05)
     step_floor = max(abs_tol, storage_floor)
     denominator = np.maximum(
         np.maximum(np.abs(recharge), np.abs(exchange)), 1.0e-12

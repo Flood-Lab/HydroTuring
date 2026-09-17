@@ -88,17 +88,26 @@ groundwater-exchange term.
 The groundwater balance is checked two ways. Each step must be within a 1%
 relative tolerance or a per-step floor, taken over the larger of the
 recharge and exchange terms so the allowance is not set by whichever is
-smaller. The floor is `max(2e-4 mm, 1e-5 * max|gw|)`: the fixed `2e-4 mm`
-covers the recharge/exchange terms' own rounding, and the second term
-covers the `gw` state's own rounding separately, scaled to the state's
-magnitude rather than fixed, since that magnitude is the model's choice of
-datum and not a probe constant. The record's cumulative residual must also
-be within `max(1% of total recharge, 2x the per-step floor)`. Rounding a
-stored state cancels out once the steps are summed; a per-step shortfall
-that recurs in the same direction, such as an unmodeled leak out of the
-aquifer, does not, and can otherwise hide under a per-step floor sized for
-rounding. Honest output, at full precision or rounded to 6 significant
-figures and at any datum, closes both checks. `exchange_components` is an
+smaller. The floor is `max(2e-4 mm, min(1e-5 * max|gw|, 0.05 mm))`: the
+fixed `2e-4 mm` covers the recharge/exchange terms' own rounding, and the
+second term covers the `gw` state's own rounding separately, scaled to the
+state's magnitude rather than fixed, since that magnitude is the model's
+choice of datum and not a probe constant. That second term is capped at
+`0.05 mm`: `gw` is an absolute storage rather than a recharge or exchange
+volume, so leaving it unbounded would let a model raise its own tolerance
+simply by reporting `gw` at a larger offset, hiding a fixed-size leak or an
+unexplained storage jump behind a floor sized to a datum the probe never
+asked for. The record's cumulative residual must also be within `max(1% of
+total recharge, 2x the per-step floor)`. Rounding a stored state cancels
+out once the steps are summed; a per-step shortfall that recurs in the
+same direction, such as an unmodeled leak out of the aquifer, does not, and
+can otherwise hide under a per-step floor sized for rounding. Honest
+output closes both checks at full precision, at 6 significant figures, and
+at 8 significant figures under any datum shift; at 6 significant figures a
+`gw` datum shifted 10,000 mm or more from zero can exceed the capped floor
+and fail on rounding alone that has nothing to do with the model's
+physics. Report `gw` at full precision, or at least 8 significant figures.
+`exchange_components` is an
 exact identity and uses a `1e-6` relative tolerance and a `1e-4 mm`
 absolute floor: a reach that both gains and loses on the same step has
 `gw_to_sw` and `sw_to_gw` each rounded to ordinary output precision before
