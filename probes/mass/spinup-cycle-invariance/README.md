@@ -11,8 +11,9 @@ February 28's value, so every January 1 and month/day is aligned between
 cycles even when a model reads the calendar. A preceding 365-day calendar
 year is emitted as real spin-up, giving closure a state row before the scored
 record. The `short`, `plus3`, and `long` variants start in 2001, 1998, and
-1997, respectively; after five, eight, and nine prior cycles they all score
-the same non-leap calendar year, 2007. Their visible dates therefore differ,
+1997, respectively. Their period offsets are five, eight, and nine cycles;
+including the preceding spin-up year, six, nine, and ten complete prior cycles
+are present before they all score the same non-leap calendar year, 2007. Their visible dates therefore differ,
 but their static metadata and their scored `pr`, `tas`, and `pet` values are
 identical. The host-only phase labels are stripped before any adapter runs.
 
@@ -41,9 +42,10 @@ and likewise for actual evapotranspiration and every reported physical store.
 
 The probe first establishes the conditioning empirically: the exact bucket,
 FLEX-Lumped, FLEX-Topo, and SAC-SMA/Snow-17 must all agree between the sixth
-and tenth copies for every gate seed. Their pass is evidence that five cycles
-are enough for this generated catchment, not a claim that five years is a
-universal spin-up length.
+and tenth copies for every gate seed. Their pass is evidence that the five-cycle
+period offset (six complete prior cycles including spin-up) is enough for this
+generated catchment, not a claim that five or six years is a universal spin-up
+length.
 
 ## Criterion
 
@@ -59,23 +61,29 @@ d_{Y,i,j} =
 {\max(\mathrm{mean}_t |Y_i(t)|, 0.05\ \mathrm{mm\ day^{-1}})}.
 $$
 
-For a storage use the same expression with a 1 mm floor. The largest
-variable-level departure must remain below 5 percent. Floors make empty snow
-or channel stores well-defined rather than granting them an accidental exact
-score.
+Storage floors are calibrated per reported variable for this case: 1.0 mm
+for `mrso`, 1.0 mm for the empty `snw` channel, and 0.01 mm for `canopy`;
+`state_floor_mm: 1.0` remains the fallback for other stores and for the
+aggregate. The largest variable-level departure must remain below 5 percent.
+For the independent seed `20260912`, the scored-year means are about 118.5 mm
+for `mrso`, 0 for `snw`, and 0.0565 mm for `canopy`. Thus the soil floor is
+less than 1% of the soil signal, the snow floor is an explicit absolute
+conditioning bound for an empty store, and the canopy floor leaves the 5%
+relative rule active instead of allowing a 1 mm floor to dominate a 0.0565 mm
+signal.
 
 For `total_reported_storage`, the scale is the mean absolute sum of all stores
 reported by the model. In these cases soil moisture (`mrso`) is the largest
-store, so it naturally dominates that aggregate scale; the 1 mm floor still
-protects the score when every reported store is nearly empty.
+store, so it naturally dominates that aggregate scale; the 1 mm fallback
+still protects the score
+when every reported store is nearly empty.
 
 The criterion checks the complete visible driver schema and values for exact
 equality before comparing outputs; the absolute `time` labels may differ so
 that every variant can score the same calendar year. It rejects an optional
 output that appears in only some variants, because the runs would then make
 different reporting claims. The ordinary closure and state-bound preconditions
-are evaluated over
-the complete post-spinup record in all variants, with the row immediately
+are evaluated over the complete post-spinup record in all variants, with the row immediately
 before that record used as the initial state. This covers the full fixed-length
 record; the `evaluation` label is reserved for the paired comparison of the
 three phase-aligned 365-day cycles.
@@ -85,7 +93,8 @@ three phase-aligned 365-day cycles.
 `reference_restless` is the exact conservative bucket with an internal
 30-day clock that changes its recession coefficient. It closes its water
 budget and keeps each reported store within bounds, but its clock has a
-different phase among the five, eight, and nine annual cycles. It fails only
+different phase among the three history lengths: period offsets five, eight,
+and nine, or six, nine, and ten prior cycles including spin-up. It fails only
 `spinup_cycle_invariance`.
 
 This is the intended hidden-state failure: an unmodelled state keeps evolving
@@ -144,8 +153,9 @@ the intended failure mode.
 
 ## Long-spin-up diagnostic
 
-The default case uses five, eight, and nine repeated years because it must remain
-small enough for the gate. To check the slow-store concern raised for CWatM, an
+The default case uses period offsets of five, eight, and nine cycles (six, nine,
+and ten complete prior cycles including spin-up) because it must remain small
+enough for the gate. To check the slow-store concern raised for CWatM, an
 isolated copy with `recessionCoeff=0.001` was run with 40 years of repeated
 history before the ten-year scored record. It differed by about 10% at the
 prescribed spin-up, then passed after 40 years; the packaged default CWatM also
@@ -170,8 +180,11 @@ on `spinup_cycle_invariance`; `reference_leaky`, `reference_cheater`, and
 repeats these checks on an independent seed and verifies that adapters receive
 neither phase labels nor variant-specific case metadata, while their three
 visible evaluation-year forcings remain aligned. The acceptance threshold and
-floors
-are calibrated against the four gate references, whose departures are 0.00% in the calibrated run. The archived
+per-variable floors are calibrated against the four gate references, whose
+departures are 0.00% in the calibrated run. The
+independent-seed diagnostic is intentionally conservative: `reference_restless`
+has a 1.36 departure on `mrro`, while its `evspsbl` and `mrso` departures are
+about 4.88% and 4.81%, respectively. The archived
 LISFLOOD submission was 0.47%; it is reported as a model observation rather
 than folded into the gate-reference range. The 5% engineering rule therefore
 retains a conservative margin while the absolute floors keep near-zero

@@ -182,6 +182,37 @@ def test_hidden_internal_clock_fails_while_its_budget_and_states_remain_valid(pr
     )
 
 
+def test_storage_floors_can_be_calibrated_per_variable(probe):
+    from hydroturing.criteria.spinup import spinup_cycle_invariance
+    from hydroturing.protocol import RunResult
+
+    runs = {}
+    for variant in probe.variants:
+        case = build_case(probe, VALIDATION_SEED, variant)
+        canopy = 0.05 if variant != "plus3" else 0.09
+        runs[variant] = RunResult(
+            case,
+            pd.DataFrame({"canopy": np.full(case.n_steps, canopy)}),
+            {},
+            0.0,
+        )
+
+    result = spinup_cycle_invariance(
+        runs,
+        probe,
+        {
+            "variants": ["short", "plus3", "long"],
+            "variables": ["canopy"],
+            "optional": [],
+            "state_floor_mm": 1.0,
+            "state_floors_mm": {"canopy": 0.01},
+        },
+    )
+    assert not result.passed
+    assert result.diagnostics["state_floors_mm"]["canopy"] == 0.01
+    assert result.diagnostics["deviations"]["short<->plus3:canopy"] > 0.05
+
+
 @pytest.mark.parametrize("period", [2, 3, 4, 6, 8])
 def test_pairwise_offsets_catch_hidden_clocks_that_can_alias_one_offset(probe, period):
     """N+3 and N+4 leave no short integer clock aligned in every comparison."""

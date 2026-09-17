@@ -11,10 +11,12 @@ authors:
 
 description: >
   One seeded 365-day rain-dominated weather cycle repeats unchanged. The host
-  compares the same non-leap 2007 evaluation cycle after five, eight, and nine
-  repetitions. The variants start in 2001, 1998, and 1997 respectively, so
-  their visible dates differ while their evaluation-year forcing and static
-  metadata agree. Once physical references have reached their periodic
+  compares the same non-leap 2007 evaluation cycle after period offsets of
+  five, eight, and nine repetitions. Including the preceding spin-up year,
+  the variants have six, nine, and ten complete prior cycles. They start in
+  2001, 1998, and 1997 respectively, so their visible dates differ while
+  their evaluation-year forcing and static metadata agree. Once physical
+  references have reached their periodic
   seasonal attractor, their runoff, evaporation, and reported stores must
   agree. A hidden state that keeps evolving with the number of cycles instead
   of converging is exposed, even when its water budget closes.
@@ -80,13 +82,18 @@ criteria:
       variables: [evspsbl, mrro, mrso, snw, canopy]
       optional: [gwex, gw, channel]
       threshold: 0.05
-      # 5% is the suite engineering rule; the 0.05 mm/day and 1 mm floors
-      # keep near-zero fluxes and empty stores numerically well-conditioned.
+      # 5% is the suite engineering rule.  Fluxes use a 0.05 mm/day floor.
+      # Storage uses a 1 mm fallback, with explicit floors below for this
+      # case's large soil store and near-empty snow/canopy stores.
       # The four gate reference models each have a 0.00% departure in the
       # calibrated run.  The archived 0.47% LISFLOOD result is a submitted
       # model observation, not a gate-reference range.
       flux_floor_mm_per_day: 0.05
       state_floor_mm: 1.0
+      state_floors_mm:
+        mrso: 1.0
+        snw: 1.0
+        canopy: 0.01
 
 baselines:
   must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
