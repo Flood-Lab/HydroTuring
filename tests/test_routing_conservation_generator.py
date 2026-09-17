@@ -146,3 +146,57 @@ def test_a_kernel_summing_to_0999_is_caught_by_this_weather(probe):
         f"ceiling of {storm_time_ceiling:.1f} mm; this test is only meaningful "
         "while the residue is far below it"
     )
+
+
+@pytest.fixture(scope="module")
+def bucket_run(probe):
+    model = registry.find_model("reference_bucket")
+    case = build_case(probe, int(gate_seeds(PROBE, 3)[0]))
+    return get_runner(model).run(model, probe, case, Path(tempfile.mkdtemp()))
+
+
+def _verdict_with(probe, run, column):
+    table = run.table.copy()
+    table["channel"] = column
+    altered = RunResult(case=run.case, table=table, meta=run.meta, wall_seconds=0.0)
+    return get("routing_conservation")(altered, probe, _params(probe, "routing_conservation"))
+
+
+def test_one_row_cannot_defeat_the_bound(probe, bucket_run):
+    """The allowance comes from the runoff, not from the store.
+
+    A criterion whose scale is read off the store itself is at the mercy of a
+    single row: one infinite value makes its floor infinite and the criterion
+    passes. This bound is `max_lag_days` of the recent runoff, so neither an
+    infinite store nor a finite spike can raise it — both have to fail. The row
+    is placed inside the scored window, since `make_window` drops the spinup and
+    no criterion sees a row in it.
+    """
+    channel = bucket_run.table["channel"].to_numpy(dtype=float).copy()
+    scored = len(channel) // 2
+
+    spiked = channel.copy()
+    spiked[scored] = 1e6
+    assert _verdict_with(probe, bucket_run, spiked).status == FAIL
+
+    infinite = channel.copy()
+    infinite[scored] = np.inf
+    assert _verdict_with(probe, bucket_run, infinite).status == FAIL
+
+
+def test_a_non_finite_or_negative_allowance_is_rejected(probe, bucket_run):
+    """A parameter that would disable the bound has to be refused, not read.
+
+    `min_allowance_mm: .inf` in a `probe.yaml` passes every model, and `.nan`
+    compares false against everything, so both would look satisfied. Only the
+    probe's author can write them, and the gate would then report the probe as
+    broken rather than the models as sound.
+    """
+    params = _params(probe, "routing_conservation")
+    for value in (np.inf, np.nan, -1.0):
+        with pytest.raises(ValueError, match="min_allowance_mm"):
+            get("routing_conservation")(
+                bucket_run, probe, {**params, "min_allowance_mm": value}
+            )
+    with pytest.raises(ValueError, match="max_lag_days"):
+        get("routing_conservation")(bucket_run, probe, {**params, "max_lag_days": 0.0})

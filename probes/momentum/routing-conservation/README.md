@@ -76,6 +76,12 @@ by taste.
   regulated river, a case with perennial baseflow — keeps the ceiling high and
   hides the same leak. The generator's dry spells are what close that gap here;
   the criterion cannot close it on its own.
+- **The allowance is a depth, so it does not depend on the step.** Both terms
+  are millimetres: the peak is read as a rate over the window's own steps, and
+  `lookback_days` is converted through `w.dt_days`. The same weather at an
+  hourly step gives the same bound, which is what a floor expressed per step
+  would not — a rise of 2.5e-6 mm per hour would slip under a floor that a
+  daily rise of 6e-5 mm has to clear.
 - **Timing is not read.** A kernel that sums to one but puts the water in the
   wrong day passes. This bounds what the store holds, not when it releases it;
   `momentum/routing-lag-consistency` is the probe that asks the timing question.

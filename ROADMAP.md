@@ -249,6 +249,21 @@ instead is the one-sided statement of the same physics, in
 `momentum/routing-conservation`, whose bound needs no inflow term. The entry
 stays open for the day a contract carries inflow.
 
+A route a later probe could take, from the second review of that pull request:
+`closure` accepts `denominator: sum_inflow`, which reads a forcing column
+`q_in`, and since #39 a probe can require models to declare that they consume it
+through `requires.forcing`. For a reach-only control volume that forms
+`[sum(q_in) - sum(mrro) - d(channel)] / sum(q_in)`, which on a reach-only router
+is complementary to the bound: destroying the last tenth fails it and passes the
+bound, holding the water back does the reverse. It carries conditions that have
+to be written down with it — `closure` sums every reported store, so a
+full-catchment model needs the control volume set up explicitly; the denominator
+is zero on a truly inflow-free window, which `closure` reports as degenerate, so
+this is a prescribed-inflow test rather than the recession test #71 proposed; no
+generator produces `q_in` and no manifest declares it, so every model is N/A
+today; and an adapter that reports `channel` as cumulative inflow minus outflow
+closes by construction.
+
 ### `momentum/stage-discharge-monotonic` &middot; **merged**
 Steady-flow rating must be monotonic. Where a loop rating appears, it must be
 traversed in the physically correct direction, with the rising limb carrying

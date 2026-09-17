@@ -206,6 +206,19 @@ def routing_conservation(run: RunResult, probe: ProbeSpec, params: dict) -> Crit
     # parameter because how large that residue is belongs to the probe's
     # weather, not to the criterion: see the probe's `min_allowance_mm`.
     min_allowance = float(params.get("min_allowance_mm", 1e-6))
+    # A probe author is the only one who writes these, and a non-finite or
+    # negative one would silently disable the bound rather than tighten it:
+    # `min_allowance_mm: .inf` passes every model, and `.nan` compares false
+    # against everything, so both would be read as satisfied. Fail loudly here
+    # instead, as `radiative_identity` and `event_water_closure` do.
+    if not all(
+        np.isfinite(value) for value in (max_lag, lookback, slack, min_allowance)
+    ) or max_lag <= 0.0 or lookback <= 0.0 or slack < 0.0 or min_allowance < 0.0:
+        raise ValueError(
+            "routing_conservation needs positive max_lag_days and lookback_days "
+            "and non-negative tolerance and min_allowance_mm; got "
+            f"{max_lag}, {lookback}, {slack}, {min_allowance}"
+        )
 
     w = make_window(run, probe)
     for col in ("mrro", "channel"):
