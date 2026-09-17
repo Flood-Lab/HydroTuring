@@ -46,11 +46,15 @@ criteria:
       recharge: gw_recharge
       exchange: gw_sw_exchange
       storage: gw
-      # A model with its own boundary term (a GHB or WEL package, a
-      # regional groundwater exchange) declares it as gwex; declared, it is
-      # added to the budget instead of showing up as an unexplained
-      # residual.
-      sources: [gwex]
+      # A model with its own boundary term acting on the aquifer alone (a
+      # GHB or WEL package, a regional groundwater exchange) declares it as
+      # gw_boundary; declared, it is added to this control volume's budget
+      # instead of showing up as an unexplained residual. gwex is not used
+      # here: it is a whole-catchment boundary term that may be taken from
+      # any reported store, not necessarily the aquifer, so crediting it to
+      # gw would pass a model that took the same withdrawal from the
+      # channel or soil column instead.
+      sources: [gw_boundary]
       rel_tol: 0.01
       # abs_tol_mm covers only the recharge/exchange terms' own rounding.
       # The gw state's rounding is covered separately, scaled to the state's

@@ -11,7 +11,7 @@ COLUMNS = ["time", "gw_sw_exchange", "gw_to_sw", "sw_to_gw", "gw"]
 def simulate(forcing: list[dict], static: dict) -> list[dict]:
     """A lagged-head bookkeeping reference that closes its own
     groundwater balance exactly and reports its signed exchange components
-    honestly, with no injected fault. The physical baseline for
+    honestly, with no injected fault. The exact baseline for
     mass/gw-sw-exchange-consistency: trusted-subprocess, so the gate does
     not need Docker or a MODFLOW 6 build to score this probe.
 

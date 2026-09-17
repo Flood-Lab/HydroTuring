@@ -147,6 +147,7 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `gw_sw_exchange` | net river-aquifer exchange, positive into the aquifer; unlike `gwex`, this moves water between two stores inside the control volume (`gw` and `channel`), so it is never added to `gwex` or counted as a `closure` source | mm/day |
 | `gw_to_sw` | groundwater-to-river exchange component: the aquifer losing to the river, so it is never positive; a component of `gw_sw_exchange`, not of `gwex`, and not an addition to it | mm/day |
 | `sw_to_gw` | river-to-groundwater exchange component: the river losing to the aquifer, so it is never negative; `gw_to_sw + sw_to_gw` must equal `gw_sw_exchange` | mm/day |
+| `gw_boundary` | a boundary term acting on the aquifer alone (a GHB or WEL package, a regional groundwater exchange), positive into the aquifer; unlike `gwex`, which crosses the whole catchment's boundary and may be taken from any reported store, this is scoped to `gw` so `mass/gw-sw-exchange-consistency`'s `groundwater_balance` can credit it without guessing which store it left | mm/day |
 | `sbl` | the sublimating share of `evspsbl`: a component of it, never an addition; report it if the model knows which kilograms left as ice | mm/day |
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
 | `hfss` | sensible heat flux, positive away from the surface | W/m2 |

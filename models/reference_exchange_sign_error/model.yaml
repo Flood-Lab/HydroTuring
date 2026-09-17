@@ -3,8 +3,8 @@ version: "0.1.0"
 description: >
   A lagged-head bookkeeping reference, sharing reference_exchange_exact's
   head-tracks-smoothed-stage mechanism rather than a linear reservoir
-  (needs_static declares aquifer_storage_coefficient only because the
-  probe's case provides it, not because this adapter reads it), with a
+  (needs_static declares aquifer_storage_coefficient because probe.yaml's
+  requires.static asks for it, not because this adapter reads it), with a
   genuine bidirectional river exchange that closes its own groundwater
   balance exactly. Deliberately reports the aquifer-to-river component
   (gw_to_sw) without its sign, so it no longer sums to gw_sw_exchange;

@@ -16,11 +16,15 @@ def groundwater_balance(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
     named flux (default gw_sw_exchange), not gwex: this moves water between
     two in-catchment stores rather than crossing the catchment boundary.
 
-    A model with its own boundary term to the outside of this control
-    volume (a GHB or WEL package, a regional groundwater exchange) may
-    declare it under `sources` (default `["gwex"]`, matching closure.py);
-    declared, it is added to the budget rather than left to show up as an
-    unexplained residual.
+    A model with its own boundary term acting on the aquifer alone (a GHB
+    or WEL package, a regional groundwater exchange) may declare it under
+    `sources` (default `[]`); declared, it is added to this control
+    volume's budget rather than left to show up as an unexplained
+    residual. `gwex` is not a safe default here: it is a whole-catchment
+    boundary term that may be taken from any reported store (soil, channel,
+    the aquifer itself), so a probe.yaml that wants a source counted here
+    must name a flux scoped to the aquifer, such as `gw_boundary`, not
+    `gwex` itself.
     """
     w = make_window(run, probe)
     recharge_name = params.get("recharge", "gw_recharge")
@@ -33,7 +37,7 @@ def groundwater_balance(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
     storage = w.table[storage_name].to_numpy(dtype=float)
     recharge = w.volume(w.forcing[recharge_name])
     exchange = w.volume(w.table[exchange_name])
-    sources = params.get("sources", ["gwex"])
+    sources = params.get("sources", [])
     declared = np.zeros(len(w.table))
     for var in sources:
         if var in w.table.columns:
@@ -70,11 +74,18 @@ def groundwater_balance(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
     cumulative_ok = abs(cumulative_residual) <= cumulative_allowed
     ok = step_ok and cumulative_ok
     relative_total = float(np.abs(cumulative_residual) / max(total_recharge, 1.0e-12))
+    # `threshold` reports the tolerance actually applied to `value`, not
+    # rel_tol on its own: cumulative_allowed is max(rel_tol * total_recharge,
+    # 2 * step_floor), and the second term can be the binding one (a small
+    # recharge total, or a gw datum whose rounding sets the floor), in which
+    # case a run can pass with value above rel_tol, or fail below it. Stating
+    # rel_tol here would describe a threshold this criterion no longer uses.
+    applied_threshold = cumulative_allowed / max(total_recharge, 1.0e-12)
     return CriterionResult(
         name="groundwater_balance",
         status=PASS if ok else FAIL,
         value=relative_total,
-        threshold=rel_tol,
+        threshold=applied_threshold,
         message=(
             f"groundwater balance closes; max step residual {max_abs:.6g} mm"
             if ok
@@ -90,6 +101,57 @@ def groundwater_balance(run: RunResult, probe: ProbeSpec, params: dict) -> Crite
             "max_abs_step_residual_mm": max_abs,
             "step_floor_mm": step_floor,
             "cumulative_allowed_mm": cumulative_allowed,
+        },
+    )
+
+
+@criterion("exchange_components")
+def exchange_components(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
+    """Require directional components to sum to the declared net exchange.
+
+    The net flux is named by ``net`` (default ``gw_sw_exchange``), not
+    ``gwex``: river-aquifer exchange moves water between two stores inside
+    the control volume, while ``gwex`` is a source or sink crossing the
+    catchment boundary (AGENTS.md, closure.py). ``sw_to_gw`` (river losing to
+    the aquifer) is the positive component and ``gw_to_sw`` (aquifer losing
+    to the river) is the negative component, so
+    ``gw_to_sw + sw_to_gw == net``.
+    """
+    w = make_window(run, probe)
+    net_name = params.get("net", "gw_sw_exchange")
+    required = ("gw_to_sw", "sw_to_gw", net_name)
+    missing = [name for name in required if name not in w.table.columns]
+    if missing:
+        raise ValueError(f"exchange_components needs {missing} in the model result")
+
+    gw_to_sw = w.volume(w.table["gw_to_sw"])
+    sw_to_gw = w.volume(w.table["sw_to_gw"])
+    net = w.volume(w.table[net_name])
+    residual = gw_to_sw + sw_to_gw - net
+    denominator = np.maximum(np.maximum(np.abs(gw_to_sw), np.abs(sw_to_gw)), 1.0e-9)
+    relative = float(np.max(np.abs(residual) / denominator))
+    sign_violation = bool((gw_to_sw > 1.0e-9).any() or (sw_to_gw < -1.0e-9).any())
+    rel_tol = float(params.get("rel_tol", 1.0e-6))
+    abs_tol = float(params.get("abs_tol", 1.0e-6))
+    max_abs = float(np.max(np.abs(residual)))
+    ok = not sign_violation and bool(
+        np.all(np.abs(residual) <= np.maximum(rel_tol * denominator, abs_tol))
+    )
+    return CriterionResult(
+        name="exchange_components",
+        status=PASS if ok else FAIL,
+        value=relative,
+        threshold=rel_tol,
+        message=(
+            f"directional exchange components sum to {net_name}"
+            if ok
+            else f"directional exchange is inconsistent with {net_name} (max residual {max_abs:.6g} mm)"
+        ),
+        diagnostics={
+            "max_abs_residual_mm": max_abs,
+            "max_relative_residual": relative,
+            "minimum_gw_to_sw": float(np.min(gw_to_sw)),
+            "maximum_sw_to_gw": float(np.max(sw_to_gw)),
         },
     )
 

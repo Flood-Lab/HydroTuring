@@ -22,18 +22,28 @@ precision: this is bookkeeping, not physics, and holds exactly for any model
 that means it. The groundwater balance is:
 
 ```text
-gw_recharge + gw_sw_exchange + gwex = change in groundwater storage (gw)
+gw_recharge + gw_sw_exchange + gw_boundary = change in groundwater storage (gw)
 ```
 
-`gwex`, a source or sink crossing the control volume's boundary such as a
-GHB or WEL package or a regional groundwater exchange, is added if the model
+`gw_boundary`, a source or sink acting on the aquifer alone such as a GHB or
+WEL package or a regional groundwater exchange, is added if the model
 declares it and is otherwise zero: a model without that column is not
 penalized for a boundary term it does not have, but one with a real
-boundary term and no `gwex` column is scored on an incomplete budget and
-fails. The only required store is `gw`. This is intentionally a groundwater
-probe: canopy, soil, snow and catchment runoff are outside its control
-volume, and a model is scored only on the groundwater state and exchange
-fluxes it reports.
+boundary term and no `gw_boundary` column is scored on an incomplete budget
+and fails. `gw_boundary` is deliberately not `gwex`: `gwex` is a declared
+exchange with the outside of the whole catchment (regional groundwater, an
+inter-basin transfer, a prescribed withdrawal) and may be taken from any
+store the model reports, not necessarily the aquifer, so `closure.py`
+counts it as a source in the whole-catchment budget without knowing which
+store it left. Crediting `gwex` to this probe's aquifer-only budget would
+pass a model that took the same withdrawal from the channel or soil column
+instead, where `gw` never changed and the probe would be right to see an
+unexplained residual. A model whose boundary term genuinely acts on the
+aquifer reports it as `gw_boundary`, scoped to this control volume, rather
+than `gwex`. The only required store is `gw`. This is intentionally a
+groundwater probe: canopy, soil, snow and catchment runoff are outside its
+control volume, and a model is scored only on the groundwater state and
+exchange fluxes it reports.
 
 ### Static parameters
 
