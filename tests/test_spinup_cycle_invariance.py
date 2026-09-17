@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-from itertools import combinations
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -43,11 +41,6 @@ def test_weather_repeats_exactly_and_host_selects_three_spinup_lengths(probe, se
     assert all(case.n_steps == PERIOD_DAYS + SPINUP_DAYS for case in cases.values())
     assert all(case.spinup_steps == SPINUP_DAYS for case in cases.values())
     assert len({json.dumps(case.static, sort_keys=True) for case in cases.values()}) == 1
-    for left, right in combinations(cases.values(), 2):
-        pd.testing.assert_frame_equal(
-            left.forcing.drop(columns="_phase"), right.forcing.drop(columns="_phase")
-        )
-
     # Every calendar year maps back to the same 365-value cycle.  Leap years
     # repeat February 28 rather than shifting all later forcing by one day.
     scored = cases["short"].forcing.iloc[SPINUP_DAYS:].copy()
@@ -62,7 +55,7 @@ def test_weather_repeats_exactly_and_host_selects_three_spinup_lengths(probe, se
     assert cases["short"].forcing["pr"].sum() > 0.0
     assert cases["short"].forcing["tas"].min() > cases["short"].static["snow_threshold_degC"]
 
-    expected_years = {"short": 2007, "plus3": 2010, "long": 2011}
+    expected_years = {"short": 2007, "plus3": 2007, "long": 2007}
     for variant, case in cases.items():
         rows = _evaluation_rows(case)
         assert len(rows) == CYCLE_DAYS
@@ -70,7 +63,7 @@ def test_weather_repeats_exactly_and_host_selects_three_spinup_lengths(probe, se
         np.testing.assert_array_equal(rows, np.arange(rows[0], rows[0] + CYCLE_DAYS))
 
 
-def test_adapters_receive_the_same_visible_case_metadata(probe, tmp_path):
+def test_adapters_receive_common_metadata_and_aligned_evaluation_forcing(probe, tmp_path):
     model = registry.find_model("reference_bucket")
     requests = []
     visible = []
@@ -81,8 +74,18 @@ def test_adapters_receive_the_same_visible_case_metadata(probe, tmp_path):
         requests.append(json.loads(request_path.read_text()))
         visible.append(pd.read_csv(io_dir / FORCING_FILE))
     assert all(request == requests[0] for request in requests)
-    for frame in visible[1:]:
-        pd.testing.assert_frame_equal(visible[0], frame)
+    # Dates differ intentionally so each history reaches the same evaluation
+    # year without comparing leap and non-leap calendar phases. The existing
+    # probe contract keeps the row count fixed while preserving that alignment.
+    assert len({frame["time"].iloc[0] for frame in visible}) == 3
+    assert len({len(frame) for frame in visible}) == 1
+    scored = []
+    for frame in visible:
+        years = pd.to_datetime(frame["time"]).dt.year
+        assert set(years[years == 2007]) == {2007}
+        scored.append(frame.loc[years == 2007, ["pr", "tas", "pet"]].reset_index(drop=True))
+    for frame in scored[1:]:
+        pd.testing.assert_frame_equal(scored[0], frame)
     assert "_phase" not in visible[0].columns
 
 

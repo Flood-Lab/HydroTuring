@@ -11,12 +11,13 @@ authors:
 
 description: >
   One seeded 365-day rain-dominated weather cycle repeats unchanged. The host
-  compares the same evaluation cycle after five, eight, and nine repetitions,
-  while the adapter receives identical forcing and metadata in every run. Once
-  physical references have reached their periodic seasonal attractor, their
-  runoff, evaporation, and reported stores must agree. A hidden state that
-  keeps evolving with the number of cycles instead of converging is exposed,
-  even when its water budget closes.
+  compares the same non-leap 2007 evaluation cycle after five, eight, and nine
+  repetitions. The variants start in 2001, 1998, and 1997 respectively, so
+  their visible dates differ while their evaluation-year forcing and static
+  metadata agree. Once physical references have reached their periodic
+  seasonal attractor, their runoff, evaporation, and reported stores must
+  agree. A hidden state that keeps evolving with the number of cycles instead
+  of converging is exposed, even when its water budget closes.
 
 requires:
   fluxes: [pr, evspsbl, mrro]
@@ -26,9 +27,9 @@ case:
   generator: generate.py
   n_seeds: 3
   timestep: PT1D
-  # Ten calendar years contain two leap days.  The three selected evaluation
-  # years are 2007, 2010, and 2011; all pairs are checked despite the real
-  # Gregorian calendar having leap days.
+  # The variants use different absolute dates (2001/1998/1997 starts), but
+  # every record has the same contractual length and scores calendar year 2007.
+  # This keeps the coprime history offsets while avoiding a leap-phase mismatch.
   period_days: 3652
   period_years: 10
   # One complete year supplies the state immediately before the scored
@@ -46,7 +47,8 @@ criteria:
       threshold: 0.05
       sinks: [evspsbl, mrro]
       sources: [gwex]
-      # Closure is a precondition for both selected cycles, not just short.
+      # Closure is a precondition over every variant's complete post-spinup
+      # record, not just the selected evaluation cycle.
       all_variants: true
 
   - state_bounds:
@@ -96,8 +98,11 @@ baselines:
 
 provenance: >
   Synthetic. A deterministic 365-day forcing cycle is generated from the
-  recorded seed, then repeated nine times. Only host-side phase labels differ
-  between short, plus3, and long variants; adapters receive the same visible
-  inputs. Pairwise N+3 and N+4 offsets are deliberate: their greatest common
-  divisor is one, so a hidden clock with a short integer period cannot align
-  with every comparison.
+  recorded seed. The short, plus3, and long variants start in 2001, 1998, and
+  1997, respectively, and all score the same non-leap 2007 calendar year.
+  Their absolute dates differ intentionally, while static metadata and the
+  scored pr/tas/pet values are identical. Pairwise N+3 and N+4 offsets are
+  deliberate: their greatest common divisor is one, so a hidden clock with a
+  short integer period cannot align with every comparison. The fixed record
+  length preserves the existing probe contract while preventing leap-day phase
+  mismatches in the scored year.
