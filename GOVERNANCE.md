@@ -76,8 +76,8 @@ would like to review, say which conservation law in an issue.
 | Conservation law | Reviewers |
 | --- | --- |
 | Energy | Changming Li (SCUT, @licm13), Han Wang (The Hong Kong University of Science and Technology, @cehw), Xin Lan (Michigan State University, @xinlan-technology) |
-| Mass | Zhi Li (CU Boulder, @chrimerss), Siddik Barbhuiya (IIT Mandi, @Barbhuiya12) |
-| Momentum | Zhi Li (CU Boulder, @chrimerss), Siddik Barbhuiya (IIT Mandi, @Barbhuiya12) |
+| Mass | Zhi Li (CU Boulder, @chrimerss), Siddik Barbhuiya (IIT Mandi, @Barbhuiya12), Yuanhang Liu (Independent Researcher, @kawh1111) |
+| Momentum | Zhi Li (CU Boulder, @chrimerss), Siddik Barbhuiya (IIT Mandi, @Barbhuiya12), Yuanhang Liu (Independent Researcher, @kawh1111) |
 
 ## Conflicts of interest
 
