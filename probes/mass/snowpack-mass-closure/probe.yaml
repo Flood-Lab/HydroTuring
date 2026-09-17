@@ -1,0 +1,69 @@
+id: mass/snowpack-mass-closure
+
+title: Internal snowpack water-balance closure
+
+law: mass
+
+track: synthetic
+
+version: 1
+
+authors:
+  - name: Jinlong Hu
+    affiliation: State Key Laboratory of Earth Surface Processes and Disaster Risk Reduction, Faculty of Geographical Science, Beijing Normal University, Beijing, China
+    orcid: 0000-0002-8123-7282
+    github: jinlong-hu
+
+description: >
+  Tests whether the snowpack conserves water across snow storage,
+  liquid water delivered from the snow module to the ground, and
+  sublimation. The budget is evaluated across accumulation, storage,
+  and melt stages so that unexplained gains and losses inside the
+  snowpack cannot cancel over the full simulation.
+
+# citation: "https://doi.org/..."
+
+requires:
+  fluxes: [snm]
+  states: [snw]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_days: 360
+  spinup_days: 0
+  min_window_days: 360
+  max_output_mb: 2.0
+  max_runtime_s: 120
+
+criteria:
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05        # the 5 percent engineering rule
+      sinks: [snm, sbl]
+      sources: []
+      states: [snw]
+
+  - state_bounds:
+      snw: [0.0, null]
+
+  # Snow-specific non-degeneracy will be implemented during probe development.
+  # For each accumulation + storage stretch:
+  #   peak(snw) >= 0.5 * cumulative(pr)
+  # For the following melt stage:
+  #   snw_end < 0.1 * peak(snw)
+  # - non_degenerate:
+  #     runoff_ratio: [0.02, 0.98]
+  #     min_flux_cv: 0.1
+
+baselines:
+  must_pass: [reference_bucket, sacsma_snow17]
+  must_fail:
+    reference_snow_bypass: closure
+
+provenance: >
+  Synthetic. Two accumulation-storage-melt snow cycles are generated at run
+  time from a recorded random seed. Precipitation timing, precipitation
+  amount, and temperature variability vary with the seed, while the stage
+  structure is fixed. No forcing data are committed to the repository.
