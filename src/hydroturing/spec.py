@@ -37,7 +37,13 @@ STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
 # is declared for the same reason `sbl` is -- a criterion cannot otherwise know
 # which part of a pack is ice, and a fall in `snw` is net water leaving the
 # pack rather than evidence of a phase change.
-DIAG_VARS = ("ts", "tsoil_layer", "stage", "lwsnl", "csnow")
+# `vel` is the section-averaged velocity of the water `dis` counts, at the
+# reach outlet, positive downstream. Momentum per unit length of reach is
+# rho*A*u = rho*Q, so `dis` is the momentum density and a model reporting
+# only `dis` is scored on it; one that also reports `vel` is scored on both,
+# because only the velocity separates a change of speed from a change of
+# section, and friction acts on the speed.
+DIAG_VARS = ("ts", "tsoil_layer", "stage", "lwsnl", "csnow", "vel")
 
 UNITS = {
     "pr": "mm day-1",
@@ -67,6 +73,9 @@ UNITS = {
     "hfg_bottom": "W m-2",
     "tsoil_layer": "K",
     "stage": "m",
+    # Section-averaged outlet velocity, positive downstream; `vel * A = dis`
+    # on the same water wherever `stage` is also reported.
+    "vel": "m s-1",
     "mrso": "mm",
     "snw": "mm",
     "canopy": "mm",

@@ -34,7 +34,8 @@ Paths inside `request.json` are relative to the request file's directory.
 ```
 /io/request.json          read-only: opaque case id, model seed, timestep, n_steps, outputs
 /io/input/forcing.csv     read-only: columns time, pr, tas, pet (mm/day, degC, mm/day),
-                          and, when a probe prescribes a human withdrawal, abstr (mm/day, net)
+                          and, when a probe prescribes a human withdrawal, abstr (mm/day, net),
+                          or a downstream boundary head, hds (m, water level at the outlet)
 /io/input/static.json     read-only: catchment attributes
 /io/output/result.csv     write: one row per forcing row, spinup included
 /io/output/run.json       write: {"status": "ok"}
@@ -52,6 +53,16 @@ removed as a negative `gwex`. A model that never reads the column reports a
 budget that closes on its own yet misses the withdrawal; the probe scores that
 as a failure, not as INCOMPLETE, because such a model reports everything the
 criterion needs.
+
+A probe may likewise prescribe a downstream boundary head as an `hds` column
+(m): the water level imposed at the reach outlet by a surge, a tide or a
+backwater. Honouring it means letting that level act on the reach: a rise in
+`hds` slows, holds or reverses the outlet flow, and `dis` goes negative for as
+long as water actually moves upstream. Declare consumption under
+`needs_forcing` or `uses_forcing`, as for `rlds`; a model that declares neither
+is `N/A (INCOMPATIBLE)` on such a probe, because it has no boundary to feel the
+head with, and a model that declares it and then reports a hydrograph the head
+never touched has failed, not been excused.
 
 ## The evaluation window
 
@@ -131,7 +142,7 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `pr` | precipitation, echoed back from the forcing | mm/day |
 | `evspsbl` | evapotranspiration | mm/day |
 | `mrro` | total runoff | mm/day |
-| `dis` | river discharge | m3/s |
+| `dis` | river discharge at the outlet, signed: positive downstream, negative only while water actually moves upstream, under a prescribed surge or backwater. A model that clips at zero says so in `run.json`, because on a probe that prescribes a boundary head the clip is a modelling choice with a consequence | m3/s |
 | `gwex` | a declared exchange with the outside: regional groundwater, inter-basin transfer; positive into the catchment | mm/day |
 | `sbl` | the sublimating share of `evspsbl`: a component of it, never an addition; report it if the model knows which kilograms left as ice | mm/day |
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
@@ -147,6 +158,7 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `channel` | water generated as runoff but not yet released by the model's routing | mm |
 | `ts` | surface (skin) temperature at row i's `time`, the same instant as row i's `rlds`; a diagnostic, declared under `emits.diagnostics`, neither integrated nor differenced by any budget | K |
 | `stage` | the water level a gauge in the reach would read, derived from the reach's own water; a diagnostic, declared under `emits.diagnostics`, never a storage any budget is differenced over | m |
+| `vel` | section-averaged velocity of the water leaving the reach, positive downstream: the velocity of the same water `dis` counts, so `vel · A = dis` wherever the model also reports `stage`. Optional: a model with a velocity field reports the section mean at the outlet, a model without one reports nothing, and the momentum probes then score `dis` alone. A diagnostic, declared under `emits.diagnostics`, never a storage | m/s |
 | `lwsnl` | **every non-solid component of `snw`** at the end of row i's step, so that `snw - lwsnl` is the ice and nothing else. Liquid held in the pore space, and any other non-solid water the model counts inside `snw`: for Snow-17 that is `LIQW` together with the lagged excess and storage terms, since `snw` there is `WE + LIQW + exlag + storge`. Part of `snw` and never additional to it; a diagnostic, declared under `emits.diagnostics`, and excluded from every water-storage sum because counting it beside `snw` would count the same kilogram twice | mm |
 | `csnow` | the snowpack's **cold content** at the end of row i's step: the energy still needed to bring its ice to 0 °C, as a positive quantity, and zero for a ripe or empty pack. Reported as energy rather than as a temperature because that is what a budget spends, and because converting a temperature back through an assumed heat capacity is wrong for any model whose capacity differs; Snow-17 already carries it directly as `NEGHS`. A diagnostic, declared under `emits.diagnostics` | J m-2 |
 
@@ -227,11 +239,12 @@ of `rlds` and `eps`; a model that does not declare it consumes both is
 `N/A (INCOMPATIBLE)` because it may be computing its own sky or emissivity.
 
 Declare diagnostic outputs under the optional key `diagnostics`, such as
-`[ts]`, `[tsoil_layer]` or `[stage]`. They are excluded from water-storage
-sums. Each criterion defines their time handling: radiation reads
-instantaneous `ts`, soil heat storage differences interval-end
-`tsoil_layer`, and the rating probes read the reported `stage` alongside
-the reach's discharge and store.
+`[ts]`, `[tsoil_layer]`, `[stage]` or `[vel]`. They are excluded from
+water-storage sums. Each criterion defines their time handling: radiation
+reads instantaneous `ts`, soil heat storage differences interval-end
+`tsoil_layer`, the rating probes read the reported `stage` alongside the
+reach's discharge and store, and the momentum probes read `vel` beside
+`dis` wherever a model reports it, holding both to the same bound.
 
 For soil heat storage, declare consumption of the prescribed layer depth,
 areal heat capacity and initial temperature, as well as the incoming
