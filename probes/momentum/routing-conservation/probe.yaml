@@ -61,7 +61,8 @@ criteria:
       # 0.04, flex_topo 0.11, lisflood 0.12, wflow_sbm and sacsma_snow17 0.16,
       # cwatm 0.47, flex_lumped 0.58), whose tightest leaves 1.7x of room, and
       # the smallest leak this probe exists to catch — a kernel keeping a tenth
-      # of a percent of every day's runoff — is caught at 4.4x.
+      # of a percent of every day's runoff — is caught at 4.13x to 4.40x, the
+      # smallest of the three seeds being the one that governs.
       min_allowance_mm: 0.05
 
   - non_degenerate:
@@ -84,7 +85,10 @@ provenance: >
   Synthetic. Generated at run time from a recorded seed, with four storms and
   the rainless spell that follows each one. Nothing is committed as data.
 
-# Version 2 changes the weather, so this probe's case is not the one the rows
-# dated before 2026-09-17 were run on. Those rows are history: the harness
-# appends to `models/result.csv` and a model's standing is read from its last
-# row for the probe.
+# Version 2 changes the weather, so the case is not the one the earlier rows for
+# this probe were run on. The boundary is the version, not a date: the rows dated
+# up to 2026-09-15 are the old weather, and those dated 2026-09-16 and
+# 2026-09-17 — including the four baselines the README's figures come from — are
+# this one. The harness appends to `models/result.csv` and a model's standing is
+# read from its last row for the probe, so the earlier rows are kept as history
+# and the later ones govern.

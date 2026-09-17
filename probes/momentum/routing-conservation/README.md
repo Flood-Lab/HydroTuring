@@ -66,8 +66,35 @@ sit at **0.01 to 0.58 of the whole allowance**:
 
 The tightest of those leaves about 1.7x of room, and the smallest fault this
 probe exists to catch — a kernel keeping a tenth of a percent of each day's
-runoff — is caught at **4.4x**. The value sits between them by measurement, not
-by taste.
+runoff — is caught at **4.13x to 4.40x**, the smallest of the three gate seeds
+being the figure that governs, since every seed has to pass. The value sits
+between them by measurement, not by taste.
+
+### Where the 0.0026 mm comes from
+
+`wflow_sbm` is a container model, so the figure is reproducible but not visible
+in the tables this repository commits:
+
+```bash
+PYTHONPATH=<repo>/src python -m hydroturing run \
+    --model wflow_sbm --probe momentum/routing-conservation \
+    --gate-seeds --workdir <dir>
+```
+
+On the three gate seeds (417694852, 924646966, 1431599080) the kept tables give
+a largest channel of 16.93, 20.19 and 15.90 mm, against a hydrograph bound of
+`max_lag_days x the largest runoff of the preceding 30 days x 1.05`. The
+difference,
+
+```
+need = max over steps of ( channel - max_lag_days * peak_runoff * (1 + tolerance) )
+```
+
+is **2.5821e-3 mm** on each of the three seeds: that is the water its river
+keeps when the runoff around it has fallen to nothing, and it is what the
+absolute allowance has to cover. `tests/test_routing_conservation_generator.py`
+pins the parameter's effect at that size — a store sitting 0.0026 mm above the
+proportional bound fails with the 1e-6 mm default and passes with 0.05 mm.
 
 ## Limitations
 

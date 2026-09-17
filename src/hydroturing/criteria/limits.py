@@ -195,6 +195,18 @@ def routing_conservation(run: RunResult, probe: ProbeSpec, params: dict) -> Crit
     the preceding window. A kernel that does not sum to one, or a store that
     leaks or accumulates, breaks one of the two.
     """
+    # A misspelled name would otherwise be dropped in silence: an author who
+    # writes `min_allowance` means to change the bound and would not learn that
+    # nothing happened. `event_water_closure` refuses unknown names the same way.
+    unknown = set(params) - {
+        "max_lag_days",
+        "lookback_days",
+        "tolerance",
+        "min_allowance_mm",
+    }
+    if unknown:
+        raise ValueError(f"routing_conservation: unknown parameters {sorted(unknown)}")
+
     max_lag = float(params.get("max_lag_days", 15.0))
     lookback = float(params.get("lookback_days", 2.0 * max_lag))
     slack = float(params.get("tolerance", 0.05))
