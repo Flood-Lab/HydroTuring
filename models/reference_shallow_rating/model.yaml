@@ -1,0 +1,26 @@
+name: reference_shallow_rating
+version: "1.0.0"
+description: >
+  The exact bucket with a rating borrowed from another reach: its gauge reads
+  Manning normal depth drawn for a section five times wider than the one the
+  case declares, so the depth it reports is the right depth for a different
+  channel and too shallow for this one. Its water is conserved exactly and
+  its runoff is the bucket's, and the gauge still rises with the flow, so
+  nothing about it is degenerate and no budget moves. What it does is imply a
+  velocity: at that depth, the declared section would have to deliver the
+  flow about four times faster than the wave carrying it. Pins the Froude
+  check, which is the only criterion in the suite that reads a stage and a
+  discharge against each other.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro, dis, gwex]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [stage]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

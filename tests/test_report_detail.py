@@ -58,6 +58,7 @@ HEADLINES = {
         "closure", "state_bounds", "et_plausible", "non_degenerate", "forcing_fidelity",
     ),
     "mass/warming-response": ("response_sign",),
+    "momentum/froude-regime": ("froude_subcritical",),
     "momentum/routing-conservation": ("routing_conservation",),
     "momentum/routing-lag-consistency": (
         "lag_time_bounds",

@@ -272,16 +272,23 @@ more discharge at a given stage than the falling limb.
 relationship between depth and flow.
 Contributed by Yuanhang Liu.
 
+### `momentum/froude-regime` &middot; **merged**
+A stage and a discharge are two readings of one cross-section. On a declared
+mild slope the pair a model reports has to stay subcritical, because water
+that outruns the wave carrying it cannot be sustained there. No budget sees
+it — a stage is not a store, so nothing is differenced over it — and no
+rating test sees it either: a gauge drawn for the wrong section varies as
+much as an honest one and rises with the flow, which is what the probe's
+counterexample is built to show.
+*Discriminates:* spurious supercritical flow, which usually signals the model
+is not solving anything resembling momentum.
+Contributed by Yuanhang Liu (Independent Researcher).
+
 ### `momentum/wave-celerity-bounds` &middot; hard &middot; **unclaimed**
 Kinematic wave celerity must be positive and near the Manning expectation for
 the reach geometry.
 *Discriminates:* models that route a flood wave upstream, or at a speed the
 channel cannot support.
-
-### `momentum/froude-regime` &middot; standard &middot; **unclaimed**
-Flow in a mild-sloped reach must stay subcritical.
-*Discriminates:* spurious supercritical flow, which usually signals the model
-is not solving anything resembling momentum.
 
 ---
 

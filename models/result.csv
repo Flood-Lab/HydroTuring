@@ -501,3 +501,12 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-17,cwatm,1.11-5baaadd.4,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.47 of what a 15-day hydrograph can hold
 2026-09-17,summa,4.0.0-f787fa5.4,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.01 of what a 15-day hydrograph can hold
 2026-09-17,lisflood,5.0.0-onecell.5,0.1.0,docker,momentum/routing-conservation,PASS,OK,1095-day flood event,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.12 of what a 15-day hydrograph can hold
+2026-09-17,cwatm,1.11-5baaadd.4,0.1.0,docker,momentum/froude-regime,N/A,INCOMPLETE,not run,,does not report stage
+2026-09-17,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,momentum/froude-regime,N/A,INCOMPLETE,not run,,does not report stage
+2026-09-17,flex_lumped,1.1.0,0.1.0,subprocess,momentum/froude-regime,PASS,OK,full record,582217533 1089169647 1596121761,"froude_subcritical: the reach stays subcritical on every scored step (1460 steps, worst Fr 0.389, median 0.266, limit 1.05)"
+2026-09-17,flex_topo,1.0.0,0.1.0,subprocess,momentum/froude-regime,PASS,OK,full record,582217533 1089169647 1596121761,"froude_subcritical: the reach stays subcritical on every scored step (1460 steps, worst Fr 0.417, median 0.267, limit 1.05)"
+2026-09-17,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,momentum/froude-regime,N/A,INCOMPLETE,not run,,does not report stage
+2026-09-17,lisflood,5.0.0-onecell.5,0.1.0,docker,momentum/froude-regime,N/A,INCOMPLETE,not run,,does not report stage
+2026-09-17,sacsma_snow17,1.0.0,0.1.0,subprocess,momentum/froude-regime,PASS,OK,full record,582217533 1089169647 1596121761,"froude_subcritical: the reach stays subcritical on every scored step (1460 steps, worst Fr 0.413, median 0.256, limit 1.05)"
+2026-09-17,summa,4.0.0-f787fa5.4,0.1.0,docker,momentum/froude-regime,N/A,INCOMPLETE,not run,,does not report stage
+2026-09-17,wflow_sbm,1.0.4-ht.4,0.1.0,docker,momentum/froude-regime,N/A,INCOMPLETE,not run,,does not report stage
