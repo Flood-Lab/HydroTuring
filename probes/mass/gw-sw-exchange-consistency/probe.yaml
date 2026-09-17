@@ -1,0 +1,90 @@
+id: mass/gw-sw-exchange-consistency
+
+title: Groundwater-river exchange and storage close the water budget
+
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Yaji Wang
+    affiliation: University of Illinois Urbana-Champaign
+
+description: >
+  A two-year daily aquifer case checks that a model reporting groundwater-river
+  exchange accounts for recharge, both signed exchange directions and aquifer
+  storage. This is intentionally a groundwater probe: canopy, soil, snow and
+  catchment runoff are outside its control volume.
+
+requires:
+  fluxes: [gw_sw_exchange, gw_to_sw, sw_to_gw]
+  states: [gw]
+  forcing: [gw_recharge, sw_stage_m]
+  static: [area_km2, aquifer_specific_yield, aquifer_storage_coefficient, river_conductance_m2_per_day, river_bottom_offset_m]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_years: 2
+  spinup_days: 90
+  min_window_days: 180
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+criteria:
+  - exchange_components:
+      rel_tol: 1.0e-6
+      # A reach that both gains and loses on the same step has each signed
+      # component rounded to ordinary output precision before they are
+      # summed, which the identity's own rounding does not absorb at 1e-6;
+      # 1e-4 clears that while still catching a wrong sign or a dropped
+      # component.
+      abs_tol: 1.0e-4
+
+  - groundwater_balance:
+      recharge: gw_recharge
+      exchange: gw_sw_exchange
+      storage: gw
+      # A model with its own boundary term acting on the aquifer alone (a
+      # GHB or WEL package, a regional groundwater exchange) declares it as
+      # gw_boundary; declared, it is added to this control volume's budget
+      # instead of showing up as an unexplained residual. gwex is not used
+      # here: it is a whole-catchment boundary term that may be taken from
+      # any reported store, not necessarily the aquifer, so crediting it to
+      # gw would pass a model that took the same withdrawal from the
+      # channel or soil column instead.
+      sources: [gw_boundary]
+      rel_tol: 0.01
+      # abs_tol_mm covers only the recharge/exchange terms' own rounding.
+      # The gw state's rounding is covered separately, scaled to the state's
+      # own magnitude (see groundwater_balance), so this floor does not need
+      # to be inflated to clear a state written at a large datum.
+      abs_tol_mm: 2.0e-4
+
+  - state_bounds:
+      gw: [0.0, null]
+
+  - exchange_directions:
+      minimum_gross_mm: 0.1
+
+baselines:
+  # reference_bucket, flex_lumped, flex_topo and sacsma_snow17 do not report
+  # gw_sw_exchange/gw_to_sw/sw_to_gw, so this probe is N/A (INCOMPLETE) for
+  # them (a missing output is checked before an unconsumed input), exactly
+  # as it is for any model without a groundwater-exchange term.
+  # reference_exchange_exact is a trusted, Docker-free reference that closes
+  # this probe's budget exactly, so the gate does not depend on building and
+  # running modflow6 (a 134 MB release plus flopy) to score anything.
+  # modflow6 is kept as a second, evidential baseline: a real MODFLOW 6 run,
+  # archived as a submitted model rather than gated on.
+  must_pass: [reference_exchange_exact]
+  must_fail:
+    reference_exchange_sign_error: exchange_components
+
+provenance: >
+  Synthetic. Generated at run time by generate.py from a recorded seed. The
+  forcing is generated at runtime. reference_exchange_exact and modflow6
+  receive recharge and river stage as explicit inputs; modflow6's RIV budget
+  flows are mapped to the two signed exchange components, which sum to
+  gw_sw_exchange, distinct from the boundary-crossing gwex.
