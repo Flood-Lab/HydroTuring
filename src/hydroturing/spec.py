@@ -27,7 +27,7 @@ SCHEMA_DIR = REPO_ROOT / "schemas"
 # `sbl` is a component of `evspsbl`, never an addition to it. `rlus` is the
 # total upward longwave radiation, surface emission plus reflected downward
 # longwave, positive away from the surface.
-FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "sbl", "hfls", "hfss", "hfg", "rlus", "hfg_bottom")
+FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "gw_sw_exchange", "gw_to_sw", "sw_to_gw", "gw_boundary", "sbl", "hfls", "hfss", "hfg", "rlus", "hfg_bottom")
 STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
 # Keep diagnostics out of STATE_VARS: closure sums every reported store,
 # and temperature must never be added to water storage.
@@ -45,6 +45,22 @@ UNITS = {
     "mrro": "mm day-1",
     "dis": "m3 s-1",
     "gwex": "mm day-1",
+    # Net river-aquifer exchange, positive into the aquifer. Unlike gwex
+    # (a source or sink crossing the catchment boundary), this moves water
+    # between two stores inside the control volume (gw and channel), so it
+    # is never added to gwex or counted as a source in closure.
+    "gw_sw_exchange": "mm day-1",
+    # Signed directional components of gw_sw_exchange, not of gwex. sw_to_gw
+    # is positive into the aquifer (river losing to the aquifer); gw_to_sw
+    # is negative, out of the aquifer (aquifer losing to the river).
+    "gw_to_sw": "mm day-1",
+    "sw_to_gw": "mm day-1",
+    # Every other flux across the aquifer's boundary (a GHB or WEL package,
+    # regional groundwater exchange), positive into the aquifer. The part that
+    # also crosses the catchment boundary is reported in gwex as well, and no
+    # budget adds the two. groundwater_balance credits this column to gw,
+    # never gwex, because gwex may leave from any reported store.
+    "gw_boundary": "mm day-1",
     # The sublimating share of `evspsbl`, not a flux in addition to it. A model
     # that reports it is stating which part of its evaporation left the surface
     # as ice, which is the only way a criterion can know without guessing.
@@ -154,6 +170,8 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_rating_drift",
     "reference_rating_inverted",
     "reference_flat_stage",
+    "reference_exchange_sign_error",
+    "reference_exchange_exact",
 }
 
 
