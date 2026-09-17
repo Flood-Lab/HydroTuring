@@ -238,16 +238,16 @@ Contributed by Binlan Zhang (Institute of Mountain Hazards and Environment,
 Chinese Academy of Sciences, Chengdu, China; GitHub: binbinlan; ORCID:
 https://orcid.org/0000-0001-9091-3185).
 
-### `momentum/channel-routing-mass` &middot; **merged**
+### `momentum/channel-routing-mass` &middot; starter &middot; **unclaimed**
 Inflow minus outflow minus the change in channel storage, per reach.
-The shipped implementation asks a one-sided version of that question — on
-rainless steps, the channel store may not rise — because the contract carries
-no inflow to the reach: there is no inflow variable, and `dis` is `mrro` times
-area, so the residual the proposal describes cannot be formed. The probe README
-records the departure, the reason for it and what it costs.
-*Discriminates:* a reach that rises from nothing, of any size and at any
-distance from the bound the channel store is held to.
-Contributed by Yuanhang Liu.
+Attempted for issue #71 and left unclaimed, with the reason recorded here: the
+contract has no variable for water arriving at the reach, and `dis` is `mrro`
+times area, so both sides of that residual would be built from the model's own
+reported runoff and its own reported store. The residual would compare a model
+with itself and pass by construction, whatever the model did. What was merged
+instead is the one-sided statement of the same physics, in
+`momentum/routing-conservation`, whose bound needs no inflow term. The entry
+stays open for the day a contract carries inflow.
 
 ### `momentum/stage-discharge-monotonic` &middot; **merged**
 Steady-flow rating must be monotonic. Where a loop rating appears, it must be

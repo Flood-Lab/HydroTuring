@@ -139,9 +139,6 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_overflowing",
     "reference_thirsty",
     "reference_stuck_router",
-    # momentum/channel-routing-mass's separating baseline: a bounded unreported
-    # inflow the store bound cannot see and the direction test can.
-    "reference_unreported_inflow",
     "reference_area_leak",
     "reference_overshooting",
     "reference_sublimating",

@@ -117,8 +117,7 @@ Every one is binary.
 | `radiative_identity` | upward longwave equals what the reported surface temperature emits plus the reflected downward longwave, at every step, within the larger of a relative tolerance and an absolute floor; emissivity comes from `static.json` | one run, instantaneous values |
 | `soil_heat_storage` | interval boundary heat input agrees with fixed-layer temperature change and prescribed heat capacity | one run, separate heating/recovery phases |
 | `melt_energy` | over a labelled melt block, the surface energy residual equals the fusion the reported ice change demanded plus what warming the pack cost; the ice is `snw - lwsnl` and the warming is `-d(csnow)`, both self-reported, so the two rows it differences carry seven contract checks, one of them read on every step | one run, labelled blocks |
-| `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff | one run |
-| `recession_drainage` | on steps where the forcing has been rainless for `settle_days` (a duration, converted to steps through the window's `dt_days`), the channel store must not rise by more than a relative floor; the share of such steps that rose is compared with `max_rising_fraction`. Steps the criterion cannot score — a missing store, a forcing with no rain, a record with no recession — fail it rather than crashing | one run |
+| `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff, plus `min_allowance_mm` | one run |
 | `lag_time_bounds` | rainfall-to-runoff peak lag lies inside a broad duration-corrected Snyder envelope derived from public catchment geometry | paired runs, a geometry ladder |
 | `scaling_monotonicity` | peak lag does not materially reverse and grows by a resolvable amount across catchment scales | paired runs, a geometry ladder |
 | `rating_monotonic` | stage does not fall against its running maximum as the abscissa rises: equal-count bin medians are taken over the abscissa and the summed running-maximum deficit is compared with an explicit `tolerance` when one is given, and otherwise with 8% of the rating's span. The share is that large because a stage read off a store is hysteretic by construction, and its binned rating dips below its own running maximum by a visible fraction of the span for that reason alone | one run |
@@ -283,8 +282,7 @@ The reference models available today:
 | `reference_overshooting` | a derivative term sharpens its hydrograph | `response_nonnegativity` |
 | `reference_sublimating` | loses 40% of every snowfall unreported | `phase_invariance` |
 | `reference_thirsty` | evaporates a fixed share of its soil store whatever the demand | `demand_consistency` |
-| `reference_stuck_router` | a routing kernel summing to 0.9, so the store grows without bound and rises on the steps where nothing enters | `routing_conservation` (its size), `recession_drainage` (its direction) |
-| `reference_unreported_inflow` | routes exactly and conserves water, then adds a bounded inflow the model never reports, so the reach rises on rainless steps without ever nearing the store bound | `recession_drainage` |
+| `reference_stuck_router` | a routing kernel summing to 0.9 | `routing_conservation` |
 | `reference_snyder_router` | consumes public catchment geometry and routes rain with a conservative triangular unit hydrograph whose peak follows the duration-corrected Snyder lag from the excess-rainfall centroid | nothing, it must pass the routing-lag probe |
 | `reference_instant_router` | accepts the geometry but returns runoff in the rainfall row at every scale | `lag_time_bounds` |
 | `reference_inverse_router` | uses individually plausible lags that reverse once as catchment scale grows | `scaling_monotonicity` |

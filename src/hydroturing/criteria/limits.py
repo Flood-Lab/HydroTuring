@@ -198,6 +198,14 @@ def routing_conservation(run: RunResult, probe: ProbeSpec, params: dict) -> Crit
     max_lag = float(params.get("max_lag_days", 15.0))
     lookback = float(params.get("lookback_days", 2.0 * max_lag))
     slack = float(params.get("tolerance", 0.05))
+    # The one part of the allowance that is not a multiple of the recent peak.
+    # A reach that has stopped being fed may still hold the dead storage its
+    # own hydraulics keep, and over a long dry spell the proportional term
+    # decays to nothing while that residue does not, so without an absolute
+    # floor the criterion would score channel geometry as a leak. It is a
+    # parameter because how large that residue is belongs to the probe's
+    # weather, not to the criterion: see the probe's `min_allowance_mm`.
+    min_allowance = float(params.get("min_allowance_mm", 1e-6))
 
     w = make_window(run, probe)
     for col in ("mrro", "channel"):
@@ -207,7 +215,7 @@ def routing_conservation(run: RunResult, probe: ProbeSpec, params: dict) -> Crit
     runoff = w.table["mrro"].to_numpy(dtype=float)
     n_back = max(1, int(round(lookback / w.dt_days)))
     peak = np.array([runoff[max(0, i - n_back): i + 1].max() for i in range(len(runoff))])
-    allowed = max_lag * peak * (1.0 + slack) + 1e-6
+    allowed = max_lag * peak * (1.0 + slack) + min_allowance
     excess = channel - allowed
 
     failures = []

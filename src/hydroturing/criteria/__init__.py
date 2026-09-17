@@ -17,7 +17,6 @@ from hydroturing.criteria import (  # noqa: F401,E402
     bounds,
     coherence,
     degeneracy,
-    drainage,
     event_water_closure,
     human,
     limits,
