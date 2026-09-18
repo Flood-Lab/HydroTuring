@@ -21,7 +21,38 @@ the real test.
 | `non_degenerate` | runoff varies with the weather |
 
 Must-fail: `reference_stuck_router`, the bucket with a three-day kernel that
-sums to 0.9.
+sums to 0.9, and `reference_leaky_router`, the same kernel at 0.999. Both are
+pinned because they answer different questions. The 0.9 kernel is caught three
+orders of magnitude clear of the allowance, so it shows the criterion can catch
+a router fault while being blind to where the allowance sits — raise the
+allowance twentyfold and it still fails. The 0.999 kernel's store reaches 4.13
+to 4.40 times the whole allowance on the gate seeds, and the gate stops catching
+it once `min_allowance_mm` passes 0.651 mm, so it is the case the number was
+actually chosen against. With it behind the gate, an allowance moved out from under the
+calibration turns the gate red rather than passing it:
+
+| `min_allowance_mm` | `reference_stuck_router` | `reference_leaky_router` | gate |
+| --- | --- | --- | --- |
+| 0.05 (this probe) | FAIL | FAIL | green |
+| 0.50 | FAIL | FAIL | green |
+| 0.60 | FAIL | FAIL | green |
+| 0.65 | FAIL | FAIL | green |
+| 0.66 | FAIL | pass | **red** |
+| 1.00 | FAIL | pass | **red** |
+| 2.00 | FAIL | pass | **red** |
+| 5.00 | FAIL | pass | **red** |
+
+The leaky kernel escapes the three gate seeds at different allowances: 0.615,
+0.627 and **0.651 mm**. A must-fail counts as caught while any one seed still
+fails, so the gate stays green up to 0.651 mm and turns red above it. The value
+this probe ships sits **13.0x** under that point, and the 0.9 kernel is caught
+until 77.5 mm, about 1550x further out. Over a wider draw of 203 seeds the leaky
+kernel escapes some seeds from 0.47 mm, so an allowance between 0.47 and 0.651 mm
+would keep the gate green while letting the leak pass on some seeds. That is what the pair is for: one model says the criterion works,
+the other says the number is where the weather put it.
+
+Both kernels report the store they leave behind, so what the gate scores is a
+router that retains water rather than a store that invents it.
 
 ## The dry spells are what make a small leak visible
 
@@ -38,6 +69,9 @@ that residue reaches **0.80 mm**, against a storm-time ceiling of **433 to 635
 mm** — five hundred times smaller, and inside the bound everywhere the peak is
 read from a storm. On this record the ceiling has decayed below it during the
 drains, and the kernel fails on every gate seed.
+The 0.999 kernel is also a model of its own — `reference_leaky_router`, pinned
+in this probe's `must_fail` — so the case the allowance is calibrated against
+is behind the acceptance gate and not only behind a unit test.
 `tests/test_routing_conservation_generator.py` pins both the weather's
 properties and that separation.
 
@@ -66,9 +100,9 @@ sit at **0.01 to 0.58 of the whole allowance**:
 
 The tightest of those leaves about 1.7x of room, and the smallest fault this
 probe exists to catch — a kernel keeping a tenth of a percent of each day's
-runoff — is caught at **4.13x to 4.40x**, the smallest of the three gate seeds
-being the figure that governs, since every seed has to pass. The value sits
-between them by measurement, not by taste.
+runoff — reaches **4.13x to 4.40x** the whole allowance on the gate seeds, and
+the gate stops catching it only once `min_allowance_mm` passes 0.651 mm. The
+value sits between them by measurement, not by taste.
 
 ### Where the 0.0026 mm comes from
 

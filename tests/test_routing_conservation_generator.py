@@ -44,10 +44,15 @@ MIN_SPELL_DAYS = 200
 # A storm is not the weather: the table adds 30 to 48 mm/day over five to seven
 # days, so a window that carries less than half of that has lost the injection.
 MIN_STORM_SHARE = 0.5
-# Outside the spells the record is temperate, rain-dominated weather. The band
-# is wide on purpose: it pins the character the description claims, not the seed.
-MIN_ANNUAL_RAIN_MM = 500.0
-MAX_ANNUAL_RAIN_MM = 1300.0
+# The band is on the weather the generator *draws*, not on the record it
+# returns: a temperate, rain-dominated draw of about 880 mm/yr is the character
+# the probe describes, and the storms and the spells are edited into it
+# afterwards. Wide on purpose -- it pins the character rather than the seed --
+# but a doubled wet-day frequency draws 1600 to 1900 mm/yr, so the mutant the
+# test names is still caught. Both sides of every ratio below are read over the
+# scored interval, so the two numbers are comparable.
+MIN_ANNUAL_RAIN_MM = 700.0
+MAX_ANNUAL_RAIN_MM = 1200.0
 # What `wflow_sbm` keeps above the hydrograph bound through the droughts, in mm.
 # The probe README gives the seeds, the command and the calculation.
 WFLOW_NEED_MM = 0.0026
@@ -164,19 +169,58 @@ def test_each_storm_supplies_its_rain_and_its_spell(generator, seeds):
             )
 
 
-def test_the_record_outside_the_spells_stays_temperate_rainfall(generator, seeds):
-    """The description says about 880 mm/yr, and the dry spells do not pin that:
-    a mutant that doubles the wet-day frequency leaves the spells just as dry,
-    so the total is checked here to keep the record the one the probe describes.
+def _background(generator, seed):
+    """The weather the generator draws, before its storms and its spells.
+
+    `generate` draws the weather first, from a fresh `default_rng(seed)`, and
+    only then edits the record. Replaying that draw therefore recovers it -- and
+    the caller rebuilds the delivered record from it, so a change to the order
+    fails loudly rather than quietly comparing two different draws.
+    """
+    rng = np.random.default_rng(seed)
+    pr, _tas, _pet = generator._weather(rng, generator.N_STEPS)
+    return pr
+
+
+def test_the_weather_is_temperate_and_the_record_is_drier_than_it(generator, seeds):
+    """The description's 880 mm/yr belongs to the draw, not to the record.
+
+    Two different quantities are in play and only one of them is the weather.
+    The draw is temperate and rain-dominated; the record the probe scores has
+    four storms added and every post-storm spell zeroed, and over this case the
+    spells take out more than the storms put in -- which is the whole mechanism,
+    since a record that kept its rain would hold the ceiling up. The dry spells
+    do not pin the wet-day frequency (a doubled one leaves the spells just as
+    dry), so the draw is checked here to keep the record the one the probe
+    describes.
     """
     spinup = generator.SPINUP_DAYS
     for seed in seeds:
+        background = _background(generator, seed)
         forcing, _static = generator.generate(seed)
         pr = forcing["pr"].to_numpy(dtype=float)
-        annual = float(pr.sum()) / ((len(pr) - spinup) / 365.0)
-        assert MIN_ANNUAL_RAIN_MM <= annual <= MAX_ANNUAL_RAIN_MM, (
-            f"seed {seed}: {annual:.0f} mm/yr over the record, outside the "
-            f"[{MIN_ANNUAL_RAIN_MM:.0f}, {MAX_ANNUAL_RAIN_MM:.0f}] band"
+
+        # The delivered record has to be this draw with this generator's own
+        # edits applied, or the two figures below are not comparable.
+        stormed = background.copy()
+        for start, days, rate in generator.STORMS:
+            lo = spinup + start
+            stormed[lo:min(lo + days, len(stormed))] += rate
+        rebuilt = np.round(np.where(generator._recessions(generator.N_STEPS), 0.0, stormed), 6)
+        assert np.array_equal(rebuilt, pr), f"seed {seed}: the reconstruction drifted"
+
+        years = (len(pr) - spinup) / 365.0
+        drawn = float(background[spinup:].sum()) / years
+        delivered = float(pr[spinup:].sum()) / years
+        assert MIN_ANNUAL_RAIN_MM <= drawn <= MAX_ANNUAL_RAIN_MM, (
+            f"seed {seed}: the weather draws {drawn:.0f} mm/yr over the scored "
+            f"interval, outside the [{MIN_ANNUAL_RAIN_MM:.0f}, "
+            f"{MAX_ANNUAL_RAIN_MM:.0f}] band the description claims"
+        )
+        assert delivered < drawn, (
+            f"seed {seed}: the record delivers {delivered:.0f} mm/yr against a "
+            f"draw of {drawn:.0f}; the spells have to take out more than the "
+            "storms add or the ceiling never leaves a storm-time level"
         )
 
 
