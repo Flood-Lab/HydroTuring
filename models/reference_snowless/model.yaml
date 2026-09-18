@@ -1,0 +1,22 @@
+name: reference_snowless
+version: "1.0.0"
+description: >
+  Deliberately degenerate snow model. It stores no snow and passes all
+  precipitation immediately to the ground. Its snowpack budget closes
+  algebraically, but it never develops a snowpack.
+authors: ["Jinlong Hu"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, snm, evspsbl, mrro, dis, gwex]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [stage]
+needs_forcing: [pr, tas, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
+
+# Existing adapter mappings; no change to model equations.
+needs_static: [soil_capacity_mm, canopy_capacity_mm]
