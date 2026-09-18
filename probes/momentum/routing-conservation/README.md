@@ -25,8 +25,8 @@ sums to 0.9, and `reference_leaky_router`, the same kernel at 0.999. Both are
 pinned because they answer different questions. The 0.9 kernel is caught three
 orders of magnitude clear of the allowance, so it shows the criterion can catch
 a router fault while being blind to where the allowance sits — raise the
-allowance twentyfold and it still fails. The 0.999 kernel is caught at 4.1 to
-4.4 times `min_allowance_mm`, so it is the case the number was actually chosen
+allowance twentyfold and it still fails. The 0.999 kernel is caught at 4.13 to
+4.40 times `min_allowance_mm`, so it is the case the number was actually chosen
 against. With it behind the gate, an allowance moved out from under the
 calibration turns the gate red rather than passing it:
 
@@ -34,9 +34,18 @@ calibration turns the gate red rather than passing it:
 | --- | --- | --- | --- |
 | 0.05 (this probe) | FAIL | FAIL | green |
 | 0.50 | FAIL | FAIL | green |
+| 0.60 | FAIL | FAIL | green |
+| 0.65 | FAIL | pass | **red** |
 | 1.00 | FAIL | pass | **red** |
 | 2.00 | FAIL | pass | **red** |
 | 5.00 | FAIL | pass | **red** |
+
+The leaky row's boundary is **0.615 mm** — the allowance at which this kernel
+stops being caught on the tightest of the three gate seeds, 0.627 and 0.651 on
+the other two. So the value this probe ships sits **12.3x** under the point
+where the gate goes red, and the 0.9 kernel is caught until 75.7 mm, some 1500x
+further out. That is what the pair is for: one model says the criterion works,
+the other says the number is where the weather put it.
 
 Both kernels report the store they leave behind, so what the gate scores is a
 router that retains water rather than a store that invents it.
