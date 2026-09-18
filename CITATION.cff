@@ -67,6 +67,10 @@ authors:
     family-names: Wang
     affiliation: University of Illinois Urbana-Champaign
     orcid: "https://orcid.org/0009-0001-7485-4696"
+  - given-names: Mofan
+    family-names: Zhang
+    affiliation: Department of Civil and Environmental Engineering, Stanford University, Stanford, CA, USA
+    orcid: "https://orcid.org/0000-0001-8839-1808"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

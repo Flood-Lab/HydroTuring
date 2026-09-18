@@ -1,0 +1,22 @@
+name: reference_uniform_flow
+version: "1.0.0"
+description: >
+  Exact rectangular-channel reference for steady uniform flow. Discharge is
+  the constant effective rainfall volume over the supplied catchment and
+  stage is Manning normal depth above the supplied bed elevation, solved with
+  the exact hydraulic radius. It pins the passing branch of
+  momentum/uniform-flow-friction-consistency.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [dis]
+  states: []
+  diagnostics: [stage]
+needs_forcing: [pr, tas, pet]
+needs_static: [area_km2, width_m, bed_elevation_m, slope, manning_n]
+supports:
+  perturbation: false
+resources: {cpu: 1, memory_gb: 1, gpu: false}

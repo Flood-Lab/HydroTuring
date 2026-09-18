@@ -173,6 +173,9 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_flat_stage",
     "reference_exchange_sign_error",
     "reference_exchange_exact",
+    "reference_uniform_flow",
+    "reference_wrong_roughness",
+    "reference_wrong_slope",
 }
 
 
