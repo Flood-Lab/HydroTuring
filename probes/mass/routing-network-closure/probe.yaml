@@ -1,0 +1,88 @@
+# The current HydroTuring /io contract has no network dimension.
+# This probe therefore proposes the smallest network-aware extension needed
+# for the fixed three-reach Y topology below.
+id: mass/routing-network-closure
+title: Reach-by-reach mass closure in a branching network
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Jiao Wang
+    affiliation: Department of Land, Air, and Water Resources, University of California Davis. Davis, California, USA
+    github: joannawang-100
+
+description: >
+  A daily Y-shaped routing experiment with 365 spin-up days and 90 scored
+  days. A single synthetic pr/tas/pet series drives two headwater
+  sub-catchments. The probe checks each reach and the zero-storage junction
+  separately so network-wide cancellation cannot hide local mass errors.
+
+# Proposed network-output extension. The exact upstream names/schema should be
+# agreed in PR review. Models without reach-indexed routing outputs are N/A
+# rather than conservation failures.
+requires:
+  fluxes:
+    [q_in_A, q_out_A, q_in_B, q_out_B, q_in_C, q_out_C]
+  states:
+    [channel_A, channel_B, channel_C]
+  forcing:
+    [pr, tas, pet]
+  static:
+    [routing_network]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_days: 90
+  spinup_days: 365
+  min_window_days: 90
+  max_output_mb: 5.0
+  max_runtime_s: 300
+
+criteria:
+  - reach_mass_closure:
+      reaches: [A, B, C]
+      threshold: 0.05
+      denominator: each_reach_incoming_volume
+      aggregate: sum_absolute_interval_residual
+      # If total incoming volume is less than the equivalent of 1 mm over
+      # that reach's contributing area, the seed is degenerate and is not scored.
+      denominator_floor_mm: 1.0
+
+  - junction_mass_closure:
+      junction: J
+      upstream: [A, B]
+      downstream: C
+      threshold: 0.05
+      denominator: combined_upstream_outflow_volume
+      aggregate: sum_absolute_interval_residual
+      # Same 1 mm equivalent-depth floor over the combined upstream area.
+      denominator_floor_mm: 1.0
+
+  - forcing_fidelity:
+      variables: [pr]
+      rtol: 1.0e-6
+
+  - network_nonnegative:
+      storage_tolerance_m3: 1.0e-9
+      discharge_tolerance_m3_s: 1.0e-9
+
+# Proposed gate plan. flex_topo_network means an extension of the existing
+# physical FLEX-Topo baseline with a minimal conservative three-reach wrapper;
+# it does not exist upstream yet and is part of the implementation work.
+baselines:
+  must_pass:
+    [reference_network_exact, flex_topo_network]
+  must_fail:
+    reference_network_compensation: reach_mass_closure
+    reference_network_junction_loss: junction_mass_closure
+    reference_network_temporal_shift: reach_mass_closure
+
+provenance: >
+  Synthetic. Generated at run time from a recorded seed. The first PR keeps
+  the existing single pr/tas/pet forcing contract and proposes only the
+  network representation needed to distinguish reaches A, B, and C. The
+  routing reaches contain no additional groundwater-channel exchange,
+  withdrawal, or other unreported source or sink.
