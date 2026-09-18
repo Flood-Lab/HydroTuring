@@ -197,10 +197,12 @@ misreports its evaporation by a seeded ±30% and declares the difference as a
 groundwater exchange. It declares that it consumes the prescribed head, and
 never reads it. Its reported budget closes to **0.0000% of precipitation**; it
 passes `closure`, `forcing_fidelity`, `state_bounds` and `non_degenerate`, and
-across the rest of the suite it is 19 PASS, 9 N/A and 2 FAIL — this probe, and
-`mass/steady-state`, where its evaporation still varies by 190% of its level
-under constant weather (the ±30% noise never settles). The point stands with the
-exception named: no probe that asks about the *budget* catches it. Because the harness
+across the rest of the suite it passes every budget probe — closure, the
+counterfactuals, the invariances, the bounds — and fails only where its ±30%
+evaporation noise shows as noise: `mass/steady-state`, where evaporation still
+varies by 190% of its level under constant weather, and depending on the seed
+`energy/pet-consistency`. The point stands with the exceptions named: no probe
+that asks about the *budget* catches it. Because the harness
 holds the model seed fixed across variants and nothing it computes reads `gwh`,
 its exchange is identical with the head raised and lowered: **a response of
 exactly 0 both ways.**
