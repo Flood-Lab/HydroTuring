@@ -96,6 +96,9 @@ Every one is binary.
 | `event_water_closure` | every complete precipitation event satisfies `abs(R) <= max(threshold * P, absolute_tolerance_mm)`; defaults 0.05 and 0.001 mm; reports the worst residual / allowance against 1, with up to 20 failed events and summary percentiles | complete post-spinup wet events in one run, using supplied rain and all reported water stores |
 | `state_bounds` | every reported storage stays physical | one run |
 | `total_storage_drift` | total reported water storage changes by no more than a precipitation-relative allowance over the final repeated block | one run |
+| `groundwater_balance` | recharge, the net river-aquifer exchange and any declared aquifer boundary term (`sources`) add up to the change in `gw`, on every step and over the record; reports the worse residual / allowance against 1 | one run |
+| `exchange_components` | the signed components `gw_to_sw <= 0` and `sw_to_gw >= 0` sum to the reported net exchange; reports the worse of residual and sign excess / tolerance against 1 | one run |
+| `exchange_directions` | the aquifer both gains from and loses to the river by at least `minimum_gross_mm` over the scored record | one run |
 | `et_plausible` | ET is non-negative and bounded by potential ET | one run |
 | `non_degenerate` | the partition and the response are non-trivial | one run |
 | `forcing_fidelity` | the model reports back the forcing it was given | one run |
@@ -247,6 +250,15 @@ the models that still cannot consume it are archived as N/A (INCOMPATIBLE). Do
 not add an input declaration to a model whose adapter does not actually use it
 merely to make the gate run.
 
+The exception is a probe about a process that none of the four models has at
+all, where extending one would mean inventing the process rather than wiring
+up an input. `mass/gw-sw-exchange-consistency` is one: none of them exchanges
+water between an aquifer and a river. Such a probe may gate on an exact
+reference alone, if its README says why and a submitted physical model that
+does have the process passes the probe in `models/result.csv`, as `modflow6`
+does there. That archived row is the independent check the rule above asks
+for, so re-run it whenever the criterion changes.
+
 On a probe with one case per seed, `must_fail` also decides what the report
 says when a model passes: the `detail` column of `models/result.csv` names
 each criterion it lists, with that criterion's own message, and no other. A
@@ -327,8 +339,10 @@ untested.
 ## Before opening a PR
 
 The pull request comes from your fork and closes the proposal issue. Title it
-`[PROBE: <law>] <description>`. Review is two passes, one on the physics and
-one on the implementation.
+`[PROBE: <law>] <description>`. Two reviewers from the pool for its
+conservation law review the physics and the implementation, and it is merged
+once both approve and the acceptance gate is green. The pool is listed in
+[GOVERNANCE.md](../GOVERNANCE.md#reviewer-pool).
 
 ```bash
 ht validate

@@ -1,0 +1,25 @@
+name: modflow6
+version: "6.7.0-adapter.1"
+description: >
+  MODFLOW 6.7.0, the USGS's modular hydrologic model, run as a transient
+  groundwater model with one river cell (MODFLOW-ORG/modflow6, release
+  6.7.0). The adapter maps RIV budget flows to signed groundwater-to-river
+  and river-to-groundwater exchange and reports aquifer storage from the
+  STO-SS/STO-SY budget terms.
+authors:
+  - "MODFLOW 6 Development Team (U.S. Geological Survey)"
+  - "Yaji Wang (University of Illinois Urbana-Champaign, adapter)"
+reference: "https://github.com/MODFLOW-ORG/modflow6/releases/tag/6.7.0"
+license: "CC0-1.0"
+runner: docker
+entrypoint: [python3, ht_adapter.py]
+timestep: PT1D
+emits:
+  fluxes: [gw_sw_exchange, gw_to_sw, sw_to_gw]
+  states: [gw]
+needs_forcing: [gw_recharge, sw_stage_m]
+needs_static: [area_km2, aquifer_storage_coefficient, aquifer_specific_yield, river_conductance_m2_per_day, river_bottom_offset_m]
+supports:
+  perturbation: false
+resources: {cpu: 1, memory_gb: 2, gpu: false}
+window_days: full

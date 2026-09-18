@@ -188,8 +188,10 @@ silently mislabelling honest models later.
 
 Push to your fork, then open a pull request titled
 `[PROBE: <law>] <description>` and fill in the template. Link the proposal
-issue so it closes on merge. Review is two passes: one on the physics, one on
-the implementation.
+issue so it closes on merge. Two reviewers from the pool for your probe's
+conservation law review the physics and the implementation, and the probe is
+merged once both approve and the acceptance gate is green. The pool is listed
+in [GOVERNANCE.md](GOVERNANCE.md#reviewer-pool).
 
 ## Contributing a model
 

@@ -145,6 +145,17 @@ Reversal frequency is reported and never gated. Authored by Songkun Yan.
 declared-exchange channel as a sink for the day's accounting error, with or
 without a token head term on top.
 
+### `mass/gw-sw-exchange-consistency` &middot; **merged**
+A model reporting groundwater-river exchange must agree with itself: the two
+signed directional components (`gw_to_sw`, `sw_to_gw`) must sum to the
+reported net exchange, and recharge plus that net exchange must equal the
+change in aquifer storage. Groundwater-only, over a two-year daily case
+driven by seeded recharge and river stage.
+*Discriminates:* internally inconsistent exchange reporting through
+`reference_exchange_sign_error`, which closes its own groundwater balance
+exactly yet reports one directional component with the wrong sign.
+Contributed by Yaji Wang (University of Illinois Urbana-Champaign).
+
 ---
 
 ## Generalisation

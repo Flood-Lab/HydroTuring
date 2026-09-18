@@ -20,6 +20,11 @@ tolerance, and decide when a suite version is cut.
 > The committee is being formed. If you would be willing to serve, or want to
 > suggest someone, open an issue or email the maintainer.
 
+**Reviewers.** Contributing authors who review probes for one or more
+conservation laws. They check a probe's physics and its implementation, and
+approve it or request changes on the pull request. The current pool is listed
+under [Reviewer pool](#reviewer-pool).
+
 **Probe authors.** Own the physics of the probes they contribute and are
 consulted before anyone changes their tolerance.
 
@@ -37,8 +42,13 @@ cheap and early, because the point of proposing first is to fail fast on
 paper rather than slowly in code. The issue is assigned to whoever will do the
 work, which for a model is often the maintainer rather than the proposer.
 
-**Merging a probe.** Two reviews, one on the physics and one on the
-implementation, plus a green acceptance gate. The maintainer merges.
+**Merging a probe.** Every probe pull request is assigned two reviewers from
+the pool for its conservation law. Between them, the two reviews cover the
+physics and the implementation. The probe is merged only after both reviewers
+approve it and the acceptance gate is green. The maintainer merges.
+
+This rule applies to every probe merged from 16 September 2026. Probes merged
+before then were accepted by the maintainer under the earlier process.
 
 **Merging a model.** One review, on the contract rather than the physics: the
 adapter honours `/io`, `emits` is honest, and the image is reproducible. The
@@ -57,12 +67,29 @@ release chore.
 means the acceptance gate stops separating the reference models. Recorded
 results referencing it stay in the history.
 
+## Reviewer pool
+
+Reviewers are drawn from the project's contributing authors. The maintainer
+invites them and keeps this table current. If you have a merged probe and
+would like to review, say which conservation law in an issue.
+
+| Conservation law | Reviewers |
+| --- | --- |
+| Energy | Changming Li (SCUT, @licm13), Han Wang (The Hong Kong University of Science and Technology, @cehw), Xin Lan (Michigan State University, @xinlan-technology) |
+| Mass | Zhi Li (CU Boulder, @chrimerss), Siddik Barbhuiya (IIT Mandi, @Barbhuiya12), Yuanhang Liu (Independent Researcher, @kawh1111) |
+| Momentum | Zhi Li (CU Boulder, @chrimerss), Siddik Barbhuiya (IIT Mandi, @Barbhuiya12), Yuanhang Liu (Independent Researcher, @kawh1111) |
+
 ## Conflicts of interest
 
-A person may not be the sole reviewer of a probe that their own model would
-be evaluated against, nor of a model they contributed. Say so in the pull
-request and a second reviewer will be assigned. This will be common and is
-not a problem as long as it is declared.
+Nobody reviews their own probe. If a law's pool has fewer than two reviewers
+free of a conflict, the maintainer assigns reviewers from another pool.
+
+A reviewer whose own model would be evaluated by a probe declares it in the
+pull request before reviewing. The maintainer then decides whether they stay
+on as one of the two reviewers or are replaced under the rule above. Nobody
+may be the sole reviewer of a model they contributed. Say so in the pull
+request and another reviewer will be assigned. Conflicts like these will be
+common and are not a problem as long as they are declared.
 
 ## Changing this document
 

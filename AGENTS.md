@@ -35,7 +35,9 @@ Paths inside `request.json` are relative to the request file's directory.
 /io/request.json          read-only: opaque case id, model seed, timestep, n_steps, outputs
 /io/input/forcing.csv     read-only: columns time, pr, tas, pet (mm/day, degC, mm/day),
                           and, when a probe prescribes a human withdrawal, abstr (mm/day, net);
-                          when a probe prescribes an external hydraulic head, gwh (m)
+                          when a probe prescribes an external hydraulic head, gwh (m);
+                          a groundwater-exchange probe supplies gw_recharge (mm/day)
+                          and sw_stage_m (m) instead
 /io/input/static.json     read-only: catchment attributes
 /io/output/result.csv     write: one row per forcing row, spinup included
 /io/output/run.json       write: {"status": "ok"}
@@ -64,6 +66,20 @@ by raising and lowering the head in paired runs from the first scored step on,
 with the spinup identical across the runs. A model whose exchange is not
 head-driven should not declare `gwh`; the probe requires the column, so such a
 model is INCOMPATIBLE on it and its standing is untouched.
+
+A groundwater-exchange probe instead supplies `gw_recharge` (mm/day, direct
+recharge to the aquifer) and `sw_stage_m` (metres, the river stage the
+aquifer exchanges with) in the forcing, and expects `gw_sw_exchange`, its
+signed components `gw_to_sw`/`sw_to_gw`, and the `gw` state back.
+`gw_sw_exchange` is not `gwex`: it moves water between two stores inside the
+model's own control volume (`gw` and `channel`), not across the catchment
+boundary, so it is never added to `gwex` or counted as a `closure` source. A
+boundary term acting on the aquifer, such as a GHB or a well, is reported as
+`gw_boundary`. Where that flow also crosses the catchment boundary it is
+reported in `gwex` as well, and no budget adds the two. A
+model with no groundwater-exchange term does not report the components, and
+a missing output is checked before an unconsumed input, so it is
+`N/A (INCOMPLETE)` on such a probe rather than scored.
 
 ## The evaluation window
 
@@ -145,6 +161,10 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `mrro` | total runoff | mm/day |
 | `dis` | river discharge | m3/s |
 | `gwex` | a declared exchange with the outside: regional groundwater, inter-basin transfer; positive into the catchment | mm/day |
+| `gw_sw_exchange` | net river-aquifer exchange, positive into the aquifer; unlike `gwex`, this moves water between two stores inside the control volume (`gw` and `channel`), so it is never added to `gwex` or counted as a `closure` source | mm/day |
+| `gw_to_sw` | groundwater-to-river exchange component: the aquifer losing to the river, so it is never positive; a component of `gw_sw_exchange`, not of `gwex`, and not an addition to it | mm/day |
+| `sw_to_gw` | river-to-groundwater exchange component: the river losing to the aquifer, so it is never negative; `gw_to_sw + sw_to_gw` must equal `gw_sw_exchange` | mm/day |
+| `gw_boundary` | every other flux across the aquifer's own boundary (a GHB or WEL package, regional groundwater exchange), positive into the aquifer. The part that also crosses the catchment boundary is reported in `gwex` as well, and no budget adds the two. A well that pumps aquifer water onto fields inside the catchment is `gw_boundary` but not `gwex`. `mass/gw-sw-exchange-consistency` credits this column to the aquifer, never `gwex`, because `gwex` may leave from any store | mm/day |
 | `sbl` | the sublimating share of `evspsbl`: a component of it, never an addition; report it if the model knows which kilograms left as ice | mm/day |
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
 | `hfss` | sensible heat flux, positive away from the surface | W/m2 |

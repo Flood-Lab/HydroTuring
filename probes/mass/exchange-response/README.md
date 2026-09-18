@@ -197,7 +197,7 @@ misreports its evaporation by a seeded ±30% and declares the difference as a
 groundwater exchange. It declares that it consumes the prescribed head, and
 never reads it. Its reported budget closes to **0.0000% of precipitation**; it
 passes `closure`, `forcing_fidelity`, `state_bounds` and `non_degenerate`, and
-across the rest of the suite it is 19 PASS, 8 N/A and 2 FAIL — this probe, and
+across the rest of the suite it is 19 PASS, 9 N/A and 2 FAIL — this probe, and
 `mass/steady-state`, where its evaporation still varies by 190% of its level
 under constant weather (the ±30% noise never settles). The point stands with the
 exception named: no probe that asks about the *budget* catches it. Because the harness
