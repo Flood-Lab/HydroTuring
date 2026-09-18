@@ -1,5 +1,5 @@
 name: sacsma_snow17
-version: "1.0.0"
+version: "1.1.0"
 description: >
   SAC-SMA with Snow-17 and a gamma unit hydrograph, the US National Weather
   Service's operational conceptual model, in a standard-library port of the
@@ -24,6 +24,7 @@ emits:
   states: [mrso, snw, canopy, gw, channel]
   diagnostics: [stage]
 needs_forcing: [pr, tas, pet]
+uses_static: [area_km2, width_m, bed_elevation_m, slope, manning_n]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

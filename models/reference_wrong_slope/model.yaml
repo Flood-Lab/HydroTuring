@@ -1,0 +1,21 @@
+name: reference_wrong_slope
+version: "1.0.0"
+description: >
+  Deliberately inconsistent steady reach. It reports the same discharge as
+  the exact reference but computes stage with a hard-coded bed slope of 0.01,
+  ignoring the mild slope supplied by the case. The rating remains smooth and
+  monotone while the declared momentum balance fails.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [dis]
+  states: []
+  diagnostics: [stage]
+needs_forcing: [pr, tas, pet]
+needs_static: [area_km2, width_m, bed_elevation_m, slope, manning_n]
+supports:
+  perturbation: false
+resources: {cpu: 1, memory_gb: 1, gpu: false}

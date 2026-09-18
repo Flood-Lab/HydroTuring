@@ -45,7 +45,7 @@ from pathlib import Path
 from sacsma_snow17 import SacState, SnowState, gamma_uh, sac1, sac_storage, snow17
 
 COLUMNS = ["time", "pr", "snm", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel", "stage"]
-MODEL = {"name": "sacsma_snow17", "version": "1.0.0"}
+MODEL = {"name": "sacsma_snow17", "version": "1.1.0"}
 STEP_HOURS = {"PT1D": 24, "PT1H": 1}
 
 # Default reach geometry, used when the catchment does not hand one over.
@@ -90,13 +90,13 @@ def discharge_m3s(runoff_mm_per_day: float, static: dict) -> float:
 
 
 def manning_depth(q_m3s: float, static: dict) -> float:
-    """The depth a steady flow makes in the reach's cross-section, in metres.
+    """The water-surface elevation of steady flow, in metres.
 
     A diagnostic rather than a store, reported so that
     `momentum/stage-discharge-monotonic` has a gauge to read, and never
-    differenced into any budget. A stage is a length read off a staff gauge
-    in a cross-section, and the length is set by the flow through it, so
-    Manning's normal depth is the bridge between the two:
+    differenced into any budget. Stage is the supplied bed elevation plus the
+    depth set by the flow through the cross-section, and Manning's normal
+    depth is the bridge between flow and depth:
 
         h = ( Q * n / (w * sqrt(S)) )^(3/5)
 
@@ -116,11 +116,13 @@ def manning_depth(q_m3s: float, static: dict) -> float:
     and the gauge reads it directly.
     """
     width_m = float(static.get("width_m", DEFAULT_WIDTH_M))
+    bed_elevation_m = float(static.get("bed_elevation_m", 0.0))
     slope = float(static.get("slope", DEFAULT_SLOPE))
     manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
     if q_m3s <= 0.0 or width_m <= 0.0 or slope <= 0.0:
-        return 0.0
-    return (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
+        return bed_elevation_m
+    depth = (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
+    return bed_elevation_m + depth
 
 
 def parameters(static: dict) -> tuple[dict, dict]:

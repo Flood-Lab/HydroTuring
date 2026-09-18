@@ -31,6 +31,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     stress,
     symmetry,
     thermal,
+    uniform_flow,
 )
 
 __all__ = [

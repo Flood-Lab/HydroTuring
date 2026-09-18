@@ -12,7 +12,7 @@ from pathlib import Path
 
 COLUMNS = ["time", "pr", "snm", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "channel", "stage"]
 
-MODEL = {"name": "reference_bucket", "version": "1.0.0"}
+MODEL = {"name": "reference_bucket", "version": "1.1.0"}
 
 
 EVAP_SHAPE = 0.5  # soil moisture at which evaporation reaches its potential rate
@@ -59,14 +59,16 @@ def stage_of(runoff_rate_mm_day: float, static: dict) -> float:
 def _manning(flow_rate_mm_day: float, static: dict) -> float:
     area_km2 = float(static.get("area_km2", 0.0))
     width_m = float(static.get("width_m", DEFAULT_WIDTH_M))
+    bed_elevation_m = float(static.get("bed_elevation_m", 0.0))
     slope = float(static.get("slope", DEFAULT_SLOPE))
     manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
     if area_km2 <= 0.0 or width_m <= 0.0 or slope <= 0.0:
-        return 0.0
+        return bed_elevation_m
     q_m3s = max(flow_rate_mm_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
     if q_m3s <= 0.0:
-        return 0.0
-    return (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
+        return bed_elevation_m
+    depth = (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
+    return bed_elevation_m + depth
 
 
 def discharge_m3s(runoff_rate_mm_day: float, static: dict) -> float:

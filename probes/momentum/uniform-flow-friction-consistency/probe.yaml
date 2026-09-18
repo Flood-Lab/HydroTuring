@@ -1,0 +1,65 @@
+id: momentum/uniform-flow-friction-consistency
+title: Steady discharge and stage satisfy the declared open-channel friction balance
+law: momentum
+track: synthetic
+version: 1
+
+authors:
+  - name: Mofan Zhang
+    affiliation: Department of Civil and Environmental Engineering, Stanford University, Stanford, CA, USA
+    github: Mofan-coding
+    orcid: 0000-0001-8839-1808
+
+description: >
+  Constant rain, temperature and evaporative demand drive a wide prismatic
+  reach to steady flow. At that limit the Saint-Venant momentum equation
+  reduces to equality of bed and friction slopes. The probe therefore asks
+  whether the reported discharge and stage, together with the reach width,
+  bed elevation and Manning roughness supplied in the case, belong to one
+  momentum balance. A smooth monotone rating can still fail this identity if
+  it silently uses a different slope or roughness.
+
+citation: https://doi.org/10.3133/wri834251
+
+requires:
+  fluxes: [dis]
+  diagnostics: [stage]
+  static: [width_m, bed_elevation_m, slope, manning_n]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_years: 3
+  spinup_days: 365
+  min_window_days: 1095
+  max_output_mb: 2.0
+  max_runtime_s: 300
+
+criteria:
+  - uniform_flow_friction:
+      tolerance: 0.05
+      max_cv: 0.01
+      steady_days: 365
+
+baselines:
+  # These are independent hydrologic models. Their existing stage adapters
+  # consume the supplied reach geometry and read a Manning-consistent gauge.
+  # The reach is deliberately wide, so their wide-channel approximation stays
+  # within the criterion's 5% engineering allowance even though the criterion
+  # evaluates the exact rectangular hydraulic radius.
+  must_pass:
+    - reference_bucket
+    - flex_lumped
+    - flex_topo
+    - sacsma_snow17
+    - reference_uniform_flow
+  must_fail:
+    reference_wrong_roughness: uniform_flow_friction
+    reference_wrong_slope: uniform_flow_friction
+
+provenance: >
+  Synthetic. Constant forcing and reach attributes are generated at run time
+  from the recorded seed. The residual is the steady uniform-flow limit of
+  the Saint-Venant momentum equation and uses the rectangular-section
+  definitions in USGS Water-Resources Investigations Report 83-4251.

@@ -49,8 +49,9 @@ Stores reported, all area-weighted: canopy (Si), soil (Su), groundwater
 (the shared Ss), and the fast reservoirs plus the water inside the lag as
 `channel`. No snow module: snow is identically zero.
 
-A `stage` is also reported, as a diagnostic rather than a store: the depth
-the reach's stored water makes in the channel cross-section, so that
+A `stage` is also reported, as a diagnostic rather than a store: the supplied
+bed elevation plus the depth the reach's flow makes in the channel
+cross-section, so that
 `momentum/stage-discharge-monotonic` has a gauge to read. It is derived from
 `channel` and is never differenced into any budget.
 """
@@ -64,7 +65,7 @@ import sys
 from pathlib import Path
 
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel", "stage"]
-MODEL = {"name": "flex_topo", "version": "1.0.0"}
+MODEL = {"name": "flex_topo", "version": "1.1.0"}
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0, "PT15M": 1.0 / 96.0, "PT5M": 1.0 / 288.0, "PT1M": 1.0 / 1440.0}
 
 # Default reach geometry, used when the catchment does not hand one over.
@@ -117,9 +118,10 @@ def per_step(fraction_per_day: float, dt: float) -> float:
 def stage_of(mrro_mm_per_day: float, static: dict, dt: float) -> float:
     """The level a gauge in the reach would read, in metres.
 
-    A stage is a length read off a staff gauge in a cross-section, so it is
-    built from the water the reach is carrying rather than from a catchment
-    depth, and Manning's normal depth is the bridge between the two:
+    Stage is the supplied bed elevation plus the depth read off a staff gauge
+    in the cross-section. It is built from the water the reach is carrying
+    rather than from a catchment depth, and Manning's normal depth is the
+    bridge between flow and depth:
 
         h = ( Q * n / (w * sqrt(S)) )^(3/5)
 
@@ -137,14 +139,16 @@ def stage_of(mrro_mm_per_day: float, static: dict, dt: float) -> float:
     """
     area_km2 = float(static.get("area_km2", 0.0))
     width_m = float(static.get("width_m", DEFAULT_WIDTH_M))
+    bed_elevation_m = float(static.get("bed_elevation_m", 0.0))
     slope = float(static.get("slope", DEFAULT_SLOPE))
     manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
     if area_km2 <= 0.0 or width_m <= 0.0 or slope <= 0.0 or dt <= 0.0:
-        return 0.0
+        return bed_elevation_m
     q_m3s = max(mrro_mm_per_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
     if q_m3s <= 0.0:
-        return 0.0
-    return (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
+        return bed_elevation_m
+    depth = (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
+    return bed_elevation_m + depth
 
 
 def scaled_parameters(static: dict, dt: float) -> tuple[dict, dict]:
