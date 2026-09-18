@@ -134,6 +134,7 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `dis` | river discharge | m3/s |
 | `gwex` | a declared exchange with the outside: regional groundwater, inter-basin transfer; positive into the catchment | mm/day |
 | `sbl` | the sublimating share of `evspsbl`: a component of it, never an addition; report it if the model knows which kilograms left as ice | mm/day |
+| `snm` | liquid water delivered from the snow module to the ground, including rain passing through the snow module and snowmelt | mm/day |
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
 | `hfss` | sensible heat flux, positive away from the surface | W/m2 |
 | `hfg` | ground heat flux at the actual soil surface, positive into the ground; a flux taken below the surface must be corrected for heat storage above that depth | W/m2 |

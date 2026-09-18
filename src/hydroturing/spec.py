@@ -27,7 +27,20 @@ SCHEMA_DIR = REPO_ROOT / "schemas"
 # `sbl` is a component of `evspsbl`, never an addition to it. `rlus` is the
 # total upward longwave radiation, surface emission plus reflected downward
 # longwave, positive away from the surface.
-FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "sbl", "hfls", "hfss", "hfg", "rlus", "hfg_bottom")
+FLUX_VARS = (
+    "pr",
+    "evspsbl",
+    "mrro",
+    "dis",
+    "gwex",
+    "sbl",
+    "snm",
+    "hfls",
+    "hfss",
+    "hfg",
+    "rlus",
+    "hfg_bottom",
+)
 STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
 # Keep diagnostics out of STATE_VARS: closure sums every reported store,
 # and temperature must never be added to water storage.
@@ -49,6 +62,7 @@ UNITS = {
     # that reports it is stating which part of its evaporation left the surface
     # as ice, which is the only way a criterion can know without guessing.
     "sbl": "mm day-1",
+    "snm": "mm day-1",
     "hfls": "W m-2",
     "hfss": "W m-2",
     "hfg": "W m-2",
@@ -154,6 +168,8 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_rating_drift",
     "reference_rating_inverted",
     "reference_flat_stage",
+    "reference_snow_bypass",
+    "reference_snowless",
 }
 
 
@@ -232,7 +248,11 @@ class ProbeSpec:
 
     @property
     def required_vars(self) -> tuple[str, ...]:
-        return self.requires_fluxes + self.requires_states + self.requires_diagnostics
+        return (
+            self.requires_fluxes
+            + self.requires_states
+            + self.requires_diagnostics
+        )
 
     @property
     def slug(self) -> str:
@@ -263,12 +283,16 @@ class ProbeSpec:
         return tuple(steps)
 
     def spinup_steps_for(self, variant: str | None = None) -> int:
-        return int(round(self.spinup_days / TIMESTEP_DAYS[self.timestep_for(variant)]))
+        return int(
+            round(self.spinup_days / TIMESTEP_DAYS[self.timestep_for(variant)])
+        )
 
     def n_steps_for(self, variant: str | None = None) -> int:
         """Rows a generator must produce for a variant: spinup plus the period."""
         dt = TIMESTEP_DAYS[self.timestep_for(variant)]
-        return int(round(self.period_days / dt)) + self.spinup_steps_for(variant)
+        return int(round(self.period_days / dt)) + self.spinup_steps_for(
+            variant
+        )
 
     @property
     def control(self) -> str | None:
@@ -374,16 +398,20 @@ def load_probe(path: str | Path) -> ProbeSpec:
 
     case = raw["case"]
     if not (directory / case["generator"]).exists():
-        raise SpecError(f"{spec_file}: generator '{case['generator']}' not found")
+        raise SpecError(
+            f"{spec_file}: generator '{case['generator']}' not found"
+        )
 
     criteria = []
     for item in raw["criteria"]:
-        (name, params), = item.items()
+        ((name, params),) = item.items()
         criteria.append(Criterion(name=name, params=params or {}))
 
     names = [c.name for c in criteria]
     if len(names) != len(set(names)):
-        raise SpecError(f"{spec_file}: duplicate criterion names in `criteria`")
+        raise SpecError(
+            f"{spec_file}: duplicate criterion names in `criteria`"
+        )
 
     # JSON Schema can validate the shape of a criterion declaration, but the
     # executable registry is the authority on which criterion names exist.
@@ -419,7 +447,11 @@ def load_probe(path: str | Path) -> ProbeSpec:
             f"{spec_file}: case.timesteps names {unknown_variants}, which are not "
             f"in case.variants {list(variants)}"
         )
-    if variants and variant_timesteps.get(variants[0], case["timestep"]) != case["timestep"]:
+    if (
+        variants
+        and variant_timesteps.get(variants[0], case["timestep"])
+        != case["timestep"]
+    ):
         raise SpecError(
             f"{spec_file}: the control variant '{variants[0]}' must run at "
             f"case.timestep ({case['timestep']})"
@@ -438,12 +470,18 @@ def load_probe(path: str | Path) -> ProbeSpec:
     # asked for as a state would be met by the flux and never noticed.
     unknown = [
         name
-        for key, known in (("fluxes", FLUX_VARS), ("states", STATE_VARS), ("diagnostics", DIAG_VARS))
+        for key, known in (
+            ("fluxes", FLUX_VARS),
+            ("states", STATE_VARS),
+            ("diagnostics", DIAG_VARS),
+        )
         for name in requires.get(key, [])
         if name not in known
     ]
     if unknown:
-        raise SpecError(f"{spec_file}: unknown variables in requires: {unknown}")
+        raise SpecError(
+            f"{spec_file}: unknown variables in requires: {unknown}"
+        )
     return ProbeSpec(
         id=raw["id"],
         title=raw["title"],
@@ -477,7 +515,9 @@ def load_probe(path: str | Path) -> ProbeSpec:
     )
 
 
-def _check_variants(spec_file: Path, criteria: list[Criterion], variants: tuple[str, ...]) -> None:
+def _check_variants(
+    spec_file: Path, criteria: list[Criterion], variants: tuple[str, ...]
+) -> None:
     """Paired criteria and `case.variants` have to agree.
 
     A paired criterion compares the model's answer across two runs of the same
@@ -529,7 +569,9 @@ def load_model(path: str | Path) -> ModelManifest:
 
     unknown = [v for v in raw["emits"]["fluxes"] if v not in FLUX_VARS]
     unknown += [v for v in raw["emits"]["states"] if v not in STATE_VARS]
-    unknown += [v for v in raw["emits"].get("diagnostics", []) if v not in DIAG_VARS]
+    unknown += [
+        v for v in raw["emits"].get("diagnostics", []) if v not in DIAG_VARS
+    ]
     if unknown:
         raise SpecError(f"{spec_file}: unknown variables in emits: {unknown}")
 
@@ -551,7 +593,9 @@ def load_model(path: str | Path) -> ModelManifest:
         needs_static=tuple(raw.get("needs_static", [])),
         uses_forcing=tuple(raw.get("uses_forcing", [])),
         uses_static=tuple(raw.get("uses_static", [])),
-        supports_perturbation=bool(raw.get("supports", {}).get("perturbation", False)),
+        supports_perturbation=bool(
+            raw.get("supports", {}).get("perturbation", False)
+        ),
         resources=raw.get("resources", {}),
         authors=tuple(raw.get("authors", [])),
         license=raw.get("license", ""),

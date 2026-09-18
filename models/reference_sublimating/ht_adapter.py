@@ -13,7 +13,7 @@ import json
 import sys
 from pathlib import Path
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso", "snw", "canopy"]
+COLUMNS = ["time", "pr", "evspsbl", "snm", "mrro", "mrso", "snw", "canopy"]
 
 MODEL = {"name": "reference_sublimating", "version": "1.0.0"}
 
@@ -89,6 +89,7 @@ def simulate(forcing, static, dt_days=1.0):
             "time": step["time"],
             "pr": pr_rate,
             "evspsbl": (canopy_evap + soil_evap) / dt_days,
+            "snm": water_in / dt_days,
             "mrro": (surface + baseflow) / dt_days,
             "mrso": soil,
             "snw": swe,

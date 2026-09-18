@@ -10,7 +10,7 @@ import json
 import sys
 from pathlib import Path
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "channel", "stage"]
+COLUMNS = ["time", "pr", "snm", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "channel", "stage"]
 
 MODEL = {"name": "reference_bucket", "version": "1.0.0"}
 
@@ -160,6 +160,7 @@ def simulate(forcing, static, dt_days=1.0):
             "time": step["time"],
             "pr": pr_rate,
             "evspsbl": (canopy_evap + soil_evap) / dt_days,
+            "snm": water_in / dt_days,
             "mrro": runoff,
             "dis": discharge_m3s(runoff, static),
             "gwex": -removed / dt_days,
