@@ -62,8 +62,8 @@ the model is asserting that its external exchange responds monotonically to
 this potential, as a general-head boundary does, and the probe holds it to that
 by raising and lowering the head in paired runs from the first scored step on,
 with the spinup identical across the runs. A model whose exchange is not
-head-driven should not declare `gwh`; its response is then reported and not
-judged.
+head-driven should not declare `gwh`; the probe requires the column, so such a
+model is INCOMPATIBLE on it and its standing is untouched.
 
 ## The evaluation window
 

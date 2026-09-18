@@ -50,61 +50,82 @@ For such a model, with the integrated exchange over the scored record and the
 gross movement of the control run,
 
 ```
-G       = Σ_t gwex_t · Δt          [mm]
-G_gross = Σ_t |gwex_t| · Δt        [mm, control run]
+G     = Σ_t gwex_t · Δt                  [mm]
+TV(g) = Σ_t |gwex_t − gwex_{t−1}| · Δt   [mm, the control run's total variation]
 
-G(raised)  − G(control)  >=  +max(s · G_gross, ε)
-G(lowered) − G(control)  <=  −max(s · G_gross, ε)      s = 1e-3,  ε = 1e-8 · max(G_gross, 1 mm)
+G(raised)  − G(control)  >=  +max(s · TV(g), ε)
+G(lowered) − G(control)  <=  −max(s · TV(g), ε)      s = 3e-4,  ε = 1e-8 · max(G_gross, 1 mm)
 ```
 
 Raising the external head must bring more water in, and lowering it less, **by
-at least a thousandth of the exchange the model itself declared.** `ε` is for
-floating point and nothing else.
+at least a small share of how much the exchange the model itself declared moves
+from day to day.** `ε` is for floating point and nothing else.
 
-### Why a share, and not an absolute minimum
+### Why a share, and why of the variation
 
 An earlier draft asked for no minimum at all, on the argument that any absolute
 floor would fail a genuine boundary of small conductance. That is true of an
-absolute floor and false of a share, and the distinction is the whole design.
-For a general-head boundary `Q = C (H − h)`:
+absolute floor and false of a share: for a general-head boundary `Q = C (H − h)`
+the response and everything about the exchange scale with `C` together, so a
+ratio does not. Without a share, a model that keeps the accounting sink and adds
+a head term at a millionth of the controls' conductance answers the head with
+the right sign and passes; `reference_token_exchange` is that model.
 
-```
-response = C · Δh · T                 gross = C · Σ|H − h| dt
-response / gross = Δh · T / Σ|H − h| dt         — independent of C
-```
+The first share was taken against the **gross** exchange, `Σ|gwex|`, with the
+derivation that in the fast limit the response is `S·Δh`, the gross is
+`S·TV(H)`, storativity cancels too, and the ratio is bounded below by
+`Δh / TV(H) ≈ 2e-3`. A native MODFLOW aquifer confirmed that limit exactly. It
+also showed what the derivation had assumed: that the boundary is the aquifer's
+*only* source. On an ordinary losing catchment — half the runoff recharging the
+aquifer and draining out through the same boundary — the gross becomes the
+throughput, of the order of the recharge and independent of `S`, while the
+response stays `S·Δh`. The ratio then falls with storativity, and at
+`S = 1 mm/m`, the top of the usual confined range, an exact, monotone,
+budget-closing boundary measured **2.4e-4** and failed. That was a false FAIL,
+not a disclosed cheat: every millimetre of that gross was the same boundary.
 
-Both halves scale with conductance, so their ratio does not. A boundary a
-million times weaker than the positive control has a response a million times
-smaller *and a gross exchange a million times smaller*, and its ratio is
-unchanged: about **2** for this head series against a constant internal head.
+The gross is the wrong denominator because a steady throughput inflates it
+without moving. The **total variation** `TV(g) = Σ|gwex_t − gwex_{t−1}|` does
+not have that defect: throughput at a steady mean adds little to how much the
+exchange moves day to day, and what it does add is the throughput's own
+variation, which is bounded. On the same losing catchment, sweeping storativity
+at a fixed ten-day time constant on `reference_recharge_exchange`:
 
-Against an internal head that **moves**, the ratio is smaller but still bounded
-below. With `S dh/dt = C (H − h)`, a shift is answered by the water that lifts
-the internal head, `S · Δh`, and in the fast limit the gross exchange is
-`S · TV(H)`, the storativity times the head's total variation. Both scale with
-`S`, neither with `C`, and the ratio tends to `Δh / TV(H)` — about **2e-3** for
-this head series. That is the physical minimum a head-driven exchange of *any*
-conductance and *any* storativity can show, and the floor of `1e-3` sits under
-it.
+| S (mm/m) | Δ raised (mm) | gross (mm) | TV (mm) | resp / gross | **resp / TV** |
+| --- | --- | --- | --- | --- | --- |
+| 10 | +3.5 | 1878 | 283 | 1.5e-3 | **1.0e-2** |
+| 3 | +1.19 | 1772 | 111 | 6.3e-4 ✗ | **1.0e-2** |
+| 1 | +0.50 | 1767 | 66 | 2.4e-4 ✗ | **6.3e-3** |
+| 0.3 | +0.15 | 1767 | 56 | 8.2e-5 ✗ | **2.6e-3** |
+| 0.1 | +0.05 | 1767 | 54 | 2.8e-5 ✗ | **9.2e-4** |
 
-What falls under the floor is the model this probe exists to catch: a declared
-exchange that is the day's accounting error with a token head term added. Its
-response scales with the token's conductance; its gross does not, because the
-gross is the error. `reference_token_exchange` measures **1.5e-6**, six orders
-of magnitude under the floor. Without the share, that model passes: its answer
-to the head has the right sign, and a signed test is all an earlier draft
-asked for.
+The gross floor at `1e-3` failed everything from `S = 3 mm/m` down — the whole
+confined range. The variation floor at `3e-4` passes to `S = 0.1 mm/m`, a tenth
+of the confined top, with a factor of three in hand there. The token cheat sits
+at **1.1e-6**, three hundred times under the floor, because its variation is
+the accounting error's, which is large, and its response is the token's, which
+is not.
 
-### What the share does not close
+### What the floor excludes
 
-A model whose declared `gwex` mixes a genuine head-driven part with a large
-unrelated one — a deep loss, a withdrawal, a `SIDE`-type baseflow share — has a
-gross that the unrelated part inflates and a share that is honest but small.
-From outside it is indistinguishable from the token cheat. The floor is placed
-at a thousandth, a factor of two under the physical minimum, precisely to
-tolerate a mixture of that order; a cheat that sizes its token term to a
-thousandth of its sink passes, and is disclosed here as the price of not asking
-the contract to split the head-driven part of `gwex` into its own variable.
+No physical bound is claimed for the ratio. The variation has a floor of its
+own, set by how the throughput varies (about 54 mm here), while the response
+falls linearly with storativity, so a boundary of **very small storativity that
+also carries a strongly varying throughput** falls under `3e-4` eventually — on
+this catchment at about `S = 0.03 mm/m`, a thirtieth of the confined top. That
+is a named class of false FAIL, and it belongs here rather than in the cheat
+paragraph. It is far narrower than the class the gross floor excluded, and a
+model in it can be told from the cheat by its diagnostics — a response that is
+exactly `S·Δh` and a variation that is the recharge's — but the criterion does
+not make that call.
+
+The other limit is the mixture: a `gwex` that combines a small head-driven
+part with a large, strongly varying unrelated one has a variation the unrelated
+part inflates and a share that is honest but small. From outside it is
+indistinguishable from a cheat that reads the head, keeps the sink, and sizes
+its token term to `3e-4` of the sink's variation. Disclosed, and the price of
+not asking the contract to split the head-driven part of `gwex` into its own
+variable.
 
 ### Timing
 
@@ -176,7 +197,10 @@ misreports its evaporation by a seeded ±30% and declares the difference as a
 groundwater exchange. It declares that it consumes the prescribed head, and
 never reads it. Its reported budget closes to **0.0000% of precipitation**; it
 passes `closure`, `forcing_fidelity`, `state_bounds` and `non_degenerate`, and
-it passes every one of the 28 probes currently in the suite. Because the harness
+across the rest of the suite it is 19 PASS, 8 N/A and 2 FAIL — this probe, and
+`mass/steady-state`, where its evaporation still varies by 190% of its level
+under constant weather (the ±30% noise never settles). The point stands with the
+exception named: no probe that asks about the *budget* catches it. Because the harness
 holds the model seed fixed across variants and nothing it computes reads `gwh`,
 its exchange is identical with the head raised and lowered: **a response of
 exactly 0 both ways.**
@@ -199,29 +223,33 @@ Across **all five gate seeds** of `mass/exchange-response`, full ten-year
 record. Only models that declare `gwh` are scored; the four physical models and
 every submitted model in the repository decline it and are N/A.
 
-| Model | Verdict | Δ raised (mm) | Δ lowered (mm) | gross (mm) | response / gross | required (mm) | reversals, dry | sign changes, record |
+| Model | Verdict | Δ raised (mm) | Δ lowered (mm) | gross (mm) | TV (mm) | resp / gross | **resp / TV** | required (mm) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `reference_driven_exchange` | **PASS** | **+3650** | **−3333 to −3447** | 1702 | **1.96–2.03** | 1.7 | 15 | 360 |
-| `reference_evolving_exchange` | **PASS** | **+5** | **−5** | 1474 | **3.4e-3** | 1.5 | 3 | 365 |
-| `reference_noise_sink` | **FAIL** | 0 | 0 | 1124–1218 | **0** | 1.1–1.2 | 69–75 | 1644–1741 |
-| `reference_token_exchange` | **FAIL** | +0.0018 | −0.0018 | 1124–1218 | **1.5e-6 to 1.6e-6** | 1.1–1.2 | 69–75 | 1749–1831 |
+| `reference_driven_exchange` | **PASS** | **+3650** | **−3333 to −3447** | 1702 | 511 | 2.0 | **6.5–6.8** | 0.15 |
+| `reference_evolving_exchange` | **PASS** | **+5** | **−5** | 1474 | 465 | 3.4e-3 | **1.1e-2** | 0.14 |
+| `reference_recharge_exchange` | **PASS** | **+0.50** | **−0.34 to −0.44** | 1584–1767 | 52–66 | 2.0e-4 to 2.8e-4 | **5.4e-3 to 8.6e-3** | 0.016–0.020 |
+| `reference_noise_sink` | **FAIL** | 0 | 0 | 1124–1218 | 1589–1754 | 0 | **0** | 0.48–0.53 |
+| `reference_token_exchange` | **FAIL** | +0.0018 | −0.0018 | 1124–1218 | 1589–1754 | 1.5e-6 | **1.0e-6 to 1.1e-6** | 0.48–0.53 |
 
-Two positive controls, because one is not enough. `reference_driven_exchange`
+Three positive controls, because two were not enough. `reference_driven_exchange`
 holds its internal head constant and answers with a sustained flux, exactly
 `2 mm/m/day × 0.5 m × 3650 d = +3650 mm`; it would pass under any timing and
-with any floor up to a ratio of about 2, and on its own it hides both of the
-things this revision fixed. `reference_evolving_exchange` lets its internal head
-move, `S dh/dt = C (H − h)` with `S = 10 mm/m`, `C = 2 mm/m/day` and a time
-constant of five days; it is in equilibrium when scoring begins and answers with
-`S · Δh = 5 mm` — the number the MODFLOW run gave — over the first weeks of the
-scored record, and with nearly nothing thereafter. It is the control that fails
-if the shift is applied during spinup, and the one the floor is calibrated
-against: its ratio of 3.4e-3 is the small response a real aquifer gives, 3.4×
-above the floor and close to the fast-limit minimum of `Δh / TV(H) ≈ 2e-3`.
+any floor, and on its own it hid both the spinup problem and the token escape.
+`reference_evolving_exchange` lets its internal head move, `S dh/dt = C (H − h)`
+with `S = 10 mm/m` and a five-day time constant; it is in equilibrium when
+scoring begins and answers with `S·Δh = 5 mm` — the number a native MODFLOW run
+gave — and it is the control that fails if the shift begins during spinup.
+`reference_recharge_exchange` is the evolving boundary on a losing catchment,
+`S = 1 mm/m`, half the runoff recharging the aquifer and draining back out
+through the same boundary; its response is `S·Δh = 0.5 mm` against about
+1700 mm of throughput, exact and monotone in the head, and it is the control
+that pins the normalisation: a share of the gross fails it on every seed and a
+share of the variation does not.
 
-The floor of `1e-3` is therefore set from the physics of the head series, not
-from either control: half the fast-limit minimum, so that no head-driven
-boundary can fall under it, and three orders of magnitude above the token cheat.
+The floor of `3e-4` is set from the storativity sweep above: three times under
+the value at `S = 0.1 mm/m`, three hundred times above the token cheat. The
+noise sink's variation is larger than its gross because the accounting error
+changes sign almost every day.
 
 ### A finding from building it: the nominal term is not the applied term
 
@@ -250,8 +278,8 @@ criterion that did not judge a model does not add to its count. `dhbv2`, whose
 and continues to fail `state_bounds` on the other budget probes for its learned
 field capacity.
 
-**It does not close the mixed-exchange escape.** See *What the share does not
-close* above.
+**It does not close the mixed-exchange escape, and it excludes one narrow
+physical class.** See *What the floor excludes* above.
 
 **It does not bound the size of an exchange.** `Σ|gwex|/Σpr` and `|Σgwex|/Σpr`
 are reported and never gated. Gross bidirectional movement is not bounded by
@@ -291,7 +319,7 @@ ht gate --probe mass/exchange-response
 
 [#76](https://github.com/Flood-Lab/HydroTuring/issues/76). The prescribed
 driver, the conditional gate, the reversing positive control, the move from a
-reversal bound to a paired counterfactual, the shift's timing, the second
-positive control and the share floor all follow from the reviews there and on
-the pull request, which supplied the MODFLOW counter-examples and the token-term
-cheat.
+reversal bound to a paired counterfactual, the shift's timing, the second and
+third positive controls, and the share floor's numerator and denominator all
+follow from the reviews there and on the pull request, which supplied the
+MODFLOW counter-examples, the token-term cheat and the losing-catchment case.

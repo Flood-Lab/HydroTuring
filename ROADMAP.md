@@ -128,6 +128,8 @@ run with and without it, and the difference between the two runs must account
 for exactly the abstracted volume (net of return flow).
 *Discriminates:* models that treat abstraction as an unaccounted sink.
 
+Contributed by Yuanhang Liu.
+
 ### `mass/exchange-response` &middot; **merged**
 A declared head-driven exchange must respond to its external head. Once a
 model closes its budget with `gwex`, that flux is identically minus the
@@ -142,8 +144,6 @@ Reversal frequency is reported and never gated. Authored by Songkun Yan.
 *Discriminates:* models that declare the prescribed head and use the
 declared-exchange channel as a sink for the day's accounting error, with or
 without a token head term on top.
-
-Contributed by Yuanhang Liu.
 
 ---
 

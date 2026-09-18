@@ -79,31 +79,34 @@ criteria:
   # The probe's own question, a paired counterfactual on the prescribed head.
   # For a model that declares it consumes `gwh`, G = sum gwex_t dt over the
   # scored record must rise when the head is raised and fall when it is
-  # lowered, each by at least `min_response_share` of the control run's gross
-  # exchange (floored by `epsilon` for floating point). A share, not an
-  # absolute minimum: for a general-head boundary the response and the gross
-  # both scale with conductance, so their ratio does not, and a weak boundary
-  # is not penalised for being weak. The ratio's physical minimum for this
-  # head series is about dh / TV(gwh) = 2e-3, the fast-aquifer limit where
-  # both response and gross scale with storativity; 1e-3 sits under it.
-  # A token head term added to an accounting sink sits six orders of
-  # magnitude under it (reference_token_exchange). Reversal statistics are
-  # reported as diagnostics only, because a head-driven system's flux
-  # reverses as often as its internal head moves and the case does not
-  # prescribe that.
+  # lowered, each by at least `min_response_share` of the control run's
+  # total variation, sum |gwex_t - gwex_t-1| dt (floored by `epsilon` for
+  # floating point). A share, not an absolute minimum, so conductance cancels
+  # and a weak boundary is not penalised for being weak. Of the variation,
+  # not the gross: a boundary that also drains recharge has a gross of the
+  # order of the throughput, independent of storativity, while its response
+  # is S * dh, so a share of the gross fails an exact losing catchment at
+  # confined storativities (2.4e-4 at S = 1 mm/m). A steady throughput adds
+  # little to how much the exchange moves, so the variation is far less
+  # sensitive: the same catchment sits at 6e-3 at S = 1 mm/m and 2.6e-3 at
+  # S = 0.3, and only at S = 0.1 mm/m, a tenth of the confined top, does it
+  # reach 9e-4. The floor is set three times under that, at 3e-4, and still
+  # three hundred times above the token cheat (1.1e-6). What it excludes is
+  # named in the README: a boundary of storativity under about 0.03 mm/m
+  # that also carries a strongly varying throughput. Reversal statistics are
+  # reported as diagnostics only.
   #
-  # Calibration, all five gate seeds (README.md has the table): see the
-  # numbers there for reference_driven_exchange (constant internal head),
-  # reference_evolving_exchange (internal head with a five-day time constant,
-  # the small response a real aquifer gives), reference_noise_sink (exactly 0)
-  # and reference_token_exchange (a millionth of its gross).
+  # Calibration, all five gate seeds (README.md has the table and the sweep):
+  # reference_driven_exchange 6.5, reference_evolving_exchange 1.1e-2,
+  # reference_recharge_exchange 5.4e-3 to 8.6e-3 (S = 1 mm/m),
+  # reference_noise_sink 0, reference_token_exchange 1.0e-6 to 1.1e-6.
   - exchange_response:
       variable: gwex
       driver: gwh
       control: control
       raised: raised
       lowered: lowered
-      min_response_share: 1.0e-3
+      min_response_share: 3.0e-4
       epsilon: 1.0e-8
       # Diagnostics, never gated.
       quiescent_label: dry
@@ -137,17 +140,20 @@ criteria:
 baselines:
   # The probe requires the prescribed head, so the four physical models, none
   # of which declares it, are INCOMPATIBLE here and cannot stand as baselines —
-  # the footing energy/radiation-consistency stands on. Two positive controls
-  # declare it and follow it. reference_driven_exchange holds a constant
-  # internal head and answers with a sustained flux; reference_evolving_exchange
-  # lets its internal head move, is in equilibrium when scoring begins, and
-  # answers with the small transient a real aquifer gives — it is the one that
-  # would fail if the shift began during spinup, and the one the response
-  # floor is calibrated against. Two negative controls declare the head and do
-  # not follow it: reference_noise_sink answers with exactly zero, and
-  # reference_token_exchange adds a head term a million times too small to be
-  # anything but a token.
-  must_pass: [reference_driven_exchange, reference_evolving_exchange]
+  # the footing energy/radiation-consistency stands on. Three positive
+  # controls declare it and follow it. reference_driven_exchange holds a
+  # constant internal head and answers with a sustained flux.
+  # reference_evolving_exchange lets its internal head move, is in equilibrium
+  # when scoring begins, and answers with the small transient a real aquifer
+  # gives — the one that fails if the shift begins during spinup.
+  # reference_recharge_exchange is the evolving boundary on a losing catchment
+  # that drains half its runoff through it, at S = 1 mm/m: the one that pins
+  # the normalisation, since a share of the gross exchange fails it and a
+  # share of the exchange's variation does not. Two negative controls declare
+  # the head and do not follow it: reference_noise_sink answers with exactly
+  # zero, and reference_token_exchange adds a head term a million times too
+  # small to be anything but a token.
+  must_pass: [reference_driven_exchange, reference_evolving_exchange, reference_recharge_exchange]
   must_fail:
     reference_noise_sink: exchange_response
     reference_token_exchange: exchange_response

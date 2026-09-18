@@ -77,7 +77,8 @@ def test_the_probe_requires_the_driver(probe):
 
 # --- the controls -----------------------------------------------------------
 
-@pytest.mark.parametrize("name", ["reference_driven_exchange", "reference_evolving_exchange"])
+@pytest.mark.parametrize("name", ["reference_driven_exchange", "reference_evolving_exchange",
+                                  "reference_recharge_exchange"])
 def test_positive_controls_pass(probe, name):
     outcome = run_probe(registry.find_model(name), probe, gate_seeds(probe.id, 1))
     assert outcome.verdict == PASS, outcome.failing
@@ -100,6 +101,19 @@ def test_evolving_control_answers_with_the_water_that_moves_its_head(probe):
     assert -8.0 < down < -3.0, down
 
 
+def test_recharge_control_pins_the_normalisation(probe):
+    """A losing catchment that drains recharge through the boundary answers
+    with S * dh = 0.5 mm against ~1700 mm of throughput. A share of the gross
+    would fail it; a share of the exchange's variation must not."""
+    runs = _runs(probe, "reference_recharge_exchange", gate_seeds(probe.id, 1)[0])
+    result = get("exchange_response")(runs, probe, _params(probe))
+    assert result.passed, result.message
+    d = result.diagnostics
+    assert 0.4 < d["response_mm"]["raised"] < 0.6
+    assert d["response_share_of_gross"] < 1e-3          # the old floor would have failed it
+    assert d["response_share_of_variation"] > 3e-4      # the current one does not
+
+
 @pytest.mark.parametrize("name", ["reference_noise_sink", "reference_token_exchange"])
 def test_negative_controls_are_caught_by_the_headline(probe, name):
     outcome = run_probe(registry.find_model(name), probe, gate_seeds(probe.id, 1))
@@ -109,13 +123,13 @@ def test_negative_controls_are_caught_by_the_headline(probe, name):
 
 def test_token_term_fails_on_share_not_on_sign(probe):
     """The token cheat answers the head with the right sign; it fails because
-    the answer is a millionth of the exchange it declared."""
+    the answer is a millionth of how much the exchange it declared moves."""
     runs = _runs(probe, "reference_token_exchange", gate_seeds(probe.id, 1)[0])
     result = get("exchange_response")(runs, probe, _params(probe))
     assert not result.passed
     resp = result.diagnostics["response_mm"]
-    assert resp["raised"] > 0 and resp["lowered"] < 0          # right sign
-    assert result.diagnostics["response_share_of_gross"] < 1e-5  # wrong size
+    assert resp["raised"] > 0 and resp["lowered"] < 0              # right sign
+    assert result.diagnostics["response_share_of_variation"] < 1e-5  # wrong size
 
 
 # --- the conditional gate ----------------------------------------------------

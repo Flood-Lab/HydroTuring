@@ -68,7 +68,7 @@ not.
 
 ## The probes
 
-Twenty-eight: eighteen under mass, seven under energy and three under momentum.
+Twenty-nine: nineteen under mass, seven under energy and three under momentum.
 Each was merged only after the acceptance gate saw it pass its declared
 exact reference and fail a purpose-built broken one on the named criterion.
 Four physical models, a bucket that conserves water exactly, two
@@ -76,7 +76,7 @@ hand-written FLEX models and the NWS's SAC-SMA with Snow-17, must pass
 every probe that can ask them anything; six of the seven energy probes need
 outputs they do not report and are not scored for them. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Twelve of the twenty-eight require no model output
+with any probe pull request. Twelve of the twenty-nine require no model output
 beyond runoff. That output-only count includes `momentum/routing-lag-consistency`,
 which is eligible only when the model also declares that it consumes `pr` and
 the three geometry inputs `area_km2`, `main_channel_length_km` and
@@ -111,7 +111,7 @@ unclaimed.
 | [`energy/radiation-consistency`](probes/energy/radiation-consistency) | energy | The surface temperature a model reports and the upward longwave it reports: do they describe one surface, hour by hour, at the emissivity it was given? | `reference_air_emitter`, `reference_no_reflection` |
 | [`energy/soil-heat-storage-consistency`](probes/energy/soil-heat-storage-consistency) | energy | Does heat retained in a soil layer agree with its temperature change during heating and recovery? | `reference_frozen_soil`, `reference_half_soil` |
 | [`energy/snowmelt-energy-water`](probes/energy/snowmelt-energy-water) | energy | A pack built over a cold winter and then melted down over a dry block that opens below -14 C and warms through zero: does the surface energy budget pay both the fusion for the ice that changed phase and the cold content of warming the pack? | `reference_degree_day`, `reference_warming_free` |
-| [`mass/exchange-response`](probes/mass/exchange-response) | mass | A declared head-driven exchange must respond to its external head: the same weather with the prescribed head as given, raised and lowered from the first scored step — a model that declares it consumes the head must answer with more inflow when it is raised and less when lowered, by at least a share of its own gross exchange that any head-driven boundary clears. | `reference_noise_sink`, `reference_token_exchange` |
+| [`mass/exchange-response`](probes/mass/exchange-response) | mass | A declared head-driven exchange must respond to its external head: the same weather with the prescribed head as given, raised and lowered from the first scored step — a model that declares it consumes the head must answer with more inflow when it is raised and less when lowered, by at least a share of how much its own exchange moves that any head-driven boundary clears. | `reference_noise_sink`, `reference_token_exchange` |
 | [`momentum/routing-conservation`](probes/momentum/routing-conservation) | momentum | The channel store is never negative and never holds more than its hydrograph can. | `reference_stuck_router` |
 | [`momentum/routing-lag-consistency`](probes/momentum/routing-lag-consistency) | momentum | The same isolated storm crosses four synthetic catchment geometries: does the runoff peak lie on a broad Snyder travel-time scale and grow across the geometry ladder? | `reference_instant_router`, `reference_inverse_router` |
 | [`momentum/stage-discharge-monotonic`](probes/momentum/stage-discharge-monotonic) | momentum | Does the stage a model reports rise with its discharge, and does the rating loop the way a flood wave does, the rising limb sitting lower than the falling one at the same discharge? | `reference_rating_drift`, `reference_rating_inverted`, `reference_flat_stage` |
@@ -204,6 +204,7 @@ the probe cannot ask the declared model interface this question.
 | `reference_thirsty` | broken | evaporates a fixed share of its soil store, never reading demand; conserves water exactly | caught by `demand_consistency` |
 | `reference_driven_exchange` | exact | a boundary exchange driven by the prescribed external head against a constant catchment head, so it answers the head raised or lowered with a sustained flux; a positive control for `mass/exchange-response` | must pass `mass/exchange-response` |
 | `reference_evolving_exchange` | exact | the same boundary against a catchment head that moves, `S dh/dt = C (H − h)` with a five-day time constant, so it is in equilibrium when scoring begins and answers a shift with the water that lifts its own head and little more; the positive control that fails if the shift begins during spinup, and the one the response floor is calibrated against | must pass `mass/exchange-response` |
+| `reference_recharge_exchange` | exact | the evolving boundary on a losing catchment that drains half its runoff through it, storativity 1 mm/m: a 0.5 mm response against 1700 mm of throughput, exact and monotone in the head; the control that pins the criterion's normalisation, since a share of the gross exchange fails it and a share of the exchange's variation does not | must pass `mass/exchange-response` |
 | `reference_noise_sink` | broken | conserves water internally, misreports its evaporation by a seeded 30% and declares the difference as a groundwater exchange; declares the prescribed external head and never reads it, so its budget closes to floating point and its exchange is identical whatever the head is | caught by `exchange_response` |
 | `reference_token_exchange` | broken | `reference_noise_sink` with a head-driven trickle a million times weaker than the controls added, so its exchange answers the head with the right sign and a millionth of its own gross movement | caught by `exchange_response` |
 | `reference_stuck_router` | broken | a routing kernel summing to 0.9, so a tenth of every day's runoff never leaves the channel | caught by `routing_conservation` |
@@ -385,7 +386,7 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Twenty-eight probes, eighteen mass, seven energy, three momentum, synthetic track only. More
+Suite `0.1.0`, pre-release. Twenty-nine probes, nineteen mass, seven energy, three momentum, synthetic track only. More
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes; spatial and temporal closure, counterfactual response
 and invariance are represented in the suite. The roadmap lists the remaining

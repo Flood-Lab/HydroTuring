@@ -42,44 +42,62 @@ is a semantic opt-in — the model asserts that its external exchange responds
 monotonically to this potential, as a general-head boundary does — and it is
 what the criterion holds the model to. With
 
-    G       = sum_t gwex_t * dt          [mm, over the scored record]
-    G_gross = sum_t |gwex_t| * dt        [mm, control run]
+    G     = sum_t gwex_t * dt                [mm, over the scored record]
+    TV(g) = sum_t |gwex_t - gwex_t-1| * dt   [mm, the control run's total variation]
 
 the assertion is
 
-    G(raised)  - G(control)  >=  +max(s * G_gross, eps)
-    G(lowered) - G(control)  <=  -max(s * G_gross, eps)
+    G(raised)  - G(control)  >=  +max(s * TV(g), eps)
+    G(lowered) - G(control)  <=  -max(s * TV(g), eps)
 
 with s a small share and eps a floating-point tolerance. Raising the external
-head must bring more water in, and lowering it less, by a share of the
-exchange the model itself declared.
+head must bring more water in, and lowering it less, by a share of how much
+the exchange the model itself declared moves from day to day.
 
-Why a share and not an absolute minimum. An absolute floor would fail a
+Why a share of the variation, and not of the gross. An absolute floor fails a
 genuine boundary of small conductance, whose response is small; that was the
-argument an earlier draft made for having no floor at all. It does not carry
-over to a share. For a general-head boundary Q = C (H - h) the response to a
-shift and the gross exchange both scale with C, so their ratio does not:
-against a constant internal head it is dh * T / sum|H - h| dt, about 2 for this
-head series; against an internal head that moves it is smaller, bounded below
-by about dh / TV(H), the shift over the head's total variation — about 2e-3
-here — because in the fast limit both the response (S * dh) and the gross
-(S * TV(H)) scale with storativity and neither with conductance. The floor is
-set at a share below that physical minimum, which no honest boundary of any
-conductance can fall under. What falls under it is the model the criterion
-exists to catch: one whose declared exchange is the day's accounting error
-with a token head-proportional term added. Its response scales with the token
-conductance; its gross does not, because the gross is the error. The token
-control in this repository sits six orders of magnitude below the floor.
+argument an earlier draft made for no floor at all, and it does not carry
+over to a share, because for Q = C (H - h) the response and everything about
+the exchange scale with C together. The first share floor was taken against
+the gross exchange, and its derivation assumed the boundary was the aquifer's
+only source: then in the fast limit the response is S * dh, the gross is
+S * TV(H), storativity cancels too, and the ratio is bounded below by
+dh / TV(H), about 2e-3 for this head series. A native MODFLOW aquifer
+confirmed that limit exactly. What it also showed is that the assumption
+fails on an ordinary losing catchment: let recharge enter the aquifer and
+drain out through the same boundary, and the gross becomes the throughput,
+of the order of the recharge and independent of S, while the response stays
+S * dh. The ratio then falls with storativity, and at S = 1 mm/m — the top of
+the usual confined range — an exact, monotone, budget-closing boundary sat at
+2.8e-4 and failed. The gross is the wrong denominator because a steady
+throughput inflates it without moving.
+
+The total variation does not have that defect. Throughput at a steady mean
+adds little to the day-to-day variation of the exchange; what the variation
+measures is how much the exchange actually moves, which is what a head that
+moves — the driver, or the catchment's own — makes it do. On the same losing
+catchment the response over the variation is 6e-3 at S = 1 mm/m, 2.6e-3 at
+S = 0.3 and 9e-4 at S = 0.1, a tenth of the confined top, against a floor of
+3e-4; the constant-head control sits at 6.5 and the evolving one at 1.1e-2.
+The token cheat — an accounting sink with a head term a million times too
+weak — sits at 1.1e-6, because its variation is the error's, which is large,
+and its response is the token's, which is not. No physical bound is claimed
+for the ratio: the variation has a floor of its own set by how the throughput
+varies, while the response falls linearly with storativity, so a boundary of
+very small storativity carrying a strongly varying throughput does fall under
+the floor eventually — at about S = 0.03 mm/m on this catchment. The floor is
+set three times under the smallest storativity in the usual confined range
+and three hundred times above the cheat; the sweep and the excluded class
+are in the README.
 
 What the share does not close. A model whose declared `gwex` mixes a genuine
-head-driven part with a large unrelated one — a deep loss, a withdrawal — has a
-gross that the unrelated part inflates and a share that is honest but small.
-Such a model is indistinguishable from the token cheat from outside, and the
-floor is placed low, at a thousandth, so as to tolerate a mixture of that order
-rather than to catch every conceivable cheat. The residual escape is a model
-that reads the head, keeps the sink, and sizes its token term to a thousandth
-of the sink: disclosed, and the price of not asking the contract to split the
-head-driven part of `gwex` into its own variable.
+head-driven part with a large, strongly varying unrelated one has a variation
+that the unrelated part inflates and a share that is honest but small. Such a
+model is indistinguishable from the token cheat from outside. The residual
+escape is a model that reads the head, keeps the sink, and sizes its token
+term to a thousandth of the sink's variation: disclosed, and the price of not
+asking the contract to split the head-driven part of `gwex` into its own
+variable.
 
 Two earlier drafts gated on how often the exchange reversed direction, on its
 own and then relative to the head's turning points. Both were wrong — the
@@ -184,7 +202,7 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
     """Raising the prescribed head must bring more water in; lowering it, less."""
     var = str(params.get("variable", "gwex"))
     driver = str(params.get("driver", "gwh"))
-    share = float(params.get("min_response_share", 1.0e-3))
+    share = float(params.get("min_response_share", 3.0e-4))
     epsilon = float(params.get("epsilon", 1.0e-8))
     label = str(params.get("quiescent_label", "dry"))
     column = str(params.get("segment_column", "_regime"))
@@ -268,6 +286,10 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
     g0 = control.volume(control.table[var])
     gross = float(np.abs(g0).sum())
     net = float(g0.sum())
+    # Total variation of the control exchange: how much it moves day to day.
+    # A steady throughput adds to the gross and hardly at all to this, which
+    # is why this and not the gross is the denominator (module docstring).
+    variation = float(np.abs(np.diff(g0)).sum()) if len(g0) > 1 else 0.0
     rain = float(control.volume(control.forcing["pr"]).sum()) if "pr" in control.forcing.columns else 0.0
 
     floor = negligible * rain if rain > 0 else 0.0
@@ -283,20 +305,23 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
 
     up = float(raised.volume(raised.table[var]).sum() - net)
     down = float(lowered.volume(lowered.table[var]).sum() - net)
-    # A share of the model's own gross exchange, floored by a floating-point
-    # tolerance. The share is conductance-invariant for a head-driven boundary
-    # (see the module docstring), so a weak boundary is not penalised for
-    # being weak; a token head term on top of an accounting sink is.
-    required = max(share * gross, epsilon * max(gross, 1.0))
-    response_share = min(up, -down) / gross
+    # A share of how much the model's own exchange moves, floored by a
+    # floating-point tolerance. Conductance cancels, and a steady throughput
+    # through the boundary does not inflate the denominator (module
+    # docstring), so a weak or a busy boundary is not penalised for being
+    # either; a token head term on top of an accounting sink is.
+    required = max(share * variation, epsilon * max(gross, 1.0))
+    response_share = (min(up, -down) / variation) if variation > 0 else float("inf")
 
     diagnostics = {
         "driver": driver,
         "head_shift_m": {"raised": shift_up, "lowered": shift_down},
         "response_mm": {"raised": up, "lowered": down},
-        "response_share_of_gross": response_share,
+        "response_share_of_variation": response_share,
+        "response_share_of_gross": (min(up, -down) / gross) if gross > 0 else None,
         "required_share": share,
         "required_mm": required,
+        "variation_mm": variation,
         "gross_mm": gross,
         "net_mm": net,
         "directionality": abs(net) / gross,
@@ -312,21 +337,21 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
             f"the model declares it consumes '{driver}' but its exchange is the same "
             f"with the head raised by {shift_up:+.2f} m and lowered by {shift_down:+.2f} m "
             f"({up:+.3g} mm and {down:+.3g} mm against a required {required:.3g} mm, "
-            f"{share:g} of its {gross:.0f} mm gross exchange); it does not answer the "
-            f"driver it claims to follow"
+            f"{share:g} of the {variation:.0f} mm its exchange moves over the record); "
+            f"it does not answer the driver it claims to follow"
         )
     else:
         if up < required:
             failures.append(
                 f"raising the prescribed head by {shift_up:+.2f} m changed the "
                 f"integrated exchange by {up:+.3g} mm where at least {required:.3g} mm "
-                f"more inflow was required ({share:g} of the {gross:.0f} mm gross exchange)"
+                f"more inflow was required ({share:g} of the {variation:.0f} mm its exchange moves)"
             )
         if down > -required:
             failures.append(
                 f"lowering it by {shift_down:+.2f} m changed the integrated exchange "
                 f"by {down:+.3g} mm where at least {required:.3g} mm less inflow was "
-                f"required ({share:g} of the {gross:.0f} mm gross exchange)"
+                f"required ({share:g} of the {variation:.0f} mm its exchange moves)"
             )
     diagnostics["outcome"] = "failed" if failures else "judged"
 
@@ -353,7 +378,7 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
         message=(
             f"the declared exchange answers the prescribed head: {up:+.4g} mm over "
             f"the record with it raised {shift_up:+.1f} m, {down:+.4g} mm with it "
-            f"lowered, {response_share:.3g} of its {gross:.0f} mm gross exchange "
+            f"lowered, {response_share:.3g} of the {variation:.0f} mm its exchange moves "
             f"(required {share:g}); stays available"
             if ok else "; ".join(failures)
         ),

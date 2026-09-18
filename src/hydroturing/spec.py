@@ -159,6 +159,7 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_driven_exchange",
     "reference_evolving_exchange",
     "reference_token_exchange",
+    "reference_recharge_exchange",
 }
 
 
