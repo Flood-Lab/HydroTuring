@@ -69,6 +69,10 @@ authors:
       State Key Laboratory of Earth Surface Processes and Disaster Risk Reduction,
       Faculty of Geographical Science, Beijing Normal University, Beijing, China
     orcid: "https://orcid.org/0000-0002-8123-7282"
+  - given-names: Yaji
+    family-names: Wang
+    affiliation: University of Illinois Urbana-Champaign
+    orcid: "https://orcid.org/0009-0001-7485-4696"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT
