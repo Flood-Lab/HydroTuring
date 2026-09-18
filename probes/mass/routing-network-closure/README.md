@@ -31,8 +31,7 @@ The proposed scores are:
 ```text
 reach_error_i = sum_t(abs(r_i,t)) / sum_t(Q_in,i,t * dt)
 
-junction_error = sum_t(abs(r_J,t)) /
-    sum_t((Q_out,A,t + Q_out,B,t) * dt)
+junction_error = sum_t(abs(r_J,t)) / sum_t((Q_out,A,t + Q_out,B,t) * dt)
 ```
 
 Each reach and the junction must remain below 5%. Summing absolute interval residuals prevents errors at different times from cancelling.
