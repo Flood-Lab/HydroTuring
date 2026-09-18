@@ -7,9 +7,9 @@ description: >
   millimetre on this probe's case — which is what makes it the model that
   governs `min_allowance_mm` rather than merely exercising the criterion.
   `reference_stuck_router` loses a tenth of the flow and is caught three
-  orders of magnitude clear of the allowance; this one is caught at 4.13 to
-  4.40 times it, and stops being caught at all once the allowance reaches
-  0.615 mm, so a change that moves the allowance out from under the calibration
+  orders of magnitude clear of the allowance; this one reaches 4.13 to 4.40
+  times it, and the gate stops catching it only once the allowance passes
+  0.651 mm, so a change that moves the allowance out from under the calibration
   turns the acceptance gate red.
 authors: ["HydroTuring maintainers"]
 license: PolyForm-Noncommercial-1.0.0

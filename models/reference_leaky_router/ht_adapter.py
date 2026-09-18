@@ -12,10 +12,11 @@ proportional part of the allowance is hundreds of millimetres during a storm.
 Why this model exists next to `reference_stuck_router`. That one loses a tenth
 of the flow and is caught three orders of magnitude clear of the allowance, so
 it is insensitive to where the allowance sits: raising `min_allowance_mm` by a
-factor of twenty still fails it. This one is caught at 4.1 to 4.4 times the
-allowance, so it is the case that actually governs the number — put it behind
-the gate and a change that moves the allowance out from under the calibration
-turns the gate red instead of merely turning a unit test red.
+factor of twenty still fails it. This one reaches 4.1 to 4.4 times the
+allowance and escapes once `min_allowance_mm` passes 0.651 mm, so it is the
+case that actually governs the number — put it behind the gate and a change
+that moves the allowance out from under the calibration turns the gate red
+instead of merely turning a unit test red.
 """
 
 from __future__ import annotations

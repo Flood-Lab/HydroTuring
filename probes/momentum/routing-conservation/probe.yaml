@@ -61,8 +61,8 @@ criteria:
       # 0.04, flex_topo 0.11, lisflood 0.12, wflow_sbm and sacsma_snow17 0.16,
       # cwatm 0.47, flex_lumped 0.58), whose tightest leaves 1.7x of room, and
       # the smallest leak this probe exists to catch — a kernel keeping a tenth
-      # of a percent of every day's runoff — is caught at 4.13x to 4.40x, the
-      # smallest of the three seeds being the one that governs.
+      # of a percent of every day's runoff — reaches 4.13x to 4.40x the whole
+      # allowance, and the gate stops catching it only above 0.651 mm.
       min_allowance_mm: 0.05
 
   - non_degenerate:
@@ -81,8 +81,9 @@ baselines:
     # never leaves the channel, and the store grows without bound.
     reference_stuck_router: routing_conservation
     # The same kernel at 0.999, which is the case this probe's allowance is
-    # calibrated against: a leak of a tenth of a percent is caught at 4.1 to
-    # 4.4 times `min_allowance_mm`, where the 0.9 kernel is three orders of
+    # calibrated against: a leak of a tenth of a percent reaches 4.1 to 4.4
+    # times the whole allowance, and the gate stops catching it only once
+    # `min_allowance_mm` passes 0.651 mm, where the 0.9 kernel is three orders of
     # magnitude clear of it and cannot see the parameter at all. Both are
     # pinned because the gate has to hold the number the probe exists to
     # choose, not merely prove that the criterion can catch a router fault:
