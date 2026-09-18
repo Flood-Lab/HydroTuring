@@ -29,11 +29,9 @@ where `Q_in` and `Q_out` are interval-mean discharge in `m3/s`, `V` is reach cha
 The proposed scores are:
 
 ```text
-reach_error_i =
-    sum_t(abs(r_i,t)) / sum_t(Q_in,i,t * dt)
+reach_error_i = sum_t(abs(r_i,t)) / sum_t(Q_in,i,t * dt)
 
-junction_error =
-    sum_t(abs(r_J,t)) /
+junction_error = sum_t(abs(r_J,t)) /
     sum_t((Q_out,A,t + Q_out,B,t) * dt)
 ```
 
