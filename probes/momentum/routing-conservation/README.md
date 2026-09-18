@@ -21,7 +21,25 @@ the real test.
 | `non_degenerate` | runoff varies with the weather |
 
 Must-fail: `reference_stuck_router`, the bucket with a three-day kernel that
-sums to 0.9.
+sums to 0.9, and `reference_leaky_router`, the same kernel at 0.999. Both are
+pinned because they answer different questions. The 0.9 kernel is caught three
+orders of magnitude clear of the allowance, so it shows the criterion can catch
+a router fault while being blind to where the allowance sits — raise the
+allowance twentyfold and it still fails. The 0.999 kernel is caught at 4.1 to
+4.4 times `min_allowance_mm`, so it is the case the number was actually chosen
+against. With it behind the gate, an allowance moved out from under the
+calibration turns the gate red rather than passing it:
+
+| `min_allowance_mm` | `reference_stuck_router` | `reference_leaky_router` | gate |
+| --- | --- | --- | --- |
+| 0.05 (this probe) | FAIL | FAIL | green |
+| 0.50 | FAIL | FAIL | green |
+| 1.00 | FAIL | pass | **red** |
+| 2.00 | FAIL | pass | **red** |
+| 5.00 | FAIL | pass | **red** |
+
+Both kernels report the store they leave behind, so what the gate scores is a
+router that retains water rather than a store that invents it.
 
 ## The dry spells are what make a small leak visible
 
@@ -38,6 +56,9 @@ that residue reaches **0.80 mm**, against a storm-time ceiling of **433 to 635
 mm** — five hundred times smaller, and inside the bound everywhere the peak is
 read from a storm. On this record the ceiling has decayed below it during the
 drains, and the kernel fails on every gate seed.
+The 0.999 kernel is also a model of its own — `reference_leaky_router`, pinned
+in this probe's `must_fail` — so the case the allowance is calibrated against
+is behind the acceptance gate and not only behind a unit test.
 `tests/test_routing_conservation_generator.py` pins both the weather's
 properties and that separation.
 
