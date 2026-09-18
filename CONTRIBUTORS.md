@@ -41,7 +41,7 @@ long.
 | `energy/radiation-consistency` | Xin Lan (Michigan State University) |
 | `energy/soil-heat-storage-consistency` | Han Wang (The Hong Kong University of Science and Technology) |
 | `energy/snowmelt-energy-water` | Siddik Barbhuiya (IIT Mandi) |
-| `momentum/routing-conservation` | Zhi Li (CU Boulder) |
+| `momentum/routing-conservation` | Zhi Li (CU Boulder), Yuanhang Liu (Independent Researcher) |
 | `momentum/routing-lag-consistency` | Binlan Zhang (Institute of Mountain Hazards and Environment, Chinese Academy of Sciences, Chengdu, China) |
 | `momentum/stage-discharge-monotonic` | Yuanhang Liu (Independent Researcher) |
 
