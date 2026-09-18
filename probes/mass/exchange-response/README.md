@@ -288,7 +288,7 @@ are reported and never gated. Gross bidirectional movement is not bounded by
 precipitation, and how much external water a basin may legitimately depend on
 is not a question a conservation probe can settle.
 
-## What this adds to the contract, and how it relates to #41
+## What this adds to the contract, and how it relates to `mass/gw-sw-exchange-consistency`
 
 **`gwh` is a new optional forcing column**, added the way `mass/human-abstraction`
 added `abstr`, with its semantic stated in `AGENTS.md`; the `gwex` output
@@ -299,13 +299,32 @@ repository's way of building one by hand in a test — as one to judge, not one 
 excuse, and `tests/test_exchange_response.py` asserts that the gate fires in
 that case.
 
-**This probe is close to #41 in mechanism.** Both perturb a hydraulic driver
-and ask for a directionally correct exchange response. #41 perturbs
-surface-water stage and is framed around gross GW→SW and SW→GW fluxes not yet in
-`/io`; this probe perturbs the external head of the existing catchment-boundary
-`gwex` channel and requires only that existing net flux. If the maintainers
-would rather have one generic hydraulic-driver response criterion with two probes
-on it, the implementation here factors that way.
+**This probe and `mass/gw-sw-exchange-consistency` (#79) are complementary, not
+overlapping.** They differ in the variable, the mechanism and the cheat:
+
+| | `mass/gw-sw-exchange-consistency` | `mass/exchange-response` |
+| --- | --- | --- |
+| Variable | `gw_sw_exchange`, river–aquifer, between two stores *inside* the catchment | `gwex`, across the catchment *boundary* |
+| Criteria | single-run: components sum to the net, recharge + exchange = Δ`gw`, signs | paired: the same weather with the prescribed head raised and lowered |
+| Question | does the model's exchange bookkeeping agree with itself? | does the model's exchange answer the driver it declares? |
+| Broken model | `reference_exchange_sign_error` — balance exact, one component's sign wrong | `reference_noise_sink` — bookkeeping exact, closure 0.0000%, exchange does not answer the head |
+
+Its README says of its own checks that they are *"bookkeeping, not physics,
+and hold exactly for any model that means it"*; this probe exists because
+bookkeeping can be exact and mean nothing. `reference_noise_sink` would pass
+every criterion of #79 if it reported those variables, since its accounts are
+perfect; `reference_exchange_sign_error` is N/A here, since it reports no
+`gwex`. Neither probe's negative control is caught by the other. The earlier
+#41 proposal from which #79 grew included a stage counterfactual; the merged
+probe does not perturb anything, so the mechanisms no longer meet.
+
+The two also fit together on one model. #79 introduces `gw_boundary`, a
+boundary term acting on the aquifer alone — a GHB, a well, a regional
+exchange — and says that where it also crosses the catchment boundary it is
+reported in `gwex` as well. A general-head boundary on a catchment aquifer is
+exactly that: reported as `gw_boundary`, it is held to the aquifer balance by
+#79; reported as `gwex` with `gwh` declared, it is held to its driver by this
+probe. The same flux is checked from two sides, and no budget adds the two.
 
 ## Reproducing a failure
 

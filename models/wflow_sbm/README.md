@@ -290,7 +290,7 @@ case on the full record (`window_days: full`).
 | `mass/steady-state` | PASS | OK | nothing varies; the budget balances to 1e-14 mm/day |
 | `mass/time-origin-invariance` | PASS | OK | identical to floating point in 1972 and 2000 |
 | `mass/warming-response` | PASS | OK | runoff falls by 0.27 to 0.31 per unit of added demand |
-| `momentum/routing-conservation` | PASS | OK | the channel holds at most 0.17 of what a 15-day hydrograph of recent runoff allows |
+| `momentum/routing-conservation` | PASS | OK | the channel holds at most 0.16 of what a 15-day hydrograph of recent runoff allows |
 
 The five energy probes that need an energy output are N/A (INCOMPLETE) because wflow_sbm
 computes no latent, sensible or ground heat flux and no surface temperature; that is the
@@ -430,6 +430,12 @@ still carry the `gw` column.
 | ht.1 geometry | 3.49 | 4.79 | 4.91 | 95 to 101 mm |
 | roots 0.99 × thickness | 0.16 | 8.56 | 0.14 | 20 to 24 mm |
 | Moselle thickness | 0.13 | 0.18 | 0.12 | 20 to 24 mm |
+
+These figures are from the case as it stood before `momentum/routing-conservation`
+`version: 2`, the weather change that probe took on 2026-09-17: the numbers are
+the comparison between settings, made on one case. On the case the probe now
+generates, the shipped setting measures **0.16 on each of the three seeds**, with
+a largest store of 16 to 20 mm. The other three settings were not re-run.
 
 The 8.56 is one step, the first scored day. Deep roots have dried the column to 68 mm, runoff
 over the preceding 30 days is 0.00001 mm/day, and the channel still holds a 0.002 mm trace.
