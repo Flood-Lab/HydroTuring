@@ -63,6 +63,12 @@ authors:
   - given-names: Bing
     family-names: Li
     affiliation: Independent Researcher
+  - given-names: Jinlong
+    family-names: Hu
+    affiliation: >-
+      State Key Laboratory of Earth Surface Processes and Disaster Risk Reduction,
+      Faculty of Geographical Science, Beijing Normal University, Beijing, China
+    orcid: "https://orcid.org/0000-0002-8123-7282"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

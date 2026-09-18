@@ -33,6 +33,7 @@ long.
 | `mass/precipitation-counterfactual` | Qingyi Yang (Politecnico di Milano) |
 | `mass/human-abstraction` | Yuanhang Liu (Independent Researcher) |
 | `mass/extreme-event-closure` | Taiqi Lian (Laboratory of Catchment Hydrology and Geomorphology, École Polytechnique Fédérale de Lausanne (EPFL), 1951 Sion, Switzerland) |
+| `mass/snowpack-mass-closure` | Jinlong Hu (State Key Laboratory of Earth Surface Processes and Disaster Risk Reduction, Faculty of Geographical Science, Beijing Normal University, Beijing, China) |
 | `energy/pet-consistency` | Zhi Li (CU Boulder) |
 | `energy/latent-heat-et-consistency` | Changming Li (SCUT) |
 | `energy/evaporative-partition` | Changming Li (SCUT) |

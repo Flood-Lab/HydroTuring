@@ -488,3 +488,12 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-15,lisflood,5.0.0-onecell.5,0.1.0,docker,mass/multi-decadal-drift,PASS,OK,18250-day flood event,1349990263 1856942377 216410844 723362958 1230315072,"state_bounds: all storages stay physical; total_storage_drift: total reported storage changes 1.23833e-06 mm over final 1825-day block (allowance 0.657615 mm, 2.0e-04 of block precipitation + 1e-06 mm)"
 2026-09-15,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/multi-decadal-drift,FAIL,VIOLATION,full record,1349990263 1856942377 216410844 723362958 1230315072,"state_bounds: mrso leaves [0, 320] on 18250 steps (range 488 to 501)"
 2026-09-16,flex_lumped,1.1.0,0.1.0,subprocess,mass/multi-decadal-drift,PASS,OK,full record,1349990263 1856942377 216410844 723362958 1230315072,"state_bounds: all storages stay physical; total_storage_drift: total reported storage changes -6.18456e-11 mm over final 1825-day block (allowance 0.656622 mm, 2.0e-04 of block precipitation + 1e-06 mm)"
+2026-09-17,cwatm,1.11-5baaadd.4,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-17,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-17,flex_lumped,1.1.0,0.1.0,subprocess,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-17,flex_topo,1.0.0,0.1.0,subprocess,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-17,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,"does not report snm, snw"
+2026-09-17,lisflood,5.0.0-onecell.5,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-17,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/snowpack-mass-closure,PASS,OK,full record,809506488 1316458602 1823410716 182879183 689831297,closure: cumulative residual 0.0000% of sum_pr (limit 5.0%); snowpack_response: snow accumulation and melt are non-trivial
+2026-09-17,summa,4.0.0-f787fa5.4,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-17,wflow_sbm,1.0.4-ht.4,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm

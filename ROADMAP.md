@@ -105,10 +105,12 @@ The same storm after a dry month and a wet one: more runoff from the wet one, an
 ### `mass/phase-counterfactual` &middot; **merged**
 The same water as rain instead of snow: timing moves, volumes do not.
 
-### `mass/snowpack-mass-closure` &middot; starter &middot; **unclaimed**
-Snowfall minus melt minus sublimation minus the change in SWE.
-*Discriminates:* models that quietly lose water at the rain-snow transition,
-a very common bug that a whole-catchment budget can absorb.
+### `mass/snowpack-mass-closure` &middot; **merged**
+Closes the internal snowpack water balance separately across accumulation,
+storage and melt, using precipitation, snow-module liquid outflow,
+sublimation and snow-water storage. Catches snowpack-internal leakage that
+can remain hidden in a whole-catchment water balance.
+Contributed by Jinlong Hu (BNU).
 
 ### `mass/multi-decadal-drift` &middot; **merged**
 Fifty years of repeated warm weather expose a runoff reporting deficit hidden
