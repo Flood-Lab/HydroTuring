@@ -65,6 +65,7 @@ HEADLINES = {
         "scaling_monotonicity",
     ),
     "momentum/stage-discharge-monotonic": ("rating_monotonic", "rating_loop", "non_degenerate"),
+    "momentum/uniform-flow-friction-consistency": ("uniform_flow_friction",),
 }
 
 

@@ -283,6 +283,18 @@ more discharge at a given stage than the falling limb.
 relationship between depth and flow.
 Contributed by Yuanhang Liu.
 
+### `momentum/uniform-flow-friction-consistency` &middot; **merged**
+Under constant wet forcing, the final steady block must make Manning friction
+slope agree with the declared bed slope when discharge, stage, width, bed
+elevation and roughness are read together using the exact rectangular
+hydraulic radius. The mean absolute normalized residual may not exceed 5%.
+*Discriminates:* smooth, monotone and even subcritical ratings built with a
+different slope or Manning roughness from the geometry the model declares it
+consumes.
+Contributed by Mofan Zhang (Department of Civil and Environmental Engineering,
+Stanford University, Stanford, CA, USA; GitHub: Mofan-coding; ORCID:
+https://orcid.org/0000-0001-8839-1808).
+
 ### `momentum/wave-celerity-bounds` &middot; hard &middot; **unclaimed**
 Kinematic wave celerity must be positive and near the Manning expectation for
 the reach geometry.
