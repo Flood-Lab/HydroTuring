@@ -32,6 +32,16 @@ requires:
   # scorable. Declaring `dis` here would make the fallback unreachable.
   fluxes: []
   diagnostics: [stage]
+  # The denominator of the Froude number is the *case's* width, so the verdict
+  # rests on the model having drawn its stage for the section the case declares
+  # rather than for one of its own. A model that never read `width_m` — one
+  # carrying its own river width, or reporting a stage in its own datum — is
+  # judged against a number it never saw, and the suite's rule for that is
+  # N/A (INCOMPATIBLE), not a conservation violation. `bed_elevation_m` is
+  # deliberately not listed: it is the datum the criterion subtracts from an
+  # absolute water level, no adapter in the repository consumes it, and
+  # requiring it would make four baselines declare a key they do not read.
+  static: [width_m]
 
 case:
   generator: generate.py

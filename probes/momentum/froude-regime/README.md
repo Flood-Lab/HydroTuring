@@ -117,6 +117,15 @@ the model's, so every model is judged in one reach — which is the intent, but
 it also means the probe never checks that a model chose a sensible geometry
 of its own.
 
+Because that width is the denominator, the verdict rests on the model having
+drawn its stage for the declared section, and the probe declares
+`requires.static: [width_m]` accordingly. A model that never read `width_m` —
+one carrying its own river width, or reporting a water level in its own
+datum — is recorded **N/A (INCOMPATIBLE)** rather than failed: the suite's
+rule for a verdict that would rest on an input the model never saw. Failing
+it instead would put a conservation violation in the archive for a model
+judged against a number it never read.
+
 **Steps at the depth floor are skipped.** A reach that is dry or nearly dry
 is not scored, so a model that only misbehaves at baseflow — reporting a
 velocity it could not have when there is almost no water — passes. The

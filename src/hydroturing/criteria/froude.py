@@ -79,8 +79,11 @@ DEFAULT_RUNOFF = "mrro"
 DEFAULT_WIDTH_KEY = "width_m"
 DEFAULT_BED_KEY = "bed_elevation_m"
 DEFAULT_AREA_KEY = "area_km2"
-# Fallbacks, used only when the case hands over no geometry.
-FALLBACK_WIDTH_M = 18.0
+# The only fallback: a model that reports an absolute water level needs a datum,
+# and zero is the honest default because a normal-depth stage is already a depth
+# above the bed. There is deliberately no width fallback — the section is the
+# case's to declare, and inventing one would score every model in a channel no
+# case ever declared.
 FALLBACK_BED_M = 0.0
 # A depth floor of one centimetre: enough that a receding flow does not divide
 # by zero, small enough that it never rescues a real cross-section. Steps that
@@ -184,8 +187,24 @@ def froude_subcritical(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
         )
 
     static = run.case.static
-    width_m = float(params.get("width_m", static.get(width_key, FALLBACK_WIDTH_M)))
-    bed_m = float(params.get("bed_elevation_m", static.get(bed_key, FALLBACK_BED_M)))
+    # The case declares the section and the verdict is a statement about a pair
+    # of readings in it, so a case that declares no width is a statement about
+    # the case rather than about the model: refuse, as the `area_key` branch
+    # below does. Falling back to a width would score every model in a channel
+    # no case ever declared, and the message would name a number that exists
+    # nowhere in the run.
+    if "width_m" not in params and width_key not in static:
+        return CriterionResult(
+            name="froude_subcritical",
+            status=FAIL,
+            message=(
+                f"the case declares no '{width_key}', so there is no section to "
+                "read a stage against; the criterion cannot make its statement"
+            ),
+            diagnostics={"width_key": width_key},
+        )
+    width_m = float(params.get("width_m", static.get(width_key)))
+    bed_m = float(params.get(bed_key, static.get(bed_key, FALLBACK_BED_M)))
     if width_m <= 0.0:
         return CriterionResult(
             name="froude_subcritical",
@@ -206,7 +225,11 @@ def froude_subcritical(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
     scored = deep_enough & (q > 0.0)
     n_scored = int(scored.sum())
 
-    if n == 0 or n_scored / n < min_scored_fraction:
+    # `n_scored == 0` is checked rather than left to the fraction: a probe that
+    # sets `min_scored_fraction` to zero to turn the floor off makes `0/x < 0`
+    # false, and the shares below would then divide by zero and raise instead of
+    # returning a result — an ERROR row for what is really a dry record.
+    if n == 0 or n_scored == 0 or n_scored / n < min_scored_fraction:
         return CriterionResult(
             name="froude_subcritical",
             status=FAIL,
@@ -234,24 +257,37 @@ def froude_subcritical(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
     median_fr = float(np.median(fr[scored]))
 
     ok = fraction <= max_fraction
+    # The share is reported in both branches, and the "every scored step" claim
+    # is only made when it is true: `max_exceed_fraction` is a knob a future case
+    # can raise, and a message archived in the result column must not state the
+    # opposite of what was measured.
+    if n_exceed == 0:
+        detail = (
+            f"the reach stays subcritical on every scored step "
+            f"({n_scored} steps, worst Fr {worst:.3f}, median {median_fr:.3f}, "
+            f"limit {limit:.2f})"
+        )
+    elif ok:
+        detail = (
+            f"the reach goes supercritical on {fraction:.1%} of scored steps "
+            f"({n_exceed} of {n_scored}, worst Fr {worst:.3f}, median "
+            f"{median_fr:.3f}, limit {limit:.2f}), within the "
+            f"{max_fraction:.1%} this probe allows"
+        )
+    else:
+        detail = (
+            f"the reach goes supercritical on {fraction:.1%} of scored steps "
+            f"({n_exceed} of {n_scored}, worst Fr {worst:.3f}, median "
+            f"{median_fr:.3f}, limit {limit:.2f}, allowed {max_fraction:.1%}); a "
+            "mild-sloped reach cannot carry Fr > 1, so the stage and the "
+            "discharge it reports are not two readings of the same cross-section"
+        )
     return CriterionResult(
         name="froude_subcritical",
         status=PASS if ok else FAIL,
         value=fraction,
         threshold=max_fraction,
-        message=(
-            f"the reach stays subcritical on every scored step "
-            f"({n_scored} steps, worst Fr {worst:.3f}, median {median_fr:.3f}, "
-            f"limit {limit:.2f})"
-            if ok
-            else (
-                f"the reach goes supercritical on {fraction:.1%} of scored steps "
-                f"({n_exceed} of {n_scored}, worst Fr {worst:.3f}, limit "
-                f"{limit:.2f}); a mild-sloped reach cannot carry Fr > 1, so the "
-                f"stage and the discharge it reports are not two readings of "
-                f"the same cross-section"
-            )
-        ),
+        message=detail,
         diagnostics={
             "discharge_source": q_source,
             "width_m": width_m,

@@ -30,6 +30,7 @@ uses_static:
   - area_km2
   - main_channel_length_km
   - centroid_channel_length_km
+  - width_m
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

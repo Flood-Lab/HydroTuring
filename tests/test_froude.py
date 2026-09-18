@@ -295,3 +295,50 @@ def test_a_reach_with_no_width_is_not_a_pass():
     result = FROUDE(build(), None, {"width_m": 0.0})
     assert result.status == FAIL
     assert "width" in result.message
+
+
+def test_a_case_that_declares_no_width_is_not_scored_in_an_invented_one():
+    """The section is the case's to declare; with none there is nothing to read.
+
+    Falling back to a width would score every model in a channel no case ever
+    declared, and the message would name a number that appears nowhere in the
+    run — which the archive cannot tell apart from a real violation.
+    """
+    run = build()
+    del run.case.static["width_m"]
+    result = FROUDE(run, None, {})
+    assert result.status == FAIL
+    assert "width_m" in result.message
+    assert "invent" not in result.message  # it names the missing key, not a width
+
+
+def test_turning_the_scored_floor_off_does_not_divide_by_zero():
+    """`min_scored_fraction: 0.0` is how a probe disables the floor.
+
+    `0 / n < 0.0` is False, so a guard that only tests the fraction falls
+    through to `n_exceed / n_scored` with no scored steps and raises — an
+    ERROR row for a broken adapter, when the cause is a dry record.
+    """
+    q = np.full(400, 0.0)
+    result = FROUDE(build(q=q, stage=0.0), None, {"min_scored_fraction": 0.0})
+    assert result.status == FAIL
+    assert result.diagnostics["scored_steps"] == 0
+    assert "degenerate" in result.message
+
+
+def test_a_lenient_limit_does_not_report_that_no_step_was_supercritical():
+    """The sentence is archived, so it may not state the opposite of the record.
+
+    `max_exceed_fraction` is a knob a future case can raise, and the message
+    has to carry the share in the passing branch too — otherwise a model that
+    went supercritical on 5% of steps is recorded as having gone supercritical
+    on none.
+    """
+    q = np.linspace(1.0, 50.0, 400)
+    stage = manning_depth(q)
+    stage[200:] = 0.10  # the second half is pinned
+    result = FROUDE(build(q=q, stage=stage), None, {"max_exceed_fraction": 0.6})
+    assert result.status == PASS
+    assert result.diagnostics["exceeding_steps"] > 0
+    assert "every scored step" not in result.message
+    assert "supercritical" in result.message

@@ -24,6 +24,10 @@ emits:
   states: [mrso, snw, canopy, gw, channel]
   diagnostics: [stage]
 needs_forcing: [pr, tas, pet]
+# Optional: the adapter reads `width_m` (and the other reach keys) for its
+# normal-depth stage whenever the case declares them. Declared so that a probe
+# whose verdict rests on the case's cross-section can score this model.
+uses_static: [width_m]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

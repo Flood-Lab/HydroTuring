@@ -27,4 +27,7 @@ supports:
 resources: {cpu: 1, memory_gb: 1, gpu: false}
 
 # Existing adapter mappings; no change to model equations.
-uses_static: [soil_capacity_mm, canopy_capacity_mm]
+# `width_m` is here for the same reason as the capacities: the adapter reads it
+# whenever the case declares it, and a probe that scores the stage against the
+# case's cross-section must be able to see that this model does.
+uses_static: [soil_capacity_mm, canopy_capacity_mm, width_m]

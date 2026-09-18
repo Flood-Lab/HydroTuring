@@ -69,9 +69,14 @@ SECONDS_PER_DAY = 86400.0
 # most of the record rather than at one marginal step.
 RATING_WIDTH_FACTOR = 5.0
 
-DEFAULT_WIDTH_M = 0.0
-DEFAULT_SLOPE = 0.0
-DEFAULT_MANNING_N = 0.03
+# `reference_bucket`'s own fallbacks, so that the width factor is the only
+# difference between the two models on every case, including the ones that
+# declare no reach geometry. A different default here would make this model
+# degenerate (a zero width gives zero depth at every step) rather than subtly
+# wrong, which is the shape the docstring says it deliberately avoids.
+DEFAULT_WIDTH_M = 18.0
+DEFAULT_SLOPE = 0.0015
+DEFAULT_MANNING_N = 0.035
 
 # Steps the contract can name, as a fraction of a day. Forcing and reported
 # fluxes are rates in mm per day at every step; the depth moved in one step
@@ -108,7 +113,7 @@ def _manning(flow_rate_mm_day: float, static: dict) -> float:
     width_m = float(static.get("width_m", DEFAULT_WIDTH_M)) * RATING_WIDTH_FACTOR
     slope = float(static.get("slope", DEFAULT_SLOPE))
     manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
-    if area_km2 <= 0.0 or width_m <= 0.0 or slope <= 0.0 or manning_n <= 0.0:
+    if area_km2 <= 0.0 or width_m <= 0.0 or slope <= 0.0:
         return 0.0
     q_m3s = max(flow_rate_mm_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
     if q_m3s <= 0.0:
