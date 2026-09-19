@@ -1,8 +1,6 @@
 # ---------------------------------------------------------------------------
-# HydroTuring probe proposal
-#
-# This file follows templates/probe.template.yaml and proposes a reach-indexed
-# routing output contract. The contract, criteria, references, and extension
+# This file proposes a reach-indexed routing output contract. 
+# The contract, criteria, references, and extension
 # of the existing wflow_sbm adapter must land before this probe can gate.
 # ---------------------------------------------------------------------------
 
