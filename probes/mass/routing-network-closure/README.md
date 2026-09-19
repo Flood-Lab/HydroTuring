@@ -1,5 +1,5 @@
 # mass/routing-network-closure
-Reach-by-reach mass closure in a branching network
+Reach-by-reach mass closure in a branching network.
 
 ## What it asserts
 
