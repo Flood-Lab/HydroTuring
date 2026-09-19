@@ -295,6 +295,11 @@ The reference models available today:
 | `reference_sublimating` | loses 40% of every snowfall unreported | `phase_invariance` |
 | `reference_thirsty` | evaporates a fixed share of its soil store whatever the demand | `demand_consistency` |
 | `reference_stuck_router` | a routing kernel summing to 0.9 | `routing_conservation` |
+| `reference_driven_exchange` | a head-driven boundary exchange against a constant catchment head; must pass `mass/exchange-response` | nothing, it must pass |
+| `reference_evolving_exchange` | the same boundary against a catchment head that moves, five-day time constant; must pass | nothing, it must pass |
+| `reference_recharge_exchange` | the evolving boundary on a losing catchment that drains half its runoff through it, storativity 1 mm/m; must pass | nothing, it must pass |
+| `reference_noise_sink` | declares the prescribed head and never reads it; its exchange is the day's accounting error | `exchange_response` |
+| `reference_token_exchange` | the noise sink plus a head term a million times too small to be anything but a token | `exchange_response` |
 | `reference_leaky_router` | the same kernel summing to 0.999, so a tenth of a percent of each day's runoff stays in the channel | `routing_conservation` |
 | `reference_snyder_router` | consumes public catchment geometry and routes rain with a conservative triangular unit hydrograph whose peak follows the duration-corrected Snyder lag from the excess-rainfall centroid | nothing, it must pass the routing-lag probe |
 | `reference_instant_router` | accepts the geometry but returns runoff in the rainfall row at every scale | `lag_time_bounds` |

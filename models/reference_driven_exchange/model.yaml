@@ -1,0 +1,27 @@
+name: reference_driven_exchange
+version: "1.0.0"
+description: >
+  The exact bucket with a boundary exchange driven by the external head the
+  case prescribes: the flux is proportional to the difference between the
+  `gwh` forcing column and a fixed catchment reference head, so the catchment
+  gains water when the external head stands above its own and loses it when
+  the head falls below. It reads the driver, declares that it does, and follows
+  it. It is the positive control for mass/exchange-response, and exists to
+  exercise the one distinction the probe makes: the prescribed head oscillates
+  inside the rainless windows, so this exchange reverses direction there — as
+  often as the head crosses its mean and no more — and it must pass. A control
+  whose exchange happened to be one-signed where it is scored would show
+  nothing.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [pr, evspsbl, mrro, gwex]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet]
+uses_forcing: [gwh]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

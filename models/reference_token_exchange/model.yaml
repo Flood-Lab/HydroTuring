@@ -1,0 +1,24 @@
+name: reference_token_exchange
+version: "1.0.0"
+description: >
+  reference_noise_sink with one line added: a head-driven trickle a million
+  times weaker than the positive controls, folded into the declared exchange
+  and into the soil so the budget still closes exactly. The declared exchange
+  is still the day's accounting error; the trickle answers the prescribed head
+  with the right sign, so a gate asking only for a signed response passes it.
+  It is caught because its response is a millionth of its own gross exchange,
+  where a genuinely head-driven exchange answers with at least a physically
+  bounded share of its gross movement, whatever its conductance.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [pr, evspsbl, mrro, gwex]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet]
+uses_forcing: [gwh]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
