@@ -71,8 +71,7 @@ For A and B, `q_in` is the external inflow actually accepted by the routing
 component and must reproduce the prescribed `q_in_A` and `q_in_B` within
 
 ```text
-abs(q_reported - q_forcing)
-<= 1e-9 m3/s + 1e-6 * abs(q_forcing).
+abs(q_reported - q_forcing) <= 1e-9 m3/s + 1e-6 * abs(q_forcing).
 ```
 
 For C, `q_in` is the routing component's independently reported upstream
