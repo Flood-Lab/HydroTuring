@@ -1,11 +1,10 @@
-name: reference_bucket
+name: reference_snowless
 version: "1.0.0"
 description: >
-  Conceptual bucket model that conserves water exactly by construction. It is
-  the physical baseline every mass probe must pass. If a probe ever fails this
-  model, the probe's tolerance has drifted past what exact physics achieves,
-  and the probe is wrong rather than the model.
-authors: ["HydroTuring maintainers"]
+  Deliberately degenerate snow model. It stores no snow and passes all
+  precipitation immediately to the ground. Its snowpack budget closes
+  algebraically, but it never develops a snowpack.
+authors: ["Jinlong Hu"]
 license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]

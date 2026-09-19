@@ -268,7 +268,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <path d="M281 56 l6 -8 l6 8 a6 6 0 1 1 -12 0 z" fill="var(--accent)"/>
       <text x="296" y="67" class="brand">HydroTuring</text>
       <text x="417" y="86" class="note" data-i18n="infra.ht.sub" text-anchor="middle">does it conserve what physics says it must?</text>
-      <rect x="272" y="100" width="92" height="250" rx="6" fill="var(--surface-2)"/>
+      <rect x="272" y="100" width="92" height="270" rx="6" fill="var(--surface-2)"/>
       <text x="318" y="121" class="pillar" data-i18n="infra.mass" text-anchor="middle">MASS</text>
       <text x="318" y="138" class="note" data-i18n="infra.mass.s1" text-anchor="middle">water budget</text>
       <text x="318" y="151" class="note" data-i18n="infra.mass.s2" text-anchor="middle">closes</text>
@@ -311,6 +311,8 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <text x="296" y="343.00" class="probe" data-i18n="infra.probe.abstraction">withdrawal</text>
       <circle cx="288" cy="349.50" r="2.4" fill="var(--pass)"/>
       <text x="296" y="353.00" class="probe" data-i18n="infra.probe.gwexchange">gw exchange</text>
+      <circle cx="288" cy="359.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="363.00" class="probe" data-i18n="infra.probe.snowpack">snowpack</text>
       <rect x="372" y="100" width="92" height="250" rx="6" fill="var(--surface-2)"/>
       <text x="418" y="121" class="pillar" data-i18n="infra.energy" text-anchor="middle">ENERGY</text>
       <text x="418" y="138" class="note" data-i18n="infra.energy.s1" text-anchor="middle">energy budget</text>
@@ -648,6 +650,7 @@ en: {
   "infra.probe.timeorigin":"time origin",
   "infra.probe.rainladder":"rain ±20%",
   "infra.probe.abstraction":"withdrawal",
+  "infra.probe.snowpack":"snowpack",
   "infra.probe.ungauged":"ungauged",
   "infra.probe.gwexchange":"gw exchange",
   "infra.probe.pet":"PET demand",
@@ -711,7 +714,7 @@ en: {
 <tr><td class="mono">modflow6</td><td>submitted</td><td>MODFLOW 6.7.0, the USGS's modular groundwater model: a transient one-river-cell aquifer run through flopy, reporting signed exchange and groundwater storage from its own RIV and STO budget terms.</td><td>1 / 1</td><td><span class="tag merged">PASS</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>physical</td><td>Lumped FLEX/HBV from chrimerss/HydrologicModels: interception, beta-partitioned soil, fast and slow reservoirs, a geometry-aware lag.</td><td>22 / 22</td><td><span class="tag merged">PASS</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>physical</td><td>FLEX-Topo: plateau, hillslope and wetland units on the Wark catchment's real fractions, sharing one groundwater store.</td><td>21 / 21</td><td><span class="tag merged">PASS</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>21 / 21</td><td><span class="tag merged">PASS</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>22 / 22</td><td><span class="tag merged">PASS</span></td></tr>
 `,
   "probes.h":"The probes",
   "probes.intro":"<p>Every probe in the suite, and every one the roadmap is waiting for. A merged probe is in the repository and passes the acceptance gate against the reference models. A wanted probe is named, unclaimed, and yours to take.</p>",
@@ -747,7 +750,7 @@ en: {
 <tr><td class="mono">momentum/routing-conservation</td><td>momentum</td><td>The channel store is never negative and never holds more than its hydrograph can.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>momentum</td><td>Under the same one-day storm, runoff peak lag must match the Snyder-Hack geometric timescale and grow with basin scale.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>mass</td><td>Event water budgets under overlapping storms targeting synthetic 100-year rainfall depths.</td><td><span class="tag merged">merged</span></td></tr>
-<tr><td class="mono">mass/snowpack-mass-closure</td><td>mass</td><td>Snowfall minus melt minus sublimation minus the change in snow water.</td><td><span class="tag wanted">wanted</span></td></tr>
+<tr><td class="mono">mass/snowpack-mass-closure</td><td>mass</td><td>Precipitation minus snow-module liquid outflow and sublimation must match the change in snow water storage within each snow regime.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>mass</td><td>Fifty years of repeated warm weather: total reported storage must not keep drifting.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/routing-network-closure</td><td>mass</td><td>A branching network: mass must close reach by reach.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">energy/snowpack-cold-content</td><td>energy</td><td>The full snowpack energy budget, cold content and phase change included.</td><td><span class="tag wanted">wanted</span></td></tr>
@@ -864,6 +867,7 @@ es: {
   "infra.probe.timeorigin":"año inicial",
   "infra.probe.rainladder":"lluvia ±20%",
   "infra.probe.abstraction":"extracción",
+  "infra.probe.snowpack":"manto nival",
   "infra.probe.ungauged":"sin aforo",
   "infra.probe.gwexchange":"intercambio subt.",
   "infra.probe.pet":"demanda",
@@ -927,7 +931,7 @@ es: {
 <tr><td class="mono">modflow6</td><td>enviado</td><td>MODFLOW 6.7.0, el modelo modular de agua subterránea del USGS: un acuífero transitorio de una celda de río ejecutado con flopy, que reporta el intercambio señalado y el almacenamiento subterráneo a partir de sus propios términos de balance RIV y STO.</td><td>1 / 1</td><td><span class="tag merged">PASA</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>físico</td><td>FLEX/HBV agregado de chrimerss/HydrologicModels: intercepción, suelo con partición beta, embalses rápido y lento, un retardo basado en la geometría.</td><td>22 / 22</td><td><span class="tag merged">PASA</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>físico</td><td>FLEX-Topo: unidades de meseta, ladera y humedal con las fracciones reales de la cuenca Wark, un solo almacén subterráneo.</td><td>21 / 21</td><td><span class="tag merged">PASA</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>21 / 21</td><td><span class="tag merged">PASA</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>22 / 22</td><td><span class="tag merged">PASA</span></td></tr>
 `,
   "probes.h":"Las pruebas",
   "probes.intro":"<p>Todas las pruebas de la batería, y todas las que la hoja de ruta espera. Una prueba integrada está en el repositorio y supera la compuerta de aceptación frente a los modelos de referencia. Una prueba que se busca tiene nombre, nadie la ha reclamado, y es tuya si la tomas.</p>",
@@ -963,7 +967,7 @@ es: {
 <tr><td class="mono">momentum/routing-conservation</td><td>momento</td><td>El almacén del cauce nunca es negativo ni retiene más de lo que cabe en su hidrograma.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>momento</td><td>Ante la misma tormenta de un día, el retardo del pico de escorrentía debe ajustarse a la escala temporal geométrica de Snyder-Hack y aumentar con la escala de la cuenca.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>masa</td><td>Balances de agua por evento bajo tormentas superpuestas con objetivos sintéticos de lluvia de 100 años.</td><td><span class="tag merged">integrada</span></td></tr>
-<tr><td class="mono">mass/snowpack-mass-closure</td><td>masa</td><td>Nevada menos deshielo menos sublimación menos el cambio de agua en la nieve.</td><td><span class="tag wanted">se busca</span></td></tr>
+<tr><td class="mono">mass/snowpack-mass-closure</td><td>masa</td><td>La precipitación menos la salida líquida del módulo de nieve y la sublimación debe coincidir con el cambio en el almacenamiento de agua en la nieve dentro de cada régimen nival.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>masa</td><td>Cincuenta años de clima repetido: el almacenamiento total reportado no debe seguir derivando.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/routing-network-closure</td><td>masa</td><td>Una red ramificada: la masa debe cerrar tramo a tramo.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">energy/snowpack-cold-content</td><td>energía</td><td>El balance energético completo del manto de nieve, con contenido frío y cambio de fase.</td><td><span class="tag wanted">se busca</span></td></tr>
@@ -1080,6 +1084,7 @@ zh: {
   "infra.probe.timeorigin":"时间起点",
   "infra.probe.rainladder":"降水 ±20%",
   "infra.probe.abstraction":"取水",
+  "infra.probe.snowpack":"积雪收支",
   "infra.probe.ungauged":"无资料",
   "infra.probe.gwexchange":"地下水交换",
   "infra.probe.pet":"蒸散需求",
@@ -1143,7 +1148,7 @@ zh: {
 <tr><td class="mono">modflow6</td><td>提交模型</td><td>MODFLOW 6.7.0，美国地质调查局的模块化地下水模型：通过 flopy 运行的单河流网格瞬态含水层，依据其自身的 RIV 与 STO 收支项报告带符号交换量与地下水储量。</td><td>1 / 1</td><td><span class="tag merged">通过</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>物理模型</td><td>来自 chrimerss/HydrologicModels 的集总 FLEX/HBV：截留、beta 分配的土壤、快慢水库与基于几何的滞时。</td><td>22 / 22</td><td><span class="tag merged">通过</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>物理模型</td><td>FLEX-Topo：台地、坡地与湿地单元按 Wark 流域的真实面积比共享一个地下水库。</td><td>21 / 21</td><td><span class="tag merged">通过</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>21 / 21</td><td><span class="tag merged">通过</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>22 / 22</td><td><span class="tag merged">通过</span></td></tr>
 `,
   "probes.h":"检验项一览",
   "probes.intro":"<p>套件中的每一项检验，以及路线图正在等待的每一项。已合并的检验项已在仓库中，并在参照模型上通过验收闸门。征集中的检验项已有名字、尚无人认领，欢迎认领。</p>",
@@ -1179,7 +1184,7 @@ zh: {
 <tr><td class="mono">momentum/routing-conservation</td><td>动量</td><td>河道蓄水永不为负，也永不超过其单位线所能容纳的量。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>动量</td><td>在同一场单日暴雨下，径流峰值时滞必须符合 Snyder-Hack 几何时间尺度，并随流域尺度增大。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>质量</td><td>叠加降雨以超过合成气候的百年一遇雨量阈值，逐事件检查水量闭合。</td><td><span class="tag merged">已合入</span></td></tr>
-<tr><td class="mono">mass/snowpack-mass-closure</td><td>质量</td><td>降雪减融雪减升华减雪水当量变化。</td><td><span class="tag wanted">征集中</span></td></tr>
+<tr><td class="mono">mass/snowpack-mass-closure</td><td>质量</td><td>各积雪阶段内，降水减去雪模块液态出流和升华后，必须与雪水储量变化一致。</td><td><span class="tag merged">已合入</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>质量</td><td>五十年重复暖天气：报告的总蓄水不得持续漂移。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/routing-network-closure</td><td>质量</td><td>分叉河网：质量须逐河段闭合。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">energy/snowpack-cold-content</td><td>能量</td><td>完整的积雪能量收支，含冷储量与相变。</td><td><span class="tag wanted">征集中</span></td></tr>

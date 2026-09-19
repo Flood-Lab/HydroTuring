@@ -10,12 +10,27 @@ import json
 import sys
 from pathlib import Path
 
-COLUMNS = ["time", "pr", "snm", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "channel", "stage"]
+COLUMNS = [
+    "time",
+    "pr",
+    "snm",
+    "evspsbl",
+    "mrro",
+    "dis",
+    "gwex",
+    "mrso",
+    "snw",
+    "canopy",
+    "channel",
+    "stage",
+]
 
-MODEL = {"name": "reference_bucket", "version": "1.0.0"}
+MODEL = {"name": "reference_snowless", "version": "1.0.0"}
 
 
-EVAP_SHAPE = 0.5  # soil moisture at which evaporation reaches its potential rate
+EVAP_SHAPE = (
+    0.5  # soil moisture at which evaporation reaches its potential rate
+)
 
 SECONDS_PER_DAY = 86400.0
 
@@ -63,10 +78,12 @@ def _manning(flow_rate_mm_day: float, static: dict) -> float:
     manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
     if area_km2 <= 0.0 or width_m <= 0.0 or slope <= 0.0:
         return 0.0
-    q_m3s = max(flow_rate_mm_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
+    q_m3s = (
+        max(flow_rate_mm_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
+    )
     if q_m3s <= 0.0:
         return 0.0
-    return (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
+    return (q_m3s * manning_n / (width_m * slope**0.5)) ** 0.6
 
 
 def discharge_m3s(runoff_rate_mm_day: float, static: dict) -> float:
@@ -77,7 +94,9 @@ def discharge_m3s(runoff_rate_mm_day: float, static: dict) -> float:
     discharge rather than against a store that is identically zero.
     """
     area_km2 = float(static.get("area_km2", 0.0))
-    return max(runoff_rate_mm_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
+    return (
+        max(runoff_rate_mm_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
+    )
 
 
 def simulate(forcing, static, dt_days=1.0):
@@ -121,14 +140,11 @@ def simulate(forcing, static, dt_days=1.0):
         removed = min(soil, want)
         soil -= removed
 
-        snowfall = pr if tas < t_snow else 0.0
-        rain = 0.0 if tas < t_snow else pr
+        # Deliberate trivial solution: the snow module stores nothing and passes all
+        # precipitation directly to the ground.
+        swe = 0.0
+        water_in = pr
 
-        swe += snowfall
-        melt = min(swe, ddf * max(tas - t_snow, 0.0) * dt_days)
-        swe -= melt
-
-        water_in = rain + melt
         intercepted = min(canopy_cap - canopy, water_in)
         canopy += intercepted
         throughfall = water_in - intercepted
@@ -142,7 +158,9 @@ def simulate(forcing, static, dt_days=1.0):
         soil -= surface
         baseflow = k_base * soil * dt_days
         soil -= baseflow
-        soil_evap = min(soil, pet_left * min(1.0, soil / (EVAP_SHAPE * soil_cap)))
+        soil_evap = min(
+            soil, pet_left * min(1.0, soil / (EVAP_SHAPE * soil_cap))
+        )
         soil -= soil_evap
 
         # The human term, second call: the day's outflow.
@@ -156,24 +174,27 @@ def simulate(forcing, static, dt_days=1.0):
         removed += divert
 
         runoff = (surface + baseflow) / dt_days
-        rows.append({
-            "time": step["time"],
-            "pr": pr_rate,
-            "evspsbl": (canopy_evap + soil_evap) / dt_days,
-            "snm": water_in / dt_days,
-            "mrro": runoff,
-            "dis": discharge_m3s(runoff, static),
-            "gwex": -removed / dt_days,
-            "mrso": soil,
-            "snw": swe,
-            "canopy": canopy,
-            # Runoff leaves the stores and the catchment in the same step: no
-            # routing, so the water in transit is identically zero. Reported,
-            # not omitted, because it is a statement about the model.
-            "channel": 0.0,
-            "stage": stage_of(runoff, static),
-        })
+        rows.append(
+            {
+                "time": step["time"],
+                "pr": pr_rate,
+                "evspsbl": (canopy_evap + soil_evap) / dt_days,
+                "snm": water_in / dt_days,
+                "mrro": runoff,
+                "dis": discharge_m3s(runoff, static),
+                "gwex": -removed / dt_days,
+                "mrso": soil,
+                "snw": swe,
+                "canopy": canopy,
+                # Runoff leaves the stores and the catchment in the same step: no
+                # routing, so the water in transit is identically zero. Reported,
+                # not omitted, because it is a statement about the model.
+                "channel": 0.0,
+                "stage": stage_of(runoff, static),
+            }
+        )
     return rows
+
 
 def read_request(path: Path) -> tuple[dict, Path]:
     request = json.loads(path.read_text())
@@ -215,7 +236,9 @@ def main() -> int:
 
     write_result(io_dir / request["output"]["table"], rows)
     (io_dir / request["output"]["run"]).write_text(
-        json.dumps({"status": "ok", "model": MODEL, "n_steps": len(rows)}, indent=2)
+        json.dumps(
+            {"status": "ok", "model": MODEL, "n_steps": len(rows)}, indent=2
+        )
     )
     return 0
 

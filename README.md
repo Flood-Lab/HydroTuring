@@ -77,12 +77,12 @@ every probe that can ask them anything; six of the seven energy probes and
 the groundwater-exchange probe need outputs they do not report and are not
 scored for them. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Twelve of the twenty-nine require no model output
+with any probe pull request. Twelve of the thirty require no model output
 beyond runoff. That output-only count includes `momentum/routing-lag-consistency`,
 which is eligible only when the model also declares that it consumes `pr` and
 the three geometry inputs `area_km2`, `main_channel_length_km` and
 `centroid_channel_length_km`. `ht list` prints the probes;
-[ROADMAP.md](ROADMAP.md#probes-we-want) has the six more we want, all
+[ROADMAP.md](ROADMAP.md#probes-we-want) has the five more we want, all
 unclaimed.
 
 | Probe | Law | What it asks | The broken model it catches |
@@ -105,6 +105,7 @@ unclaimed.
 | [`mass/time-origin-invariance`](probes/mass/time-origin-invariance) | mass | The same weather under a 28-year calendar shift that preserves seasons and leap days: evaporation, runoff and water stores must agree. | `reference_calendar`, `reference_degenerate`, `reference_leaky` |
 | [`mass/precipitation-counterfactual`](probes/mass/precipitation-counterfactual) | mass | The same seed 20% wetter, 10% wetter and 20% drier: the water added or removed must be partitioned among evaporation, runoff and storage, and runoff must rise from drier to wetter. | `reference_cheater`, `reference_leaky`, `reference_degenerate` |
 | [`mass/human-abstraction`](probes/mass/human-abstraction) | mass | A prescribed net irrigation withdrawal must leave the budget: the same weather run with and without it, and the difference must account for exactly the abstracted volume. | `reference_abstraction_blind`, `reference_leaky` |
+| [`mass/snowpack-mass-closure`](probes/mass/snowpack-mass-closure) | mass | Does the internal snowpack water balance close across accumulation, storage and melt without stage cancellation? | `reference_snow_bypass`, `reference_snowless` |
 | [`mass/gw-sw-exchange-consistency`](probes/mass/gw-sw-exchange-consistency) | mass | A model reporting groundwater-river exchange: do recharge, the net exchange (`gw_sw_exchange`, distinct from `gwex`) and the two signed directional components, and aquifer storage all agree? | `reference_exchange_sign_error` |
 | [`energy/pet-consistency`](probes/energy/pet-consistency) | energy | Evaporation reaches demand when the model's own soil is wettest, stays below it, and falls when the soil is driest. | `reference_thirsty` |
 | [`energy/latent-heat-et-consistency`](probes/energy/latent-heat-et-consistency) | energy | The evaporation a model reports as water and the evaporation implied by the latent heat it reports: are they the same evaporation? | `reference_two_head`, `reference_constant_lambda`, `reference_sublimation_blind`, `reference_energy_leak` |
@@ -167,7 +168,7 @@ the probe cannot ask the declared model interface this question.
 | `reference_exchange_exact` | exact | a lagged-head bookkeeping reference that closes its own groundwater balance exactly and reports genuinely bidirectional exchange | must pass `mass/gw-sw-exchange-consistency`, the only probe that can ask it anything |
 | [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, geometry-aware triangular lag | must pass every probe that can ask it anything; **PASS**, 22 of 22 |
 | [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 21 of 21 |
-| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 21 of 21 |
+| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 22 of 22 |
 | `reference_coupled` | exact | the bucket with snow sublimation and a surface energy budget: every kilogram converted at the latent heat of the phase it actually underwent | must pass every criterion of the three energy-flux probes; supports daily and hourly steps |
 | `reference_snow_energy` | exact | an energy-balance snowpack: melt bought with `max(0, Rn - H - LE - G) / lambda_f`, liquid held in the pore space and reported as `lwsnl`, cold content carried as an energy deficit and reported as `csnow` | must pass every criterion of `energy/snowmelt-energy-water`; supports daily and hourly steps |
 | `reference_degree_day` | broken | the same snowpack melted on air temperature through a degree-day factor, with a surface energy budget that closes around its evaporation alone, so nothing charges the fusion | caught by `melt_energy` |
@@ -204,6 +205,8 @@ the probe cannot ask the declared model interface this question.
 | `reference_area_leak` | broken | loses a share of runoff that grows with the area it is told | caught by `invariance` (area) |
 | `reference_overshooting` | broken | a derivative term sharpens its hydrograph, so an added storm lowers later flow | caught by `response_nonnegativity` |
 | `reference_sublimating` | broken | loses 40% of every snowfall to an unreported sublimation | caught by `phase_invariance` |
+| `reference_snow_bypass` | broken | sends 30% of snowfall directly to the soil around the snowpack, preserving the catchment balance while breaking the internal snowpack balance | caught by `closure` |
+| `reference_snowless` | broken | stores no snow and passes all precipitation through the snow module | caught by `snowpack_response` |
 | `reference_thirsty` | broken | evaporates a fixed share of its soil store, never reading demand; conserves water exactly | caught by `demand_consistency` |
 | `reference_stuck_router` | broken | a routing kernel summing to 0.9, so a tenth of every day's runoff never leaves the channel | caught by `routing_conservation` |
 | `reference_leaky_router` | broken | the same kernel summing to 0.999, so a tenth of a percent stays behind: the smallest leak that probe exists to catch, and the one its allowance is calibrated against | caught by `routing_conservation` |
