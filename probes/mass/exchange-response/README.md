@@ -112,7 +112,8 @@ No physical bound is claimed for the ratio. The variation has a floor of its
 own, set by how the throughput varies (about 54 mm here), while the response
 falls linearly with storativity, so a boundary of **very small storativity that
 also carries a strongly varying throughput** falls under `3e-4` eventually — on
-this catchment at about `S = 0.03 mm/m`, a thirtieth of the confined top. That
+this catchment at `S = 0.03 mm/m`, a thirtieth of the confined top, where three
+of five gate seeds pass (5/5 at 0.05, 0/5 at 0.02, checked independently). That
 is a named class of false FAIL, and it belongs here rather than in the cheat
 paragraph. It is far narrower than the class the gross floor excluded, and a
 model in it can be told from the cheat by its diagnostics — a response that is
@@ -249,9 +250,18 @@ that pins the normalisation: a share of the gross fails it on every seed and a
 share of the variation does not.
 
 The floor of `3e-4` is set from the storativity sweep above: three times under
-the value at `S = 0.1 mm/m`, three hundred times above the token cheat. The
-noise sink's variation is larger than its gross because the accounting error
-changes sign almost every day.
+the value at `S = 0.1 mm/m`. Over a wider draw — the five gate seeds plus seeds
+0–99, 105 paired runs per control, run independently at review — the margins
+are a little narrower than the gate seeds alone suggest and are the figures to
+quote: `reference_recharge_exchange` spans **3.95e-3 to 1.36e-2** (minimum 13×
+above the floor), `reference_token_exchange` **1.02e-6 to 1.24e-6** (floor 242×
+above it), `reference_evolving_exchange` is 1.076e-2 to four figures on every
+seed since the weather does not enter it, and nothing lands on the wrong side
+on any seed. The floor sits about four times above the geometric centre of that
+gap, spending margin against the cheat to buy room for honest low-storativity
+boundaries; for a conservation benchmark a false FAIL of a model that closes its
+budget exactly is the more damaging error. The noise sink's variation is larger
+than its gross because the accounting error changes sign almost every day.
 
 ### A finding from building it: the nominal term is not the applied term
 

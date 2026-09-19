@@ -90,6 +90,14 @@ set three times under the smallest storativity in the usual confined range
 and three hundred times above the cheat; the sweep and the excluded class
 are in the README.
 
+A note on the step. The variation is taken on per-step depths, so for a
+smooth exchange it scales with the step length while the response does not:
+the bar drops roughly 24-fold from a daily to an hourly step. The calibration
+above is a daily number. Today the case pins PT1D and no variant runs at
+another step; a future case at a finer step would need the floor re-derived
+at that step, and the direction of the drift is lenient rather than the
+false-FAIL kind.
+
 What the share does not close. A model whose declared `gwex` mixes a genuine
 head-driven part with a large, strongly varying unrelated one has a variation
 that the unrelated part inflates and a share that is honest but small. Such a
@@ -311,7 +319,11 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
     # docstring), so a weak or a busy boundary is not penalised for being
     # either; a token head term on top of an accounting sink is.
     required = max(share * variation, epsilon * max(gross, 1.0))
-    response_share = (min(up, -down) / variation) if variation > 0 else float("inf")
+    # A constant exchange has no variation; the bar then falls back to the
+    # floating-point epsilon, which a zero response cannot clear, so the case
+    # is judged and not bypassed. The share is left undefined rather than
+    # infinite so the report stays valid JSON.
+    response_share = (min(up, -down) / variation) if variation > 0 else None
 
     diagnostics = {
         "driver": driver,
@@ -374,12 +386,12 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
         name="exchange_response",
         status=PASS if ok else FAIL,
         value=response_share,
-        threshold=share,
+        threshold=share if response_share is not None else None,
         message=(
             f"the declared exchange answers the prescribed head: {up:+.4g} mm over "
             f"the record with it raised {shift_up:+.1f} m, {down:+.4g} mm with it "
-            f"lowered, {response_share:.3g} of the {variation:.0f} mm its exchange moves "
-            f"(required {share:g}); stays available"
+            f"lowered, {(f'{response_share:.3g} of' if response_share is not None else 'against')} "
+            f"the {variation:.0f} mm its exchange moves (required {share:g}); stays available"
             if ok else "; ".join(failures)
         ),
         diagnostics=diagnostics,
