@@ -53,13 +53,19 @@ gross movement of the control run,
 G     = Σ_t gwex_t · Δt                  [mm]
 TV(g) = Σ_t |gwex_t − gwex_{t−1}| · Δt   [mm, the control run's total variation]
 
-G(raised)  − G(control)  >=  +max(s · TV(g), ε)
-G(lowered) − G(control)  <=  −max(s · TV(g), ε)      s = 3e-4,  ε = 1e-8 · max(G_gross, 1 mm)
+G_gross = Σ_t |gwex_t| · Δt              [mm, the control run's gross exchange]
+
+G(raised)  − G(control)  >=  +max(s · TV(g), g · G_gross, ε)
+G(lowered) − G(control)  <=  −max(s · TV(g), g · G_gross, ε)
+
+s = 3e-4,   g = 1e-5,   ε = 1e-8 · max(G_gross, 1 mm)
 ```
 
 Raising the external head must bring more water in, and lowering it less, **by
 at least a small share of how much the exchange the model itself declared moves
-from day to day.** `ε` is for floating point and nothing else.
+from day to day, and by a much smaller share of how much it moves in total.**
+`ε` is for floating point and nothing else. Why the second, small share of the
+gross is there is in *Why a steady sink needs the gross back* below.
 
 ### Why a share, and why of the variation
 
@@ -106,19 +112,47 @@ at **1.1e-6**, three hundred times under the floor, because its variation is
 the accounting error's, which is large, and its response is the token's, which
 is not.
 
-### What the floor excludes
+### Why a steady sink needs the gross back
 
-No physical bound is claimed for the ratio. The variation has a floor of its
+A share of the variation alone has no bar for a *steady* unrelated part. The
+variation measures how much the declared exchange moves; a constant sink does
+not move, so it contributes nothing, and the only thing left moving the
+exchange is the token term itself. A token of any size then clears a share of
+its own movement. `reference_steady_sink` is that model: the noise cheat with
+its noise removed, overstating evaporation by a constant 0.3 mm/day — 1095 mm
+over the record, 13% of the rain — declared as a steady regional inflow, with
+the same millionth-scale head trickle on top. Under the variation floor alone
+it passed on 25 of 25 seeds while answering the head with **1.7e-6 of its gross
+exchange**, the same share as `reference_token_exchange`, which the probe does
+catch.
+
+So the bar is the larger of two shares, and the second is of the gross. The
+objection to a gross floor was that honest throughput inflates the gross; at
+`1e-5`, two orders of magnitude under the variation share, that objection does
+not bite anywhere the variation share has not already given up. Measured over
+25 seeds, adding it changes no honest control's verdict at any storativity in
+the sweep, including the copies at `S = 0.1` and `S = 0.05` where the variation
+share is closest to its floor, and it fails the steady sink on every seed. What
+it restores is a *finite* bound on the steady part of a declared exchange,
+which a share of the variation alone leaves at infinity.
+
+### What the floors exclude
+
+No physical bound is claimed for either ratio. The variation has a floor of its
 own, set by how the throughput varies (about 54 mm here), while the response
 falls linearly with storativity, so a boundary of **very small storativity that
-also carries a strongly varying throughput** falls under `3e-4` eventually — on
-this catchment at `S = 0.03 mm/m`, a thirtieth of the confined top, where three
-of five gate seeds pass (5/5 at 0.05, 0/5 at 0.02, checked independently). That
-is a named class of false FAIL, and it belongs here rather than in the cheat
-paragraph. It is far narrower than the class the gross floor excluded, and a
-model in it can be told from the cheat by its diagnostics — a response that is
-exactly `S·Δh` and a variation that is the recharge's — but the criterion does
-not make that call.
+also carries a strongly varying throughput** falls under the bar eventually — on
+this catchment below about `S = 0.05 mm/m`, a twentieth of the confined top,
+where 24 of 25 seeds pass; at `S = 0.1` all 25 pass, and at `S = 0.03` three of
+five gate seeds do. The boundary is a band rather than a line, and the first
+seed is lost a little above where the gate seeds alone would put it. That is a
+named class of false FAIL, and it belongs here rather than in the cheat
+paragraph. It is far narrower than the class a gross floor at `1e-3` excluded,
+and a model in it can be told from the cheat by its diagnostics — a response
+that is exactly `S·Δh` and a variation that is the recharge's — but the
+criterion does not make that call. The gross term at `1e-5` does not narrow
+this band: at `S = 0.05` the smallest response is still 1.2e-5 of the gross,
+and the seed that fails there fails on the variation.
 
 The other limit is the mixture: a `gwex` that combines a small head-driven
 part with a large, strongly varying unrelated one has a variation the unrelated
@@ -231,8 +265,9 @@ every submitted model in the repository decline it and are N/A.
 | `reference_driven_exchange` | **PASS** | **+3650** | **−3333 to −3447** | 1702 | 511 | 2.0 | **6.5–6.8** | 0.15 |
 | `reference_evolving_exchange` | **PASS** | **+5** | **−5** | 1474 | 465 | 3.4e-3 | **1.1e-2** | 0.14 |
 | `reference_recharge_exchange` | **PASS** | **+0.50** | **−0.34 to −0.44** | 1584–1767 | 52–66 | 2.0e-4 to 2.8e-4 | **5.4e-3 to 8.6e-3** | 0.016–0.020 |
-| `reference_noise_sink` | **FAIL** | 0 | 0 | 1124–1218 | 1589–1754 | 0 | **0** | 0.48–0.53 |
-| `reference_token_exchange` | **FAIL** | +0.0018 | −0.0018 | 1124–1218 | 1589–1754 | 1.5e-6 | **1.0e-6 to 1.1e-6** | 0.48–0.53 |
+| `reference_noise_sink` | **FAIL** | 0 | 0 | 1124–1218 | 1589–1754 | **0** | **0** | 0.48–0.53 |
+| `reference_token_exchange` | **FAIL** | +0.0018 | −0.0018 | 1124–1218 | 1589–1754 | **1.5e-6** | **1.0e-6 to 1.1e-6** | 0.48–0.53 |
+| `reference_steady_sink` | **FAIL** | +0.0018 | −0.0018 | 1095 | ~0 | **1.7e-6** | 7.1 | 0.011 |
 
 Three positive controls, because two were not enough. `reference_driven_exchange`
 holds its internal head constant and answers with a sustained flux, exactly
@@ -242,7 +277,10 @@ any floor, and on its own it hid both the spinup problem and the token escape.
 with `S = 10 mm/m` and a five-day time constant; it is in equilibrium when
 scoring begins and answers with `S·Δh = 5 mm` — the number a native MODFLOW run
 gave — and it is the control that fails if the shift begins during spinup.
-`reference_recharge_exchange` is the evolving boundary on a losing catchment,
+`reference_steady_sink` is the third cheat and the reason for the second term:
+its variation is essentially zero, so its share of the variation is 7.1 — the
+largest number in the table — and only its share of the gross, 1.7e-6, shows it
+for what it is. `reference_recharge_exchange` is the evolving boundary on a losing catchment,
 `S = 1 mm/m`, half the runoff recharging the aquifer and draining back out
 through the same boundary; its response is `S·Δh = 0.5 mm` against about
 1700 mm of throughput, exact and monotone in the head, and it is the control
@@ -291,7 +329,7 @@ and continues to fail `state_bounds` on the other budget probes for its learned
 field capacity.
 
 **It does not close the mixed-exchange escape, and it excludes one narrow
-physical class.** See *What the floor excludes* above.
+physical class.** See *What the floors exclude* above.
 
 **It does not bound the size of an exchange.** `Σ|gwex|/Σpr` and `|Σgwex|/Σpr`
 are reported and never gated. Gross bidirectional movement is not bounded by

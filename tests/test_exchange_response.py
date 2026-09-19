@@ -114,7 +114,8 @@ def test_recharge_control_pins_the_normalisation(probe):
     assert d["response_share_of_variation"] > 3e-4      # the current one does not
 
 
-@pytest.mark.parametrize("name", ["reference_noise_sink", "reference_token_exchange"])
+@pytest.mark.parametrize("name", ["reference_noise_sink", "reference_token_exchange",
+                                  "reference_steady_sink"])
 def test_negative_controls_are_caught_by_the_headline(probe, name):
     outcome = run_probe(registry.find_model(name), probe, gate_seeds(probe.id, 1))
     assert outcome.verdict == FAIL
@@ -133,6 +134,24 @@ def test_token_term_fails_on_share_not_on_sign(probe):
 
 
 # --- the conditional gate ----------------------------------------------------
+
+def test_a_steady_sink_is_caught_on_the_gross_where_the_variation_cannot_see_it(probe):
+    """A constant sink adds nothing to the variation, so a token head term of
+    any size clears a share of its own movement. The second term in the bar, a
+    much smaller share of the gross, is what makes that bound finite."""
+    runs = _runs(probe, "reference_steady_sink", gate_seeds(probe.id, 1)[0])
+    params = _params(probe)
+    result = get("exchange_response")(runs, probe, params)
+    assert not result.passed
+    d = result.diagnostics
+    # its share of the variation is enormous, because the variation is ~nothing
+    assert d["response_share_of_variation"] > 1.0
+    # and its share of the gross is a millionth, like the noise-driven cheat
+    assert d["response_share_of_gross"] < 1e-5
+    # without the gross term it would pass, which is why the term is there
+    no_gross = get("exchange_response")(runs, probe, {**params, "min_response_share_of_gross": 0.0})
+    assert no_gross.passed
+
 
 def test_a_hand_built_run_without_a_manifest_is_still_judged(probe):
     """RunResult.model defaults to None. That must mean 'judge', not 'skip':

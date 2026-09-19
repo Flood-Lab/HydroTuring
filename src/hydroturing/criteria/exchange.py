@@ -90,6 +90,20 @@ set three times under the smallest storativity in the usual confined range
 and three hundred times above the cheat; the sweep and the excluded class
 are in the README.
 
+Why the gross returns, small. A share of the variation alone has no bar for a
+*steady* unrelated part. A sink that is constant adds nothing to the variation,
+so the only thing moving the exchange is the token term itself, and a token of
+any size clears a share of its own movement: a model inventing a constant
+0.3 mm/day of inflow, 13% of the rain, passed on every seed with a head
+response of 1.7e-6 of its gross — the same share as the noise-driven cheat this
+criterion was built to catch. The variation floor is the right instrument
+against a *varying* unrelated part, which is what inflates a gross; it sets no
+bound at all on a steady one. So the bar is the larger of the two shares, with
+the gross share two orders of magnitude smaller than the variation share. At
+1e-5 the gross term binds only where the variation term has already given up:
+across a storativity sweep from 10 to 0.05 mm/m it changes no honest control's
+verdict, and it fails the steady sink on every seed.
+
 A note on the step. The variation is taken on per-step depths, so for a
 smooth exchange it scales with the step length while the response does not:
 the bar drops roughly 24-fold from a daily to an hourly step. The calibration
@@ -211,6 +225,7 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
     var = str(params.get("variable", "gwex"))
     driver = str(params.get("driver", "gwh"))
     share = float(params.get("min_response_share", 3.0e-4))
+    share_gross = float(params.get("min_response_share_of_gross", 1.0e-5))
     epsilon = float(params.get("epsilon", 1.0e-8))
     label = str(params.get("quiescent_label", "dry"))
     column = str(params.get("segment_column", "_regime"))
@@ -318,20 +333,23 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
     # through the boundary does not inflate the denominator (module
     # docstring), so a weak or a busy boundary is not penalised for being
     # either; a token head term on top of an accounting sink is.
-    required = max(share * variation, epsilon * max(gross, 1.0))
+    required = max(share * variation, share_gross * gross, epsilon * max(gross, 1.0))
     # A constant exchange has no variation; the bar then falls back to the
     # floating-point epsilon, which a zero response cannot clear, so the case
     # is judged and not bypassed. The share is left undefined rather than
     # infinite so the report stays valid JSON.
     response_share = (min(up, -down) / variation) if variation > 0 else None
 
+    gross_share = (min(up, -down) / gross) if gross > 0 else 0.0
     diagnostics = {
         "driver": driver,
         "head_shift_m": {"raised": shift_up, "lowered": shift_down},
         "response_mm": {"raised": up, "lowered": down},
         "response_share_of_variation": response_share,
-        "response_share_of_gross": (min(up, -down) / gross) if gross > 0 else None,
+        "response_share_of_gross": gross_share if gross > 0 else None,
         "required_share": share,
+        "required_share_of_gross": share_gross,
+        "response_share_of_gross_required": share_gross,
         "required_mm": required,
         "variation_mm": variation,
         "gross_mm": gross,
@@ -348,22 +366,25 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
         failures.append(
             f"the model declares it consumes '{driver}' but its exchange is the same "
             f"with the head raised by {shift_up:+.2f} m and lowered by {shift_down:+.2f} m "
-            f"({up:+.3g} mm and {down:+.3g} mm against a required {required:.3g} mm, "
-            f"{share:g} of the {variation:.0f} mm its exchange moves over the record); "
-            f"it does not answer the driver it claims to follow"
+            f"({up:+.3g} mm and {down:+.3g} mm against a required {required:.3g} mm, the larger "
+            f"of {share:g} of the {variation:.3g} mm its exchange moves and {share_gross:g} of "
+            f"the {gross:.3g} mm it moves in total); it does not answer the driver it claims "
+            f"to follow"
         )
     else:
         if up < required:
             failures.append(
                 f"raising the prescribed head by {shift_up:+.2f} m changed the "
                 f"integrated exchange by {up:+.3g} mm where at least {required:.3g} mm "
-                f"more inflow was required ({share:g} of the {variation:.0f} mm its exchange moves)"
+                f"more inflow was required (the larger of {share:g} of the {variation:.3g} mm its "
+                f"exchange moves and {share_gross:g} of the {gross:.3g} mm it moves in total)"
             )
         if down > -required:
             failures.append(
                 f"lowering it by {shift_down:+.2f} m changed the integrated exchange "
                 f"by {down:+.3g} mm where at least {required:.3g} mm less inflow was "
-                f"required ({share:g} of the {variation:.0f} mm its exchange moves)"
+                f"required (the larger of {share:g} of the {variation:.3g} mm its exchange moves "
+                f"and {share_gross:g} of the {gross:.3g} mm it moves in total)"
             )
     diagnostics["outcome"] = "failed" if failures else "judged"
 
@@ -391,7 +412,8 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
             f"the declared exchange answers the prescribed head: {up:+.4g} mm over "
             f"the record with it raised {shift_up:+.1f} m, {down:+.4g} mm with it "
             f"lowered, {(f'{response_share:.3g} of' if response_share is not None else 'against')} "
-            f"the {variation:.0f} mm its exchange moves (required {share:g}); stays available"
+            f"the {variation:.3g} mm its exchange moves and {gross_share:.3g} of the {gross:.3g} mm "
+            f"it moves in total (required {share:g} and {share_gross:g}); stays available"
             if ok else "; ".join(failures)
         ),
         diagnostics=diagnostics,

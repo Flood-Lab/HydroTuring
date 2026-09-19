@@ -253,7 +253,11 @@ is worse and is also dishonest.
 without; a missing input makes the case `N/A (INCOMPATIBLE)`.
 `uses_forcing` and `uses_static` declare optional inputs: the adapter must
 consume them whenever supplied, but can run without them using a documented
-fallback. A probe's `requires.forcing` and `requires.static` accept either
+fallback. The one carve-out is `gwh`, the prescribed external head, where the
+declaration is a semantic opt-in rather than a promise about the column: a
+model may read a head for another purpose, so declaring `gwh` asserts that the
+model's own `gwex` responds monotonically to that head, and
+`mass/exchange-response` holds it to the assertion rather than to the reading. A probe's `requires.forcing` and `requires.static` accept either
 declaration. For example, `energy/radiation-consistency` requires consumption
 of `rlds` and `eps`; a model that does not declare it consumes both is
 `N/A (INCOMPATIBLE)` because it may be computing its own sky or emissivity.

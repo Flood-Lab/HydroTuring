@@ -107,6 +107,14 @@ criteria:
       raised: raised
       lowered: lowered
       min_response_share: 3.0e-4
+      # A second, much smaller share, of the gross exchange. The variation
+      # share sets no bound at all on a *steady* unrelated part: a constant
+      # sink adds nothing to the variation, so a token head term of any size
+      # clears a share of its own movement (reference_steady_sink). Two orders
+      # of magnitude under the variation share, this binds only where that one
+      # has already given up: across the storativity sweep it changes no
+      # honest control's verdict and fails the steady sink on every seed.
+      min_response_share_of_gross: 1.0e-5
       epsilon: 1.0e-8
       # Diagnostics, never gated.
       quiescent_label: dry
@@ -151,12 +159,15 @@ baselines:
   # the normalisation, since a share of the gross exchange fails it and a
   # share of the exchange's variation does not. Two negative controls declare
   # the head and do not follow it: reference_noise_sink answers with exactly
-  # zero, and reference_token_exchange adds a head term a million times too
-  # small to be anything but a token.
+  # zero, reference_token_exchange adds a head term a million times too small
+  # to be anything but a token, and reference_steady_sink is that same token
+  # over a *steady* sink rather than a noisy one, which the variation share
+  # alone cannot see.
   must_pass: [reference_driven_exchange, reference_evolving_exchange, reference_recharge_exchange]
   must_fail:
     reference_noise_sink: exchange_response
     reference_token_exchange: exchange_response
+    reference_steady_sink: exchange_response
 
 provenance: >
   Synthetic. Generated at run time by generate.py from a recorded seed.

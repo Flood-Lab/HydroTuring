@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""HydroTuring adapter for reference_token_exchange.
+"""HydroTuring adapter for reference_steady_sink.
 
-reference_noise_sink with one line added: a head-driven trickle a million
-times weaker than the positive controls, folded into the declared exchange
-and into the soil so the budget still closes exactly. Everything else is the
-cheat unchanged — the declared exchange is still the day's accounting error.
-The trickle answers the prescribed head with the right sign, so a gate that
-asks only for a signed response passes it; what catches it is that the
-response is a millionth of how much the declared exchange moves from day to
-day — the noise it absorbs moves a great deal, the token almost nothing —
-where a head-driven exchange of any conductance answers with a bounded share
-of its own movement. Its steady sibling, reference_steady_sink, is the case
-that share cannot see.
+reference_token_exchange with its noise taken out. It overstates its
+evaporation by a constant 0.3 mm/day — 1095 mm over the record, 13% of the
+rain — and declares the difference as a steady regional inflow, so its budget
+still closes exactly. The same million-times-too-weak head trickle rides on
+top.
+
+It is the cheat a floor on the response's share of the exchange's *variation*
+cannot see. A constant sink contributes nothing to the variation, so the only
+thing moving the declared exchange is the trickle, and a trickle of any size
+clears a share of its own movement. Its head response is 1.7e-6 of its gross
+exchange, the same share as reference_token_exchange, which the probe does
+catch. What catches this one is the second term in the bar, a much smaller
+share of the gross, which is finite for a steady exchange where the variation
+share is not.
 """
 
 from __future__ import annotations
@@ -25,7 +28,12 @@ from pathlib import Path
 
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "gwex", "mrso", "snw", "canopy", "channel"]
 
-MODEL = {"name": "reference_token_exchange", "version": "1.0.0"}
+MODEL = {"name": "reference_steady_sink", "version": "1.0.0"}
+
+# Evaporation overstated by a constant, declared as a steady inflow. Unlike
+# the noise of reference_token_exchange this adds nothing to the exchange's
+# variation, which is the whole point of the control.
+STEADY_BIAS_MM_PER_DAY = 0.3
 
 TOKEN_CONDUCTANCE_MM_PER_M_DAY = 1.0e-6   # the token head term
 
@@ -133,8 +141,7 @@ def simulate(forcing, static, dt_days=1.0, seed=0):
             # Water conserved internally; evaporation misreported, and the
             # exchange declared as exactly the difference. The budget closes
             # because gwex is minus the residual of everything else.
-            "evspsbl": max(0.0, (canopy_evap + soil_evap)
-                           * (1.0 + ET_BIAS * rng.gauss(0.0, 1.0))) / dt_days,
+            "evspsbl": (canopy_evap + soil_evap) / dt_days + STEADY_BIAS_MM_PER_DAY,
             "mrro": (surface + baseflow) / dt_days,
             "gwex": 0.0,   # filled in below, once the reported ET is known
             "mrso": soil,

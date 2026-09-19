@@ -19,13 +19,13 @@ gaining water across its boundary, so that a model with a regional groundwater
 term has every reason to use it. Two features matter for what this probe asks:
 
 *   **A long rainless stretch in each of the last two years, labelled
-    `_regime = dry`.** This is the window the criterion is scored on. With no
-    rain, no melt and a monotonically draining catchment there is nothing to
-    drive a reversal in an exchange, so a flux that keeps changing sign there
-    is not responding to the catchment. Outside these windows reversal is not
-    judged at all: a real gaining/losing reach changes state seasonally, and
-    bank storage reverses on the limbs of a single flood, so event-scale
-    reversal is physical and the probe must not punish it.
+    `_regime = dry`.** The criterion scores the whole record and gates no
+    reversal statistic; these windows are where its reversal *diagnostics* are
+    computed, so a reviewer can see how an exchange behaves with direct
+    precipitation forcing absent. Reversal is never judged, here or anywhere:
+    a gaining/losing reach changes state seasonally, bank storage reverses on
+    the limbs of one flood, and a MODFLOW aquifer behind an oscillating
+    boundary reverses with no rain at all.
 *   **A prescribed external head, `gwh`, visible to the model.** The regime an
     exchange is judged against is specified rather than assumed: a slow annual
     cycle on which a faster 20-day oscillation rides, so the head crosses its
@@ -39,8 +39,8 @@ term has every reason to use it. Two features matter for what this probe asks:
     closure probe uses, and the drying tail of each rainless window still
     carries the baseflow an honest exchange draws on.
 
-Climate targets are the closure probe's, roughly 830 mm of precipitation and
-700 mm of potential ET a year with a real seasonal snowpack, so a model that
+Climate targets are the closure probe's — about 843 mm of precipitation and
+759 mm of potential ET a year, with a real seasonal snowpack — so a model that
 passes that probe is not being asked to work in a new climate as well as to
 account for its exchange.
 """
