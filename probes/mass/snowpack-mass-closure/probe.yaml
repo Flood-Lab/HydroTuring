@@ -30,9 +30,9 @@ case:
   generator: generate.py
   n_seeds: 5
   timestep: PT1D
-  period_days: 360
-  spinup_days: 0
-  min_window_days: 360
+  period_days: 720
+  spinup_days: 1
+  min_window_days: 720
   max_output_mb: 2.0
   max_runtime_s: 120
 
@@ -66,7 +66,8 @@ baselines:
     reference_snowless: snowpack_response
 
 provenance: >
-  Synthetic. Two 180-day accumulation-storage-melt snow cycles are generated
-  at run time from a recorded random seed. Each stage lasts 60 days.
-  Precipitation timing, precipitation amount, and temperature variability vary
-  with the seed. No forcing data are committed to the repository.
+  Synthetic. Two 360-day accumulation-storage-melt snow cycles are generated
+  at run time from a recorded random seed. Each stage lasts 120 days. The
+  scored record is preceded by one cold, dry spinup day. Precipitation timing,
+  precipitation amount, and temperature variability vary with the seed. No
+  forcing data are committed to the repository.

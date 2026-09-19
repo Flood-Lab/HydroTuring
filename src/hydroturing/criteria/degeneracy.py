@@ -154,7 +154,7 @@ def snowpack_response(
         )
 
     snow = np.asarray(w.table[state], dtype=float)
-    pr = np.asarray(w.forcing[precipitation], dtype=float)
+    pr = w.volume(w.forcing[precipitation])
 
     # The response check is defined over complete snow cycles. Contiguous
     # regime blocks keep two accumulation or melt stages from being combined

@@ -77,12 +77,12 @@ every probe that can ask them anything; six of the seven energy probes and
 the groundwater-exchange probe need outputs they do not report and are not
 scored for them. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Twelve of the twenty-nine require no model output
+with any probe pull request. Twelve of the thirty require no model output
 beyond runoff. That output-only count includes `momentum/routing-lag-consistency`,
 which is eligible only when the model also declares that it consumes `pr` and
 the three geometry inputs `area_km2`, `main_channel_length_km` and
 `centroid_channel_length_km`. `ht list` prints the probes;
-[ROADMAP.md](ROADMAP.md#probes-we-want) has the six more we want, all
+[ROADMAP.md](ROADMAP.md#probes-we-want) has the five more we want, all
 unclaimed.
 
 | Probe | Law | What it asks | The broken model it catches |
@@ -205,6 +205,8 @@ the probe cannot ask the declared model interface this question.
 | `reference_area_leak` | broken | loses a share of runoff that grows with the area it is told | caught by `invariance` (area) |
 | `reference_overshooting` | broken | a derivative term sharpens its hydrograph, so an added storm lowers later flow | caught by `response_nonnegativity` |
 | `reference_sublimating` | broken | loses 40% of every snowfall to an unreported sublimation | caught by `phase_invariance` |
+| `reference_snow_bypass` | broken | sends 30% of snowfall directly to the soil around the snowpack, preserving the catchment balance while breaking the internal snowpack balance | caught by `closure` |
+| `reference_snowless` | broken | stores no snow and passes all precipitation through the snow module | caught by `snowpack_response` |
 | `reference_thirsty` | broken | evaporates a fixed share of its soil store, never reading demand; conserves water exactly | caught by `demand_consistency` |
 | `reference_stuck_router` | broken | a routing kernel summing to 0.9, so a tenth of every day's runoff never leaves the channel | caught by `routing_conservation` |
 | `reference_snyder_router` | exact | consumes the declared geometry and routes a fixed rain share through a causal, conservative triangular unit hydrograph whose peak follows the duration-corrected Snyder lag from the excess-rainfall centroid | must pass both criteria of `routing-lag-consistency` |

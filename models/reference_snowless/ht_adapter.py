@@ -191,7 +191,6 @@ def simulate(forcing, static, dt_days=1.0):
                 # not omitted, because it is a statement about the model.
                 "channel": 0.0,
                 "stage": stage_of(runoff, static),
-                "snm": water_in / dt_days,
             }
         )
     return rows

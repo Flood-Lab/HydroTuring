@@ -92,7 +92,7 @@ Every one is binary.
 
 | Criterion | Asserts | Scored over |
 | --- | --- | --- |
-| `closure` | the budget closes to within a share of the driving flux | one run |
+| `closure` | the declared budget closes to within a share of the driving flux; `states` can scope the storage term, `optional_sinks` may be absent, and `segment_column` scores contiguous labelled stretches separately so opposite residuals cannot cancel | one run or contiguous labelled stretches |
 | `event_water_closure` | every complete precipitation event satisfies `abs(R) <= max(threshold * P, absolute_tolerance_mm)`; defaults 0.05 and 0.001 mm; reports the worst residual / allowance against 1, with up to 20 failed events and summary percentiles | complete post-spinup wet events in one run, using supplied rain and all reported water stores |
 | `state_bounds` | every reported storage stays physical | one run |
 | `total_storage_drift` | total reported water storage changes by no more than a precipitation-relative allowance over the final repeated block | one run |
@@ -101,6 +101,7 @@ Every one is binary.
 | `exchange_directions` | the aquifer both gains from and loses to the river by at least `minimum_gross_mm` over the scored record | one run |
 | `et_plausible` | ET is non-negative and bounded by potential ET | one run |
 | `non_degenerate` | the partition and the response are non-trivial | one run |
+| `snowpack_response` | snow storage grows to a material fraction of integrated cold-stage precipitation and is depleted during the following melt stage | complete accumulation-storage-melt cycles in one run |
 | `forcing_fidelity` | the model reports back the forcing it was given | one run |
 | `regime_transfer` | closure holds out of range as well as in range | labelled stretches |
 | `counterfactual_response` | added or removed water is partitioned, not absorbed; `perturbed` may name one variant or a list, each scored against the control | paired runs |
@@ -318,6 +319,8 @@ The reference models available today:
 | `reference_radiative` | the coupled reference with a skin: temperature from the sensible flux through a fixed conductance, upward longwave from that skin at the given emissivity | nothing, it must pass the radiation probe |
 | `reference_air_emitter` | reports the skin's temperature but emits at the air's, reflected sky unchanged | `radiative_identity` |
 | `reference_no_reflection` | reports emission alone as the total upward longwave, the reflected sky left out | `radiative_identity` |
+| `reference_snow_bypass` | sends part of snowfall directly to soil around the snowpack while preserving catchment mass | `closure` |
+| `reference_snowless` | stores no snow and passes precipitation directly through the snow module | `snowpack_response` |
 
 The three soil-heat references require incoming `rsds` and `rlds`, `tas`,
 `pr`, and explicit layer depth, areal heat capacity and initial temperature.

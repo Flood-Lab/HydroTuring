@@ -23,13 +23,12 @@ COLUMNS = [
     "canopy",
     "channel",
     "stage",
-    "snm",
 ]
 
 MODEL = {"name": "reference_snow_bypass", "version": "1.0.0"}
 
 BYPASS_FRACTION = (
-    0.30  # fraction of snowfall that bypasses the catchment and vanishes
+    0.30  # fraction of snowfall that bypasses the snowpack and enters the soil
 )
 
 EVAP_SHAPE = (
@@ -147,7 +146,7 @@ def simulate(forcing, static, dt_days=1.0):
         snowfall = pr if tas < t_snow else 0.0
         rain = 0.0 if tas < t_snow else pr
 
-        # Make some SWEs disappear
+        # Divert part of the snowfall around the snowpack.
         bypass = BYPASS_FRACTION * snowfall
         swe += snowfall - bypass
         melt = min(swe, ddf * max(tas - t_snow, 0.0) * dt_days)
@@ -162,7 +161,7 @@ def simulate(forcing, static, dt_days=1.0):
         canopy -= canopy_evap
         pet_left = pet - canopy_evap
 
-        # The disappearing water enters the soil directly.
+        # The bypassed snowfall enters the soil directly, preserving catchment mass.
         soil += throughfall + bypass
         surface = max(0.0, soil - soil_cap)
         soil -= surface
@@ -201,7 +200,6 @@ def simulate(forcing, static, dt_days=1.0):
                 # not omitted, because it is a statement about the model.
                 "channel": 0.0,
                 "stage": stage_of(runoff, static),
-                "snm": water_in / dt_days,
             }
         )
     return rows

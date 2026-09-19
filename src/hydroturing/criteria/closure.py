@@ -19,7 +19,7 @@ from __future__ import annotations
 import numpy as np
 
 from hydroturing.criteria.base import (
-    FAIL, PASS, CriterionResult, criterion, make_window, reported_states,segments,
+    FAIL, PASS, CriterionResult, criterion, make_window, reported_states, segments, storage_at,
 )
 from hydroturing.protocol import RunResult
 from hydroturing.spec import ProbeSpec
@@ -97,10 +97,7 @@ def closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     if segment_column is not None:
         cumulative = 0.0
         for label, start, stop in segments(w, segment_column):
-            if start == 0:
-                storage_start = w.storage_initial(states)
-            else:
-                storage_start = float(storage[start - 1])
+            storage_start = storage_at(w, states, start)
             storage_end = float(storage[stop - 1])
             storage_change_segment = storage_end - storage_start
             residual = float(
@@ -157,6 +154,7 @@ def closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
             "max_step_residual": float(np.abs(step_residual).max()),
             "mean_step_residual": float(np.abs(step_residual).mean()),
             "suspicious_exact": suspicious,
+            "segment_residuals": segment_residuals,
         },
     )
 

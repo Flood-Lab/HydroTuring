@@ -154,7 +154,7 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `sw_to_gw` | river-to-groundwater exchange component: the river losing to the aquifer, so it is never negative; `gw_to_sw + sw_to_gw` must equal `gw_sw_exchange` | mm/day |
 | `gw_boundary` | every other flux across the aquifer's own boundary (a GHB or WEL package, regional groundwater exchange), positive into the aquifer. The part that also crosses the catchment boundary is reported in `gwex` as well, and no budget adds the two. A well that pumps aquifer water onto fields inside the catchment is `gw_boundary` but not `gwex`. `mass/gw-sw-exchange-consistency` credits this column to the aquifer, never `gwex`, because `gwex` may leave from any store | mm/day |
 | `sbl` | the sublimating share of `evspsbl`: a component of it, never an addition; report it if the model knows which kilograms left as ice | mm/day |
-| `snm` | liquid water delivered from the snow module to the ground, including rain passing through the snow module and snowmelt | mm/day |
+| `snm` | liquid water delivered from the snow module to the ground, including rain passing through the snow module and snowmelt; an internal flux across the snow-module boundary, never an additional catchment outflow beside `mrro` | mm/day |
 | `hfls` | latent heat flux, positive away from the surface | W/m2 |
 | `hfss` | sensible heat flux, positive away from the surface | W/m2 |
 | `hfg` | ground heat flux at the actual soil surface, positive into the ground; a flux taken below the surface must be corrected for heat storage above that depth | W/m2 |

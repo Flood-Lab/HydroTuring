@@ -46,8 +46,8 @@ that the snowpack response and closure checks are meaningfully exercised.
 
 ## The case
 
-`generate.py` creates two synthetic snow cycles from a recorded random seed.
-Each cycle contains three 60-day stages.
+`generate.py` creates two seasonally aligned synthetic snow cycles from a
+recorded random seed. Each cycle contains three 120-day stages.
 
 During **accumulation**, temperature remains well below the prescribed
 snow/rain threshold and precipitation events build the snowpack.
@@ -64,9 +64,15 @@ Storm occurrence, storm magnitude, and temperature variability change with
 the seed, while the stage structure is fixed. The same seed always produces
 the same forcing.
 
-There is no separate spinup period. The first day is cold and precipitation
-free so that an initially empty snowpack remains unchanged before the first
-snowfall event.
+A single cold, precipitation-free spinup day precedes the scored record. The
+first scored accumulation stage begins on 1999-09-01. Each cycle occupies approximately one year, so repeated accumulation and melt stages occur at comparable times of year.
+
+The synthetic case sets `canopy_capacity_mm = 0` for models that consume this
+case attribute, so the repository reference bucket has no canopy interception
+in this experiment. The closure formulation assumes that forcing precipitation
+enters the tested snow-system control volume without an upstream interception
+store; models with upstream snow interception require an extended control
+volume and are outside the current probe scope unless explicitly supported.
 
 ## Why these criteria
 

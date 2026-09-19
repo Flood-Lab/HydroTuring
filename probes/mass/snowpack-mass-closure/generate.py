@@ -24,10 +24,10 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-STAGE_DAYS = 60
+STAGE_DAYS = 120
 N_CYCLES = 2
 PERIOD_DAYS = 3 * STAGE_DAYS * N_CYCLES
-SPINUP_DAYS = 0
+SPINUP_DAYS = 1
 N_STEPS = PERIOD_DAYS + SPINUP_DAYS
 
 # Catchment attributes handed to every model, and the place criteria look up
@@ -35,7 +35,7 @@ N_STEPS = PERIOD_DAYS + SPINUP_DAYS
 STATIC = {
     "area_km2": 250.0,
     "soil_capacity_mm": 320.0,
-    "canopy_capacity_mm": 2.0,
+    "canopy_capacity_mm": 0.0,
     "degree_day_factor_mm_per_C_day": 3.2,
     "baseflow_coefficient": 0.006,
     "snow_threshold_degC": 0.0,
@@ -45,16 +45,15 @@ STATIC = {
 
 def generate(seed: int) -> tuple[pd.DataFrame, dict]:
     rng = np.random.default_rng(seed)
-    day = np.arange(N_STEPS)
-    doy = day % 365
 
-    # Two identical stage sequences are labelled separately in time. The
-    # leading underscore marks `_regime` as a criterion annotation rather
-    # than a forcing variable supplied to the model.
-    regime = np.tile(
+    time = pd.date_range("1999-08-31", periods=N_STEPS, freq="D")
+    doy = time.dayofyear.to_numpy()
+
+    scored_regime = np.tile(
         np.repeat(["accumulation", "storage", "melt"], STAGE_DAYS),
         N_CYCLES,
     )
+    regime = np.concatenate((["spinup"], scored_regime))
     accumulation = regime == "accumulation"
     melt = regime == "melt"
 
@@ -65,9 +64,8 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
     depth = rng.gamma(shape=0.7, scale=13.0, size=N_STEPS)
     pr = np.where(wet, depth, 0.0)
 
-    # With no spinup, the first model output is also the harness reference
-    # state. Keep the first day dry so an empty snowpack is unchanged before
-    # the first scored snowfall.
+    # The single spinup row is cold and dry. It provides the state immediately
+    # before the first scored accumulation day.
     pr[0] = 0.0
 
     # Temperature uses the same simple persistent weather variability as the
@@ -86,7 +84,6 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
     daylength = 1.0 + 0.35 * np.cos(2 * np.pi * (doy - 172) / 365)
     pet = np.maximum(0.0, 0.13 * (tas + 5.0)) * daylength
 
-    time = pd.date_range("2000-01-01", periods=N_STEPS, freq="D")
     forcing = pd.DataFrame(
         {
             "time": time.strftime("%Y-%m-%d"),
