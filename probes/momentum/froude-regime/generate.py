@@ -61,12 +61,10 @@ STATIC = {
     "slope": 0.0015,
     "manning_n": 0.035,
     "reach_length_m": 4500.0,
-    # The bed the stage is measured from. Zero: every adapter in the suite
-    # reports its stage as a depth above the bed, from a normal-depth
-    # relation, so there is nothing to subtract. Declared rather than assumed
-    # so a model that reports an absolute level can be scored by subtracting
-    # it, instead of being read as a reach two metres deep.
-    "bed_elevation_m": 0.0,
+    # No `bed_elevation_m`. `stage` is a depth measured from the reach bed by
+    # contract, and this criterion reads it as one, so there is no datum for a
+    # case to declare and none for a model to be converted from. A case that
+    # published one would read as an invitation to report an absolute level.
 }
 
 

@@ -27,7 +27,9 @@ supports:
 resources: {cpu: 1, memory_gb: 1, gpu: false}
 
 # Existing adapter mappings; no change to model equations.
-# `width_m` is here for the same reason as the capacities: the adapter reads it
-# whenever the case declares it, and a probe that scores the stage against the
-# case's cross-section must be able to see that this model does.
-uses_static: [soil_capacity_mm, canopy_capacity_mm, width_m]
+# `width_m`, `slope` and `manning_n` are here for the same reason as the
+# capacities: the adapter reads them whenever the case declares them, and a
+# probe that scores the stage against the case's cross-section must be able to
+# see that this model does. A reach is mild only relative to its roughness, so
+# the slope and the roughness decide the verdict as much as the width does.
+uses_static: [soil_capacity_mm, canopy_capacity_mm, width_m, slope, manning_n]

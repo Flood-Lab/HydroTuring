@@ -32,16 +32,17 @@ requires:
   # scorable. Declaring `dis` here would make the fallback unreachable.
   fluxes: []
   diagnostics: [stage]
-  # The denominator of the Froude number is the *case's* width, so the verdict
-  # rests on the model having drawn its stage for the section the case declares
-  # rather than for one of its own. A model that never read `width_m` — one
-  # carrying its own river width, or reporting a stage in its own datum — is
-  # judged against a number it never saw, and the suite's rule for that is
-  # N/A (INCOMPATIBLE), not a conservation violation. `bed_elevation_m` is
-  # deliberately not listed: it is the datum the criterion subtracts from an
-  # absolute water level, no adapter in the repository consumes it, and
-  # requiring it would make four baselines declare a key they do not read.
-  static: [width_m]
+  # The Froude number is formed from the *case's* section, so the verdict rests
+  # on the model having drawn its stage for that section rather than for one of
+  # its own: a model that never read the width is judged against a number it
+  # never saw, and the suite's rule for that is N/A (INCOMPATIBLE), not a
+  # conservation violation. `slope` and `manning_n` are here for the same
+  # reason and not as an afterthought — a reach is mild only relative to its
+  # roughness, and a gauge drawn with its own roughness in the declared width
+  # is consistent with itself while implying a velocity the case's reach could
+  # not deliver. All three are read by every adapter whose stage is a normal
+  # depth in the declared section.
+  static: [width_m, slope, manning_n]
 
 case:
   generator: generate.py
@@ -64,7 +65,18 @@ criteria:
       max_exceed_fraction: 0.0
       min_scored_fraction: 0.05
       width_key: width_m
-      bed_key: bed_elevation_m
+      # A depth is what `stage` is by contract — a water level measured from the
+      # reach bed — so there is no datum to subtract. What the criterion still
+      # needs is a ceiling: a reading deeper than the section could hold is not
+      # a depth in it, and scoring one is how a stage reported from some other
+      # zero would pass, because an offset only ever adds to the depth. Ten
+      # metres is four times the case's declared bankfull depth of 2.5 m, and
+      # two and a half times the deepest reading the four must-pass baselines
+      # give over the gate seeds — 3.99 m, `reference_bucket`'s worst Fr of
+      # 0.445 inverted through the section's normal-depth relation — so the
+      # ceiling never comes near honest flow. Over a hundred seeds the worst
+      # honest Fr reaches about 0.46, which is still only about 4.9 m.
+      max_depth_m: 10.0
 
   - non_degenerate:
       runoff_ratio: [0.02, 0.98]

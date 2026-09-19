@@ -21,10 +21,11 @@ emits:
   states: [mrso, snw, canopy, channel]
   diagnostics: [stage]
 needs_forcing: [pr, tas, pet]
-# `width_m` is the key this model reads and then scales: the rating it borrows
-# is the one a section `RATING_WIDTH_FACTOR` times wider would need, so the
+# `width_m` is the key this model reads and then scales — the rating it borrows
+# is the one a section `RATING_WIDTH_FACTOR` times wider would need — and
+# `slope` and `manning_n` are read by the same normal-depth function, so the
 # probe has to be able to see that the model consumed the declared section.
-uses_static: [width_m]
+uses_static: [width_m, slope, manning_n]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

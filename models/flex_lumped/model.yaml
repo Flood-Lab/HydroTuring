@@ -31,6 +31,8 @@ uses_static:
   - main_channel_length_km
   - centroid_channel_length_km
   - width_m
+  - slope
+  - manning_n
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

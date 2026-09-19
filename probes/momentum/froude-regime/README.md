@@ -97,7 +97,7 @@ the one thing this probe asserts.
 
 ## Limitations
 
-Three things this probe does not see, so that a green result is not read as
+Four things this probe does not see, so that a green result is not read as
 more than it is.
 
 **It reads the pair, not either reading against the truth.** A model that
@@ -117,17 +117,44 @@ the model's, so every model is judged in one reach — which is the intent, but
 it also means the probe never checks that a model chose a sensible geometry
 of its own.
 
-Because that width is the denominator, the verdict rests on the model having
-drawn its stage for the declared section, and the probe declares
-`requires.static: [width_m]` accordingly. A model that never read `width_m` —
-one carrying its own river width, or reporting a water level in its own
-datum — is recorded **N/A (INCOMPATIBLE)** rather than failed: the suite's
-rule for a verdict that would rest on an input the model never saw. Failing
-it instead would put a conservation violation in the archive for a model
-judged against a number it never read.
+Because that section decides the verdict, the probe declares
+`requires.static: [width_m, slope, manning_n]`. A model that never read them —
+one carrying its own river width, or its own roughness — is recorded
+**N/A (INCOMPATIBLE)** rather than failed, because the suite's rule is that a
+verdict may not rest on an input the model never saw. The roughness is in that
+list for the same reason the width is and not as an afterthought: a reach is
+mild only relative to its roughness, so a gauge drawn with `n = 0.012` inside
+the declared width is consistent with itself and still implies a velocity this
+reach could not deliver.
+
+**The datum is the contract's, and the criterion can only refuse a level that
+is far from it.** `stage` is a depth above the reach bed (`AGENTS.md`), so the
+number a model reports is read as one and there is no bed for the criterion to
+subtract. A model reporting an absolute level, or a level above any other zero,
+is reporting a different quantity — and one that has to be refused rather than
+scored, because an offset only ever adds to the depth and a deeper depth means
+a smaller Froude number: one metre of datum turns the must-fail model below
+into a comfortable pass. `max_depth_m` is that refusal, set here to 10 m: four
+times the case's declared bankfull depth, and two and a half times the deepest
+reading a must-pass baseline gives over the gate seeds — 3.99 m, from
+`reference_bucket`'s worst Fr of 0.445 in this section. Steps above it are
+refused the way dry steps are,
+and a record that reports levels rather than depths fails with the ceiling
+named. What no value test can catch is a *small* offset — a stage a metre above
+the bed is indistinguishable from a deep reach — which is why the datum has to
+be fixed by the contract rather than inferred from the numbers.
 
 **Steps at the depth floor are skipped.** A reach that is dry or nearly dry
 is not scored, so a model that only misbehaves at baseflow — reporting a
 velocity it could not have when there is almost no water — passes. The
 opposite case is covered: a gauge drawn for a wider section is too shallow at
 every flow, and is caught on most of the record rather than only in floods.
+
+## What would make it sharper
+
+`Fr = v / sqrt(g * D)` is formed here from `Q` and `d` through the
+wide-rectangular relation. Once a model can report the section-averaged
+velocity — `vel`, proposed in #95 and not in `main` yet — the numerator can be
+the model's own velocity instead, which removes the rectangular assumption from
+one of the two terms and lets the probe score a section it did not have to
+assume.

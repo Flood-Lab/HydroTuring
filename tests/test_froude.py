@@ -15,13 +15,18 @@ three things about this criterion are easy to get wrong while staying green:
   judge a model in the channel the case declared;
 * steps where the reach is dry are excluded rather than scored, and a
   criterion that scores them fails an honest receding flow on the depth
-  floor instead of on its hydraulics.
+  floor instead of on its hydraulics;
+* `stage` is a depth above the reach bed by contract, and nothing in the
+  criterion can convert a reading taken from another zero — an offset only
+  adds to the depth, and the depth enters at the three-halves power, so a
+  level a hundred metres above the bed passes comfortably unless the probe's
+  ceiling refuses it.
 
 These tests build the frames directly so each of those is pinned: a
 Manning-consistent pair, a rating drawn for a wider reach, the `mrro`
-fallback, a width that changes the verdict, dry steps, the two tolerance
-knobs, and the columns the criterion cannot do without — missing ones must
-fail it rather than crash it.
+fallback, a width that changes the verdict, dry steps, the depth ceiling and
+the two tolerance knobs, and the columns the criterion cannot do without —
+missing ones must fail it rather than crash it.
 """
 
 from __future__ import annotations
@@ -30,9 +35,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from hydroturing import registry
 from hydroturing.criteria import get
 from hydroturing.criteria.base import FAIL, PASS
+from hydroturing.harness import build_case, compatibility_issues, run_probe
 from hydroturing.protocol import Case, RunResult
+from hydroturing.scoring import INCOMPATIBLE, NOT_SCORED
+from hydroturing.seeds import gate_seeds
 
 GRAVITY = 9.81
 WIDTH_M = 18.0
@@ -46,10 +55,10 @@ FROUDE = get("froude_subcritical")
 def build(q=None, stage=None, mrro=None, static=None, n=None, discharge=True, spinup=0):
     """A RunResult carrying the columns the Froude criterion reads.
 
-    `q` is `dis` in m3/s and `stage` is the gauge reading in metres. Passing
-    `mrro` instead of `q` and `discharge=False` builds the frame a model that
-    reports only a runoff depth rate produces, which is the frame the fallback
-    has to score.
+    `q` is `dis` in m3/s and `stage` is the reported depth in metres above the
+    reach bed, which is what the contract says it is. Passing `mrro` instead of
+    `q` and `discharge=False` builds the frame a model that reports only a
+    runoff depth rate produces, which is the frame the fallback has to score.
     """
     if q is None:
         q = np.linspace(1.0, 50.0, n or 400)
@@ -224,17 +233,87 @@ def test_nearly_dry_steps_are_excluded_from_the_scored_set():
     assert result.diagnostics["scored_steps"] == 200
 
 
-def test_an_absolute_stage_is_reduced_by_the_bed_elevation():
-    """A model that reports a level rather than a depth is still scorable."""
+def test_an_absolute_stage_is_refused_when_the_probe_sets_a_ceiling():
+    """`stage` is a depth above the bed by contract, so a level on another zero
+    is not convertible — and only a ceiling can notice it.
+
+    An offset only adds to the depth, and the depth enters at the three-halves
+    power, so a model reporting an absolute level looks *more* subcritical the
+    further its zero sits from the bed: the offset is the cheapest way to pass.
+    With the probe's ceiling the reading is refused and the record fails naming
+    it; without one the criterion has no way to tell it from a depth.
+    """
     q = np.linspace(1.0, 50.0, 400)
-    datum = 100.0
-    result = FROUDE(build(q=q, stage=manning_depth(q) + datum), None,
-                    {"bed_elevation_m": datum})
+    level = manning_depth(q) + 100.0
+    refused = FROUDE(build(q=q, stage=level), None, {"max_depth_m": 10.0})
+    assert refused.status == FAIL
+    assert refused.diagnostics["scored_steps"] == 0
+    assert refused.diagnostics["too_deep_steps"] == 400
+    assert "ceiling" in refused.message
+    # The same reading with no ceiling is a hundred-metre-deep reach that passes.
+    unscored = FROUDE(build(q=q, stage=level), None, {})
+    assert unscored.status == PASS
+    assert unscored.diagnostics["max_froude"] < 0.01
+
+
+def test_the_ceiling_leaves_a_depth_the_section_can_hold_alone():
+    """It refuses what is not a depth, not what is merely deep."""
+    q = np.linspace(1.0, 50.0, 400)
+    result = FROUDE(build(q=q), None, {"max_depth_m": 10.0})
     assert result.status == PASS
-    assert result.diagnostics["bed_elevation_m"] == datum
-    # Without the datum the same reading is a reach a hundred metres deep.
-    shallow = FROUDE(build(q=q, stage=manning_depth(q) + datum), None, {})
-    assert shallow.diagnostics["max_froude"] < result.diagnostics["max_froude"]
+    assert result.diagnostics["too_deep_steps"] == 0
+    assert result.diagnostics["max_depth_m"] == 10.0
+    assert result.diagnostics["scored_steps"] == 400
+
+
+def test_there_is_no_ceiling_unless_the_probe_sets_one():
+    """How deep is too deep is a statement about the case's reach, not about
+    `stage`, so the shared criterion does not guess at one."""
+    q = np.linspace(1.0, 50.0, 400)
+    result = FROUDE(build(q=q, stage=manning_depth(q) + 100.0), None, {})
+    assert result.diagnostics["max_depth_m"] is None
+    assert result.diagnostics["too_deep_steps"] == 0
+
+
+def test_a_stage_below_the_section_is_still_read_as_it_stands():
+    """With the bed gone there is nothing to subtract: the depth is the reading.
+
+    The criterion used to support a case-declared datum, which is exactly the
+    licence a model reporting an absolute level needs. The contract now fixes
+    the datum at the bed, so a reading is a depth — shallow or deep — and no
+    number the case publishes can move it.
+    """
+    q = np.linspace(1.0, 50.0, 400)
+    run = build(q=q, stage=manning_depth(q) + 100.0)
+    run.case.static["bed_elevation_m"] = 100.0
+    result = FROUDE(run, None, {})
+    assert result.status == PASS
+    assert result.diagnostics["max_froude"] < 0.01
+
+
+def test_the_probe_declares_the_section_and_a_model_that_never_read_it_is_not_judged():
+    """`requires.static` is what keeps a model carrying its own river geometry
+    out of the archive, and nothing else in this file would notice if the
+    declaration were dropped."""
+    probe = registry.find_probe("momentum/froude-regime")
+    assert probe.requires_static == ("width_m", "slope", "manning_n")
+    assert probe.requires_diagnostics == ("stage",)
+
+    case = build_case(probe, 0)
+    flat = registry.find_model("reference_flat_stage")
+    assert compatibility_issues(flat, probe, case) != []
+    outcome = run_probe(flat, probe, gate_seeds(probe.id, 1))
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert outcome.incompatible == [
+        "model does not declare that it consumes static width_m, slope, manning_n"
+    ]
+
+    # The five baselines do declare all three, so the gate still separates in
+    # the section the case declares.
+    for name in ("reference_bucket", "flex_lumped", "flex_topo", "sacsma_snow17",
+                 "reference_shallow_rating"):
+        issues = compatibility_issues(registry.find_model(name), probe, case)
+        assert issues == [], f"{name}: {issues}"
 
 
 def test_the_tolerance_is_read_and_can_forgive_a_violation():
