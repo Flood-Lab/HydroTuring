@@ -44,6 +44,7 @@ long.
 | `momentum/routing-conservation` | Zhi Li (CU Boulder), Yuanhang Liu (Independent Researcher) |
 | `momentum/routing-lag-consistency` | Binlan Zhang (Institute of Mountain Hazards and Environment, Chinese Academy of Sciences, Chengdu, China) |
 | `momentum/stage-discharge-monotonic` | Yuanhang Liu (Independent Researcher) |
+| `momentum/froude-regime` | Yuanhang Liu (Independent Researcher) |
 
 ## Models
 

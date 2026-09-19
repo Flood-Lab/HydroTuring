@@ -21,3 +21,8 @@ resources: {cpu: 1, memory_gb: 1, gpu: false}
 
 # Existing adapter mappings; no change to model equations.
 needs_static: [soil_capacity_mm, canopy_capacity_mm]
+# Optional: the adapter reads `width_m`, `slope` and `manning_n` for its
+# normal-depth stage whenever the case declares them, and falls back to its own
+# channel when it does not. Declared so a probe whose verdict rests on the
+# case's cross-section can score this model rather than skip it.
+uses_static: [width_m, slope, manning_n]
