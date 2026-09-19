@@ -195,9 +195,42 @@ def routing_conservation(run: RunResult, probe: ProbeSpec, params: dict) -> Crit
     the preceding window. A kernel that does not sum to one, or a store that
     leaks or accumulates, breaks one of the two.
     """
+    # A misspelled name would otherwise be dropped in silence: an author who
+    # writes `min_allowance` means to change the bound and would not learn that
+    # nothing happened. `event_water_closure` refuses unknown names the same way.
+    unknown = set(params) - {
+        "max_lag_days",
+        "lookback_days",
+        "tolerance",
+        "min_allowance_mm",
+    }
+    if unknown:
+        raise ValueError(f"routing_conservation: unknown parameters {sorted(unknown)}")
+
     max_lag = float(params.get("max_lag_days", 15.0))
     lookback = float(params.get("lookback_days", 2.0 * max_lag))
     slack = float(params.get("tolerance", 0.05))
+    # The one part of the allowance that is not a multiple of the recent peak.
+    # A reach that has stopped being fed may still hold the dead storage its
+    # own hydraulics keep, and over a long dry spell the proportional term
+    # decays to nothing while that residue does not, so without an absolute
+    # floor the criterion would score channel geometry as a leak. It is a
+    # parameter because how large that residue is belongs to the probe's
+    # weather, not to the criterion: see the probe's `min_allowance_mm`.
+    min_allowance = float(params.get("min_allowance_mm", 1e-6))
+    # A probe author is the only one who writes these, and a non-finite or
+    # negative one would silently disable the bound rather than tighten it:
+    # `min_allowance_mm: .inf` passes every model, and `.nan` compares false
+    # against everything, so both would be read as satisfied. Fail loudly here
+    # instead, as `radiative_identity` and `event_water_closure` do.
+    if not all(
+        np.isfinite(value) for value in (max_lag, lookback, slack, min_allowance)
+    ) or max_lag <= 0.0 or lookback <= 0.0 or slack < 0.0 or min_allowance < 0.0:
+        raise ValueError(
+            "routing_conservation needs positive max_lag_days and lookback_days "
+            "and non-negative tolerance and min_allowance_mm; got "
+            f"{max_lag}, {lookback}, {slack}, {min_allowance}"
+        )
 
     w = make_window(run, probe)
     for col in ("mrro", "channel"):
@@ -207,7 +240,7 @@ def routing_conservation(run: RunResult, probe: ProbeSpec, params: dict) -> Crit
     runoff = w.table["mrro"].to_numpy(dtype=float)
     n_back = max(1, int(round(lookback / w.dt_days)))
     peak = np.array([runoff[max(0, i - n_back): i + 1].max() for i in range(len(runoff))])
-    allowed = max_lag * peak * (1.0 + slack) + 1e-6
+    allowed = max_lag * peak * (1.0 + slack) + min_allowance
     excess = channel - allowed
 
     failures = []

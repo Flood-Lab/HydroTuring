@@ -586,3 +586,16 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-18,summa,4.0.0-f787fa5.4,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
 2026-09-18,wflow_sbm,1.0.4-ht.4,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
 2026-09-18,modflow6,6.7.0-adapter.1,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,"does not report snm, snw"
+2026-09-16,reference_half_soil,1.0.0,0.1.0,subprocess,momentum/routing-conservation,N/A,INCOMPLETE,not run,,"does not report mrro, channel; model timestep PT1H does not cover the probe's PT1D"
+2026-09-16,reference_frozen_soil,1.0.0,0.1.0,subprocess,momentum/routing-conservation,N/A,INCOMPLETE,not run,,"does not report mrro, channel; model timestep PT1H does not cover the probe's PT1D"
+2026-09-16,reference_soil_heat,1.0.0,0.1.0,subprocess,momentum/routing-conservation,N/A,INCOMPLETE,not run,,"does not report mrro, channel; model timestep PT1H does not cover the probe's PT1D"
+2026-09-16,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,momentum/routing-conservation,N/A,INCOMPLETE,not run,,does not report channel
+2026-09-16,reference_bucket,1.0.0,0.1.0,subprocess,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.00 of what a 15-day hydrograph can hold
+2026-09-16,flex_lumped,1.1.0,0.1.0,subprocess,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.58 of what a 15-day hydrograph can hold
+2026-09-16,flex_topo,1.0.0,0.1.0,subprocess,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.11 of what a 15-day hydrograph can hold
+2026-09-16,sacsma_snow17,1.0.0,0.1.0,subprocess,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.16 of what a 15-day hydrograph can hold
+2026-09-17,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.04 of what a 15-day hydrograph can hold
+2026-09-17,wflow_sbm,1.0.4-ht.4,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.16 of what a 15-day hydrograph can hold
+2026-09-17,cwatm,1.11-5baaadd.4,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.47 of what a 15-day hydrograph can hold
+2026-09-17,summa,4.0.0-f787fa5.4,0.1.0,docker,momentum/routing-conservation,PASS,OK,full record,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.01 of what a 15-day hydrograph can hold
+2026-09-17,lisflood,5.0.0-onecell.5,0.1.0,docker,momentum/routing-conservation,PASS,OK,1095-day flood event,417694852 924646966 1431599080,routing_conservation: the channel store stays non-negative and within 0.12 of what a 15-day hydrograph can hold
