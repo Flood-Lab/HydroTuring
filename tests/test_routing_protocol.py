@@ -29,6 +29,8 @@ def routing_probe(base_probe):
         requires_states=(),
         requires_diagnostics=(),
         requires_routing=("q_in", "q_out", "channel_storage"),
+        requires_static=("routing_network",),
+        variants=(),
     )
 
 
@@ -52,7 +54,7 @@ def _write_probe(path, base_probe, routing):
     path.mkdir(parents=True)
     raw = yaml.safe_load((base_probe.path / "probe.yaml").read_text())
     raw["id"] = "mass/routing-contract-test"
-    raw["requires"] = {"routing": routing}
+    raw["requires"] = {"routing": routing, "static": ["routing_network"]}
     (path / "generate.py").write_text("# Only manifest loading is tested.\n")
     (path / "probe.yaml").write_text(yaml.safe_dump(raw))
 
@@ -120,6 +122,18 @@ def test_routing_declarations_load_and_old_defaults_remain_empty(
     assert model.missing_for(probe) == []
     assert base_probe.requires_routing == ()
     assert registry.find_model("reference_bucket").emits_routing == ()
+
+
+
+def test_routing_probe_must_require_network(base_probe, tmp_path):
+    path = tmp_path / "mass" / "routing-contract-test"
+    _write_probe(path, base_probe, ["q_out"])
+    raw = yaml.safe_load((path / "probe.yaml").read_text())
+    raw["requires"].pop("static")
+    (path / "probe.yaml").write_text(yaml.safe_dump(raw))
+
+    with pytest.raises(SpecError, match="routing_network"):
+        load_probe(path)
 
 
 @pytest.mark.parametrize("kind", ["probe", "model"])
