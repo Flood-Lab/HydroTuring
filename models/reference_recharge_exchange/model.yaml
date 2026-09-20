@@ -1,0 +1,26 @@
+name: reference_recharge_exchange
+version: "1.0.0"
+description: >
+  reference_evolving_exchange on a losing catchment: half the bucket's runoff
+  recharges the aquifer and drains back out through the same general-head
+  boundary. Storativity is 1 mm per metre, the top of the usual confined
+  range, so a 0.5 m shift is answered by only 0.5 mm while the boundary
+  carries about 1700 mm of throughput over the record. The response is still
+  exactly S times the shift and the exchange is monotone in the head, which is
+  all that declaring gwh asserts. It is the control that pins the criterion's
+  normalisation: a floor on response over gross exchange fails it, because
+  storativity does not cancel once the boundary also carries throughput. It
+  must pass.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [pr, evspsbl, mrro, gwex]
+  states: [mrso, snw, canopy, gw, channel]
+needs_forcing: [pr, tas, pet]
+uses_forcing: [gwh]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
