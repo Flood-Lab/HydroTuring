@@ -483,6 +483,13 @@ def load_probe(path: str | Path) -> ProbeSpec:
     ]
     if unknown:
         raise SpecError(f"{spec_file}: unknown variables in requires: {unknown}")
+    if requires.get("routing") and "routing_network" not in requires.get(
+        "static", []
+    ):
+        raise SpecError(
+            f"{spec_file}: requires.routing also needs requires.static "
+            "to include routing_network"
+        )
     return ProbeSpec(
         id=raw["id"],
         title=raw["title"],
