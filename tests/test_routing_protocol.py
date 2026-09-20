@@ -151,12 +151,12 @@ def test_unknown_routing_variable_is_rejected(base_probe, tmp_path, kind):
         loader(path)
 
 
-def test_stage_requests_routing_path_and_units(case, base_probe, tmp_path):
+def test_stage_requests_routing_path_and_units(case, routing_probe, tmp_path):
     model = replace(
         registry.find_model("reference_bucket"),
         emits_routing=("q_in", "q_out", "channel_storage"),
     )
-    request = json.loads(stage(tmp_path, case, base_probe, model).read_text())
+    request = json.loads(stage(tmp_path, case, routing_probe, model).read_text())
 
     assert request["request"]["routing"] == [
         "q_in",
@@ -167,6 +167,21 @@ def test_stage_requests_routing_path_and_units(case, base_probe, tmp_path):
     assert request["units"]["q_in"] == "m3 s-1"
     assert request["units"]["q_out"] == "m3 s-1"
     assert request["units"]["channel_storage"] == "m3"
+
+
+def test_stage_omits_routing_for_nonrouting_probe(
+    case, base_probe, tmp_path
+):
+    model = replace(
+        registry.find_model("reference_bucket"),
+        emits_routing=("q_in",),
+    )
+    request = json.loads(
+        stage(tmp_path, case, base_probe, model).read_text()
+    )
+
+    assert request["request"]["routing"] == []
+    assert "q_in" not in request["units"]
 
 
 def test_valid_routing_table_roundtrips(case, routing_probe, tmp_path):
