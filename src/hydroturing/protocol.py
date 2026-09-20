@@ -104,6 +104,12 @@ class RunResult:
     meta: dict[str, Any]
     wall_seconds: float
     routing: pd.DataFrame | None = None
+    # The manifest of the model that produced the table. A criterion whose
+    # verdict depends on what the model declared it consumes — a prescribed
+    # driver it may or may not have read — needs this; every other criterion
+    # ignores it. Optional so that callers building a RunResult by hand, as
+    # the tests do, need not supply one.
+    model: ModelManifest | None = None
 
 
 def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> Path:
@@ -323,7 +329,10 @@ def _read_routing(
     return table
 
 
-def read_result(io_dir: Path, case: Case, probe: ProbeSpec, wall_seconds: float) -> RunResult:
+def read_result(
+    io_dir: Path, case: Case, probe: ProbeSpec, wall_seconds: float,
+    model: ModelManifest | None = None,
+) -> RunResult:
     """Read and validate what the adapter produced."""
     _validate_output_files(io_dir, probe)
     csv_path = io_dir / RESULT_CSV
@@ -394,4 +403,5 @@ def read_result(io_dir: Path, case: Case, probe: ProbeSpec, wall_seconds: float)
         meta=meta,
         wall_seconds=wall_seconds,
         routing=routing,
+        model=model,
     )

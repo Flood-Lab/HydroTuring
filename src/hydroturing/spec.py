@@ -178,6 +178,14 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_rating_drift",
     "reference_rating_inverted",
     "reference_flat_stage",
+    # mass/exchange-response: three exact boundaries that must pass, and three
+    # declared-exchange cheats that must not.
+    "reference_driven_exchange",
+    "reference_evolving_exchange",
+    "reference_recharge_exchange",
+    "reference_noise_sink",
+    "reference_token_exchange",
+    "reference_steady_sink",
     "reference_exchange_sign_error",
     "reference_exchange_exact",
 }

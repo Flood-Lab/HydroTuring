@@ -1,0 +1,27 @@
+name: reference_steady_sink
+version: "1.0.0"
+description: >
+  reference_token_exchange with its noise taken out: evaporation overstated by
+  a constant 0.3 mm/day, 13% of the rain over the record, declared as a steady
+  regional inflow so the budget still closes exactly, with the same
+  million-times-too-weak head trickle on top. A constant sink adds nothing to
+  the exchange's variation, so a floor on the response's share of that
+  variation cannot see it: the only thing moving the declared exchange is the
+  trickle, and a trickle of any size clears a share of its own movement. Its
+  head response is 1.7e-6 of its gross exchange, the same share as
+  reference_token_exchange. It is caught by the second term in the bar, a much
+  smaller share of the gross, which is finite for a steady exchange where the
+  variation share is not.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [pr, evspsbl, mrro, gwex]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet]
+uses_forcing: [gwh]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
