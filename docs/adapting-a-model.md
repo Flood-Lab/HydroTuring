@@ -64,6 +64,21 @@ diagnostic but omitting it from the output is a protocol error. The separate
 `ts` diagnostic is instantaneous surface temperature for radiative checks;
 it cannot replace the interval-end mean-layer `tsoil_layer`.
 
+Reach-indexed river-network outputs use the optional `routing` group and are
+written separately from the catchment-level result table:
+
+```yaml
+emits:
+  fluxes: [mrro, dis]
+  states: [channel]
+  routing: [q_in, q_out, channel_storage]
+```
+
+Variables declared under `emits.routing` belong in `output/routing.csv`, not
+`output/result.csv`. The harness requests them only on a probe that declares
+`requires.routing` and supplies `routing_network.reaches` in `static.json`.
+The routing table contains one row for every forcing time and declared reach.
+
 For the soil-storage probe, the control volume extends from the surface to
 `soil_layer_depth_m`, with prescribed `soil_heat_capacity_areal` and
 `soil_temperature_initial`. Configure that layer before running the model.
@@ -79,8 +94,10 @@ prove that the model used it. See the [soil-storage case](../probes/energy/soil-
 
 ## 2. Write the adapter
 
-Read `/io/request.json`, read the forcing, call your model, write the table.
-The plumbing is about thirty lines and does not depend on your model.
+Read `/io/request.json`, read the forcing and static inputs, call your model,
+and write `output/result.csv`. When `request.request.routing` is non-empty,
+also write `output/routing.csv` using the paths declared under
+`request.output`. The plumbing does not otherwise depend on your model.
 
 ```python
 request = json.loads(Path(sys.argv[-1]).read_text())
