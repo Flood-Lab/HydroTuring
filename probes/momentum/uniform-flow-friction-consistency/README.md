@@ -32,23 +32,38 @@ and maximum Froude number at each plateau. The Froude number is diagnostic,
 not an additional verdict in this probe.
 
 The 5% allowance covers numerical convergence and the wide-channel stage
-diagnostics of the existing physical baselines. Across the generated wide
-rectangular sections, replacing the exact hydraulic radius with depth gives a
-much smaller discrepancy than 5%. The two negative controls sit deliberately
-just outside the boundary: a 3% high Manning coefficient produces
-`1 - 1/1.03^2 = 5.74%` residual, while a 6% high slope produces 6% residual.
-This pins discrimination near the stated tolerance instead of testing only
-grossly broken ratings.
+diagnostics of the existing physical baselines. Across 500,000 draws from the
+generator, an honest wide-channel rating had a worst three-plateau residual
+below 1.97%. The practical detection floor is therefore a Manning-roughness
+error of about 2.5%: a 2% error can pass, whereas the exact-section negative
+control at 3% high roughness has `1 - 1/1.03^2 = 5.74%` residual. The second
+control uses a 6% high slope and produces 6% residual. These controls pin the
+boundary without claiming sensitivity below what the hydraulic-radius
+approximation permits.
+
+Manning friction with the supplied `manning_n` is part of this probe's case
+contract; the probe does not compare friction laws. A model using Chézy,
+Darcy–Weisbach or a depth-dependent roughness should not declare that it
+consumes this Manning parameter and is `N/A (INCOMPATIBLE)` here. A future
+criterion using a model-reported section velocity could test a more
+closure-independent momentum identity.
 
 ## Independent momentum baseline
 
-`reference_saint_venant` is the must-pass model that tests the momentum
-interpretation directly. It advances the conservative one-dimensional
+`reference_saint_venant` supplies a numerically independent must-pass momentum
+solution. It advances the conservative one-dimensional
 shallow-water equations for depth and unit discharge with a Rusanov
 finite-volume flux, explicit bed slope and an implicit Manning-friction
 source. The upstream boundary prescribes discharge and the downstream
 boundary is open. Every case starts from a weakly non-uniform motionless pool;
 the solver neither evaluates nor inverts a normal-depth formula.
+
+This is a pseudo-steady baseline, not a transient routing model: whenever the
+inflow changes it integrates to equilibrium, memoizes that solution, and emits
+the equilibrium gauge values over the plateau. Its Manning equilibrium follows
+from the prescribed friction source. Its independence from the rating adapters
+is in the finite-volume discretisation, boundary treatment and convergence from
+a non-equilibrium state, not in using a different friction closure.
 
 Tests require the numerical reach to:
 

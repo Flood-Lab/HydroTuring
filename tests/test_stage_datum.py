@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from hydroturing import registry
-from hydroturing.criteria import get
+from hydroturing.criteria import depth_series, get
 from hydroturing.harness import build_case
 from hydroturing.protocol import Case, RunResult
 from hydroturing.seeds import gate_seeds
@@ -44,6 +44,15 @@ def test_stage_variability_uses_depth_not_absolute_elevation():
     assert elevated.diagnostics["cv_stage"] == pytest.approx(
         local.diagnostics["cv_stage"], abs=1e-12
     )
+
+
+def test_depth_series_refuses_to_infer_an_undeclared_datum():
+    run = _run(0.0)
+    undeclared = RunResult(
+        replace(run.case, static={}), run.table, run.meta, run.wall_seconds
+    )
+    with pytest.raises(ValueError, match="must require the datum"):
+        depth_series(undeclared)
 
 
 PROBE_ID = "momentum/stage-discharge-monotonic"

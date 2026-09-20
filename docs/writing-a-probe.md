@@ -128,6 +128,12 @@ Every one is binary.
 | `rating_loop` | where the gauge loops against the reach's store, the loop must be small enough to be noise or run the right way: at the same storage the rising limb sits lower than the falling one. A single-valued rating, or a loop below `min_loop_m` with an inconsistent sign across bins, is read as "no loop" and passes | one run |
 | `uniform_flow_friction` | on each labelled low, medium and high steady plateau, the reported discharge and stage must make Manning friction slope agree with the declared bed slope for the explicit rectangular section; CV and first-to-last-quarter trend gates reject blocks that have not converged | one run, three labelled plateaus |
 
+`stage` is an elevation on a case-declared fixed datum. A criterion that forms
+water depth, or any ratio or power of the level, must include
+`bed_elevation_m` in `requires.static` and use the shared `depth_series(run)`
+helper; it may not infer a datum. A criterion that uses only differences of
+stage does not need the bed elevation because a fixed datum cancels.
+
 Picking a denominator for `closure` and `regime_transfer`:
 
 | Denominator | Use for | Floor |

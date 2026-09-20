@@ -21,6 +21,10 @@ PASS = "pass"
 FAIL = "fail"
 
 
+class CriterionIncompatibleError(ValueError):
+    """A result reveals a contract convention mismatch, so the probe is N/A."""
+
+
 @dataclass
 class CriterionResult:
     name: str
@@ -139,6 +143,39 @@ def make_window(run: RunResult, probe: ProbeSpec) -> Window:
         state0=run.table.iloc[prior],
         dt_days=case.dt_days,
     )
+
+
+def depth_series(run: RunResult) -> np.ndarray:
+    """Return flow depth from stage on the case's declared fixed datum.
+
+    A stage-consuming criterion that needs a depth, ratio, or power must call
+    this helper rather than infer a datum.  The probe must require the rigid
+    bed elevation.  A series entirely below that bed normally means the model
+    reported depth above bed in the ``stage`` column; that is a convention
+    mismatch, not a physical violation.
+    """
+    if "stage" not in run.table.columns:
+        raise ValueError("depth_series needs 'stage' in the model result")
+    if "bed_elevation_m" not in run.case.static:
+        raise ValueError(
+            "depth_series needs case static 'bed_elevation_m'; a criterion "
+            "that forms depth from stage must require the datum"
+        )
+    try:
+        bed = float(run.case.static["bed_elevation_m"])
+    except (TypeError, ValueError):
+        raise ValueError("bed_elevation_m must be numeric") from None
+    if not np.isfinite(bed):
+        raise ValueError("bed_elevation_m must be finite")
+
+    depth = np.asarray(run.table["stage"], dtype=float) - bed
+    if len(depth) and np.isfinite(depth).all() and np.all(depth < 0.0):
+        raise CriterionIncompatibleError(
+            "reported stage is below bed_elevation_m on every step; stage must "
+            "be water-surface elevation on the case's fixed vertical datum, "
+            "not depth above the bed"
+        )
+    return depth
 
 
 def segments(window: Window, column: str = "_regime") -> list[tuple[str, int, int]]:

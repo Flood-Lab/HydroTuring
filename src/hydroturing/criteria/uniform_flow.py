@@ -15,6 +15,7 @@ from hydroturing.criteria.base import (
     PASS,
     CriterionResult,
     criterion,
+    depth_series,
     make_window,
     segments,
 )
@@ -75,6 +76,7 @@ def uniform_flow_friction(
     missing = [name for name in required if name not in window.table]
     if missing:
         return _failure(f"missing required output(s): {', '.join(missing)}")
+    window_depth = depth_series(run)[run.case.spinup_steps:]
 
     static = run.case.static
     static_names = (
@@ -152,11 +154,10 @@ def uniform_flow_friction(
             )
         block = window.table.iloc[stop - steady_steps:stop]
         discharge = np.asarray(block["dis"], dtype=float)
-        stage = np.asarray(block["stage"], dtype=float)
-        depth = stage - bed
+        depth = np.asarray(window_depth[stop - steady_steps:stop], dtype=float)
         if not np.isfinite(discharge).all() or not np.isfinite(depth).all():
             return _failure(
-                f"{label} plateau: discharge and stage must be finite",
+                f"{label} plateau: discharge and depth must be finite",
                 plateau=label,
             )
         if np.any(discharge <= 0.0):

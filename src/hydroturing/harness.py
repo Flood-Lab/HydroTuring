@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from hydroturing import SUITE_VERSION, criteria as criteria_mod
-from hydroturing.criteria.base import CriterionResult
+from hydroturing.criteria.base import CriterionIncompatibleError, CriterionResult
 from hydroturing.protocol import Case, RunResult
 from hydroturing.runner import get_runner
 from hydroturing.scoring import (
@@ -555,6 +555,8 @@ def run_probe(
                 per_criterion[result.name].append((seed, result))
                 if result.diagnostics.get("suspicious_exact"):
                     flags.append(f"suspicious_exact:{probe.id}")
+        except CriterionIncompatibleError as exc:
+            return incompatible_outcome([str(exc)])
         except Exception as exc:  # noqa: BLE001 - a runner, protocol or criterion failure is an ERROR
             return error_outcome(exc)
 

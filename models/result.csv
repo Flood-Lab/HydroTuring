@@ -706,3 +706,6 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-20,sacsma_snow17,1.1.0,0.1.0,subprocess,momentum/stage-discharge-monotonic,PASS,OK,full record,1670932170 30400637 537352751,"rating_monotonic: stage rises monotonically with discharge (0.0000 m of deficit over 12 bins, source dis, tolerance 0.1591 m); rating_loop: no loop to read: stage is a function of dis to within 5.35e-04 m, so the rating is single-valued (12 bins); non_degenerate: partition and variability are non-trivial"
 2026-09-20,summa,4.0.0-f787fa5.4,0.1.0,docker,momentum/stage-discharge-monotonic,N/A,INCOMPLETE,not run,,"does not report dis, stage; model does not declare that it consumes static bed_elevation_m"
 2026-09-20,wflow_sbm,1.0.4-ht.4,0.1.0,docker,momentum/stage-discharge-monotonic,N/A,INCOMPLETE,not run,,does not report stage; model does not declare that it consumes static bed_elevation_m
+2026-09-20,flex_lumped,1.2.0,0.1.0,subprocess,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh
+2026-09-20,flex_topo,1.1.0,0.1.0,subprocess,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh
+2026-09-20,sacsma_snow17,1.1.0,0.1.0,subprocess,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh

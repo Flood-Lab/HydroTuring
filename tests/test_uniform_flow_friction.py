@@ -8,9 +8,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from hydroturing import registry
 from hydroturing.criteria import get
 from hydroturing.criteria.base import FAIL, PASS
+from hydroturing.harness import run_probe
 from hydroturing.protocol import Case, RunResult
+from hydroturing.runner import get_runner
+from hydroturing.scoring import INCOMPATIBLE, NOT_SCORED
+from hydroturing.seeds import gate_seeds
 
 
 STATIC = {
@@ -192,3 +197,31 @@ def test_malformed_case_inputs_raise_configuration_errors():
         get("uniform_flow_friction")(
             _run(short_q, short_stage), None, _params()
         )
+
+
+def test_depth_reported_in_the_stage_column_is_incompatible(
+    monkeypatch, tmp_path,
+):
+    """A different datum convention is N/A, not a public physics violation."""
+    from hydroturing import harness
+
+    probe = registry.find_probe("momentum/uniform-flow-friction-consistency")
+    model = registry.find_model("reference_uniform_flow")
+    real_runner = get_runner(model)
+
+    class DepthAsStageRunner:
+        def run(self, model, probe, case, io_dir):
+            result = real_runner.run(model, probe, case, io_dir)
+            result.table["stage"] -= float(case.static["bed_elevation_m"])
+            return result
+
+    monkeypatch.setattr(harness, "get_runner", lambda _: DepthAsStageRunner())
+    outcome = run_probe(
+        model,
+        probe,
+        gate_seeds(probe.id, 1),
+        workdir=tmp_path,
+    )
+    assert outcome.verdict == NOT_SCORED
+    assert outcome.reason == INCOMPATIBLE
+    assert "fixed vertical datum" in outcome.incompatible[0]
