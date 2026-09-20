@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -122,7 +123,6 @@ def test_routing_declarations_load_and_old_defaults_remain_empty(
     assert model.missing_for(probe) == []
     assert base_probe.requires_routing == ()
     assert registry.find_model("reference_bucket").emits_routing == ()
-
 
 
 def test_routing_probe_must_require_network(base_probe, tmp_path):
@@ -335,3 +335,45 @@ def test_verify_adapter_checks_routing_on_network_probe(
         verify_adapter_contract(
             model, routing_probe, 11, workdir=tmp_path
         )
+
+
+def test_verify_adapter_prefers_routing_probe(
+    base_probe, routing_probe, monkeypatch
+):
+    from hydroturing import cli
+
+    model = replace(
+        registry.find_model("reference_bucket"),
+        emits_routing=("q_in",),
+    )
+    attempted = []
+
+    def stop_after_selection(model, probe, seed, **kwargs):
+        attempted.append(probe)
+        raise RuntimeError("stop after selecting the probe")
+
+    monkeypatch.setattr(
+        cli.registry,
+        "find_model",
+        lambda name: model,
+    )
+    monkeypatch.setattr(
+        cli,
+        "_all_probes",
+        lambda args: [base_probe, routing_probe],
+    )
+    monkeypatch.setattr(
+        cli,
+        "verify_adapter_contract",
+        stop_after_selection,
+    )
+    args = SimpleNamespace(
+        model="reference_bucket",
+        probe=None,
+        workdir=None,
+        window=None,
+        csv=None,
+    )
+
+    assert cli.cmd_verify_adapter(args) == 2
+    assert attempted == [routing_probe]
