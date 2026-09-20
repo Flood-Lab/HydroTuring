@@ -293,10 +293,45 @@ def test_routing_values_must_be_finite(
         read_result(tmp_path, case, routing_probe, 0.0)
 
 
-def test_verify_adapter_checks_declared_routing(base_probe, tmp_path):
+def test_verify_adapter_skips_routing_on_nonrouting_probe(
+    base_probe, tmp_path
+):
     model = replace(
         registry.find_model("reference_bucket"),
         emits_routing=("q_in",),
     )
+
+    result = verify_adapter_contract(
+        model, base_probe, 11, workdir=tmp_path
+    )
+
+    assert result.routing is None
+
+
+def test_verify_adapter_checks_routing_on_network_probe(
+    routing_probe, tmp_path, monkeypatch
+):
+    import hydroturing.harness as harness
+
+    original_build_case = harness.build_case
+
+    def build_case_with_network(*args, **kwargs):
+        built = original_build_case(*args, **kwargs)
+        static = dict(built.static)
+        static["routing_network"] = {"reaches": ["A"]}
+        return replace(built, static=static)
+
+    monkeypatch.setattr(
+        harness,
+        "build_case",
+        build_case_with_network,
+    )
+    model = replace(
+        registry.find_model("reference_bucket"),
+        emits_routing=("q_in",),
+    )
+
     with pytest.raises(ProtocolError, match="routing.csv"):
-        verify_adapter_contract(model, base_probe, 11, workdir=tmp_path)
+        verify_adapter_contract(
+            model, routing_probe, 11, workdir=tmp_path
+        )
