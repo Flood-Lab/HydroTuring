@@ -191,7 +191,12 @@ def _validate_output_files(io_dir: Path, probe: ProbeSpec) -> None:
         )
 
 
-def _validate_time_axis(table: pd.DataFrame, case: Case) -> None:
+def _validate_time_axis(
+    table: pd.DataFrame,
+    case: Case,
+    *,
+    label: str = "result",
+) -> None:
     expected = case.forcing[TIME_COL].reset_index(drop=True)
     actual = table[TIME_COL].reset_index(drop=True)
 
@@ -211,7 +216,7 @@ def _validate_time_axis(table: pd.DataFrame, case: Case) -> None:
     if not equal:
         first = int(mismatch.to_numpy().nonzero()[0][0])
         raise ProtocolError(
-            f"result time axis differs from the forcing at row {first}: "
+            f"{label} time axis differs from the forcing at row {first}: "
             f"got {actual.iloc[first]!r}, expected {expected.iloc[first]!r}"
         )
 
@@ -299,7 +304,11 @@ def _read_routing(
                 f"routing reach '{reach}' has {len(reach_table)} rows, "
                 f"expected {case.n_steps}"
             )
-        _validate_time_axis(reach_table, case)
+        _validate_time_axis(
+            reach_table,
+            case,
+            label=f"routing.csv reach {reach!r}",
+        )
 
     for var in probe.requires_routing:
         column = pd.to_numeric(table[var], errors="coerce")
