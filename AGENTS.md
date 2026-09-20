@@ -39,8 +39,32 @@ Paths inside `request.json` are relative to the request file's directory.
                           and sw_stage_m (m) instead
 /io/input/static.json     read-only: catchment attributes
 /io/output/result.csv     write: one row per forcing row, spinup included
+/io/output/routing.csv    write when requested: one row per forcing row and reach
 /io/output/run.json       write: {"status": "ok"}
 ```
+
+When `request.request.routing` is non-empty, the adapter must write
+`output/routing.csv` as a long table with one row for every forcing time and
+every reach declared by `static.json` under `routing_network.reaches`. The
+required identifier columns are `time` and `reach_id`; the remaining required
+columns are the names listed in `request.request.routing`. For example:
+
+```csv
+time,reach_id,q_in,q_out,channel_storage
+2001-01-01,A,12.3,8.4,336960
+2001-01-01,B,7.1,4.9,190080
+2001-01-01,C,13.3,9.2,354240
+```
+
+Each `(time, reach_id)` pair must be unique. Every declared reach must have
+exactly one row for every forcing row, including spinup, and each reach's time
+axis must match `forcing.csv`. `q_in` and `q_out` are interval-mean discharge
+rates in m3/s. `channel_storage` is the absolute volume stored in that reach at
+the end of the interval, in m3. It is not a tendency and must not be converted
+to catchment-average depth. A missing requested routing column, reach or time
+row is a contract error. Models that do not declare `emits.routing` do not
+write `routing.csv`.
+
 
 The model seed is deterministic for reproducible stochastic inference, but it
 is not the generator seed recorded in the host-side report. Exit 0 on success.
@@ -148,6 +172,9 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | `evspsbl` | evapotranspiration | mm/day |
 | `mrro` | total runoff | mm/day |
 | `dis` | river discharge | m3/s |
+| `q_in` | interval-mean inflow to the identified reach for the row's time interval; reach-indexed in `routing.csv`, never a catchment-average flux | m3/s |
+| `q_out` | interval-mean outflow from the identified reach for the row's time interval; reach-indexed in `routing.csv`, never a catchment-average flux | m3/s |
+| `channel_storage` | absolute water volume stored in the identified reach at the end of the row's time interval; reach-indexed in `routing.csv`, not a tendency and not catchment-average `channel` storage | m3 |
 | `gwex` | a declared exchange with the outside: regional groundwater, inter-basin transfer; positive into the catchment | mm/day |
 | `gw_sw_exchange` | net river-aquifer exchange, positive into the aquifer; unlike `gwex`, this moves water between two stores inside the control volume (`gw` and `channel`), so it is never added to `gwex` or counted as a `closure` source | mm/day |
 | `gw_to_sw` | groundwater-to-river exchange component: the aquifer losing to the river, so it is never positive; a component of `gw_sw_exchange`, not of `gwex`, and not an addition to it | mm/day |
@@ -231,6 +258,22 @@ emits:
   states: []
 ```
 
+A model that also exposes native reach-indexed routing output declares it
+separately from the catchment-level result columns:
+
+```yaml
+emits:
+  fluxes: [mrro, dis]
+  states: [channel]
+  routing: [q_in, q_out, channel_storage]
+```
+
+Variables declared under `emits.routing` belong in `routing.csv`, not in
+`result.csv`, `emits.fluxes` or `emits.states`. Declaring them means the
+adapter must write the requested long table; do not construct `q_in` or
+`channel_storage` from a budget residual merely to satisfy the contract.
+
+
 Every probe that needs more than that will be `N/A` with reason
 `INCOMPLETE`, which is the honest outcome: not a fail, but a probe that
 cannot be put to the model, so it counts neither way. Fabricating an
@@ -269,7 +312,10 @@ ht run --model <model-name>              # the actual evaluation
 ```
 
 `verify-adapter` runs a single seed, on the same window the evaluation will
-use, and checks the shape of what came back. Get that green before looking
+use, and checks the shape of what came back. For a model that declares
+`emits.routing`, this includes the presence of `routing.csv`, its requested
+columns, reach IDs, complete time coverage, unique `(time, reach_id)` pairs
+and finite numeric values. Get that green before looking
 at any residual. Without `--probe` it checks the closure probe, or the first
 probe the model can consume when it cannot consume that one: a step it does
 not declare, a forcing or static input the probe does not generate, or a window that drops a
