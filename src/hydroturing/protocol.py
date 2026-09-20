@@ -122,18 +122,21 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
         json.dump(case.static, fh, indent=2)
 
     case_id, model_seed = _opaque_case_metadata(case)
+    requested_routing = (
+        list(model.emits_routing) if probe.requires_routing else []
+    )
     request = {
         "case_id": case_id,
         "seed": model_seed,
         "timestep": case.timestep,
         "n_steps": case.n_steps,
         "request": {
-            # Asking for every declared output keeps this part of the request
-            # invariant across probes and prevents it identifying the criterion.
+            # Catchment-level groups remain invariant across probes.
+            # Routing is requested only when the probe supplies a network.
             "fluxes": list(model.emits_fluxes),
             "states": list(model.emits_states),
             "diagnostics": list(model.emits_diagnostics),
-            "routing": list(model.emits_routing),
+            "routing": requested_routing,
         },
         "input": {"forcing": FORCING_FILE, "static": STATIC_FILE},
         "output": {
@@ -143,7 +146,7 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
         },
         "units": {
             v: UNITS[v]
-            for v in (*model.emitted, *model.emits_routing)
+            for v in (*model.emitted, *requested_routing)
             if v in UNITS
         },
         "notes": (
