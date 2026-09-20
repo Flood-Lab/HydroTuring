@@ -225,7 +225,7 @@ def _read_routing(
             raise ProtocolError(f"adapter did not write required {ROUTING_CSV}")
         return None
 
-    table = pd.read_csv(path)
+    table = pd.read_csv(path, dtype={REACH_COL: str})
     required_columns = [TIME_COL, REACH_COL, *probe.requires_routing]
     missing = [
         column for column in required_columns if column not in table.columns
@@ -245,32 +245,40 @@ def _read_routing(
         )
 
     network = case.static.get("routing_network")
-    declared_reaches = (
-        network.get("reaches") if isinstance(network, dict) else None
-    )
-    if probe.requires_routing and not declared_reaches:
+    if not isinstance(network, dict) or "reaches" not in network:
         raise ProtocolError(
             "routing output requires static.json routing_network.reaches"
         )
 
-    if declared_reaches:
-        expected_reaches = tuple(str(reach) for reach in declared_reaches)
-        if len(expected_reaches) != len(set(expected_reaches)):
-            raise ProtocolError(
-                "static.json routing_network.reaches contains duplicates"
-            )
+    declared_reaches = network["reaches"]
+    if (
+        not isinstance(declared_reaches, list)
+        or not declared_reaches
+        or any(
+            not isinstance(reach, str) or not reach
+            for reach in declared_reaches
+        )
+    ):
+        raise ProtocolError(
+            "static.json routing_network.reaches must be a non-empty "
+            "list of non-empty string IDs"
+        )
 
-        actual_reaches = set(table[REACH_COL])
-        expected_set = set(expected_reaches)
-        if actual_reaches != expected_set:
-            missing_reaches = sorted(expected_set - actual_reaches)
-            extra_reaches = sorted(actual_reaches - expected_set)
-            raise ProtocolError(
-                "routing reach IDs differ from static.json: "
-                f"missing={missing_reaches}, extra={extra_reaches}"
-            )
-    else:
-        expected_reaches = tuple(dict.fromkeys(table[REACH_COL]))
+    expected_reaches = tuple(declared_reaches)
+    if len(expected_reaches) != len(set(expected_reaches)):
+        raise ProtocolError(
+            "static.json routing_network.reaches contains duplicates"
+        )
+
+    actual_reaches = set(table[REACH_COL])
+    expected_set = set(expected_reaches)
+    if actual_reaches != expected_set:
+        missing_reaches = sorted(expected_set - actual_reaches)
+        extra_reaches = sorted(actual_reaches - expected_set)
+        raise ProtocolError(
+            "routing reach IDs differ from static.json: "
+            f"missing={missing_reaches}, extra={extra_reaches}"
+        )
 
     expected_rows = case.n_steps * len(expected_reaches)
     if len(table) != expected_rows:
