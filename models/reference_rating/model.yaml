@@ -1,5 +1,5 @@
 name: reference_rating
-version: "1.0.0"
+version: "1.1.0"
 description: >
   The bucket, with a real rating curve. Yield enters a shallow floodplain
   reservoir and a deep channel reservoir whose residence times are separated
@@ -19,6 +19,7 @@ emits:
   states: [mrso, snw, canopy, channel]
   diagnostics: [stage]
 needs_forcing: [pr, tas, pet]
+uses_static: [bed_elevation_m]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

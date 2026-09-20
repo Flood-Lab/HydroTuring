@@ -32,7 +32,7 @@ COLUMNS = [
     'mrso', 'snw', 'canopy', 'channel', 'stage',
 ]
 
-MODEL = {"name": "reference_rating", "version": "1.0.0"}
+MODEL = {"name": "reference_rating", "version": "1.1.0"}
 
 EVAP_SHAPE = 0.5  # soil moisture at which evaporation reaches its potential rate
 
@@ -121,6 +121,7 @@ def manning_depth(q_m3s: float, static: dict) -> float:
 
 def simulate(forcing, static, dt_days=1.0):
     """The exact bucket, drained through a channel and a floodplain."""
+    bed_elevation_m = float(static.get("bed_elevation_m", 0.0))
     soil_cap = static["soil_capacity_mm"]
     canopy_cap = static["canopy_capacity_mm"]
     ddf = static["degree_day_factor_mm_per_C_day"]
@@ -191,7 +192,11 @@ def simulate(forcing, static, dt_days=1.0):
         # channel is emptier on the rise than on the fall, and the gauge reads
         # lower there.
         gauge_q = q_slow + STAGE_FAST_SHARE * q_fast
-        stage = manning_depth(_q_m3s(gauge_q / dt_days, static), static)
+        # `stage` is an elevation on the case datum, so the depth the
+        # channel makes is reported above the declared bed.
+        stage = bed_elevation_m + manning_depth(
+            _q_m3s(gauge_q / dt_days, static), static
+        )
 
         rows.append({
             "time": step["time"],

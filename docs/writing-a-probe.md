@@ -321,7 +321,7 @@ The reference models available today:
 | `reference_snyder_router` | consumes public catchment geometry and routes rain with a conservative triangular unit hydrograph whose peak follows the duration-corrected Snyder lag from the excess-rainfall centroid | nothing, it must pass the routing-lag probe |
 | `reference_instant_router` | accepts the geometry but returns runoff in the rainfall row at every scale | `lag_time_bounds` |
 | `reference_inverse_router` | uses individually plausible lags that reverse once as catchment scale grows | `scaling_monotonicity` |
-| `reference_rating` | the bucket with a real rating curve: yield enters a shallow floodplain and a deep channel reservoir, and the stage is the depth the channel's volume makes in a fixed bed | must pass `momentum/stage-discharge-monotonic` |
+| `reference_rating` | the bucket with a real rating curve: yield enters a shallow floodplain and a deep channel reservoir, and the stage is the depth the channel's volume makes in a fixed bed, reported above the case's declared datum | must pass `momentum/stage-discharge-monotonic` |
 | `reference_rating_drift` | derives its stage from a slowly decaying running maximum of discharge (`peak = max(q, 0.997 * peak)` per day), so the gauge ratchets up with each flood far faster than it relaxes | `rating_monotonic` |
 | `reference_rating_inverted` | reads the loop backwards, high while the flood is arriving and low once it is leaving | `rating_loop` |
 | `reference_flat_stage` | reports a constant stage, so there is no rating and no loop | `non_degenerate` |

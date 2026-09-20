@@ -47,6 +47,15 @@ STATIC = {
     # a rating loop at all.
     "width_m": 18.0,
     "bankfull_depth_m": 2.5,
+    # The vertical datum `stage` is reported on. `stage` is a water-surface
+    # elevation, and the datum is not the bed by definition — a bed scours
+    # and fills, a datum does not — so the case has to declare where zero
+    # is rather than leave a criterion to infer it. This reach puts zero at
+    # the bed, which is legal and keeps the gauge readings unchanged; what
+    # the declaration buys is that `requires.static` can name the key, so a
+    # model carrying its own datum is `N/A (INCOMPATIBLE)` here instead of
+    # failing `non_degenerate` for a difference of convention.
+    "bed_elevation_m": 0.0,
     "slope": 0.0015,
     "manning_n": 0.035,
     "reach_length_m": 4500.0,

@@ -23,7 +23,7 @@ COLUMNS = [
     'mrso', 'snw', 'canopy', 'channel', 'stage',
 ]
 
-MODEL = {"name": "reference_flat_stage", "version": "1.0.0"}
+MODEL = {"name": "reference_flat_stage", "version": "1.1.0"}
 
 EVAP_SHAPE = 0.5
 SECONDS_PER_DAY = 86400.0
@@ -41,6 +41,7 @@ TIMESTEP_DAYS = {
 
 
 def simulate(forcing, static, dt_days=1.0):
+    bed_elevation_m = float(static.get("bed_elevation_m", 0.0))
     soil_cap = static["soil_capacity_mm"]
     canopy_cap = static["canopy_capacity_mm"]
     ddf = static["degree_day_factor_mm_per_C_day"]
@@ -103,7 +104,7 @@ def simulate(forcing, static, dt_days=1.0):
             "snw": swe,
             "canopy": canopy,
             "channel": cum_gen - cum_out,
-            "stage": FLAT_STAGE_M,
+            "stage": bed_elevation_m + FLAT_STAGE_M,
         })
     return rows
 

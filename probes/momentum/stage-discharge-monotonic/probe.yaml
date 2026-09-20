@@ -2,7 +2,7 @@ id: momentum/stage-discharge-monotonic
 title: A stage reading rises with discharge, and loops the way a flood wave does
 law: momentum
 track: synthetic
-version: 1
+version: 2
 
 authors:
   - name: Yuanhang Liu
@@ -30,6 +30,11 @@ requires:
   fluxes: [dis]
   states: [channel]
   diagnostics: [stage]
+  # `non_degenerate` takes CV(stage), a ratio of the level, so it is not
+  # invariant to the datum and the probe must require the datum to be read.
+  # `rating_monotonic` and `rating_loop` work on differences of stage and
+  # would not need it on their own.
+  static: [bed_elevation_m]
 
 case:
   generator: generate.py

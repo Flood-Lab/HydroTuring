@@ -1,5 +1,5 @@
 name: reference_flat_stage
-version: "1.0.0"
+version: "1.1.0"
 description: >
   The routed bucket that reports a stage at all times equal to a constant.
   The reading is plausible-looking and the discharge is honest, but the
@@ -16,6 +16,7 @@ emits:
   states: [mrso, snw, canopy, channel]
   diagnostics: [stage]
 needs_forcing: [pr, tas, pet]
+uses_static: [bed_elevation_m]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}
