@@ -348,7 +348,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <circle cx="488" cy="197.5" r="2.4" fill="var(--pass)"/>
       <text x="496" y="201" class="probe" data-i18n="infra.probe.rating">stage rating</text>
       <circle cx="488" cy="211.5" r="2.4" fill="var(--pass)"/>
-      <text x="496" y="215" class="probe" data-i18n="infra.probe.friction">friction balance</text>
+      <text x="496" y="215" class="probe" data-i18n="infra.probe.friction">friction</text>
       <rect x="484" y="228" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
       <text x="518" y="252" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
       <text x="417" y="362" class="mono-small" data-i18n="infra.flow" text-anchor="middle">seed → case → run → one bit</text>
@@ -668,7 +668,7 @@ en: {
   "infra.probe.routing":"routing",
   "infra.probe.routinglag":"travel time",
   "infra.probe.rating":"stage rating",
-  "infra.probe.friction":"friction balance",
+  "infra.probe.friction":"friction",
   "infra.flow":"seed → case → run → one bit",
   "infra.s1a":"seeded",
   "infra.s1b":"generator",
@@ -763,7 +763,7 @@ en: {
 <tr><td class="mono">energy/snowpack-cold-content</td><td>energy</td><td>The full snowpack energy budget, cold content and phase change included.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">momentum/channel-routing-mass</td><td>momentum</td><td>Inflow minus outflow minus the change in channel storage, per reach.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>momentum</td><td>A stage reading rises with discharge, and where the rating loops, the rising limb sits lower than the falling one at the same discharge.</td><td><span class="tag merged">merged</span></td></tr>
-<tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>momentum</td><td>At steady flow, discharge and stage must satisfy one Manning balance with the declared geometry and roughness.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>momentum</td><td>At three steady flows, discharge and stage must satisfy one Manning balance with the declared rectangular geometry and roughness.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/wave-celerity-bounds</td><td>momentum</td><td>Kinematic wave celerity must be positive and near the Manning expectation.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">momentum/froude-regime</td><td>momentum</td><td>Flow in a mild-sloped reach must stay subcritical.</td><td><span class="tag wanted">wanted</span></td></tr>`,
   "verdict.h":"Verdicts",
@@ -889,7 +889,7 @@ es: {
   "infra.probe.routing":"tránsito",
   "infra.probe.routinglag":"retardo",
   "infra.probe.rating":"curva de gasto",
-  "infra.probe.friction":"balance de fricción",
+  "infra.probe.friction":"fricción",
   "infra.flow":"semilla → caso → ejecución → un bit",
   "infra.s1a":"generador",
   "infra.s1b":"con semilla",
@@ -984,7 +984,7 @@ es: {
 <tr><td class="mono">energy/snowpack-cold-content</td><td>energía</td><td>El balance energético completo del manto de nieve, con contenido frío y cambio de fase.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">momentum/channel-routing-mass</td><td>momento</td><td>Entrada menos salida menos el cambio de almacenamiento en el cauce, por tramo.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>momento</td><td>La cota sube con el caudal y, donde la curva forma un bucle, la rama ascendente queda por debajo de la descendente a un mismo caudal.</td><td><span class="tag merged">integrada</span></td></tr>
-<tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>momento</td><td>En régimen uniforme, caudal y cota deben satisfacer un mismo balance de Manning con la geometría y rugosidad declaradas.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>momento</td><td>En tres caudales estacionarios, caudal y cota deben satisfacer un mismo balance de Manning con la geometría rectangular y rugosidad declaradas.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/wave-celerity-bounds</td><td>momento</td><td>La celeridad de la onda cinemática debe ser positiva y cercana a la esperada por Manning.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">momentum/froude-regime</td><td>momento</td><td>El flujo en un tramo de pendiente suave debe mantenerse subcrítico.</td><td><span class="tag wanted">se busca</span></td></tr>`,
   "verdict.h":"Veredictos",
@@ -1110,7 +1110,7 @@ zh: {
   "infra.probe.routing":"汇流演算",
   "infra.probe.routinglag":"传播时间",
   "infra.probe.rating":"水位流量关系",
-  "infra.probe.friction":"摩阻平衡",
+  "infra.probe.friction":"摩阻",
   "infra.flow":"种子 → 案例 → 运行 → 一位判定",
   "infra.s1a":"带种子的",
   "infra.s1b":"生成器",
@@ -1205,7 +1205,7 @@ zh: {
 <tr><td class="mono">energy/snowpack-cold-content</td><td>能量</td><td>完整的积雪能量收支，含冷储量与相变。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">momentum/channel-routing-mass</td><td>动量</td><td>逐河段：入流减出流减河道蓄量变化。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>动量</td><td>水位随流量单调上升；出现绳套时，同一流量下涨洪段的水位低于落洪段。</td><td><span class="tag merged">已合并</span></td></tr>
-<tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>动量</td><td>稳态均匀流下，流量与水位必须和所声明的河道几何及糙率满足同一个曼宁平衡。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>动量</td><td>在三个稳态流量下，流量与水位必须和所声明的矩形河道几何及糙率满足同一个曼宁平衡。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/wave-celerity-bounds</td><td>动量</td><td>运动波波速必须为正，且接近曼宁公式的预期。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">momentum/froude-regime</td><td>动量</td><td>缓坡河段的水流必须保持缓流。</td><td><span class="tag wanted">征集中</span></td></tr>`,
   "verdict.h":"判定结果",

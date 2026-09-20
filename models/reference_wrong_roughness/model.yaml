@@ -2,9 +2,9 @@ name: reference_wrong_roughness
 version: "1.0.0"
 description: >
   Deliberately inconsistent steady reach. It reports the same discharge as
-  the exact reference but computes stage with a hard-coded Manning n of 0.08,
-  ignoring the roughness supplied by the case. The rating remains smooth and
-  monotone while the declared momentum balance fails.
+  the exact reference but computes stage with a Manning n biased 3% high.
+  The rating remains smooth and monotone while its roughly 5.7% momentum
+  residual sits just outside the 5% allowance.
 authors: ["HydroTuring maintainers"]
 license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
@@ -15,7 +15,7 @@ emits:
   states: []
   diagnostics: [stage]
 needs_forcing: [pr, tas, pet]
-needs_static: [area_km2, width_m, bed_elevation_m, slope, manning_n]
+needs_static: [area_km2, width_m, cross_section_shape, bed_elevation_m, slope, manning_n]
 supports:
   perturbation: false
 resources: {cpu: 1, memory_gb: 1, gpu: false}

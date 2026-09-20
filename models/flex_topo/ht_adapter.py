@@ -125,12 +125,9 @@ def stage_of(mrro_mm_per_day: float, static: dict, dt: float) -> float:
 
         h = ( Q * n / (w * sqrt(S)) )^(3/5)
 
-    The flow is the reach's own drain: `mrro` is what the fast stores and the
-    water inside the triangular lag are releasing. The slow reservoir is
-    deliberately left out. It is the catchment's groundwater feeding the reach
-    over weeks, not water the reach holds, and folding it into the gauge would
-    tie the reading to the seasonal cycle instead of to the flood the reach
-    carries.
+    The flow is the model's reported `mrro`: the area-weighted fast response,
+    routed response and baseflow that together enter the reach. No storage is
+    divided by the output interval or added a second time.
 
     The flow is a *rate*, in mm/day: a stage is a reading a gauge would give at
     an instant, so it cannot depend on how often the model writes a row. An
@@ -142,6 +139,9 @@ def stage_of(mrro_mm_per_day: float, static: dict, dt: float) -> float:
     bed_elevation_m = float(static.get("bed_elevation_m", 0.0))
     slope = float(static.get("slope", DEFAULT_SLOPE))
     manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
+    shape = str(static.get("cross_section_shape", "rectangular")).strip().lower()
+    if shape != "rectangular":
+        raise ValueError("flex_topo stage requires a rectangular section")
     if area_km2 <= 0.0 or width_m <= 0.0 or slope <= 0.0 or dt <= 0.0:
         return bed_elevation_m
     q_m3s = max(mrro_mm_per_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY

@@ -24,7 +24,7 @@ emits:
   states: [mrso, snw, canopy, gw, channel]
   diagnostics: [stage]
 needs_forcing: [pr, tas, pet]
-uses_static: [area_km2, width_m, bed_elevation_m, slope, manning_n]
+uses_static: [area_km2, width_m, cross_section_shape, bed_elevation_m, slope, manning_n]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

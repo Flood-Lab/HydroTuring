@@ -82,6 +82,12 @@ def non_degenerate(
         if var not in w.table.columns:
             continue
         values = np.asarray(w.table[var], dtype=float)
+        # Stage is an elevation tied to the case datum, whereas variability
+        # belongs to water depth.  Subtracting the declared bed elevation
+        # makes the anti-degeneracy check invariant to an arbitrary vertical
+        # datum shift (for example, 0 m versus 150 m above sea level).
+        if var == "stage" and "bed_elevation_m" in run.case.static:
+            values = values - float(run.case.static["bed_elevation_m"])
         mean = float(values.mean())
         cv = float(values.std() / mean) if abs(mean) > 1e-12 else 0.0
         diagnostics[f"cv_{var}"] = cv

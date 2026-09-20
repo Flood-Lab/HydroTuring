@@ -62,6 +62,9 @@ def _manning(flow_rate_mm_day: float, static: dict) -> float:
     bed_elevation_m = float(static.get("bed_elevation_m", 0.0))
     slope = float(static.get("slope", DEFAULT_SLOPE))
     manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
+    shape = str(static.get("cross_section_shape", "rectangular")).strip().lower()
+    if shape != "rectangular":
+        raise ValueError("reference_bucket stage requires a rectangular section")
     if area_km2 <= 0.0 or width_m <= 0.0 or slope <= 0.0:
         return bed_elevation_m
     q_m3s = max(flow_rate_mm_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY

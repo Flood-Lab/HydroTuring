@@ -126,6 +126,7 @@ Every one is binary.
 | `scaling_monotonicity` | peak lag does not materially reverse and grows by a resolvable amount across catchment scales | paired runs, a geometry ladder |
 | `rating_monotonic` | stage does not fall against its running maximum as the abscissa rises: equal-count bin medians are taken over the abscissa and the summed running-maximum deficit is compared with an explicit `tolerance` when one is given, and otherwise with 8% of the rating's span. The share is that large because a stage read off a store is hysteretic by construction, and its binned rating dips below its own running maximum by a visible fraction of the span for that reason alone | one run |
 | `rating_loop` | where the gauge loops against the reach's store, the loop must be small enough to be noise or run the right way: at the same storage the rising limb sits lower than the falling one. A single-valued rating, or a loop below `min_loop_m` with an inconsistent sign across bins, is read as "no loop" and passes | one run |
+| `uniform_flow_friction` | on each labelled low, medium and high steady plateau, the reported discharge and stage must make Manning friction slope agree with the declared bed slope for the explicit rectangular section; CV and first-to-last-quarter trend gates reject blocks that have not converged | one run, three labelled plateaus |
 
 Picking a denominator for `closure` and `regime_transfer`:
 
@@ -324,6 +325,10 @@ The reference models available today:
 | `reference_rating_drift` | derives its stage from a slowly decaying running maximum of discharge (`peak = max(q, 0.997 * peak)` per day), so the gauge ratchets up with each flood far faster than it relaxes | `rating_monotonic` |
 | `reference_rating_inverted` | reads the loop backwards, high while the flood is arriving and low once it is leaving | `rating_loop` |
 | `reference_flat_stage` | reports a constant stage, so there is no rating and no loop | `non_degenerate` |
+| `reference_uniform_flow` | computes exact rectangular Manning normal depth from the declared geometry | must pass `momentum/uniform-flow-friction-consistency` |
+| `reference_saint_venant` | advances the one-dimensional continuity and momentum equations from a non-equilibrium state with finite-volume fluxes and Manning friction; it contains no normal-depth lookup | must pass `momentum/uniform-flow-friction-consistency` |
+| `reference_wrong_roughness` | computes its stage with Manning roughness 3% above the declared value, giving a 5.74% near-boundary friction residual | `uniform_flow_friction` |
+| `reference_wrong_slope` | computes its stage with bed slope 6% above the declared value, giving a 6% near-boundary friction residual | `uniform_flow_friction` |
 | `reference_coupled` | the bucket with snow sublimation and a surface energy budget; every kilogram converted at the latent heat of the phase it actually underwent | nothing, it must pass the energy probes |
 | `reference_soil_heat` | a synthetic fixed-layer fixture with conductive boundary fluxes and temperature integrated consistently | nothing, it must pass `soil_heat_storage` |
 | `reference_frozen_soil` | keeps the conductive fluxes but reports a constant soil temperature | `soil_heat_storage` |

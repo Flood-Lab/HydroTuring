@@ -238,6 +238,9 @@ def manning_depth(q_m3s: float, static: dict) -> float:
     bed_elevation_m = float(static.get("bed_elevation_m", 0.0))
     slope = float(static.get("slope", DEFAULT_SLOPE))
     manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
+    shape = str(static.get("cross_section_shape", "rectangular")).strip().lower()
+    if shape != "rectangular":
+        raise ValueError("flex_lumped stage requires a rectangular section")
     if q_m3s <= 0.0 or width_m <= 0.0 or slope <= 0.0:
         return bed_elevation_m
     depth = (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6

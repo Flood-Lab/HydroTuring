@@ -40,6 +40,9 @@ def simulate(forcing: list[dict], static: dict) -> list[dict]:
     bed = float(static["bed_elevation_m"])
     slope = float(static["slope"])
     roughness = float(static["manning_n"])
+    shape = str(static.get("cross_section_shape", "rectangular")).strip().lower()
+    if shape != "rectangular":
+        raise ValueError("reference_uniform_flow requires a rectangular section")
     rows = []
     for step in forcing:
         effective = max(float(step["pr"]) - float(step["pet"]), 0.0)

@@ -11,7 +11,7 @@ from pathlib import Path
 
 MODEL = {"name": "reference_wrong_slope", "version": "1.0.0"}
 SECONDS_PER_DAY = 86400.0
-WRONG_SLOPE = 0.01
+SLOPE_BIAS = 1.06
 
 
 def _capacity(depth: float, width: float, roughness: float, slope: float) -> float:
@@ -40,11 +40,15 @@ def simulate(forcing: list[dict], static: dict) -> list[dict]:
     width = float(static["width_m"])
     bed = float(static["bed_elevation_m"])
     roughness = float(static["manning_n"])
+    shape = str(static.get("cross_section_shape", "rectangular")).strip().lower()
+    if shape != "rectangular":
+        raise ValueError("reference_wrong_slope requires a rectangular section")
+    wrong_slope = SLOPE_BIAS * float(static["slope"])
     rows = []
     for step in forcing:
         effective = max(float(step["pr"]) - float(step["pet"]), 0.0)
         discharge = effective * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
-        depth = normal_depth(discharge, width, roughness, WRONG_SLOPE)
+        depth = normal_depth(discharge, width, roughness, wrong_slope)
         rows.append({"time": step["time"], "dis": discharge, "stage": bed + depth})
     return rows
 

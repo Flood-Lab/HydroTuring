@@ -68,7 +68,7 @@ not.
 
 ## The probes
 
-Thirty-one: twenty-one under mass, seven under energy and three under momentum.
+Thirty-two: twenty-one under mass, seven under energy and four under momentum.
 Each was merged only after the acceptance gate saw it pass its declared
 exact reference and fail a purpose-built broken one on the named criterion.
 Four physical models, a bucket that conserves water exactly, two
@@ -78,7 +78,7 @@ the groundwater-exchange probe need outputs they do not report and are not
 scored for them; `mass/snowpack-mass-closure` scores only `sacsma_snow17`,
 the one physical model that reports `snm`. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Twelve of the thirty-one require no model output
+with any probe pull request. Twelve of the thirty-two require no model output
 beyond runoff. That output-only count includes `momentum/routing-lag-consistency`,
 which is eligible only when the model also declares that it consumes `pr` and
 the three geometry inputs `area_km2`, `main_channel_length_km` and
@@ -227,8 +227,9 @@ the probe cannot ask the declared model interface this question.
 | `reference_rating_inverted` | broken | reads the loop backwards, high while the flood is arriving and low once it is leaving: monotone in discharge, so only the loop sees it | caught by `rating_loop` |
 | `reference_flat_stage` | broken | reports a constant stage, so there is no rating and no loop, only a number that does not vary | caught by `non_degenerate` |
 | `reference_uniform_flow` | exact | converts constant effective rainfall to discharge and solves exact rectangular Manning normal depth above the declared bed | must pass `uniform_flow_friction` |
-| `reference_wrong_roughness` | broken | reports the exact reference discharge but computes stage with a hard-coded Manning roughness of 0.08 | caught by `uniform_flow_friction` |
-| `reference_wrong_slope` | broken | reports the exact reference discharge but computes stage with a hard-coded bed slope of 0.01 | caught by `uniform_flow_friction` |
+| `reference_saint_venant` | exact | advances one-dimensional continuity and momentum with a finite-volume solver from a non-equilibrium state; no normal-depth lookup | must pass `uniform_flow_friction` |
+| `reference_wrong_roughness` | broken | computes stage with Manning roughness 3% above the declared value, a 5.74% near-boundary residual | caught by `uniform_flow_friction` |
+| `reference_wrong_slope` | broken | computes stage with bed slope 6% above the declared value, a 6% near-boundary residual | caught by `uniform_flow_friction` |
 | `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | N/A (INCOMPLETE) on budget probes; caught by `response_sign` |
 | `reference_in_sample` | broken | removes surface runoff above a fixed 55 mm daily precipitation cutoff | caught by `event_water_closure` |
 | `reference_calendar` | broken | a recession that drifts with the calendar year | caught by `invariance` (time origin) |
@@ -401,7 +402,7 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Thirty probes, twenty mass, seven energy, three momentum, synthetic track only. More
+Suite `0.1.0`, pre-release. Thirty-two probes, twenty-one mass, seven energy, four momentum, synthetic track only. More
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes; spatial and temporal closure, counterfactual response
 and invariance are represented in the suite. The roadmap lists the remaining
