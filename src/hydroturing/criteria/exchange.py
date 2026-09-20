@@ -349,7 +349,6 @@ def exchange_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
         "response_share_of_gross": gross_share if gross > 0 else None,
         "required_share": share,
         "required_share_of_gross": share_gross,
-        "response_share_of_gross_required": share_gross,
         "required_mm": required,
         "variation_mm": variation,
         "gross_mm": gross,

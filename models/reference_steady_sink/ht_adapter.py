@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import random
 import sys
 from pathlib import Path
 
@@ -36,8 +35,6 @@ MODEL = {"name": "reference_steady_sink", "version": "1.0.0"}
 STEADY_BIAS_MM_PER_DAY = 0.3
 
 TOKEN_CONDUCTANCE_MM_PER_M_DAY = 1.0e-6   # the token head term
-
-ET_BIAS = 0.30   # the share of its own evaporation the model misreports
 
 
 EVAP_SHAPE = 0.5  # soil moisture at which evaporation reaches its potential rate
@@ -70,8 +67,11 @@ def simulate(forcing, static, dt_days=1.0, seed=0):
     When the forcing carries an `abstr` column (mm/day, net of return flow),
     the prescribed withdrawal is taken from the soil store first and any
     remainder from the day's runoff before it leaves, and whatever was
-    actually removed is declared as a negative `gwex`. Absent the column the
-    model is bit for bit the original bucket.
+    actually removed is declared as a negative `gwex`. What is never absent is
+    the cheat: the reported evaporation carries a constant
+    `STEADY_BIAS_MM_PER_DAY` on top of the true one, the difference is declared
+    as `gwex`, and the token head trickle is folded into the same column and
+    into the soil, so the budget still closes to floating point.
     """
     soil_cap = static["soil_capacity_mm"]
     canopy_cap = static["canopy_capacity_mm"]
@@ -83,7 +83,6 @@ def simulate(forcing, static, dt_days=1.0, seed=0):
     swe = 0.0
     canopy = 0.0
     rows = []
-    rng = random.Random(seed)
 
     for step in forcing:
         pr_rate, tas, pet_rate = step["pr"], step["tas"], step["pet"]
