@@ -153,7 +153,7 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
             "when supplied. Row i's tsoil_layer is the mean temperature of "
             "the specified layer at the interval end; hfg and hfg_bottom "
             "are interval-mean boundary fluxes for the soil-storage check."
-            "Routing q_in and q_out are interval-mean m3 s-1; "
+            " Routing q_in and q_out are interval-mean m3 s-1; "
             "channel_storage is absolute end-of-step m3."
         ),
     }
