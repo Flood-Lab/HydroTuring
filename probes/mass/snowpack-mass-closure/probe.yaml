@@ -1,0 +1,73 @@
+id: mass/snowpack-mass-closure
+
+title: Internal snowpack water-balance closure
+
+law: mass
+
+track: synthetic
+
+version: 1
+
+authors:
+  - name: Jinlong Hu
+    affiliation: State Key Laboratory of Earth Surface Processes and Disaster Risk Reduction, Faculty of Geographical Science, Beijing Normal University, Beijing, China
+    orcid: 0000-0002-8123-7282
+    github: jinlong-hu
+
+description: >
+  Tests whether water entering a snow module is accounted for by snow storage,
+  liquid water delivered to the ground, and sublimation. Closure is evaluated
+  separately over accumulation, storage, and melt stretches so that gains and
+  losses in different snow regimes cannot cancel.
+
+# citation: "https://doi.org/..."
+
+requires:
+  fluxes: [snm]
+  states: [snw]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_days: 720
+  spinup_days: 1
+  min_window_days: 720
+  max_output_mb: 2.0
+  max_runtime_s: 120
+
+criteria:
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05        # the 5 percent engineering rule
+      sinks: [snm, sbl]
+      optional_sinks: [sbl]
+      sources: []
+      states: [snw]
+      segment_column: _regime
+
+  - state_bounds:
+      snw: [0.0, null]
+
+  - snowpack_response:
+      state: snw
+      precipitation: pr
+      segment_column: _regime
+      accumulation_label: accumulation
+      storage_label: storage
+      melt_label: melt
+      min_peak_fraction: 0.5
+      max_melt_fraction: 0.1
+
+baselines:
+  must_pass: [reference_bucket, sacsma_snow17]
+  must_fail:
+    reference_snow_bypass: closure
+    reference_snowless: snowpack_response
+
+provenance: >
+  Synthetic. Two 360-day accumulation-storage-melt snow cycles are generated
+  at run time from a recorded random seed. Each stage lasts 120 days. The
+  scored record is preceded by one cold, dry spinup day. Precipitation timing,
+  precipitation amount, and temperature variability vary with the seed. No
+  forcing data are committed to the repository.

@@ -14,13 +14,22 @@ from __future__ import annotations
 
 import numpy as np
 
-from hydroturing.criteria.base import FAIL, PASS, CriterionResult, criterion, make_window
+from hydroturing.criteria.base import (
+    FAIL,
+    PASS,
+    CriterionResult,
+    criterion,
+    make_window,
+    segments,
+)
 from hydroturing.protocol import RunResult
 from hydroturing.spec import ProbeSpec
 
 
 @criterion("non_degenerate")
-def non_degenerate(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
+def non_degenerate(
+    run: RunResult, probe: ProbeSpec, params: dict
+) -> CriterionResult:
     """Partition, variability, and response to forcing must all be non-trivial."""
     ratio_lo, ratio_hi = params.get("runoff_ratio", [0.02, 0.98])
     min_cv = float(params.get("min_flux_cv", 0.1))
@@ -56,7 +65,9 @@ def non_degenerate(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionR
         supply = total_pr
         if "gwex" in w.table.columns:
             supply += float(np.asarray(w.table["gwex"], dtype=float).sum())
-        runoff_ratio = float(np.asarray(w.table["mrro"], dtype=float).sum() / max(supply, 1e-12))
+        runoff_ratio = float(
+            np.asarray(w.table["mrro"], dtype=float).sum() / max(supply, 1e-12)
+        )
         diagnostics["runoff_ratio"] = runoff_ratio
         if scored_days < 365:
             diagnostics["runoff_ratio_check"] = (
@@ -75,7 +86,9 @@ def non_degenerate(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionR
         cv = float(values.std() / mean) if abs(mean) > 1e-12 else 0.0
         diagnostics[f"cv_{var}"] = cv
         if cv < min_cv:
-            failures.append(f"{var} is nearly constant (cv {cv:.4f} < {min_cv:g})")
+            failures.append(
+                f"{var} is nearly constant (cv {cv:.4f} < {min_cv:g})"
+            )
 
     # A model that ignores its forcing entirely is degenerate even if its
     # fluxes happen to vary. Correlate runoff against precipitation smoothed
@@ -100,6 +113,116 @@ def non_degenerate(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionR
         name="non_degenerate",
         status=PASS if ok else FAIL,
         value=diagnostics.get("runoff_ratio"),
-        message="partition and variability are non-trivial" if ok else "; ".join(failures),
+        message=(
+            "partition and variability are non-trivial"
+            if ok
+            else "; ".join(failures)
+        ),
+        diagnostics=diagnostics,
+    )
+
+
+@criterion("snowpack_response")
+def snowpack_response(
+    run: RunResult, probe: ProbeSpec, params: dict
+) -> CriterionResult:
+    """Snow storage must build during cold stages and deplete during melt."""
+    min_peak_fraction = float(
+        params.get("min_peak_fraction", 0.5)
+    )  # peak snow storage must be at least this fraction of precipitation over the accumulation + storage stretch
+    max_melt_fraction = float(
+        params.get("max_melt_fraction", 0.1)
+    )  # final snow storage at the end of the melt stage must be no more than this fraction of the peak snow storage
+    state = params.get("state", "snw")
+    precipitation = params.get("precipitation", "pr")
+    segment_column = params.get("segment_column", "_regime")
+    accumulation_label = params.get("accumulation_label", "accumulation")
+    storage_label = params.get("storage_label", "storage")
+    melt_label = params.get("melt_label", "melt")
+
+    w = make_window(run, probe)
+    failures = []
+    diagnostics: dict[str, float] = {}
+
+    if state not in w.table.columns:
+        raise ValueError(
+            f"snowpack_response needs '{state}' in the model result"
+        )
+    if precipitation not in w.forcing.columns:
+        raise ValueError(
+            f"snowpack_response needs forcing column '{precipitation}'"
+        )
+
+    snow = np.asarray(w.table[state], dtype=float)
+    pr = w.volume(w.forcing[precipitation])
+
+    # The response check is defined over complete snow cycles. Contiguous
+    # regime blocks keep two accumulation or melt stages from being combined
+    # across cycles, which would allow one cycle to compensate for another.
+    blocks = segments(w, segment_column)
+    if len(blocks) % 3 != 0:
+        raise ValueError(
+            "snowpack_response expects complete accumulation-storage-melt cycles"
+        )
+
+    for i in range(0, len(blocks), 3):
+        accumulation, storage, melt = blocks[i : i + 3]
+        labels = (accumulation[0], storage[0], melt[0])
+        expected = (accumulation_label, storage_label, melt_label)
+        if labels != expected:
+            raise ValueError(
+                f"snowpack_response expects regimes {expected}, got {labels}"
+            )
+
+        _, accumulation_start, _ = accumulation
+        _, _, storage_end = storage
+        _, _, melt_end = melt
+
+        # Peak snow storage is judged against precipitation over the combined
+        # accumulation and storage stretch. An honest snow model should retain
+        # a substantial fraction of that cold-stage input instead of passing
+        # all precipitation straight through with no snowpack.
+        total_pr = float(pr[accumulation_start:storage_end].sum())
+        if total_pr <= 0:
+            raise ValueError(
+                "accumulation + storage stretch contains no precipitation"
+            )
+
+        peak_snow = float(snow[accumulation_start:storage_end].max())
+        final_snow = float(snow[melt_end - 1])
+
+        peak_fraction = peak_snow / total_pr
+
+        # Melt depletion is measured relative to the snowpack that actually
+        # formed, not to precipitation. A model therefore has to both build a
+        # material pack in the cold stages and remove most of it by the end of
+        # the following melt stage.
+        melt_fraction = final_snow / peak_snow if peak_snow > 1e-12 else 0.0
+
+        cycle = i // 3 + 1
+        diagnostics[f"cycle_{cycle}_peak_fraction"] = peak_fraction
+        diagnostics[f"cycle_{cycle}_melt_fraction"] = melt_fraction
+
+        if peak_fraction < min_peak_fraction:
+            failures.append(
+                f"cycle {cycle} peak snow fraction {peak_fraction:.4f} "
+                f"< {min_peak_fraction:g}"
+            )
+
+        if peak_snow > 1e-12 and melt_fraction > max_melt_fraction:
+            failures.append(
+                f"cycle {cycle} melt-end snow fraction {melt_fraction:.4f} "
+                f"> {max_melt_fraction:g}"
+            )
+
+    ok = not failures
+    return CriterionResult(
+        name="snowpack_response",
+        status=PASS if ok else FAIL,
+        message=(
+            "snow accumulation and melt are non-trivial"
+            if ok
+            else "; ".join(failures)
+        ),
         diagnostics=diagnostics,
     )

@@ -1,11 +1,10 @@
-name: reference_bucket
+name: reference_snow_bypass
 version: "1.0.0"
 description: >
-  Conceptual bucket model that conserves water exactly by construction. It is
-  the physical baseline every mass probe must pass. If a probe ever fails this
-  model, the probe's tolerance has drifted past what exact physics achieves,
-  and the probe is wrong rather than the model.
-authors: ["HydroTuring maintainers"]
+  Deliberately broken snow model. Some snowfall bypasses the
+  snowpack and enters the soil directly. Catchment water is conserved, but
+  the internal snowpack budget does not close.
+authors: ["Jinlong Hu"]
 license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
@@ -19,5 +18,5 @@ supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}
 
-# Existing adapter mappings; no change to model equations.
+# The bucket's static inputs, unchanged; only the snow module's routing differs.
 needs_static: [soil_capacity_mm, canopy_capacity_mm]

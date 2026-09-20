@@ -44,7 +44,7 @@ from pathlib import Path
 
 from sacsma_snow17 import SacState, SnowState, gamma_uh, sac1, sac_storage, snow17
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel", "stage"]
+COLUMNS = ["time", "pr", "snm", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel", "stage"]
 MODEL = {"name": "sacsma_snow17", "version": "1.0.0"}
 STEP_HOURS = {"PT1D": 24, "PT1H": 1}
 
@@ -194,6 +194,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             "time": step["time"],
             "pr": pr_rate,
             "evspsbl": fluxes["tet"] / dt_days,
+            "snm": raim / dt_days,
             "mrro": routed / dt_days,
             "gwex": -(fluxes["bfncc"] + removed) / dt_days,  # deep baseflow plus the prescribed withdrawal leaves the catchment
             "mrso": soil,

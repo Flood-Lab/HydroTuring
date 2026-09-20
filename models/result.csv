@@ -586,6 +586,16 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-16,flex_lumped,1.1.0,0.1.0,subprocess,mass/gw-sw-exchange-consistency,N/A,INCOMPLETE,not run,,"does not report gw_sw_exchange, gw_to_sw, sw_to_gw; model does not declare that it consumes forcing gw_recharge, sw_stage_m; model does not declare that it consumes static aquifer_specific_yield, aquifer_storage_coefficient, river_conductance_m2_per_day, river_bottom_offset_m"
 2026-09-17,reference_exchange_sign_error,0.1.0,0.1.0,subprocess,mass/gw-sw-exchange-consistency,FAIL,VIOLATION,full record,479803588 986755702 1493707816 2000659930 360128397,exchange_components: directional exchange is inconsistent with gw_sw_exchange (max residual 0.566845 mm)
 2026-09-18,modflow6,6.7.0-adapter.1,0.1.0,docker,mass/exchange-response,N/A,INCOMPLETE,not run,,"does not report pr, evspsbl, mrro, gwex, mrso, snw, canopy; model does not declare support for paired perturbation cases; model does not declare that it consumes forcing gwh"
+2026-09-18,cwatm,1.11-5baaadd.4,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-18,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-18,flex_lumped,1.1.0,0.1.0,subprocess,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-18,flex_topo,1.0.0,0.1.0,subprocess,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-18,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,"does not report snm, snw"
+2026-09-18,lisflood,5.0.0-onecell.5,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-19,sacsma_snow17,1.0.0,0.1.0,subprocess,mass/snowpack-mass-closure,PASS,OK,full record,809506488 1316458602 1823410716 182879183 689831297,closure: cumulative residual 0.0000% of sum_pr (limit 5.0%); snowpack_response: snow accumulation and melt are non-trivial
+2026-09-18,summa,4.0.0-f787fa5.4,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-18,wflow_sbm,1.0.4-ht.4,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-18,modflow6,6.7.0-adapter.1,0.1.0,docker,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,"does not report snm, snw"
 2026-09-16,reference_half_soil,1.0.0,0.1.0,subprocess,momentum/routing-conservation,N/A,INCOMPLETE,not run,,"does not report mrro, channel; model timestep PT1H does not cover the probe's PT1D"
 2026-09-16,reference_frozen_soil,1.0.0,0.1.0,subprocess,momentum/routing-conservation,N/A,INCOMPLETE,not run,,"does not report mrro, channel; model timestep PT1H does not cover the probe's PT1D"
 2026-09-16,reference_soil_heat,1.0.0,0.1.0,subprocess,momentum/routing-conservation,N/A,INCOMPLETE,not run,,"does not report mrro, channel; model timestep PT1H does not cover the probe's PT1D"

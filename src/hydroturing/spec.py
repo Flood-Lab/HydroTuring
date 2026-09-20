@@ -27,7 +27,7 @@ SCHEMA_DIR = REPO_ROOT / "schemas"
 # `sbl` is a component of `evspsbl`, never an addition to it. `rlus` is the
 # total upward longwave radiation, surface emission plus reflected downward
 # longwave, positive away from the surface.
-FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "gw_sw_exchange", "gw_to_sw", "sw_to_gw", "gw_boundary", "sbl", "hfls", "hfss", "hfg", "rlus", "hfg_bottom")
+FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "gw_sw_exchange", "gw_to_sw", "sw_to_gw", "gw_boundary", "sbl", "snm", "hfls", "hfss", "hfg", "rlus", "hfg_bottom")
 STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
 # Keep diagnostics out of STATE_VARS: closure sums every reported store,
 # and temperature must never be added to water storage.
@@ -65,6 +65,7 @@ UNITS = {
     # that reports it is stating which part of its evaporation left the surface
     # as ice, which is the only way a criterion can know without guessing.
     "sbl": "mm day-1",
+    "snm": "mm day-1",
     "hfls": "W m-2",
     "hfss": "W m-2",
     "hfg": "W m-2",
@@ -179,6 +180,8 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_noise_sink",
     "reference_token_exchange",
     "reference_steady_sink",
+    "reference_snow_bypass",
+    "reference_snowless",
     "reference_exchange_sign_error",
     "reference_exchange_exact",
 }
