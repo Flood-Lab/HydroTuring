@@ -47,7 +47,25 @@ When `request.request.routing` is non-empty, the adapter must write
 `output/routing.csv` as a long table with one row for every forcing time and
 every reach declared by `static.json` under `routing_network.reaches`. The
 required identifier columns are `time` and `reach_id`; the remaining required
-columns are the names listed in `request.request.routing`. For example:
+columns are the names listed in `request.request.routing`.
+
+A probe that declares `requires.routing` must also declare
+`requires.static: [routing_network]`. `routing_network` is an object whose
+`reaches` member is a non-empty list of unique, non-empty string IDs:
+
+```json
+{
+  "routing_network": {
+    "reaches": ["A", "B", "C"]
+  }
+}
+```
+
+Keep topology metadata such as junctions, headwaters, outlets, lengths or
+areas in separate fields under `routing_network`; do not place reach objects
+inside `reaches`. Reach IDs are strings and leading zeros are significant.
+
+For example, the routing table is:
 
 ```csv
 time,reach_id,q_in,q_out,channel_storage
@@ -64,6 +82,10 @@ the end of the interval, in m3. It is not a tendency and must not be converted
 to catchment-average depth. A missing requested routing column, reach or time
 row is a contract error. Models that do not declare `emits.routing` do not
 write `routing.csv`.
+
+A routing table has `n_steps * n_reaches` rows. Probe authors must set
+`case.max_output_mb` high enough for that table; the normal output size
+allow-list and limit still apply.
 
 
 The model seed is deterministic for reproducible stochastic inference, but it
