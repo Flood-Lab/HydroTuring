@@ -276,7 +276,7 @@ def test_routing_time_axis_must_match_forcing(case, routing_probe, tmp_path):
     ).strftime("%Y-%m-%d")
     _write_outputs(tmp_path, case, table)
 
-    with pytest.raises(ProtocolError, match="time axis"):
+    with pytest.raises(ProtocolError, match=r"routing\.csv reach 'A' time axis"):
         read_result(tmp_path, case, routing_probe, 0.0)
 
 
