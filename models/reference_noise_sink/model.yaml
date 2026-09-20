@@ -1,0 +1,25 @@
+name: reference_noise_sink
+version: "1.0.0"
+description: >
+  The exact bucket, conserving water internally, which misreports its
+  evaporation by a seeded plus or minus thirty percent and declares the
+  difference as a regional groundwater exchange. Its reported budget closes to
+  floating point, because the exchange is by construction minus the residual of
+  everything else it reported. What it cannot do is keep a direction: the
+  declared flux reverses with the weather, because what it is actually
+  absorbing is the day's accounting error. This is `reference_cheater` moved
+  one column over, from an invented storage to an invented flux, and it is the
+  model the exchange-response probe exists to catch.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [pr, evspsbl, mrro, gwex]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet]
+uses_forcing: [gwh]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

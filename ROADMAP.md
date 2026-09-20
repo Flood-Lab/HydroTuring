@@ -127,7 +127,23 @@ A prescribed net irrigation withdrawal must leave the budget: the same weather
 run with and without it, and the difference between the two runs must account
 for exactly the abstracted volume (net of return flow).
 *Discriminates:* models that treat abstraction as an unaccounted sink.
+
 Contributed by Yuanhang Liu.
+
+### `mass/exchange-response` &middot; **merged**
+A declared head-driven exchange must respond to its external head. Once a
+model closes its budget with `gwex`, that flux is identically minus the
+residual of everything else it reported, so neither its magnitude nor its
+timing on its own can separate an honest exchange from an invented one. The
+probe prescribes an external head as a forcing column and runs the same
+weather with the head as given, raised and lowered from the first scored step:
+a model that declares it consumes the head must answer with more inflow when
+it is raised and less when it is lowered, by at least a small share of its own
+gross exchange — a share a head-driven boundary of any conductance clears.
+Reversal frequency is reported and never gated. Authored by Songkun Yan.
+*Discriminates:* models that declare the prescribed head and use the
+declared-exchange channel as a sink for the day's accounting error, with or
+without a token head term on top.
 
 ### `mass/gw-sw-exchange-consistency` &middot; **merged**
 A model reporting groundwater-river exchange must agree with itself: the two

@@ -1,0 +1,26 @@
+name: reference_evolving_exchange
+version: "1.0.0"
+description: >
+  The exact bucket with a head-driven boundary exchange whose internal head
+  moves: S dh/dt = C (H_ext - h), time constant five days. Water crossing the
+  boundary raises the catchment's own head, so the exchange dies away as the
+  two heads meet. It is in equilibrium with the prescribed head when scoring
+  begins and answers a 0.5 m shift with about the water needed to raise its own
+  head by 0.5 m, over the first weeks of the scored record, and with nearly
+  nothing thereafter. The positive control for mass/exchange-response that a
+  constant-head control cannot be: it would fail if the shift were applied
+  during spinup, and its small response is what the response floor is
+  calibrated against. It must pass.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [pr, evspsbl, mrro, gwex]
+  states: [mrso, snw, canopy, channel]
+needs_forcing: [pr, tas, pet]
+uses_forcing: [gwh]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
