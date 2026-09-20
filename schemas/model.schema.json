@@ -40,6 +40,10 @@
           "type": "array", "items": {"type": "string"}, "uniqueItems": true,
           "description": "Absolute storage values, never tendencies. The harness differences them."
         },
+        "routing": {
+          "type": "array", "items": {"type": "string"}, "uniqueItems": true,
+          "description": "Reach-indexed variables written to output/routing.csv. q_in and q_out are interval-mean discharges in m3 s-1; channel_storage is absolute end-of-step storage in m3."
+        },
         "diagnostics": {
           "type": "array", "items": {"type": "string"}, "uniqueItems": true,
           "description": "Diagnostics such as a surface or layer temperature, or the liquid share of a snowpack. Never added to any water-storage sum: `lwsnl` is water, but it is water already counted inside `snw`, so summing it beside `snw` would count the same kilogram twice. Each criterion defines their time handling."
