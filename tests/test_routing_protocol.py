@@ -206,6 +206,7 @@ def test_routing_values_must_be_finite(
     case, routing_probe, tmp_path, bad_value
 ):
     table = _routing_table(case)
+    table["q_in"] = table["q_in"].astype(object)
     table.loc[0, "q_in"] = bad_value
     _write_outputs(tmp_path, case, table)
 
