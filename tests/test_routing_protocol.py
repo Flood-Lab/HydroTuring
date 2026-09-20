@@ -179,6 +179,56 @@ def test_valid_routing_table_roundtrips(case, routing_probe, tmp_path):
     pd.testing.assert_frame_equal(result.routing, expected)
 
 
+def test_routing_output_requires_declared_reaches(
+    case, routing_probe, tmp_path
+):
+    case = replace(case, static={})
+    _write_outputs(tmp_path, case, _routing_table(case))
+
+    with pytest.raises(ProtocolError, match="routing_network.reaches"):
+        read_result(tmp_path, case, routing_probe, 0.0)
+
+
+@pytest.mark.parametrize(
+    ("reaches", "message"),
+    [
+        ([], "non-empty"),
+        (["A", "A"], "duplicates"),
+        ([{"id": "A"}, {"id": "B"}], "string IDs"),
+    ],
+)
+def test_invalid_declared_reach_ids_are_rejected(
+    case, routing_probe, tmp_path, reaches, message
+):
+    case = replace(
+        case,
+        static={"routing_network": {"reaches": reaches}},
+    )
+    _write_outputs(tmp_path, case, _routing_table(case))
+
+    with pytest.raises(ProtocolError, match=message):
+        read_result(tmp_path, case, routing_probe, 0.0)
+
+
+def test_leading_zero_reach_ids_are_preserved(
+    case, routing_probe, tmp_path
+):
+    case = replace(
+        case,
+        static={"routing_network": {"reaches": ["007", "012"]}},
+    )
+    table = _routing_table(case)
+    table["reach_id"] = table["reach_id"].replace(
+        {"A": "007", "B": "012"}
+    )
+    _write_outputs(tmp_path, case, table)
+
+    result = read_result(tmp_path, case, routing_probe, 0.0)
+
+    assert result.routing is not None
+    assert set(result.routing["reach_id"]) == {"007", "012"}
+
+
 def test_missing_required_routing_file_is_rejected(case, routing_probe, tmp_path):
     _write_outputs(tmp_path, case)
     with pytest.raises(ProtocolError, match="required output/routing.csv"):
