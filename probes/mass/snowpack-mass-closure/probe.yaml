@@ -56,7 +56,9 @@ criteria:
       accumulation_label: accumulation
       storage_label: storage
       melt_label: melt
-      min_peak_fraction: 0.5
+      min_peak_fraction: 0.80   # see README: the window is bounded above by
+                                # Snow-17 at 0.9084 and below by the bypass
+                                # control's 0.85, which must stay above it
       max_melt_fraction: 0.1
 
 baselines:

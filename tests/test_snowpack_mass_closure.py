@@ -429,3 +429,50 @@ def test_snowpack_response_rejects_mislabelled_cycle(
         match="snowpack_response expects regimes",
     ):
         snowpack_response(run, probe, response_params)
+
+def test_bypass_control_is_caught_by_closure_alone(probe):
+    """`reference_snow_bypass` must trip `closure` and nothing else.
+
+    The model exists to show `closure` catching water that leaves the
+    snowpack while the whole-catchment budget still closes, which is what
+    separates it from `reference_leaky`. If it also trips
+    `snowpack_response`, a reader cannot tell which criterion the probe is
+    demonstrating, and a regression in `closure` alone would leave the model
+    failing for the wrong reason.
+
+    `ht gate` cannot catch that: `cli.py` asks only that the declared
+    criterion be *among* those tripped, so the gate stays green however many
+    extra criteria a control picks up.
+    """
+    from hydroturing.harness import run_probe
+
+    model = registry.find_model("reference_snow_bypass")
+    outcome = run_probe(model, probe, seeds=[0])
+
+    assert outcome.verdict == "FAIL"
+    assert set(outcome.failing) == {"closure"}
+
+
+def test_bypass_control_clears_the_peak_fraction_floor(probe, response_params):
+    """The control's retained pack must sit above the floor, with margin.
+
+    `reference_snow_bypass` keeps `1 - BYPASS_FRACTION` of every snowfall by
+    construction, so its peak fraction is a constant rather than a
+    distribution. Raising `min_peak_fraction` past it, or raising
+    `BYPASS_FRACTION`, is what would silently cost the control its isolation.
+    """
+    from hydroturing.harness import run_probe
+
+    model = registry.find_model("reference_snow_bypass")
+    outcome = run_probe(model, probe, seeds=[0])
+
+    response = next(c for c in outcome.criteria if c.name == "snowpack_response")
+    peaks = [
+        v for k, v in response.diagnostics.items() if k.endswith("peak_fraction")
+    ]
+
+    assert peaks, "snowpack_response reported no peak fraction"
+    floor = float(response_params["min_peak_fraction"])
+    for peak in peaks:
+        assert peak > floor, f"peak fraction {peak} is at or below the floor {floor}"
+    assert min(peaks) - floor >= 0.04

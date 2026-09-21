@@ -25,11 +25,14 @@ COLUMNS = [
     "stage",
 ]
 
-MODEL = {"name": "reference_snow_bypass", "version": "1.0.0"}
+MODEL = {"name": "reference_snow_bypass", "version": "1.1.0"}
 
-BYPASS_FRACTION = (
-    0.30  # fraction of snowfall that bypasses the snowpack and enters the soil
-)
+# The fraction of snowfall that bypasses the snowpack and enters the soil.
+# The pack therefore keeps 0.85 of every snowfall, which has to stay above
+# mass/snowpack-mass-closure's min_peak_fraction: this model exists to be
+# caught by `closure` alone, and a pack small enough to also trip
+# `snowpack_response` would stop isolating the criterion it demonstrates.
+BYPASS_FRACTION = 0.15
 
 EVAP_SHAPE = (
     0.5  # soil moisture at which evaporation reaches its potential rate

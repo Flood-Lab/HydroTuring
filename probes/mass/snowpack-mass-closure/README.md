@@ -93,7 +93,7 @@ For each accumulation-plus-storage stretch, `snowpack_response` requires
 $$
 \frac{snw_{\mathrm{peak}}}
      {P_{\mathrm{accumulation+storage}}}
-\ge 0.5.
+\ge 0.80.
 $$
 
 At the end of the following melt stage, it requires
@@ -108,7 +108,25 @@ The first condition requires a material snowpack to form during the cold
 stages. The second requires at least 90% of that peak snow storage to be
 depleted by the end of the following melt stage.
 
-`reference_snow_bypass` conserves total catchment water but sends part of
+The 0.80 floor sits in a window with a hard edge on each side. Above it,
+`sacsma_snow17` reached a minimum peak fraction of 0.9084 over 200 seeds, and
+`reference_bucket` is at 1.0 by construction. Below it, `reference_snow_bypass`
+retains `1 - BYPASS_FRACTION` of every snowfall exactly, so its peak fraction
+is the constant 0.85 and it must stay above the floor: that model is declared
+to fail on `closure`, and a floor above 0.85 would make it fail
+`snowpack_response` as well, so it would no longer isolate the criterion it
+exists to demonstrate.
+
+What the floor does not close off is a model that reports a large share of
+cold-stage precipitation as `snm` and stores the rest. Such a model conserves
+mass — the water it passes through is declared, so the snowpack budget closes
+— and the probe will pass it as long as the retained share clears 0.80.
+Delivering a fifth of midwinter snowfall to the ground as liquid water is
+physically doubtful, but it is not a conservation violation, and this probe
+measures conservation. The energy side of that question belongs to
+`energy/snowpack-cold-content`.
+
+`reference_snow_bypass` conserves total catchment water but sends 15% of
 snowfall directly to the soil without reporting that bypass as snow-module
 outflow. It therefore preserves the whole-catchment water balance while
 violating the internal snowpack balance, and must fail `closure`.

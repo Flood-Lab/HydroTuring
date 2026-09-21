@@ -207,7 +207,7 @@ the probe cannot ask the declared model interface this question.
 | `reference_area_leak` | broken | loses a share of runoff that grows with the area it is told | caught by `invariance` (area) |
 | `reference_overshooting` | broken | a derivative term sharpens its hydrograph, so an added storm lowers later flow | caught by `response_nonnegativity` |
 | `reference_sublimating` | broken | loses 40% of every snowfall to an unreported sublimation | caught by `phase_invariance` |
-| `reference_snow_bypass` | broken | sends 30% of snowfall directly to the soil around the snowpack, preserving the catchment balance while breaking the internal snowpack balance | caught by `closure` |
+| `reference_snow_bypass` | broken | sends 15% of snowfall directly to the soil around the snowpack, preserving the catchment balance while breaking the internal snowpack balance; the 85% it keeps clears the probe's peak-fraction floor, so `closure` is the only criterion it trips | caught by `closure` |
 | `reference_snowless` | broken | stores no snow and passes all precipitation through the snow module | caught by `snowpack_response` |
 | `reference_thirsty` | broken | evaporates a fixed share of its soil store, never reading demand; conserves water exactly | caught by `demand_consistency` |
 | `reference_driven_exchange` | exact | a boundary exchange driven by the prescribed external head against a constant catchment head, so it answers the head raised or lowered with a sustained flux; a positive control for `mass/exchange-response` | must pass `mass/exchange-response` |
