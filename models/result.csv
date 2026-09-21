@@ -709,3 +709,6 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-20,flex_lumped,1.2.0,0.1.0,subprocess,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh
 2026-09-20,flex_topo,1.1.0,0.1.0,subprocess,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh
 2026-09-20,sacsma_snow17,1.1.0,0.1.0,subprocess,mass/exchange-response,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing gwh
+2026-09-21,flex_lumped,1.2.0,0.1.0,subprocess,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-21,flex_topo,1.1.0,0.1.0,subprocess,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
+2026-09-21,sacsma_snow17,1.1.0,0.1.0,subprocess,mass/snowpack-mass-closure,PASS,OK,full record,809506488 1316458602 1823410716 182879183 689831297,closure: cumulative residual 0.0000% of sum_pr (limit 5.0%); snowpack_response: snow accumulation and melt are non-trivial
