@@ -84,6 +84,10 @@ One storm added: nothing may change before it, something must after.
 ### `mass/dry-down` &middot; **merged**
 Two years without rain: runoff can only fall, and only stored water can drain.
 
+### `mass/spinup-cycle-invariance` &middot; **merged**
+A repeated annual forcing cycle should produce the same evaluation-year response after different amounts of prior spin-up. The three variants share one calendar evaluation year while using coprime history offsets, separating slow physical stores from persistent hidden clocks.
+Contributed by Kaihao Long.
+
 ### `mass/steady-state` &middot; **merged**
 Three years of the same day: everything settles and the budget balances.
 
@@ -204,18 +208,6 @@ and evaporation must respond to the forcing.
 recession changes with the year even while its water budget closes. See the
 [probe](probes/mass/time-origin-invariance) for the fixed calendar window and
 the normalization used to compare outputs.
-
-### `mass/spinup-cycle-invariance` &middot; **merged**
-By Kaihao Long. One generated 365-day weather cycle repeats unchanged. The
-the same evaluation year is compared after five, eight, and nine copies: runoff,
-evaporation and reported stores must agree once the physical seasonal cycle
-has been reached.
-
-*Discriminates:* hidden initialization state that keeps evolving under
-identical annual forcing. `reference_restless` closes its water budget and
-keeps physical stores, but its internal clock has a different phase after the
-extra cycles. See the [probe](probes/mass/spinup-cycle-invariance) for the
-conditioning evidence from the physical references.
 
 ---
 

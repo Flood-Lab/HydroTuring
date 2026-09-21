@@ -83,6 +83,10 @@ authors:
     family-names: Zhang
     affiliation: Department of Civil and Environmental Engineering, Stanford University, Stanford, CA, USA
     orcid: "https://orcid.org/0000-0001-8839-1808"
+  - given-names: Kaihao
+    family-names: Long
+    affiliation: School of Geography and Planning, Sun Yat-sen University, Guangzhou 510006, China
+    orcid: "https://orcid.org/0000-0001-7578-3378"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

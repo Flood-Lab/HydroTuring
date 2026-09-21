@@ -394,7 +394,7 @@ of their own.
 
 ## Result
 
-**FAIL (ERROR), 17 of 20 probes passed, 5 N/A (INCOMPLETE).** These are the
+**FAIL (ERROR), 18 of 21 probes passed, 5 N/A (INCOMPLETE).** These are the
 rows of the full gate-seed run of `5.0.0-onecell.5`, made on the emulated host
 described under "Native re-run". The verdict is ERROR because two probes ran
 out of time on that host. Any ERROR among the scored probes makes the verdict
@@ -427,11 +427,11 @@ commands and the row replacement.
     `closure` and `state_bounds` pass.
   - On a host fast enough for the budget, the first should PASS and the second
     be VIOLATION. The model's verdict would then be FAIL (VIOLATION), with 17
-    of 20 probes passed and 5 N/A.
+    of 19 probes passed and 5 N/A.
 - **VIOLATION, 1:** `mass/resolution-invariance`. Rain that falls within an
   hour runs off, so `mrro` differs by 13.0% of `pr` between PT1H and PT1D,
   against a 10% limit.
-- **PASS, 17:**
+- **PASS, 16:**
   - `energy/pet-consistency`;
   - `mass/antecedent-monotonicity`, `mass/area-invariance`,
     `mass/catchment-closure`, `mass/causality`, `mass/dry-down`,
@@ -439,8 +439,7 @@ commands and the row replacement.
   - `mass/phase-counterfactual`, `mass/response-nonnegativity`,
     `mass/runoff-bounds`, `mass/steady-state`, `mass/time-origin-invariance`
     and `mass/warming-response`;
-  - `momentum/routing-conservation`, `mass/ungauged-basin-closure` and
-    `mass/spinup-cycle-invariance`.
+  - `momentum/routing-conservation` and `mass/ungauged-basin-closure`.
 
   The budget closes to 1e-13 mm per step. The harness flags `suspicious_exact`
   on `mass/catchment-closure` and `mass/time-origin-invariance`; "What the
