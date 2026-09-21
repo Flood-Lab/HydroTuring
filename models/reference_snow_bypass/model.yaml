@@ -1,7 +1,7 @@
 name: reference_snow_bypass
-version: "1.0.0"
+version: "1.1.0"
 description: >
-  Deliberately broken snow model. Some snowfall bypasses the
+  Deliberately broken snow model. 15% of every snowfall bypasses the
   snowpack and enters the soil directly. Catchment water is conserved, but
   the internal snowpack budget does not close.
 authors: ["Jinlong Hu"]

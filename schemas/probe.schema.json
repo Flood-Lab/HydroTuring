@@ -258,6 +258,14 @@
             "type": "string"
           },
           "description": "Map of reference model -> the criterion name it must trip. Pins which criterion does the catching."
+        },
+        "must_fail_only": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Subset of must_fail whose controls must trip their declared criterion and no other. Use it where a control's isolation is the point: it is what separates one failure mode from another. Controls left out keep the default rule, which asks only that the declared criterion be among those tripped."
         }
       }
     },

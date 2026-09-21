@@ -56,7 +56,9 @@ criteria:
       accumulation_label: accumulation
       storage_label: storage
       melt_label: melt
-      min_peak_fraction: 0.5
+      min_peak_fraction: 0.80   # see README: the window is bounded above by
+                                # Snow-17 at 0.9084 and below by the bypass
+                                # control's 0.85, which must stay above it
       max_melt_fraction: 0.1
 
 baselines:
@@ -64,6 +66,11 @@ baselines:
   must_fail:
     reference_snow_bypass: closure
     reference_snowless: snowpack_response
+  # The bypass control must trip `closure` and nothing else: it exists to
+  # show water leaving the snowpack while the catchment budget still closes,
+  # which is what separates it from `reference_leaky`. If it also tripped
+  # `snowpack_response` it would stop demonstrating that distinction.
+  must_fail_only: [reference_snow_bypass]
 
 provenance: >
   Synthetic. Two 360-day accumulation-storage-melt snow cycles are generated

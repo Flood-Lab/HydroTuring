@@ -1258,3 +1258,158 @@ def test_trusted_models_run_on_the_harness_interpreter():
     assert SubprocessRunner.resolve_entrypoint(["python3", "ht_adapter.py"]) == [sys.executable, "ht_adapter.py"]
     assert SubprocessRunner.resolve_entrypoint(["python", "x.py"])[0] == sys.executable
     assert SubprocessRunner.resolve_entrypoint(["./model.exe", "--go"]) == ["./model.exe", "--go"]
+
+
+def test_must_fail_only_names_must_be_must_fail_baselines(tmp_path):
+    """A typo in `must_fail_only` must fail loudly rather than do nothing.
+
+    The list is opt-in, so a name that matches no baseline would otherwise
+    be silently ignored and the probe would keep the loose rule it was
+    trying to leave behind.
+    """
+    import shutil
+
+    from hydroturing.spec import load_probe
+
+    source = registry.PROBES_DIR / "mass" / "snowpack-mass-closure"
+    target = tmp_path / "mass" / "snowpack-mass-closure"
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__"))
+    spec_file = target / "probe.yaml"
+
+    assert load_probe(target).must_fail_only == ("reference_snow_bypass",)
+
+    spec_file.write_text(
+        spec_file.read_text().replace(
+            "must_fail_only: [reference_snow_bypass]",
+            "must_fail_only: [reference_snow_bipass]",
+            1,
+        )
+    )
+    with pytest.raises(SpecError, match="must_fail_only names"):
+        load_probe(target)
+
+
+def test_must_fail_only_is_absent_by_default(tmp_path):
+    """Probes that do not opt in keep the membership rule.
+
+    Seventeen of the suite's must_fail controls trip a second criterion as a
+    side effect, so the default has to stay loose.
+    """
+    from hydroturing.spec import load_probe
+
+    source = registry.PROBES_DIR / "mass" / "catchment-closure"
+    assert load_probe(source).must_fail_only == ()
+
+
+def _run_gate(monkeypatch, capsys, probe, tripped_by_model):
+    """Drive `cmd_gate` over one probe with canned per-model outcomes.
+
+    Running the real models would only reproduce whatever they happen to
+    trip today; what is under test is the gate's own rule, so each control's
+    failing criteria are supplied directly.
+    """
+    from types import SimpleNamespace
+
+    from hydroturing import cli
+    from hydroturing.scoring import CriterionOutcome, ProbeOutcome
+
+    def outcome(verdict, reason, names, status):
+        return ProbeOutcome(
+            probe_id=probe.id,
+            law=probe.law,
+            verdict=verdict,
+            reason=reason,
+            criteria=[
+                CriterionOutcome(name=name, status=status, message="")
+                for name in names
+            ],
+        )
+
+    def fake_run_probe(model, spec, seeds, *args, **kwargs):
+        name = model if isinstance(model, str) else model.name
+        if name in spec.must_pass:
+            return outcome("PASS", "OK", [c.name for c in spec.criteria], "pass")
+        return outcome("FAIL", "VIOLATION", tripped_by_model[name], "fail")
+
+    monkeypatch.setattr(cli, "_probes", lambda args: [probe])
+    monkeypatch.setattr(cli, "run_probe", fake_run_probe)
+
+    code = cli.cmd_gate(SimpleNamespace(probe=probe.id))
+    return code, capsys.readouterr().out
+
+
+def test_gate_rejects_a_must_fail_only_control_that_trips_a_second_criterion(
+    monkeypatch, capsys
+):
+    """The strict branch must be what decides, not the membership rule.
+
+    Without it the gate stays green on exactly the regression this PR exists
+    to catch: `reference_snow_bypass` picking up `snowpack_response` beside
+    `closure` and so no longer isolating the criterion it demonstrates.
+    """
+    probe = registry.find_probe("mass/snowpack-mass-closure")
+    assert "reference_snow_bypass" in probe.must_fail_only
+
+    code, out = _run_gate(
+        monkeypatch,
+        capsys,
+        probe,
+        {
+            "reference_snow_bypass": ("closure", "snowpack_response"),
+            "reference_snowless": ("snowpack_response",),
+        },
+    )
+
+    assert code == 1
+    assert "BROKEN" in out
+    assert "expected `closure` only" in out
+    assert "'closure' only, tripped ['closure', 'snowpack_response']" in out
+
+
+def test_gate_accepts_a_must_fail_only_control_that_trips_its_criterion_alone(
+    monkeypatch, capsys
+):
+    """The same control, isolated, passes and says which rule was applied."""
+    probe = registry.find_probe("mass/snowpack-mass-closure")
+
+    code, out = _run_gate(
+        monkeypatch,
+        capsys,
+        probe,
+        {
+            "reference_snow_bypass": ("closure",),
+            "reference_snowless": ("snowpack_response",),
+        },
+    )
+
+    assert code == 0
+    assert "expected `closure` only, tripped ['closure']" in out
+    assert "BROKEN" not in out
+
+
+def test_gate_still_accepts_extra_criteria_from_a_control_not_listed_as_isolated(
+    monkeypatch, capsys
+):
+    """The strict rule must not leak to the controls that did not opt in.
+
+    Seventeen of the suite's must_fail controls trip a second criterion as a
+    side effect. `reference_snowless` is not in `must_fail_only`, so an extra
+    criterion on it is not a gate failure, and its line carries no `only`.
+    """
+    probe = registry.find_probe("mass/snowpack-mass-closure")
+    assert "reference_snowless" not in probe.must_fail_only
+
+    code, out = _run_gate(
+        monkeypatch,
+        capsys,
+        probe,
+        {
+            "reference_snow_bypass": ("closure",),
+            "reference_snowless": ("snowpack_response", "state_bounds"),
+        },
+    )
+
+    assert code == 0
+    assert "BROKEN" not in out
+    assert "expected `snowpack_response`, tripped" in out
+    assert "expected `snowpack_response` only" not in out
