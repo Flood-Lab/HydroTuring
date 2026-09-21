@@ -5,9 +5,19 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-PERIOD_YEARS = 3
 SPINUP_DAYS = 365
-N_STEPS = PERIOD_YEARS * 365 + SPINUP_DAYS
+BASEFLOW_COEFFICIENT_PER_DAY = 0.006
+STEADY_DAYS = 90
+SETTLING_TIME_CONSTANTS = 5.0
+# The slowest must-pass store has tau ~= 1 / k. Give it five time constants
+# before the final scored block starts, rather than relying on the five gate
+# seeds to happen to settle inside a one-year plateau.
+SETTLING_DAYS = int(np.ceil(
+    SETTLING_TIME_CONSTANTS / BASEFLOW_COEFFICIENT_PER_DAY
+))
+PLATEAU_DAYS = SETTLING_DAYS + STEADY_DAYS
+PERIOD_DAYS = 3 * PLATEAU_DAYS
+N_STEPS = PERIOD_DAYS + SPINUP_DAYS
 
 
 def generate(seed: int) -> tuple[pd.DataFrame, dict]:
@@ -17,7 +27,7 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
     tas = float(rng.uniform(12.0, 19.0))
 
     # The spinup holds the low-flow forcing for a full year.  The scored
-    # record then visits three separately labelled, year-long plateaus.  The
+    # record then visits three separately labelled plateaus.  The
     # labels are stripped before the model runs and are visible only to the
     # criterion, so a model cannot identify which rows are scored.
     effective_low = float(rng.uniform(1.0, 1.8))
@@ -28,15 +38,15 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
     }
     labels = np.concatenate([
         np.full(SPINUP_DAYS, "spinup", dtype=object),
-        np.full(365, "low", dtype=object),
-        np.full(365, "medium", dtype=object),
-        np.full(365, "high", dtype=object),
+        np.full(PLATEAU_DAYS, "low", dtype=object),
+        np.full(PLATEAU_DAYS, "medium", dtype=object),
+        np.full(PLATEAU_DAYS, "high", dtype=object),
     ])
     pr = np.concatenate([
         np.full(SPINUP_DAYS, pet + effective["low"]),
-        np.full(365, pet + effective["low"]),
-        np.full(365, pet + effective["medium"]),
-        np.full(365, pet + effective["high"]),
+        np.full(PLATEAU_DAYS, pet + effective["low"]),
+        np.full(PLATEAU_DAYS, pet + effective["medium"]),
+        np.full(PLATEAU_DAYS, pet + effective["high"]),
     ])
 
     time = pd.date_range("2000-01-01", periods=N_STEPS, freq="D")
@@ -58,7 +68,7 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
         "soil_capacity_mm": float(rng.uniform(220.0, 380.0)),
         "canopy_capacity_mm": float(rng.uniform(1.5, 3.0)),
         "degree_day_factor_mm_per_C_day": 3.2,
-        "baseflow_coefficient": 0.006,
+        "baseflow_coefficient": BASEFLOW_COEFFICIENT_PER_DAY,
         "snow_threshold_degC": 0.0,
         "latitude_deg": 38.0,
         # The depth produced by these ranges is small relative to width. That

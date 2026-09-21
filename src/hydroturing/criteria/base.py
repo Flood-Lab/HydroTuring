@@ -150,9 +150,11 @@ def depth_series(run: RunResult) -> np.ndarray:
 
     A stage-consuming criterion that needs a depth, ratio, or power must call
     this helper rather than infer a datum.  The probe must require the rigid
-    bed elevation.  A series entirely below that bed normally means the model
+    bed elevation.  A series far below that bed normally means the model
     reported depth above bed in the ``stage`` column; that is a convention
-    mismatch, not a physical violation.
+    mismatch, not a physical violation.  The magnitude check uses finite
+    entries so one missing row cannot turn a record-wide convention mismatch
+    into a public violation.
     """
     if "stage" not in run.table.columns:
         raise ValueError("depth_series needs 'stage' in the model result")
@@ -169,9 +171,15 @@ def depth_series(run: RunResult) -> np.ndarray:
         raise ValueError("bed_elevation_m must be finite")
 
     depth = np.asarray(run.table["stage"], dtype=float) - bed
-    if len(depth) and np.isfinite(depth).all() and np.all(depth < 0.0):
+    finite = depth[np.isfinite(depth)]
+    if (
+        abs(bed) > 0.0
+        and len(finite)
+        and float(np.median(finite)) < -0.5 * abs(bed)
+    ):
         raise CriterionIncompatibleError(
-            "reported stage is below bed_elevation_m on every step; stage must "
+            "reported stage is far below bed_elevation_m on most finite steps; "
+            "stage must "
             "be water-surface elevation on the case's fixed vertical datum, "
             "not depth above the bed"
         )

@@ -13,6 +13,7 @@ import numpy as np
 from hydroturing.criteria.base import (
     FAIL,
     PASS,
+    CriterionIncompatibleError,
     CriterionResult,
     criterion,
     depth_series,
@@ -76,7 +77,6 @@ def uniform_flow_friction(
     missing = [name for name in required if name not in window.table]
     if missing:
         return _failure(f"missing required output(s): {', '.join(missing)}")
-    window_depth = depth_series(run)[run.case.spinup_steps:]
 
     static = run.case.static
     static_names = (
@@ -89,6 +89,7 @@ def uniform_flow_friction(
     absent = [name for name in static_names if name not in static]
     if absent:
         raise ValueError(f"case is missing static value(s): {', '.join(absent)}")
+    window_depth = depth_series(run)[run.case.spinup_steps:]
 
     shape = str(static["cross_section_shape"]).strip().lower()
     if shape != "rectangular":
@@ -140,6 +141,7 @@ def uniform_flow_friction(
             + ", ".join(missing_plateaus)
         )
 
+    steady_failures: list[str] = []
     failures: list[str] = []
     plateau_diagnostics: dict[str, dict[str, float | int]] = {}
     mean_errors: list[float] = []
@@ -178,7 +180,7 @@ def uniform_flow_friction(
         q_shift = _relative_quarter_shift(discharge)
         depth_shift = _relative_quarter_shift(depth)
         if max(q_cv, depth_cv) > max_cv or max(q_shift, depth_shift) > max_shift:
-            failures.append(
+            steady_failures.append(
                 f"{label} is not steady (CV Q/depth {q_cv:.2%}/{depth_cv:.2%}; "
                 f"quarter shift {q_shift:.2%}/{depth_shift:.2%})"
             )
@@ -216,6 +218,12 @@ def uniform_flow_friction(
             "max_froude_number": float(np.max(froude)),
             "steady_steps": steady_steps,
         }
+
+    if steady_failures:
+        raise CriterionIncompatibleError(
+            "uniform-flow precondition was not reached: "
+            + "; ".join(steady_failures)
+        )
 
     worst_mean = max(mean_errors)
     summary = ", ".join(

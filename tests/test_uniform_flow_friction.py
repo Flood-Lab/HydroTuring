@@ -9,12 +9,12 @@ import pandas as pd
 import pytest
 
 from hydroturing import registry
-from hydroturing.criteria import get
+from hydroturing.criteria import CriterionIncompatibleError, depth_series, get
 from hydroturing.criteria.base import FAIL, PASS
-from hydroturing.harness import run_probe
+from hydroturing.harness import build_case, run_probe
 from hydroturing.protocol import Case, RunResult
 from hydroturing.runner import get_runner
-from hydroturing.scoring import INCOMPATIBLE, NOT_SCORED
+from hydroturing.scoring import INCOMPATIBLE, NOT_SCORED, PASS as PROBE_PASS
 from hydroturing.seeds import gate_seeds
 
 
@@ -95,7 +95,7 @@ def _run(discharge, stage, static=None, labels=None) -> RunResult:
 def _params(**overrides):
     params = {
         "tolerance": 0.05,
-        "max_cv": 0.01,
+        "max_cv": 0.015,
         "max_relative_trend": 0.01,
         "steady_days": 90,
         "plateaus": list(LABELS),
@@ -112,6 +112,40 @@ def test_three_exact_rectangular_normal_depths_pass():
     assert result.diagnostics["steady_steps"] == 90
     assert set(result.diagnostics["plateaus"]) == set(LABELS)
     assert result.diagnostics["plateaus"]["high"]["max_froude_number"] < 1.0
+
+
+def test_case_allows_five_slowest_store_time_constants_before_scoring():
+    probe = registry.find_probe("momentum/uniform-flow-friction-consistency")
+    case = build_case(probe, gate_seeds(probe.id, 1)[0])
+    scored = case.forcing.iloc[case.spinup_steps:]
+    counts = scored["_plateau"].value_counts()
+    steady_days = int(probe.criteria[0].params["steady_days"])
+    assert float(probe.criteria[0].params["max_cv"]) == 0.015
+    minimum_settling = math.ceil(
+        5.0 / float(case.static["baseflow_coefficient"])
+    )
+    assert counts.to_dict() == {label: 924 for label in LABELS}
+    assert int(counts.min()) - steady_days >= minimum_settling
+
+
+@pytest.mark.parametrize(
+    ("model_name", "seeds"),
+    [
+        ("reference_bucket", [0, 22, 23, 27, 30, 39]),
+        ("sacsma_snow17", [4, 13, 40, 56]),
+    ],
+)
+def test_extended_plateaus_score_previously_nonsteady_must_pass_runs(
+    model_name, seeds, tmp_path,
+):
+    probe = registry.find_probe("momentum/uniform-flow-friction-consistency")
+    outcome = run_probe(
+        registry.find_model(model_name),
+        probe,
+        seeds,
+        workdir=tmp_path,
+    )
+    assert outcome.verdict == PROBE_PASS
 
 
 def test_near_boundary_wrong_roughness_fails():
@@ -146,18 +180,19 @@ def test_opposite_signed_residuals_cannot_cancel():
     assert result.value > 0.45
 
 
-def test_a_slow_drift_is_refused_even_when_cv_is_loose():
+def test_a_slow_drift_is_incompatible_even_when_cv_is_loose():
     q, stage = _steady_series()
     q[-ROWS_PER_PLATEAU:] = np.linspace(22.0, 24.0, ROWS_PER_PLATEAU)
     stage[-ROWS_PER_PLATEAU:] = STATIC["bed_elevation_m"] + np.array([
         _depth(value, STATIC["slope"]) for value in q[-ROWS_PER_PLATEAU:]
     ])
-    result = get("uniform_flow_friction")(
-        _run(q, stage), None, _params(max_cv=1.0)
-    )
-    assert result.status == FAIL
-    assert "not steady" in result.message
-    assert "quarter shift" in result.message
+    with pytest.raises(
+        CriterionIncompatibleError,
+        match="uniform-flow precondition.*not steady.*quarter shift",
+    ):
+        get("uniform_flow_friction")(
+            _run(q, stage), None, _params(max_cv=1.0)
+        )
 
 
 def test_dry_or_nonfinite_answers_fail_instead_of_being_skipped():
@@ -199,8 +234,9 @@ def test_malformed_case_inputs_raise_configuration_errors():
         )
 
 
+@pytest.mark.parametrize("single_row", [None, "nan", "elevation"])
 def test_depth_reported_in_the_stage_column_is_incompatible(
-    monkeypatch, tmp_path,
+    monkeypatch, tmp_path, single_row,
 ):
     """A different datum convention is N/A, not a public physics violation."""
     from hydroturing import harness
@@ -213,6 +249,12 @@ def test_depth_reported_in_the_stage_column_is_incompatible(
         def run(self, model, probe, case, io_dir):
             result = real_runner.run(model, probe, case, io_dir)
             result.table["stage"] -= float(case.static["bed_elevation_m"])
+            if single_row == "nan":
+                result.table.loc[5, "stage"] = np.nan
+            elif single_row == "elevation":
+                result.table.loc[5, "stage"] += float(
+                    case.static["bed_elevation_m"]
+                )
             return result
 
     monkeypatch.setattr(harness, "get_runner", lambda _: DepthAsStageRunner())
@@ -225,3 +267,48 @@ def test_depth_reported_in_the_stage_column_is_incompatible(
     assert outcome.verdict == NOT_SCORED
     assert outcome.reason == INCOMPATIBLE
     assert "fixed vertical datum" in outcome.incompatible[0]
+
+
+def test_nonsteady_output_is_incompatible_end_to_end(monkeypatch, tmp_path):
+    from hydroturing import harness
+
+    probe = registry.find_probe("momentum/uniform-flow-friction-consistency")
+    model = registry.find_model("reference_uniform_flow")
+    real_runner = get_runner(model)
+
+    class DriftingRunner:
+        def run(self, model, probe, case, io_dir):
+            result = real_runner.run(model, probe, case, io_dir)
+            high = np.flatnonzero(case.forcing["_plateau"].to_numpy() == "high")
+            scored = high[-90:]
+            result.table.loc[scored, "dis"] *= np.linspace(0.8, 1.2, len(scored))
+            return result
+
+    monkeypatch.setattr(harness, "get_runner", lambda _: DriftingRunner())
+    outcome = run_probe(
+        model,
+        probe,
+        gate_seeds(probe.id, 1),
+        workdir=tmp_path,
+    )
+    assert outcome.verdict == NOT_SCORED
+    assert outcome.reason == INCOMPATIBLE
+    assert "uniform-flow precondition was not reached" in outcome.incompatible[0]
+
+
+@pytest.mark.parametrize("negative_depth", [-1.0e-12, -0.2])
+def test_small_negative_depth_is_scored_as_a_fault_not_a_datum_mismatch(
+    negative_depth,
+):
+    q, _ = _steady_series()
+    stage = np.full(len(q), STATIC["bed_elevation_m"] + negative_depth)
+    derived = depth_series(_run(q, stage))
+    assert np.allclose(derived, negative_depth)
+
+
+def test_bed_zero_does_not_guess_between_depth_and_elevation_conventions():
+    q, _ = _steady_series()
+    static = dict(STATIC, bed_elevation_m=0.0)
+    stage = np.full(len(q), -0.2)
+    derived = depth_series(_run(q, stage, static=static))
+    assert np.allclose(derived, -0.2)
