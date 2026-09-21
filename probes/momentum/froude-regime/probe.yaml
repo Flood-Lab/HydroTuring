@@ -1,0 +1,117 @@
+id: momentum/froude-regime
+title: A mild-sloped reach cannot outrun its own wave
+law: momentum
+track: synthetic
+version: 1
+
+authors:
+  - name: Yuanhang Liu
+    affiliation: Independent Researcher
+    github: kawh1111
+    orcid: 0009-0005-9633-6004
+
+description: >
+  Four years of temperate weather in one reach on a declared mild slope,
+  with a sequence of multi-day floods, for any model that reports the stage
+  of its channel alongside the discharge through it. A stage and a discharge
+  are two readings of the same cross-section, and a cross-section can only
+  deliver so much water: past a Froude number of one the water outruns the
+  wave that carries it, and on a mild slope that regime cannot be sustained.
+  So the two numbers have to agree about how deep the flow is — pin the
+  gauge at one depth while the discharge climbs tenfold and the pair implies
+  a velocity gravity does not permit. No budget sees this. The mass closes
+  perfectly when the gauge lies, because a stage is not a store: nothing is
+  differenced over it, and there is no second reading to close it against.
+  `momentum/stage-discharge-monotonic` asks whether the gauge moves with
+  the flow; this asks whether the depth it reports is one the section could
+  carry at all.
+
+requires:
+  # The discharge is preferred as `dis` and falls back to `mrro` over the
+  # catchment area, so a model that reports only a depth rate is still
+  # scorable. Declaring `dis` here would make the fallback unreachable.
+  fluxes: []
+  diagnostics: [stage]
+  # The Froude number is formed from the *case's* section, so the verdict rests
+  # on the model having drawn its stage for that section rather than for one of
+  # its own: a model that never read the width is judged against a number it
+  # never saw, and the suite's rule for that is N/A (INCOMPATIBLE), not a
+  # conservation violation. `slope` and `manning_n` are here for the same
+  # reason and not as an afterthought — a reach is mild only relative to its
+  # roughness, and a gauge drawn with its own roughness in the declared width
+  # is consistent with itself while implying a velocity the case's reach could
+  # not deliver. All three are read by every adapter whose stage is a normal
+  # depth in the declared section.
+  #
+  # `bed_elevation_m` is required for a different reason: `froude_subcritical`
+  # forms a depth, and a depth is `stage - bed_elevation_m`. `stage` is a
+  # water-surface elevation on the case's fixed vertical datum (`AGENTS.md`), so
+  # the criterion cannot recover the depth from the level alone and may not
+  # assume a datum. A model that does not declare it consumes the bed is judged
+  # against a datum it never read, and is N/A (INCOMPATIBLE) rather than failed.
+  static: [width_m, slope, manning_n, bed_elevation_m]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 4
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 300
+  min_window_days: 1460
+
+criteria:
+  # Subcriticality, per step. The measure is the share of scored steps that
+  # went supercritical, with a default limit of zero: the constraint holds at
+  # every step, and reporting the share keeps a single numerical spike at the
+  # edge of the record distinguishable from a reach that is supercritical
+  # through every flood.
+  - froude_subcritical:
+      tolerance: 0.05
+      max_exceed_fraction: 0.0
+      min_scored_fraction: 0.05
+      width_key: width_m
+      # A section sanity bound, and nothing more than that. The datum is the
+      # contract's job: the case declares `bed_elevation_m` and the criterion
+      # subtracts it, so a level reported against some other zero is refused by
+      # the subtraction rather than by a value test. What a ceiling can still
+      # catch is a depth the declared section could not hold at all. Ten metres
+      # is four times the case's declared bankfull depth of 2.5 m, and two and a
+      # half times the deepest reading the four must-pass baselines give over
+      # the gate seeds — 3.99 m, `reference_bucket`'s worst Fr of 0.445 inverted
+      # through the section's normal-depth relation — so the ceiling never comes
+      # near honest flow. Over a hundred seeds the worst honest Fr reaches about
+      # 0.46, which is still only about 4.9 m.
+      max_depth_m: 10.0
+
+  - non_degenerate:
+      runoff_ratio: [0.02, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro]
+
+baselines:
+  # Every one of these reports a stage derived from the flow it is carrying,
+  # through Manning's normal depth in the declared section, so the depth the
+  # gauge reads is the depth the section needs and the Froude number stays
+  # between 0.376 and 0.453 at its worst over the three gate seeds.
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
+  must_fail:
+    # The exact bucket with a rating borrowed from a wider reach: Manning's
+    # law, evaluated for a section five times the declared width. Its water is
+    # conserved to the floating point and its runoff is the bucket's, and its
+    # gauge is not obviously broken — the stage varies as much as the honest
+    # one's, rises monotonically with the flow, and the rating is
+    # single-valued, so every other criterion in the suite passes it. It is
+    # the only counterexample here that has to be, because the probe's claim
+    # is that nothing else reads the pair; a gauge pinned at a constant is
+    # caught by `non_degenerate` elsewhere and would demonstrate nothing. At
+    # this factor the pair implies a Froude number 5**0.9 (~4.3) times the
+    # honest one: supercritical on 83 to 90 per cent of scored steps, worst
+    # Fr 1.77 to 1.93.
+    reference_shallow_rating: froude_subcritical
+
+provenance: >
+  Synthetic. Generated at run time from a recorded seed, with a sequence of
+  multi-day floods spread over the record. Nothing is committed as data.
