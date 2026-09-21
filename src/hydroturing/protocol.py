@@ -9,6 +9,7 @@ invokes the adapter once, and reads back a table.
       input/forcing.csv     <- harness writes, read only
       input/static.json     <- harness writes, read only
       output/result.csv     -> adapter writes
+      output/routing.csv    -> adapter writes, when reach-indexed output is requested
       output/run.json       -> adapter writes
 
 CSV is the required format. NetCDF is accepted when present but never
@@ -35,10 +36,11 @@ FORCING_FILE = "input/forcing.csv"
 STATIC_FILE = "input/static.json"
 RESULT_CSV = "output/result.csv"
 RESULT_NC = "output/result.nc"
+ROUTING_CSV = "output/routing.csv"
 RUN_FILE = "output/run.json"
 
 TIME_COL = "time"
-
+REACH_COL = "reach_id"
 
 class ProtocolError(RuntimeError):
     """The adapter did not honour the contract."""
@@ -101,6 +103,7 @@ class RunResult:
     table: pd.DataFrame
     meta: dict[str, Any]
     wall_seconds: float
+    routing: pd.DataFrame | None = None
     # The manifest of the model that produced the table. A criterion whose
     # verdict depends on what the model declared it consumes — a prescribed
     # driver it may or may not have read — needs this; every other criterion
@@ -125,21 +128,33 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
         json.dump(case.static, fh, indent=2)
 
     case_id, model_seed = _opaque_case_metadata(case)
+    requested_routing = (
+        list(model.emits_routing) if probe.requires_routing else []
+    )
     request = {
         "case_id": case_id,
         "seed": model_seed,
         "timestep": case.timestep,
         "n_steps": case.n_steps,
         "request": {
-            # Asking for every declared output keeps this part of the request
-            # invariant across probes and prevents it identifying the criterion.
+            # Catchment-level groups remain invariant across probes.
+            # Routing is requested only when the probe supplies a network.
             "fluxes": list(model.emits_fluxes),
             "states": list(model.emits_states),
             "diagnostics": list(model.emits_diagnostics),
+            "routing": requested_routing,
         },
         "input": {"forcing": FORCING_FILE, "static": STATIC_FILE},
-        "output": {"table": RESULT_CSV, "run": RUN_FILE},
-        "units": {v: UNITS[v] for v in model.emitted if v in UNITS},
+        "output": {
+            "table": RESULT_CSV,
+            "routing": ROUTING_CSV,
+            "run": RUN_FILE,
+        },
+        "units": {
+            v: UNITS[v]
+            for v in (*model.emitted, *requested_routing)
+            if v in UNITS
+        },
         "notes": (
             "States are absolute storages, not tendencies. The harness "
             "differences them itself. Row i's ts and rlus are instantaneous "
@@ -147,6 +162,8 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
             "when supplied. Row i's tsoil_layer is the mean temperature of "
             "the specified layer at the interval end; hfg and hfg_bottom "
             "are interval-mean boundary fluxes for the soil-storage check."
+            " Routing q_in and q_out are interval-mean m3 s-1; "
+            "channel_storage is absolute end-of-step m3."
         ),
     }
     request_path = io_dir / REQUEST_FILE
@@ -161,7 +178,7 @@ def _validate_output_files(io_dir: Path, probe: ProbeSpec) -> None:
     if not output_dir.exists():
         return
 
-    allowed = {RESULT_CSV, RESULT_NC, RUN_FILE}
+    allowed = {RESULT_CSV, RESULT_NC, ROUTING_CSV, RUN_FILE}
     total = 0
     for path in output_dir.iterdir():
         relative = f"output/{path.name}"
@@ -180,7 +197,12 @@ def _validate_output_files(io_dir: Path, probe: ProbeSpec) -> None:
         )
 
 
-def _validate_time_axis(table: pd.DataFrame, case: Case) -> None:
+def _validate_time_axis(
+    table: pd.DataFrame,
+    case: Case,
+    *,
+    label: str = "result",
+) -> None:
     expected = case.forcing[TIME_COL].reset_index(drop=True)
     actual = table[TIME_COL].reset_index(drop=True)
 
@@ -200,9 +222,111 @@ def _validate_time_axis(table: pd.DataFrame, case: Case) -> None:
     if not equal:
         first = int(mismatch.to_numpy().nonzero()[0][0])
         raise ProtocolError(
-            f"result time axis differs from the forcing at row {first}: "
+            f"{label} time axis differs from the forcing at row {first}: "
             f"got {actual.iloc[first]!r}, expected {expected.iloc[first]!r}"
         )
+
+
+def _read_routing(
+    io_dir: Path,
+    case: Case,
+    probe: ProbeSpec,
+) -> pd.DataFrame | None:
+    """Read and validate the optional reach-indexed routing result."""
+    path = io_dir / ROUTING_CSV
+    if not path.exists():
+        if probe.requires_routing:
+            raise ProtocolError(f"adapter did not write required {ROUTING_CSV}")
+        return None
+
+    table = pd.read_csv(path, dtype={REACH_COL: str})
+    required_columns = [TIME_COL, REACH_COL, *probe.requires_routing]
+    missing = [
+        column for column in required_columns if column not in table.columns
+    ]
+    if missing:
+        raise ProtocolError(f"routing result is missing columns: {missing}")
+
+    if table[REACH_COL].isna().any():
+        raise ProtocolError(f"routing result has missing '{REACH_COL}' values")
+    table[REACH_COL] = table[REACH_COL].astype(str)
+
+    duplicate = table.duplicated([TIME_COL, REACH_COL])
+    if duplicate.any():
+        raise ProtocolError(
+            "routing result has duplicate (time, reach_id) rows: "
+            f"{int(duplicate.sum())} duplicates"
+        )
+
+    network = case.static.get("routing_network")
+    if not isinstance(network, dict) or "reaches" not in network:
+        raise ProtocolError(
+            "routing output requires static.json routing_network.reaches"
+        )
+
+    declared_reaches = network["reaches"]
+    if (
+        not isinstance(declared_reaches, list)
+        or not declared_reaches
+        or any(
+            not isinstance(reach, str) or not reach
+            for reach in declared_reaches
+        )
+    ):
+        raise ProtocolError(
+            "static.json routing_network.reaches must be a non-empty "
+            "list of non-empty string IDs"
+        )
+
+    expected_reaches = tuple(declared_reaches)
+    if len(expected_reaches) != len(set(expected_reaches)):
+        raise ProtocolError(
+            "static.json routing_network.reaches contains duplicates"
+        )
+
+    actual_reaches = set(table[REACH_COL])
+    expected_set = set(expected_reaches)
+    if actual_reaches != expected_set:
+        missing_reaches = sorted(expected_set - actual_reaches)
+        extra_reaches = sorted(actual_reaches - expected_set)
+        raise ProtocolError(
+            "routing reach IDs differ from static.json: "
+            f"missing={missing_reaches}, extra={extra_reaches}"
+        )
+
+    expected_rows = case.n_steps * len(expected_reaches)
+    if len(table) != expected_rows:
+        raise ProtocolError(
+            f"routing result has {len(table)} rows, expected {expected_rows} "
+            "(one row per forcing step and reach, spinup included)"
+        )
+
+    for reach in expected_reaches:
+        reach_table = table.loc[
+            table[REACH_COL] == reach
+        ].reset_index(drop=True)
+        if len(reach_table) != case.n_steps:
+            raise ProtocolError(
+                f"routing reach '{reach}' has {len(reach_table)} rows, "
+                f"expected {case.n_steps}"
+            )
+        _validate_time_axis(
+            reach_table,
+            case,
+            label=f"routing.csv reach {reach!r}",
+        )
+
+    for var in probe.requires_routing:
+        column = pd.to_numeric(table[var], errors="coerce")
+        invalid = ~np.isfinite(column)
+        if invalid.any():
+            raise ProtocolError(
+                f"routing column '{var}' has "
+                f"{int(invalid.sum())} non-finite values"
+            )
+        table[var] = column
+
+    return table
 
 
 def read_result(
@@ -238,6 +362,7 @@ def read_result(
         )
 
     _validate_time_axis(table, case)
+    routing = _read_routing(io_dir, case, probe)
 
     missing = [v for v in probe.required_vars if v not in table.columns]
     if missing:
@@ -272,4 +397,11 @@ def read_result(
             f"run.json reports n_steps={meta['n_steps']!r}, expected {case.n_steps}"
         )
 
-    return RunResult(case=case, table=table, meta=meta, wall_seconds=wall_seconds, model=model)
+    return RunResult(
+        case=case,
+        table=table,
+        meta=meta,
+        wall_seconds=wall_seconds,
+        routing=routing,
+        model=model,
+    )

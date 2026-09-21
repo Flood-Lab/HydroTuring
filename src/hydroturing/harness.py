@@ -436,6 +436,7 @@ def verify_adapter_contract(
         requires_fluxes=model.emits_fluxes,
         requires_states=model.emits_states,
         requires_diagnostics=model.emits_diagnostics,
+        requires_routing=(model.emits_routing if probe.requires_routing else ()),
         variants=(),
         criteria=(),
     )
