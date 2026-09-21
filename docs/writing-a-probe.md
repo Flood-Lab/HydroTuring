@@ -223,6 +223,7 @@ baselines:
     reference_leaky: closure
     reference_cheater: state_bounds
     reference_degenerate: non_degenerate
+  must_fail_only: [reference_leaky]
 ```
 
 `must_pass` guards against tolerance drift: if a physical model ever fails
@@ -237,6 +238,19 @@ daily step because its partition answers intensity. A probe pull request is
 run against these four before anything else. `must_fail` pins which criterion does
 the catching, so a probe cannot appear to work while catching things for the
 wrong reason.
+
+`must_fail` asks only that the declared criterion be *among* those the control
+trips, because a broken reference usually picks up a second one as a side
+effect and that says nothing about the probe: seventeen of the suite's
+sixty-six controls do, `reference_degenerate` tripping `et_plausible` beside
+`non_degenerate` among them. Where a control's isolation is the point,
+list it under `must_fail_only` and the gate requires it to trip that criterion
+and no other. Use it for a control that exists to separate one failure mode
+from another — `mass/snowpack-mass-closure` names `reference_snow_bypass`,
+which shows water leaving the snowpack while the catchment budget still
+closes, and would stop showing it if it also tripped `snowpack_response`.
+A name in the list that is not a `must_fail` baseline is a spec error, so a
+typo cannot quietly restore the loose rule.
 
 A probe whose verdict rests on a forcing or static input that none of the four
 consumes still needs a physical model in `must_pass`. An exact

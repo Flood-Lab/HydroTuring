@@ -260,6 +260,12 @@ class ProbeSpec:
     requires_forcing: tuple[str, ...] = ()
     requires_static: tuple[str, ...] = ()
 
+    # Controls that must trip their declared criterion and nothing else.
+    # Most broken references trip a second criterion as a side effect and
+    # that is harmless, but a control whose whole job is to separate one
+    # failure mode from another stops doing it the moment it trips two.
+    must_fail_only: tuple[str, ...] = ()
+
     @property
     def required_vars(self) -> tuple[str, ...]:
         return self.requires_fluxes + self.requires_states + self.requires_diagnostics
@@ -433,6 +439,13 @@ def load_probe(path: str | Path) -> ProbeSpec:
                 f"'{criterion}', which this probe does not define"
             )
 
+    for model in raw["baselines"].get("must_fail_only", []):
+        if model not in raw["baselines"]["must_fail"]:
+            raise SpecError(
+                f"{spec_file}: baselines.must_fail_only names '{model}', which "
+                "is not one of this probe's must_fail baselines"
+            )
+
     variants = tuple(case.get("variants", []))
     _check_variants(spec_file, criteria, variants)
 
@@ -502,6 +515,7 @@ def load_probe(path: str | Path) -> ProbeSpec:
         criteria=tuple(criteria),
         must_pass=tuple(raw["baselines"]["must_pass"]),
         must_fail=dict(raw["baselines"]["must_fail"]),
+        must_fail_only=tuple(raw["baselines"].get("must_fail_only", [])),
         provenance=raw.get("provenance", ""),
         path=directory,
     )

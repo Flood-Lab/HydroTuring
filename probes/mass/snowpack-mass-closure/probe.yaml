@@ -66,6 +66,11 @@ baselines:
   must_fail:
     reference_snow_bypass: closure
     reference_snowless: snowpack_response
+  # The bypass control must trip `closure` and nothing else: it exists to
+  # show water leaving the snowpack while the catchment budget still closes,
+  # which is what separates it from `reference_leaky`. If it also tripped
+  # `snowpack_response` it would stop demonstrating that distinction.
+  must_fail_only: [reference_snow_bypass]
 
 provenance: >
   Synthetic. Two 360-day accumulation-storage-melt snow cycles are generated

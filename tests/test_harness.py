@@ -1258,3 +1258,44 @@ def test_trusted_models_run_on_the_harness_interpreter():
     assert SubprocessRunner.resolve_entrypoint(["python3", "ht_adapter.py"]) == [sys.executable, "ht_adapter.py"]
     assert SubprocessRunner.resolve_entrypoint(["python", "x.py"])[0] == sys.executable
     assert SubprocessRunner.resolve_entrypoint(["./model.exe", "--go"]) == ["./model.exe", "--go"]
+
+
+def test_must_fail_only_names_must_be_must_fail_baselines(tmp_path):
+    """A typo in `must_fail_only` must fail loudly rather than do nothing.
+
+    The list is opt-in, so a name that matches no baseline would otherwise
+    be silently ignored and the probe would keep the loose rule it was
+    trying to leave behind.
+    """
+    import shutil
+
+    from hydroturing.spec import load_probe
+
+    source = registry.PROBES_DIR / "mass" / "snowpack-mass-closure"
+    target = tmp_path / "mass" / "snowpack-mass-closure"
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns("__pycache__"))
+    spec_file = target / "probe.yaml"
+
+    assert load_probe(target).must_fail_only == ("reference_snow_bypass",)
+
+    spec_file.write_text(
+        spec_file.read_text().replace(
+            "must_fail_only: [reference_snow_bypass]",
+            "must_fail_only: [reference_snow_bipass]",
+            1,
+        )
+    )
+    with pytest.raises(SpecError, match="must_fail_only names"):
+        load_probe(target)
+
+
+def test_must_fail_only_is_absent_by_default(tmp_path):
+    """Probes that do not opt in keep the membership rule.
+
+    Seventeen of the suite's must_fail controls trip a second criterion as a
+    side effect, so the default has to stay loose.
+    """
+    from hydroturing.spec import load_probe
+
+    source = registry.PROBES_DIR / "mass" / "catchment-closure"
+    assert load_probe(source).must_fail_only == ()

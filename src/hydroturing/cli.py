@@ -353,16 +353,25 @@ def cmd_gate(args) -> int:
         for name, expected in probe.must_fail.items():
             outcome = run_probe(registry.find_model(name), probe, seeds)
             tripped = outcome.failing
+            # A broken reference usually trips its declared criterion and
+            # picks up a second one as a side effect, which says nothing
+            # about the probe. Where a control's whole job is to separate one
+            # failure mode from another, the probe lists it in
+            # `must_fail_only` and the extra criterion is the failure.
+            isolated = name in probe.must_fail_only
             ok = outcome.verdict == FAIL and expected in tripped
+            if ok and isolated and set(tripped) != {expected}:
+                ok = False
             note = "" if ok else "BROKEN: "
+            only = " only" if isolated else ""
             print(
                 f"  {mark(ok)}  must_fail  {name:<24} {note}"
-                f"expected `{expected}`, tripped {tripped or 'nothing'}"
+                f"expected `{expected}`{only}, tripped {tripped or 'nothing'}"
             )
             if not ok:
                 failures.append(
-                    f"{probe.id}: {name} was expected to FAIL on '{expected}', "
-                    f"tripped {tripped or 'nothing'}"
+                    f"{probe.id}: {name} was expected to FAIL on "
+                    f"'{expected}'{only}, tripped {tripped or 'nothing'}"
                 )
 
     print()
