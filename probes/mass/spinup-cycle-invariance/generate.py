@@ -7,10 +7,16 @@ import pandas as pd
 
 CYCLE_DAYS = 365
 SHORT_CYCLES = 5
-EXTRA_CYCLES = 3
-TOTAL_CYCLES = SHORT_CYCLES + 1 + EXTRA_CYCLES
+PLUS3_CYCLES = SHORT_CYCLES + 3
+LONG_CYCLES = SHORT_CYCLES + 4
+TOTAL_CYCLES = LONG_CYCLES + 1
 SPINUP_DAYS = 365
-VARIANTS = ("short", "long")
+VARIANTS = ("short", "plus3", "long")
+EVALUATION_CYCLES = {
+    "short": SHORT_CYCLES,
+    "plus3": PLUS3_CYCLES,
+    "long": LONG_CYCLES,
+}
 
 STATIC = {
     "area_km2": 250.0,
@@ -45,12 +51,16 @@ def _cycle_day(times: pd.DatetimeIndex) -> np.ndarray:
 
     A real Gregorian axis contains leap days, while the synthetic weather
     cycle intentionally has 365 values.  Reusing February 28 on February 29
-    and shifting later dates back by one keeps every January 1 and every
-    month/day aligned across repetitions, so a model that reads the calendar
-    is not given a hidden one-day forcing perturbation.
+    explicitly, then shifting later dates back by one, keeps every January 1
+    and every month/day aligned across repetitions.  The scored comparison is
+    The selected years are 2007, 2010, and 2011.  The 365-day offsets are
+    compared pairwise, so the leap-day mapping is tested rather than hidden
+    by relying on one particular calendar phase.
     """
     day = times.dayofyear.to_numpy() - 1
+    feb_29 = times.is_leap_year & (times.month == 2) & (times.day == 29)
     leap_after_feb = times.is_leap_year & (times.month > 2)
+    day = np.where(feb_29, 58, day)
     day = day - leap_after_feb.astype(int)
     return np.clip(day, 0, CYCLE_DAYS - 1)
 
@@ -73,9 +83,7 @@ def generate(seed: int, variant: str = "short") -> tuple[pd.DataFrame, dict]:
         "tas": np.round(tas[values], 6),
         "pet": np.round(pet[values], 6),
     })
-    evaluation_year = period_start.year + (
-        SHORT_CYCLES if variant == "short" else SHORT_CYCLES + EXTRA_CYCLES
-    )
+    evaluation_year = period_start.year + EVALUATION_CYCLES[variant]
     forcing["_phase"] = np.where(
         forcing["time"].str[:4].astype(int).eq(evaluation_year),
         "evaluation",

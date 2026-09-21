@@ -13,7 +13,12 @@ import numpy as np
 import pandas as pd
 
 from hydroturing import SUITE_VERSION, criteria as criteria_mod
-from hydroturing.criteria.base import CriterionIncompatibleError, CriterionResult
+from hydroturing.criteria.base import (
+    FAIL as CRITERION_FAIL,
+    PASS as CRITERION_PASS,
+    CriterionIncompatibleError,
+    CriterionResult,
+)
 from hydroturing.protocol import Case, RunResult
 from hydroturing.runner import get_runner
 from hydroturing.scoring import (
@@ -310,16 +315,13 @@ def evaluate_criteria(
             failed = [
                 name for name, result in per_variant.items() if not result.passed
             ]
-            values = [
-                result.value
-                for result in per_variant.values()
-                if result.value is not None
-            ]
-            worst_name, worst_result = max(
+            # A failed variant must remain the aggregate result even when its
+            # criterion has no numeric value (for example, a non-finite output
+            # failure). This mirrors the worst-seed selection below: status is
+            # primary, then the largest absolute deviation is worst.
+            worst_name, worst_result = min(
                 per_variant.items(),
-                key=lambda item: (
-                    float("-inf") if item[1].value is None else item[1].value
-                ),
+                key=lambda item: (item[1].passed, -abs(item[1].value or 0.0)),
             )
             message = "; ".join(
                 f"{name}: {result.message}" for name, result in per_variant.items()
@@ -327,8 +329,8 @@ def evaluate_criteria(
             results.append(
                 CriterionResult(
                     name=criterion.name,
-                    status=FAIL if failed else PASS,
-                    value=max(values, default=None),
+                    status=CRITERION_FAIL if failed else CRITERION_PASS,
+                    value=worst_result.value,
                     threshold=worst_result.threshold,
                     message=message,
                     diagnostics={
@@ -337,6 +339,14 @@ def evaluate_criteria(
                             for name, result in per_variant.items()
                         },
                         "worst_variant": worst_name,
+                        # Preserve closure's exact-budget diagnostic at the
+                        # aggregate level.  run_probe records flags from the
+                        # CriterionResult itself, while per-variant details
+                        # remain available for report inspection.
+                        "suspicious_exact": any(
+                            result.diagnostics.get("suspicious_exact", False)
+                            for result in per_variant.values()
+                        ),
                     },
                 )
             )
