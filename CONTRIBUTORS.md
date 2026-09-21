@@ -31,6 +31,7 @@ long.
 | `mass/phase-counterfactual` | Zhi Li (CU Boulder) |
 | `mass/time-origin-invariance` | Siavash Shams (Columbia University) |
 | `mass/spinup-cycle-invariance` | Kaihao Long (Sun Yat-sen University) |
+| `mass/ungauged-basin-closure` | Kaihao Long (Sun Yat-sen University) |`r`n| `momentum/stage-discharge-monotonic` | Kaihao Long (Sun Yat-sen University) |`r`n
 | `mass/precipitation-counterfactual` | Qingyi Yang (Politecnico di Milano) |
 | `mass/human-abstraction` | Yuanhang Liu (Independent Researcher) |
 | `mass/extreme-event-closure` | Taiqi Lian (Laboratory of Catchment Hydrology and Geomorphology, École Polytechnique Fédérale de Lausanne (EPFL), 1951 Sion, Switzerland) |

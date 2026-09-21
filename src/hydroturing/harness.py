@@ -46,6 +46,27 @@ from hydroturing.spec import (
 WINDOW_DRIVER = "pr"
 
 
+def _as_bool(value, default=False):
+    """Read YAML-style booleans without treating ``"false"`` as true.
+
+    YAML normally gives us a real ``bool``, but quoted values are strings.
+    Calling ``bool`` on a non-empty string would silently enable an option
+    written as ``"false"``; accepting the common spellings keeps optional
+    harness flags safe for hand-written and generated probe specs alike.
+    """
+    if value is None:
+        return default
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text == "":
+            return default
+        if text in ("0", "false", "no", "off"):
+            return False
+        if text in ("1", "true", "yes", "on"):
+            return True
+    return bool(value)
+
+
 class WindowError(ValueError):
     """A window cannot be cut from this case without breaking the probe."""
 
@@ -307,7 +328,7 @@ def evaluate_criteria(
         # paired probe can opt into a per-variant precondition explicitly;
         # this keeps existing probes unchanged while ensuring that a bad
         # long-spinup run cannot hide behind a clean control run.
-        all_variants = bool(params.pop("all_variants", False))
+        all_variants = _as_bool(params.pop("all_variants", False), default=False)
         if all_variants and not criteria_mod.is_paired(criterion.name):
             per_variant = {
                 name: fn(run, probe, params) for name, run in runs.items()

@@ -6,14 +6,16 @@ Does a model reach the same seasonal state cycle after repeated identical
 forcing, or does its answer still depend on how many cycles preceded it?
 
 The generator draws one 365-day rain-dominated weather sequence from a seed
-and maps it onto ten complete Gregorian years (3652 rows). February 29
-repeats February 28's value, so every January 1 and month/day is aligned
-between cycles even when a model reads the calendar. A preceding 365-day
-calendar year is emitted as real spin-up, giving closure a state row before
-the scored record. The host labels the evaluation year after five repetitions
-in `short`, after eight repetitions in `plus3`, and after nine repetitions in
-`long`; those labels are stripped before any adapter runs. All three host runs
-therefore present the same visible forcing and metadata to the model.
+and maps it onto a fixed 3652-day Gregorian record. February 29 repeats
+February 28's value, so every January 1 and month/day is aligned between
+cycles even when a model reads the calendar. A preceding 365-day calendar
+year is emitted as real spin-up, giving closure a state row before the scored
+record. The `short`, `plus3`, and `long` variants start in 2001, 1998, and
+1997, respectively. Their period offsets are five, eight, and nine cycles;
+including the preceding spin-up year, six, nine, and ten complete prior cycles
+are present before they all score the same non-leap calendar year, 2007. Their visible dates therefore differ,
+but their static metadata and their scored `pr`, `tas`, and `pet` values are
+identical. The host-only phase labels are stripped before any adapter runs.
 
 The probe asks whether all three selected cycles agree. It does not require a
 model to settle under a constant climate, as `mass/steady-state` does. The
@@ -40,9 +42,10 @@ and likewise for actual evapotranspiration and every reported physical store.
 
 The probe first establishes the conditioning empirically: the exact bucket,
 FLEX-Lumped, FLEX-Topo, and SAC-SMA/Snow-17 must all agree between the sixth
-and tenth copies for every gate seed. Their pass is evidence that five cycles
-are enough for this generated catchment, not a claim that five years is a
-universal spin-up length.
+and tenth copies for every gate seed. Their pass is evidence that the five-cycle
+period offset (six complete prior cycles including spin-up) is enough for this
+generated catchment, not a claim that five or six years is a universal spin-up
+length.
 
 ## Criterion
 
@@ -58,31 +61,40 @@ d_{Y,i,j} =
 {\max(\mathrm{mean}_t |Y_i(t)|, 0.05\ \mathrm{mm\ day^{-1}})}.
 $$
 
-For a storage use the same expression with a 1 mm floor. The largest
-variable-level departure must remain below 5 percent. Floors make empty snow
-or channel stores well-defined rather than granting them an accidental exact
-score.
+Storage floors are calibrated per reported variable for this case: 1.0 mm
+for `mrso`, 1.0 mm for the empty `snw` channel, and 0.01 mm for `canopy`;
+`state_floor_mm: 1.0` remains the fallback for other stores and for the
+aggregate. The largest variable-level departure must remain below 5 percent.
+For the independent seed `20260912`, the scored-year means are about 118.5 mm
+for `mrso`, 0 for `snw`, and 0.0565 mm for `canopy`. Thus the soil floor is
+less than 1% of the soil signal, the snow floor is an explicit absolute
+conditioning bound for an empty store, and the canopy floor leaves the 5%
+relative rule active instead of allowing a 1 mm floor to dominate a 0.0565 mm
+signal.
 
 For `total_reported_storage`, the scale is the mean absolute sum of all stores
 reported by the model. In these cases soil moisture (`mrso`) is the largest
-store, so it naturally dominates that aggregate scale; the 1 mm floor still
-protects the score when every reported store is nearly empty.
+store, so it naturally dominates that aggregate scale; the 1 mm fallback
+still protects the score
+when every reported store is nearly empty.
 
-The criterion checks the complete visible forcing schema and values for exact
-equality before comparing outputs. It rejects an optional output that appears
-in only some variants, because the runs would then make different reporting
-claims. The ordinary closure and state-bound preconditions are evaluated over
-the complete post-spinup record in all variants, with the row immediately
-before that record used as the initial state. This covers all ten repeated
-years; the `evaluation` label is reserved for the paired comparison of the three
-phase-aligned 365-day cycles.
+The criterion checks the complete visible driver schema and values for exact
+equality before comparing outputs; the absolute `time` labels may differ so
+that every variant can score the same calendar year. It rejects an optional
+output that appears in only some variants, because the runs would then make
+different reporting claims. The ordinary closure and state-bound preconditions
+are evaluated over the complete post-spinup record in all variants, with the row immediately
+before that record used as the initial state. This covers the full fixed-length
+record; the `evaluation` label is reserved for the paired comparison of the
+three phase-aligned 365-day cycles.
 
 ## What it catches
 
 `reference_restless` is the exact conservative bucket with an internal
 30-day clock that changes its recession coefficient. It closes its water
 budget and keeps each reported store within bounds, but its clock has a
-different phase among the five, eight, and nine annual cycles. It fails only
+different phase among the three history lengths: period offsets five, eight,
+and nine, or six, nine, and ten prior cycles including spin-up. It fails only
 `spinup_cycle_invariance`.
 
 This is the intended hidden-state failure: an unmodelled state keeps evolving
@@ -98,12 +110,16 @@ stable regimes, or a slow external driver; then the probe's periodic-attractor
 assumption is not applicable until its case is redesigned or the model has
 made that external driver explicit.
 
-A FAIL can also mean that a physically valid but slow store has not settled
-within the prescribed spin-up. For example, CWatM with a slower groundwater
-recession differs by more than 5% after the probe's spin-up and converges after
-a much longer repeated history. That result is evidence that the prescribed
-spin-up is insufficient for this case; by itself it does not establish a
-physical violation or a hidden state.
+A FAIL means that the model did not reproduce the same evaluation cycle after
+different amounts of identical prior history. The result identifies a failure
+of cycle invariance under the prescribed spin-up, but it does not identify the
+mechanism. A hidden state and a physical store that has not yet settled can
+produce the same observable signature.
+
+Longer spin-up can help distinguish these cases. In the packaged CWatM
+diagnostic, a slow-groundwater configuration converged after 40 years of
+repeated forcing. This is evidence for that configuration, not a universal
+40-year requirement for every model or generated case.
 
 Similarly, a model with no reported evaporation or storage is incomplete for
 this mass probe rather than nonphysical. The required outputs are the minimum
@@ -129,20 +145,23 @@ the intended failure mode.
 - `mass/catchment-closure` detects a net water-budget error in one run. A
   non-convergent hidden state can conserve water perfectly, so closure alone
   does not detect it.
-- The open `mass/multi-decadal-drift` proposal follows a single long
-  repeated-forcing run for storage that slowly escapes physical bounds. This
-  probe compares two phase-aligned seasonal cycles after different spin-up
+- `mass/multi-decadal-drift` follows a single long repeated-forcing run for
+  storage that slowly escapes physical bounds. This
+  probe compares three phase-aligned seasonal cycles after different spin-up
   lengths, so it also catches a bounded internal clock that produces no
   storage drift.
 
 ## Long-spin-up diagnostic
 
-The default case uses five, eight, and nine repeated years because it must remain
-small enough for the gate. To check the slow-store concern raised for CWatM, the
-same seed and forcing were run in an isolated diagnostic case with 40 years of
-repeated history before the ten-year scored record. CWatM completed all three
-variants in Docker and passed with a worst pairwise departure of 0.02% (the
-`gw` store), well below the 5% criterion.
+The default case uses period offsets of five, eight, and nine cycles (six, nine,
+and ten complete prior cycles including spin-up) because it must remain small
+enough for the gate. To check the slow-store concern raised for CWatM, an
+isolated copy with `recessionCoeff=0.001` was run with 40 years of repeated
+history before the ten-year scored record. It differed by about 10% at the
+prescribed spin-up, then passed after 40 years; the packaged default CWatM also
+passed its 40-year diagnostic at 0.02% (the `gw` store). These are empirical
+results for the two packaged configurations, not a universal 40-year
+requirement for every model or generated case.
 
 A 100-year version was also attempted in the same Docker environment. It reached
 the project runner's 600-second per-model time budget before producing a result.
@@ -153,13 +172,19 @@ execution path or a separately approved runtime budget.
 
 ## Acceptance gate
 
-The four physical models must pass. `reference_restless` must fail specifically
+Each seed runs the model three times (one per history length). The four
+physical models must pass. `reference_restless` must fail specifically
 on `spinup_cycle_invariance`; `reference_leaky`, `reference_cheater`, and
 `reference_degenerate` must still fail `closure`, `state_bounds`, and
-`non_degenerate` respectively. `tests/test_spinup_cycle_invariance.py` repeats
-these checks on an independent seed and verifies that adapters receive neither
-phase labels nor distinct case metadata. The acceptance threshold and floors
-are calibrated against the four gate references, whose departures are 0.00% in the calibrated run. The archived
+`non_degenerate` respectively. `tests/test_spinup_cycle_invariance.py`
+repeats these checks on an independent seed and verifies that adapters receive
+neither phase labels nor variant-specific case metadata, while their three
+visible evaluation-year forcings remain aligned. The acceptance threshold and
+per-variable floors are calibrated against the four gate references, whose
+departures are 0.00% in the calibrated run. The
+independent-seed diagnostic is intentionally conservative: `reference_restless`
+has a 1.36 departure on `mrro`, while its `evspsbl` and `mrso` departures are
+about 4.88% and 4.81%, respectively. The archived
 LISFLOOD submission was 0.47%; it is reported as a model observation rather
 than folded into the gate-reference range. The 5% engineering rule therefore
 retains a conservative margin while the absolute floors keep near-zero

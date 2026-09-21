@@ -1,4 +1,4 @@
-"""One deterministic annual cycle on a calendar-aligned repeated record."""
+"""One deterministic annual cycle on records with a common evaluation year."""
 
 from __future__ import annotations
 
@@ -10,12 +10,22 @@ SHORT_CYCLES = 5
 PLUS3_CYCLES = SHORT_CYCLES + 3
 LONG_CYCLES = SHORT_CYCLES + 4
 TOTAL_CYCLES = LONG_CYCLES + 1
+PERIOD_DAYS = 3652
 SPINUP_DAYS = 365
 VARIANTS = ("short", "plus3", "long")
 EVALUATION_CYCLES = {
     "short": SHORT_CYCLES,
     "plus3": PLUS3_CYCLES,
     "long": LONG_CYCLES,
+}
+EVALUATION_YEAR = 2007
+# Each variant reaches the same calendar evaluation year after a different
+# number of prior cycles. The differing starts avoid comparing leap and
+# non-leap evaluation years while retaining the coprime history offsets.
+START_YEARS = {
+    "short": 2001,
+    "plus3": 1998,
+    "long": 1997,
 }
 
 STATIC = {
@@ -52,10 +62,9 @@ def _cycle_day(times: pd.DatetimeIndex) -> np.ndarray:
     A real Gregorian axis contains leap days, while the synthetic weather
     cycle intentionally has 365 values.  Reusing February 28 on February 29
     explicitly, then shifting later dates back by one, keeps every January 1
-    and every month/day aligned across repetitions.  The scored comparison is
-    The selected years are 2007, 2010, and 2011.  The 365-day offsets are
-    compared pairwise, so the leap-day mapping is tested rather than hidden
-    by relying on one particular calendar phase.
+    and every month/day aligned across repetitions.  All variants score the
+    non-leap calendar year 2007, so the paired comparison is not confounded by
+    different leap-day phases.
     """
     day = times.dayofyear.to_numpy() - 1
     feb_29 = times.is_leap_year & (times.month == 2) & (times.day == 29)
@@ -69,12 +78,14 @@ def generate(seed: int, variant: str = "short") -> tuple[pd.DataFrame, dict]:
     if variant not in VARIANTS:
         raise ValueError(f"unknown variant {variant!r}; expected one of {VARIANTS}")
     pr, tas, pet = _cycle(seed)
-    period_start = pd.Timestamp("2002-01-01")
-    period_end = period_start + pd.DateOffset(years=TOTAL_CYCLES)
+    start_year = START_YEARS[variant]
+    period_start = pd.Timestamp(f"{start_year + 1}-01-01")
     period_times = pd.date_range(
-        period_start, period_end - pd.Timedelta(days=1), freq="D"
+        period_start, periods=PERIOD_DAYS, freq="D"
     )
-    spinup_times = pd.date_range("2001-01-01", periods=SPINUP_DAYS, freq="D")
+    spinup_times = pd.date_range(
+        f"{start_year}-01-01", periods=SPINUP_DAYS, freq="D"
+    )
     times = spinup_times.append(period_times)
     values = _cycle_day(times)
     forcing = pd.DataFrame({
@@ -84,6 +95,10 @@ def generate(seed: int, variant: str = "short") -> tuple[pd.DataFrame, dict]:
         "pet": np.round(pet[values], 6),
     })
     evaluation_year = period_start.year + EVALUATION_CYCLES[variant]
+    if evaluation_year != EVALUATION_YEAR:  # pragma: no cover - constants guard
+        raise AssertionError(
+            f"{variant} evaluates in {evaluation_year}, expected {EVALUATION_YEAR}"
+        )
     forcing["_phase"] = np.where(
         forcing["time"].str[:4].astype(int).eq(evaluation_year),
         "evaluation",

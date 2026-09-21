@@ -71,9 +71,30 @@ def spinup_cycle_invariance(
     threshold = float(params.get("threshold", 0.05))
     flux_floor = float(params.get("flux_floor_mm_per_day", 0.05))
     state_floor = float(params.get("state_floor_mm", 1.0))
+    # A single absolute floor can dwarf a near-empty store while being
+    # negligible for soil moisture. Probe cases may therefore calibrate
+    # storage floors per variable and keep the scalar as the fallback.
+    configured_state_floors = params.get("state_floors_mm", {})
+    if not isinstance(configured_state_floors, dict):
+        raise ValueError("state_floors_mm must be a mapping from variable to floor")
+    state_floors = {
+        str(name): float(floor) for name, floor in configured_state_floors.items()
+    }
+    allowed_state_floor_names = set(STATE_VARS) | {"total_reported_storage"}
+    unknown_state_floors = sorted(set(state_floors) - allowed_state_floor_names)
+    if unknown_state_floors:
+        raise ValueError(
+            "state_floors_mm names unknown storage variables: "
+            f"{unknown_state_floors}"
+        )
     required = list(params.get("variables", ["evspsbl", "mrro", *probe.requires_states]))
     optional = list(params.get("optional", ["gwex", "gw", "channel"]))
-    if threshold < 0.0 or flux_floor <= 0.0 or state_floor <= 0.0:
+    if (
+        threshold < 0.0
+        or flux_floor <= 0.0
+        or state_floor <= 0.0
+        or any(floor <= 0.0 for floor in state_floors.values())
+    ):
         raise ValueError("spinup_cycle_invariance needs non-negative threshold and positive floors")
 
     evaluations = {name: _evaluation(runs[name], name) for name in names}
@@ -125,7 +146,10 @@ def spinup_cycle_invariance(
             if not np.isfinite(a).all() or not np.isfinite(b).all():
                 failures.append(f"'{var}' contains non-finite values in {left_name}/{right_name}")
                 continue
-            floor = state_floor if var in STATE_VARS or var == "total_reported_storage" else flux_floor
+            if var in STATE_VARS or var == "total_reported_storage":
+                floor = state_floors.get(var, state_floor)
+            else:
+                floor = flux_floor
             scale = max(float(np.abs(a).mean()), floor)
             deviations[key] = float(np.abs(b - a).max() / scale)
 
@@ -133,9 +157,10 @@ def spinup_cycle_invariance(
     if worst > threshold:
         failures.append(
             f"'{worst_var}' differs by {worst:.2%} between the paired evaluations "
-            f"(limit {threshold:.2%}). Outputs still differ after the prescribed spin-up; "
-            "insufficient spin-up is one possible cause, so this result alone does not "
-            "establish a physical violation."
+            f"(limit {threshold:.2%}). The model did not reproduce the same evaluation "
+            "cycle after different amounts of identical prior history. This signature "
+            "does not identify the mechanism: it may reflect a hidden state or a "
+            "physical store that has not yet settled."
         )
 
     return CriterionResult(
@@ -159,6 +184,10 @@ def spinup_cycle_invariance(
             "variants": names,
             "evaluation_rows": int(len(evaluations[names[0]][0])),
             "reported_storage_variables": state_variables,
+            "state_floors_mm": {
+                var: state_floors.get(var, state_floor)
+                for var in [*state_variables, "total_reported_storage"]
+            },
             "deviations": deviations,
         },
     )
