@@ -6,11 +6,13 @@ Does a model reach the same seasonal state cycle after repeated identical
 forcing, or does its answer still depend on how many cycles preceded it?
 
 The generator draws one 365-day rain-dominated weather sequence from a seed
-and repeats its numerical `pr`, `tas`, and `pet` values exactly for nine
-cycles. It runs the same model twice with the same visible forcing and the
-same model seed. Host-only labels select the evaluation cycle after five
-repetitions in `short` and after eight repetitions in `long`; the labels are
-stripped before either adapter runs.
+and maps it onto nine complete Gregorian years (3287 rows). February 29
+repeats February 28's value, so every January 1 and month/day is aligned
+between cycles even when a model reads the calendar. A preceding 365-day
+calendar year is emitted as real spin-up, giving closure a state row before
+the scored record. The host labels the evaluation year after five repetitions
+in `short` and after eight repetitions in `long`; those labels are stripped
+before either adapter runs.
 
 The probe asks whether the two selected cycles agree. It does not require a
 model to settle under a constant climate, as `mass/steady-state` does. The
@@ -44,7 +46,9 @@ universal spin-up length.
 ## Criterion
 
 For each required variable and any store both runs elect to report, compare
-the two 365-day evaluation series point by point. For a flux $Y$ use
+the two 365-day evaluation series point by point. The criterion also compares
+the sum of every reported physical storage column, because several small
+changes can exceed the individual-store floor when combined. For a flux $Y$ use
 
 $$
 d_Y =
@@ -57,10 +61,12 @@ variable-level departure must remain below 5 percent. Floors make empty snow
 or channel stores well-defined rather than granting them an accidental exact
 score.
 
-The criterion checks that the selected `pr`, `tas`, and `pet` cycles are
-identical before comparing outputs. It rejects an optional output that appears
+The criterion checks the complete visible forcing schema and values for exact
+equality before comparing outputs. It rejects an optional output that appears
 in only one variant, because the two runs would then make different reporting
-claims.
+claims. The ordinary closure and state-bound preconditions are evaluated on
+the labelled evaluation cycle in both variants, with the preceding row used as
+the initial state.
 
 ## What it catches
 
@@ -112,4 +118,8 @@ on `spinup_cycle_invariance`; `reference_leaky`, `reference_cheater`, and
 `reference_degenerate` must still fail `closure`, `state_bounds`, and
 `non_degenerate` respectively. `tests/test_spinup_cycle_invariance.py` repeats
 these checks on an independent seed and verifies that adapters receive neither
-phase labels nor distinct case metadata.
+phase labels nor distinct case metadata. The acceptance threshold and floors
+are calibrated against the archived references: departures are 0.00% for the
+exact and FLEX references, 0.02% for CWatM, and 0.38% for LISFLOOD, so the
+5% engineering rule retains a conservative margin while the absolute floors
+keep near-zero variables well-conditioned.

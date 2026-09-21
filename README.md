@@ -204,7 +204,7 @@ the probe cannot ask the declared model interface this question.
 | `reference_anticipating` | broken | smooths runoff over a centred window, so three days of the future are in every value | caught by `causality` |
 | `reference_climatology` | broken | emits the seasonal mean whatever falls, and keeps flowing without rain | caught by `dry_down` |
 | `reference_saturating` | broken | caps its daily runoff, so an extreme storm adds rain and no runoff | caught by `monotone_response` |
-| `reference_restless` | broken | a recession on an internal thirty-day clock, so it never settles | caught by `steady_state` |
+| `reference_restless` | broken | a recession on an internal thirty-day clock, so it never settles | caught by `steady_state` and `spinup_cycle_invariance` |
 | `reference_overflowing` | broken | reports its runoff plus 80% of the rain again, from nowhere | caught by `runoff_bounds` |
 | `reference_area_leak` | broken | loses a share of runoff that grows with the area it is told | caught by `invariance` (area) |
 | `reference_overshooting` | broken | a derivative term sharpens its hydrograph, so an added storm lowers later flow | caught by `response_nonnegativity` |
