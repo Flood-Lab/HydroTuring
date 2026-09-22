@@ -74,15 +74,19 @@ criteria:
       width_key: width_m
       # A section sanity bound, and nothing more than that. The datum is the
       # contract's job: the case declares `bed_elevation_m` and the criterion
-      # subtracts it, so a level reported against some other zero is refused by
-      # the subtraction rather than by a value test. What a ceiling can still
-      # catch is a depth the declared section could not hold at all. Ten metres
-      # is four times the case's declared bankfull depth of 2.5 m, and two and a
-      # half times the deepest reading the four must-pass baselines give over
-      # the gate seeds — 3.99 m, `reference_bucket`'s worst Fr of 0.445 inverted
-      # through the section's normal-depth relation — so the ceiling never comes
-      # near honest flow. Over a hundred seeds the worst honest Fr reaches about
-      # 0.46, which is still only about 4.9 m.
+      # subtracts it, so a model that reported a depth where the contract asks
+      # for a level is N/A (INCOMPATIBLE) rather than failed — the subtraction
+      # recognises the mismatch. What it cannot recognise is an offset added to a
+      # correctly formed level: measured on the must-fail model, +1 m of offset
+      # turns all three gate seeds into passes and only +10 m is caught here.
+      # So what the ceiling catches is the far end — a depth the declared section
+      # could not hold at all. Ten metres is four times the case's declared
+      # bankfull depth of 2.5 m, and 2.3 times the deepest reading the four
+      # must-pass baselines give over the gate seeds — 4.44 m, `reference_bucket`
+      # on the second gate seed, whose worst Fr there is 0.453 inverted through
+      # the section's normal-depth relation — so the ceiling never comes near
+      # honest flow. Over a hundred seeds the worst honest Fr is 0.466, a depth
+      # of 5.27 m on seed 17, which still leaves the ceiling 1.9x of room.
       max_depth_m: 10.0
 
   - non_degenerate:

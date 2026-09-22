@@ -35,10 +35,15 @@ cancels from a difference but not from a level, so a criterion that forms a
 depth — or any ratio or power of the level, which `d**(3/2)` is — may not infer
 one. That is why the bed is in `requires.static` rather than assumed: a model
 that never read the datum is judged against a number it never saw, and the
-suite's rule for that is N/A (INCOMPATIBLE), not a conservation violation. A
-level reported against some other zero is refused rather than scored, because
-an offset only ever adds to the depth and a depth enters at the three-halves
-power, so an offset is the cheapest possible way to look subcritical.
+suite's rule for that is N/A (INCOMPATIBLE), not a conservation violation. The
+helper raises `CriterionIncompatibleError` when the reported column is a depth
+where the contract asks for a level, and this criterion lets that exception
+reach the harness rather than turning it into a local failure: the
+classification is the harness's to make, and a seed it records as incompatible
+must not arrive in the archive as a violation. A level reported against some
+other zero is not merely a deep reach — an offset only ever adds to the depth,
+and the depth enters at the three-halves power, so an offset is the cheapest
+possible way to look subcritical.
 
 Froude is a hard constraint, so the tolerance is absolute and small: the
 5% margin is for the rectangular-cross-section approximation and for the
@@ -58,6 +63,12 @@ Steps where the reach is effectively dry are not scored. The depth carries a
 floor of one centimetre so that a receding flow does not divide by zero, but
 a step that only clears the floor because of the floor says nothing about
 velocity, and scoring it would let a dry reach fail on arithmetic.
+
+Leaving a step out is for steps the *reach* makes unscorable, not for values the
+criterion cannot read. A non-finite stage or discharge is refused rather than
+dropped: `NaN` compares false against both bounds, so the mask would quietly
+score one step fewer and say nothing about it — an invalid input leaving the
+assessment by the same door an honest dry step does.
 
 The floor has a mirror, and a probe can give it a value: `max_depth_m`.
 It is a section sanity bound and not the defence against a datum mismatch — that
@@ -258,15 +269,17 @@ def froude_subcritical(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
     # here, the way a case with no width is refused above.
     try:
         depth_all = depth_series(run)
-    except CriterionIncompatibleError as exc:
-        return CriterionResult(
-            name="froude_subcritical",
-            status=FAIL,
-            message=(
-                f"{exc}; the pair this criterion reads cannot be formed from a "
-                "stage on another datum"
-            ),
-        )
+    except CriterionIncompatibleError:
+        # A convention mismatch, not a violation. `depth_series` raises this when
+        # the reported column is a depth where the contract asks for a level on
+        # the case's datum, and the classification belongs to the harness: it
+        # turns the exception into N/A (INCOMPATIBLE) for that seed, which is
+        # what the suite says about a model judged against a number it never
+        # read. Returning a failed criterion here instead would put a
+        # conservation violation in the archive for a model that reported a
+        # different quantity, and would take the seed out of the harness's own
+        # accounting of how many seeds were scored.
+        raise
     except ValueError as exc:
         return CriterionResult(
             name="froude_subcritical",
@@ -285,9 +298,32 @@ def froude_subcritical(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
     # `depth_series` returns the whole record; the criterion scores the window
     # `make_window` took, which is the same table with the spinup dropped from
     # the front, so the two line up on the same slice.
-    depth, deep_enough = _depth(
-        depth_all[run.case.spinup_steps:], min_depth_m, max_depth_m
-    )
+    depth_window = depth_all[run.case.spinup_steps:]
+
+    # A non-finite value is not a step to skip. Both masks below keep only what
+    # they can compare — `NaN > floor` and `NaN > 0` are both false — so a single
+    # bad value in the peak of a flood would leave the scored set quietly: one
+    # step fewer, a slightly smaller share, and a pass. That is an invalid input
+    # leaving the assessment by the door an honest dry step uses, and the two
+    # series being scored are the model's own readings, so the pair is refused
+    # rather than thinned — the same reading `radiative_identity` takes of a
+    # non-finite surface temperature. Read on the window the criterion scores,
+    # so a spinup value it never looks at cannot fail it.
+    non_finite = ~np.isfinite(depth_window) | ~np.isfinite(q)
+    if non_finite.any():
+        n_bad = int(non_finite.sum())
+        return CriterionResult(
+            name="froude_subcritical",
+            status=FAIL,
+            message=(
+                f"non-finite stage or flow on {n_bad} of {n} scored steps, so "
+                "the pair this criterion reads is not defined on the steps it "
+                "scores and no share of them can be reported"
+            ),
+            diagnostics={"non_finite_steps": n_bad, "discharge_source": q_source},
+        )
+
+    depth, deep_enough = _depth(depth_window, min_depth_m, max_depth_m)
     scored = deep_enough & (q > 0.0)
     n_scored = int(scored.sum())
     # Steps the ceiling refused: a depth the section could not hold. Counted

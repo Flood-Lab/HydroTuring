@@ -18,9 +18,10 @@ three things about this criterion are easy to get wrong while staying green:
   floor instead of on its hydraulics;
 * `stage` is an elevation on the case's fixed vertical datum, so the depth is
   `stage - bed_elevation_m` and the criterion may not infer a datum: a case
-  that declares none is refused, a reading taken from another zero is a
-  different quantity rather than a deep reach, and shifting the datum and the
-  level together must leave the verdict exactly where it was.
+  that declares none is refused, a reading taken from another zero reaches the
+  harness as N/A (INCOMPATIBLE) rather than as a violation, a non-finite
+  reading is refused rather than quietly dropped out of the mask, and shifting
+  the datum and the level together must leave the verdict exactly where it was.
 
 These tests build the frames directly so each of those is pinned: a
 Manning-consistent pair, a rating drawn for a wider reach, the `mrro`
@@ -35,9 +36,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from hydroturing import registry
+from hydroturing import harness, registry
 from hydroturing.criteria import get
-from hydroturing.criteria.base import FAIL, PASS
+from hydroturing.criteria.base import FAIL, PASS, CriterionIncompatibleError
 from hydroturing.harness import build_case, compatibility_issues, run_probe
 from hydroturing.protocol import Case, RunResult
 from hydroturing.scoring import INCOMPATIBLE, NOT_SCORED
@@ -240,21 +241,88 @@ def test_nearly_dry_steps_are_excluded_from_the_scored_set():
     assert result.diagnostics["scored_steps"] == 200
 
 
-def test_a_stage_on_the_wrong_datum_is_refused_rather_than_scored():
+def test_a_stage_on_the_wrong_datum_is_a_convention_mismatch():
     """The depth is `stage - bed_elevation_m`, so a model that reports the depth
-    itself — the convention this probe used to carry — is a convention mismatch.
+    itself — the convention this probe used to carry — is a convention mismatch
+    rather than a deep reach.
 
-    A level on another zero is not a deep reach: it is a different quantity, and
-    scoring it is how an offset passes, because an offset only adds to the depth
-    and the depth enters at the three-halves power.
+    `depth_series` raises `CriterionIncompatibleError` for it and the criterion
+    must let that exception through: the classification is the harness's to
+    make, and a criterion that caught it would report a conservation violation
+    for a model that merely reported a different quantity. The verdict that
+    classification produces, end to end, is pinned by the test below.
     """
     q = np.linspace(1.0, 50.0, 400)
     run = build(q=q, stage=manning_depth(q))
     # Report the depth itself, as a model that never read the declared datum would.
     run.table["stage"] = run.table["stage"] - BED_M
-    result = FROUDE(run, None, {})
+    with pytest.raises(CriterionIncompatibleError, match="not depth above the bed"):
+        FROUDE(run, None, {})
+
+
+def test_the_wrong_datum_control_is_incompatible_rather_than_a_violation(monkeypatch):
+    """The same reading, taken through the harness, has to arrive as N/A.
+
+    A criterion that swallowed the exception and returned a failed result would
+    put a conservation violation in the archive for a control that reported a
+    level on another zero, and would take those seeds out of the harness's own
+    account of how many of them were scored — which is the machinery that lets a
+    genuinely incompatible model be recorded as incompatible and a genuinely
+    failing one as a failure.
+    """
+    probe = registry.find_probe("momentum/froude-regime")
+    model = registry.find_model("reference_bucket")
+    real = harness.get_runner(model)
+
+    class DepthAsStage:
+        """`reference_bucket`'s own run, with the declared bed taken back out."""
+
+        def run(self, model, probe, case, io_dir):
+            run = real.run(model, probe, case, io_dir)
+            table = run.table.copy()
+            table["stage"] = table["stage"] - float(case.static["bed_elevation_m"])
+            return RunResult(
+                case=run.case, table=table, meta=run.meta, wall_seconds=0.0
+            )
+
+    monkeypatch.setattr(harness, "get_runner", lambda _model: DepthAsStage())
+    outcome = run_probe(model, probe, gate_seeds(probe.id, 3))
+
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert outcome.criteria == []
+    assert len(outcome.incompatible) == 3
+    assert "not depth above the bed" in outcome.incompatible[0]
+
+
+def test_a_non_finite_reading_cannot_leave_the_scored_set():
+    """`NaN` compares false against both bounds, so the masks would drop the step
+    rather than score it: one step fewer, a share measured on what is left, and
+    nothing said about the value that went missing.
+
+    A criterion that lets that happen reports a pass on a record it could not
+    read, so the pair is refused and the count of bad steps is reported instead.
+    """
+    q = np.linspace(1.0, 50.0, 400)
+    stage = manning_depth(q)
+    peak = int(np.argmax(q))  # the step a mask is most likely to lose unnoticed
+
+    broken_q = q.copy()
+    broken_q[peak] = np.nan
+    result = FROUDE(build(q=broken_q, stage=stage), None, {})
     assert result.status == FAIL
-    assert "bed_elevation_m" in result.message
+    assert result.diagnostics["non_finite_steps"] == 1
+    assert "non-finite" in result.message
+
+    # The depth enters the other half of the same mask, so it is the same hole.
+    broken_stage = stage.copy()
+    broken_stage[peak] = np.nan
+    result = FROUDE(build(q=q, stage=broken_stage), None, {})
+    assert result.status == FAIL
+    assert result.diagnostics["non_finite_steps"] == 1
+
+    # The same pair without the bad value passes, so what failed is the value
+    # and not the record.
+    assert FROUDE(build(q=q, stage=stage), None, {}).status == PASS
 
 
 def test_a_case_that_declares_no_datum_is_refused():

@@ -32,14 +32,24 @@ a depth that has nothing to do with the flow it is carrying.
 discharge, but neither asks whether the depth reported is one the section
 could deliver that flow through. That is the gap this fills.
 
+The nearest neighbour is `momentum/uniform-flow-friction-consistency` (#114),
+and it asks a different question: whether the depth, the slope and the roughness
+a model reports are mutually consistent with each other at *steady* flow,
+through a friction balance. A model can satisfy that balance at every plateau
+and still be scored here, because a pair can be internally consistent and be a
+pair from the wrong regime — the friction balance says what depth this flow
+needs, and this criterion says which regime that depth puts the flow in. Neither
+subsumes the other, and neither is a duplicate of the other's mechanism.
+
 This is not an assumption about what the other criteria do; it is what the
 must-fail model is built to demonstrate. Its gauge applies the right law —
 Manning's — to the wrong geometry: the depth a section five times wider would
 need, which is what a rating curve reused from another reach looks like. Its
-water is the exact bucket's, its stage varies (cv 0.56 to 0.94 across the
-gate seeds, the same variability the honest gauge has, so no variability
-threshold can separate them) and rises monotonically with the flow, and its
-rating is single-valued. Driven through every probe in the suite that can ask
+water is the exact bucket's, its depth varies (CV(depth) **0.56 to 0.94**
+across the gate seeds read over the whole record, **identical** to the honest
+gauge's — a constant factor cancels from a coefficient of variation, so no
+variability threshold can separate them) and rises monotonically with the flow,
+and its rating is single-valued. Driven through every probe in the suite that can ask
 it anything, it **passes all of them** — including all three criteria of
 `momentum/stage-discharge-monotonic` — and fails only `froude_subcritical`.
 
@@ -97,8 +107,8 @@ the one thing this probe asserts.
 
 ## Limitations
 
-Four things this probe does not see, so that a green result is not read as
-more than it is.
+Five things this probe does not see — or refuses to score — so that a green
+result is not read as more than it is.
 
 **It reads the pair, not either reading against the truth.** A model that
 derives its stage from its own discharge through a normal-depth relation is
@@ -132,18 +142,37 @@ water-surface elevation on the fixed vertical datum the case declares
 (`AGENTS.md`), and the flow depth is `stage - bed_elevation_m`. The probe
 therefore requires `bed_elevation_m` as well as the section: a model that never
 read the datum is judged against a number it never saw and is **N/A
-(INCOMPATIBLE)**, not failed. A level reported against some other zero is refused
-by the subtraction rather than by a value test, because an offset only ever adds
-to the depth and a deeper depth means a smaller Froude number — one metre of
-offset turns the must-fail model below into a comfortable pass.
+(INCOMPATIBLE)**, not failed. That is how a gauge reporting the depth itself —
+the convention this probe used to carry — is recorded: `depth_series` recognises
+the mismatch and raises, the criterion lets the exception through, and the
+harness turns it into N/A for that seed rather than into a conservation
+violation.
+
+What the subtraction does **not** catch is an offset added to a correctly formed
+level, and that window is measured rather than hypothetical. Adding it to the
+elevation the must-fail model reports: **+0.5 m** turns one of the three gate
+seeds into a pass, **+1 m** turns all three, and **+5 m** leaves all three
+comfortable. Only at **+10 m** does the ceiling below start refusing every step.
+A metre-scale datum error is therefore indistinguishable from deep water, which
+is why the datum is fixed by the contract and subtracted, not inferred from the
+numbers a model reports.
 
 `max_depth_m` is a **section sanity bound**, not that refusal: it is set here to
-10 m, four times the case's declared bankfull depth and two and a half times the
-deepest reading a must-pass baseline gives over the gate seeds — 3.99 m, from
-`reference_bucket`'s worst Fr of 0.445 in this section — so it never comes near
-honest flow. What it still catches is a model that ignored the declared datum and
-reported a level, once the offset is large; steps above it are refused the way
-dry steps are.
+10 m, four times the case's declared bankfull depth and 2.3 times the deepest
+reading a must-pass baseline gives over the gate seeds — **4.44 m**, from
+`reference_bucket` on the second gate seed, whose worst Fr there is 0.453 — so it
+never comes near honest flow. Over a hundred seeds the deepest honest reading is
+**5.27 m**, at a worst Fr of 0.466, which still leaves the ceiling 1.9x of room.
+What it catches is the other end: a model that
+ignored the declared datum and reported a level offset far enough to put its
+depth past what the section can hold, which is refused the way a dry step is.
+
+**A non-finite reading is refused rather than skipped.** Both masks compare
+against bounds, and `NaN` compares false against every one of them, so a step
+carrying a bad value would leave the scored set silently — one step fewer, and a
+share measured on what is left. The criterion refuses the record instead and
+reports how many steps were unreadable. Leaving a step out is for steps the
+*reach* makes unscorable, not for values the arithmetic cannot carry.
 
 **Steps at the depth floor are skipped.** A reach that is dry or nearly dry
 is not scored, so a model that only misbehaves at baseflow — reporting a

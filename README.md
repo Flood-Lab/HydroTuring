@@ -68,7 +68,7 @@ not.
 
 ## The probes
 
-Thirty-two: twenty under mass, seven under energy and five under momentum.
+Thirty-three: twenty-one under mass, seven under energy and five under momentum.
 Each was merged only after the acceptance gate saw it pass its declared
 exact reference and fail a purpose-built broken one on the named criterion.
 Four physical models, a bucket that conserves water exactly, two
@@ -404,7 +404,7 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Thirty-two probes, twenty mass, seven energy, five momentum, synthetic track only. More
+Suite `0.1.0`, pre-release. Thirty-three probes, twenty-one mass, seven energy, five momentum, synthetic track only. More
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes; spatial and temporal closure, counterfactual response
 and invariance are represented in the suite. The roadmap lists the remaining
