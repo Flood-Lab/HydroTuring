@@ -184,6 +184,10 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_snowless",
     "reference_exchange_sign_error",
     "reference_exchange_exact",
+    "reference_uniform_flow",
+    "reference_saint_venant",
+    "reference_wrong_roughness",
+    "reference_wrong_slope",
 }
 
 
@@ -252,6 +256,10 @@ class ProbeSpec:
     # or a dry-down; such a probe asks for at least a year, and a submitted
     # model's window is widened to it.
     min_window_days: int = 0
+    # A run-time precondition may make an individual seed unscoreable. Require
+    # this share of the requested seeds to remain before a verdict can be
+    # decided; probes opt into partial coverage explicitly.
+    min_scored_fraction: float = 1.0
     # Missing diagnostic outputs cause INCOMPLETE, as for missing fluxes.
     requires_diagnostics: tuple[str, ...] = ()
     # Case-supplied inputs the verdict rests on: forcing columns and
@@ -509,6 +517,7 @@ def load_probe(path: str | Path) -> ProbeSpec:
         variant_timesteps=variant_timesteps,
         variant_selection=case.get("variant_selection", "all"),
         min_window_days=int(case.get("min_window_days", 0)),
+        min_scored_fraction=float(case.get("min_scored_fraction", 1.0)),
         max_output_mb=case.get("max_output_mb", 5.0),
         max_runtime_s=case.get("max_runtime_s", 120.0),
         variants=tuple(case.get("variants", [])),

@@ -37,7 +37,7 @@ COLUMNS = [
     'mrso', 'snw', 'canopy', 'channel', 'stage',
 ]
 
-MODEL = {"name": "reference_rating_inverted", "version": "1.0.0"}
+MODEL = {"name": "reference_rating_inverted", "version": "1.1.0"}
 
 EVAP_SHAPE = 0.5
 SECONDS_PER_DAY = 86400.0
@@ -95,6 +95,7 @@ def manning_depth(q_m3s: float, static: dict) -> float:
 
 
 def simulate(forcing, static, dt_days=1.0):
+    bed_elevation_m = float(static.get("bed_elevation_m", 0.0))
     soil_cap = static["soil_capacity_mm"]
     canopy_cap = static["canopy_capacity_mm"]
     ddf = static["degree_day_factor_mm_per_C_day"]
@@ -156,7 +157,9 @@ def simulate(forcing, static, dt_days=1.0):
         dis_m3s = q_total / dt_days * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY
         # The fault: the gauge is solved from the floodplain's release, so it
         # peaks with the wave instead of lagging it.
-        stage = manning_depth(_q_m3s(q_fast / dt_days, static), static)
+        stage = bed_elevation_m + manning_depth(
+            _q_m3s(q_fast / dt_days, static), static
+        )
 
         rows.append({
             "time": step["time"],

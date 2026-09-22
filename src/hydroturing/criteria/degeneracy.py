@@ -19,6 +19,7 @@ from hydroturing.criteria.base import (
     PASS,
     CriterionResult,
     criterion,
+    depth_series,
     make_window,
     segments,
 )
@@ -81,7 +82,11 @@ def non_degenerate(
     for var in cv_vars:
         if var not in w.table.columns:
             continue
-        values = np.asarray(w.table[var], dtype=float)
+        values = (
+            depth_series(run)[run.case.spinup_steps:]
+            if var == "stage"
+            else np.asarray(w.table[var], dtype=float)
+        )
         mean = float(values.mean())
         cv = float(values.std() / mean) if abs(mean) > 1e-12 else 0.0
         diagnostics[f"cv_{var}"] = cv

@@ -35,8 +35,9 @@ Rates with a time in their units are rescaled to the step exactly as any
 submitted model's must be: per-day fractions as 1 - (1 - k)^dt, per-day
 amounts as amount * dt, the lag in days.
 
-A `stage` is also reported, as a diagnostic rather than a store: the depth
-Manning's normal-depth relation gives the reach's own discharge, so that
+A `stage` is also reported, as a diagnostic rather than a store: the bed
+elevation plus the depth Manning's normal-depth relation gives the reach's
+own discharge, so that
 `momentum/stage-discharge-monotonic` has a gauge to read. A `dis` in m3/s is
 reported alongside it — the same flow over the catchment area — so the rating
 can be drawn against discharge rather than against a store. Neither is
@@ -53,7 +54,7 @@ import sys
 from pathlib import Path
 
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel", "stage"]
-MODEL = {"name": "flex_lumped", "version": "1.1.0"}
+MODEL = {"name": "flex_lumped", "version": "1.2.0"}
 
 # Default reach geometry, used when the catchment does not hand one over.
 # These are the same defaults the reference rating adapters carry, so every
@@ -212,11 +213,10 @@ def discharge_m3s(runoff_mm_per_day: float, static: dict) -> float:
 
 
 def manning_depth(q_m3s: float, static: dict) -> float:
-    """The depth a steady flow makes in the reach's cross-section, in metres.
+    """The water-surface elevation of steady flow, in metres.
 
-    A stage is a *length* read off a staff gauge in a cross-section, and the
-    length is set by the flow passing through it. Manning's normal depth is
-    the honest bridge between the two:
+    Stage is the supplied bed elevation plus the normal depth set by the flow
+    passing through the section. Manning's relation supplies that depth:
 
         Q   = w * h * (1/n) * h^(2/3) * S^(1/2)
         h   = ( Q * n / (w * sqrt(S)) )^(3/5)
@@ -235,11 +235,16 @@ def manning_depth(q_m3s: float, static: dict) -> float:
     and the gauge reads it directly.
     """
     width_m = float(static.get("width_m", DEFAULT_WIDTH_M))
+    bed_elevation_m = float(static.get("bed_elevation_m", 0.0))
     slope = float(static.get("slope", DEFAULT_SLOPE))
     manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
+    shape = str(static.get("cross_section_shape", "rectangular")).strip().lower()
+    if shape != "rectangular":
+        raise ValueError("flex_lumped stage requires a rectangular section")
     if q_m3s <= 0.0 or width_m <= 0.0 or slope <= 0.0:
-        return 0.0
-    return (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
+        return bed_elevation_m
+    depth = (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6
+    return bed_elevation_m + depth
 
 
 def simulate(forcing: list[dict], static: dict, dt: float) -> list[dict]:

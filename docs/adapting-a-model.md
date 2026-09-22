@@ -64,6 +64,12 @@ diagnostic but omitting it from the output is a protocol error. The separate
 `ts` diagnostic is instantaneous surface temperature for radiative checks;
 it cannot replace the interval-end mean-layer `tsoil_layer`.
 
+The `stage` diagnostic is a water-surface elevation in metres on the fixed
+vertical datum declared by the case. `bed_elevation_m` is the rigid reach bed
+on that same datum, so water depth is `stage - bed_elevation_m` at every step.
+Do not report depth above bed in the `stage` column, infer an undeclared datum,
+or treat stage as a water-storage term.
+
 For the soil-storage probe, the control volume extends from the surface to
 `soil_layer_depth_m`, with prescribed `soil_heat_capacity_areal` and
 `soil_temperature_initial`. Configure that layer before running the model.

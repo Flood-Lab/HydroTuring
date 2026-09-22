@@ -1,0 +1,76 @@
+id: momentum/uniform-flow-friction-consistency
+title: Steady discharge and stage satisfy the declared open-channel friction balance
+law: momentum
+track: synthetic
+version: 1
+
+authors:
+  - name: Mofan Zhang
+    affiliation: Department of Civil and Environmental Engineering, Stanford University, Stanford, CA, USA
+    github: Mofan-coding
+    orcid: 0000-0001-8839-1808
+
+description: >
+  Three 924-day constant-forcing plateaus drive a wide rectangular
+  prismatic reach through low, medium and high steady flow. At each limit the
+  Saint-Venant momentum equation reduces to equality of bed and friction
+  slopes. The probe therefore asks whether the reported discharge and stage,
+  together with the declared reach geometry and Manning roughness, belong to
+  one momentum balance across the rating. A smooth monotone rating can still
+  fail this identity if it silently uses a different slope or roughness.
+
+citation: https://doi.org/10.3133/wri834251
+
+requires:
+  fluxes: [dis]
+  diagnostics: [stage]
+  static: [width_m, cross_section_shape, bed_elevation_m, slope, manning_n]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  # Every seed. Steadiness is measured on the model's own reported
+  # discharge and depth, so the model decides which seeds it is scored
+  # on; anything below 1.0 is a pass it can buy by making the seed it
+  # would lose on unscoreable. A failure on a scored seed still stands.
+  min_scored_fraction: 1.0
+  timestep: PT1D
+  period_days: 2772
+  spinup_days: 365
+  min_window_days: 2772
+  max_output_mb: 2.0
+  max_runtime_s: 300
+
+criteria:
+  - uniform_flow_friction:
+      tolerance: 0.05
+      max_cv: 0.015
+      max_relative_trend: 0.01
+      steady_days: 90
+      plateaus: [low, medium, high]
+
+baselines:
+  # These are independent hydrologic models. Their existing stage adapters
+  # consume the supplied reach geometry and read a Manning-consistent gauge.
+  # The reach is deliberately wide, so their wide-channel approximation stays
+  # within the criterion's 5% engineering allowance even though the criterion
+  # evaluates the exact rectangular hydraulic radius.
+  must_pass:
+    - reference_bucket
+    - flex_lumped
+    - flex_topo
+    - sacsma_snow17
+    - reference_uniform_flow
+    # Unlike the rating adapters above, this model never inverts Manning's
+    # relation. It advances full one-dimensional continuity and momentum from
+    # a non-equilibrium state until the interior gauge converges.
+    - reference_saint_venant
+  must_fail:
+    reference_wrong_roughness: uniform_flow_friction
+    reference_wrong_slope: uniform_flow_friction
+
+provenance: >
+  Synthetic. Constant forcing and reach attributes are generated at run time
+  from the recorded seed. The residual is the steady uniform-flow limit of
+  the Saint-Venant momentum equation and uses the rectangular-section
+  definitions in USGS Water-Resources Investigations Report 83-4251.

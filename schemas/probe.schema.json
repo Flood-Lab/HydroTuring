@@ -140,6 +140,12 @@
           "minimum": 1,
           "maximum": 25
         },
+        "min_scored_fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "Minimum fraction of requested seeds that must produce criterion results. Below this floor the probe is N/A rather than being decided by too few compatible seeds. Defaults to 1."
+        },
         "timestep": {
           "type": "string",
           "enum": [

@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 
 from hydroturing import registry
+from hydroturing.criteria import CriterionIncompatibleError
 from hydroturing.harness import (
     IncompatibleError,
     build_case,
@@ -319,6 +320,112 @@ def test_all_seeds_must_pass(probe):
     closure = next(c for c in outcome.criteria if c.name == "closure")
     assert len(closure.per_seed) == 5
     assert all(entry["status"] == "fail" for entry in closure.per_seed)
+
+
+def test_one_incompatible_seed_does_not_discard_scored_failures(
+    probe, monkeypatch,
+):
+    """A run-time precondition can be seed-specific. Compatible seeds still
+    decide the verdict, and the skipped seed remains visible in the report."""
+    from hydroturing import harness
+
+    seeds = gate_seeds(probe.id, 5)
+    real_evaluate = harness.evaluate_criteria
+
+    def evaluate(runs, spec, control=None):
+        run = next(iter(runs.values()))
+        if run.case.seed == seeds[-1]:
+            raise CriterionIncompatibleError("seed-local precondition failed")
+        return real_evaluate(runs, spec, control)
+
+    monkeypatch.setattr(harness, "evaluate_criteria", evaluate)
+    allows_one = replace(probe, min_scored_fraction=0.8)
+    outcome = run_probe(
+        registry.find_model("reference_leaky"), allows_one, seeds
+    )
+
+    assert (outcome.verdict, outcome.reason) == (FAIL, VIOLATION)
+    closure = next(c for c in outcome.criteria if c.name == "closure")
+    assert closure.message.startswith(
+        "scored on 4 of 5 seeds; 1 N/A (precondition not reached); "
+    )
+    assert closure.per_seed[0]["status"] == "fail"
+    assert closure.per_seed[-1] == {
+        "seed": seeds[-1],
+        "status": "incompatible",
+        "value": None,
+        "message": "seed-local precondition failed",
+    }
+
+    from hydroturing import report
+    from hydroturing.scoring import ModelReport
+
+    archived = report.to_csv_rows(
+        ModelReport("reference_leaky", "1.0.0", "0.1.0", [outcome])
+    )[0]
+    assert "scored on 4 of 5 seeds; 1 N/A" in archived["detail"]
+
+
+def test_too_few_compatible_seeds_make_the_probe_incompatible(
+    probe, monkeypatch,
+):
+    """A model cannot earn PASS by declining most of the randomized cases."""
+    from hydroturing import harness
+
+    seeds = gate_seeds(probe.id, 5)
+    real_evaluate = harness.evaluate_criteria
+
+    def evaluate(runs, spec, control=None):
+        run = next(iter(runs.values()))
+        if run.case.seed in seeds[:4]:
+            raise CriterionIncompatibleError("seed-local precondition failed")
+        return real_evaluate(runs, spec, control)
+
+    monkeypatch.setattr(harness, "evaluate_criteria", evaluate)
+    requires_four = replace(probe, min_scored_fraction=0.8)
+    outcome = run_probe(
+        registry.find_model("reference_bucket"), requires_four, seeds
+    )
+
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert outcome.criteria == []
+    assert outcome.incompatible[0] == (
+        "only 1 of 5 seeds could be scored; at least 4 (80%) are required "
+        "for a pass"
+    )
+    assert len(outcome.incompatible) == 5
+
+
+def test_the_floor_cannot_be_used_to_escape_a_failure(probe, monkeypatch):
+    """The floor guards a pass, not a verdict.
+
+    A criterion decides a seed is unscoreable by reading the model's own
+    output, so the model chooses which seeds leave the sample. If the floor
+    outranked a failure, a model would escape a violation by making its worst
+    seeds unscoreable — the same move as buying a pass, in the opposite
+    direction. A failure measured on a seed that was scored stands however few
+    of them are left.
+    """
+    from hydroturing import harness
+
+    seeds = gate_seeds(probe.id, 5)
+    real_evaluate = harness.evaluate_criteria
+
+    def evaluate(runs, spec, control=None):
+        run = next(iter(runs.values()))
+        if run.case.seed in seeds[:4]:
+            raise CriterionIncompatibleError("seed-local precondition failed")
+        return real_evaluate(runs, spec, control)
+
+    monkeypatch.setattr(harness, "evaluate_criteria", evaluate)
+    requires_four = replace(probe, min_scored_fraction=0.8)
+    outcome = run_probe(
+        registry.find_model("reference_leaky"), requires_four, seeds
+    )
+
+    assert (outcome.verdict, outcome.reason) == (FAIL, VIOLATION)
+    closure = next(c for c in outcome.criteria if c.name == "closure")
+    assert "scored on 1 of 5 seeds" in closure.message
 
 
 def test_short_result_is_rejected(probe, tmp_path):

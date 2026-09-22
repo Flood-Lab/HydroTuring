@@ -9,11 +9,14 @@ VIOLATION and INCOMPLETE mean completely different things scientifically.
 VIOLATION says the model reported its budget and the budget did not close.
 INCOMPLETE says the model never reported enough to be checked at all, which
 is where every streamflow-only model lands on the budget probes. INCOMPATIBLE
-says the model cannot consume the probe as declared. ERROR is reserved for
-adapter or harness failures rather than scientific outcomes.
+says the model cannot consume the probe as declared, or that its output reveals
+a different declared convention (for example, depth reported where the contract
+requires stage on a fixed datum). ERROR is reserved for adapter or harness
+failures rather than scientific outcomes.
 
-Neither INCOMPLETE nor INCOMPATIBLE is a failure. A probe stopped by either
-never asked the model anything, so it is not scored: its verdict is N/A, and
+Neither INCOMPLETE nor INCOMPATIBLE is a failure. A probe stopped by either did
+not obtain a result under the contract it asks, so it is not scored: its verdict
+is N/A, and
 the model's verdict is decided by the probes that did ask. A model that is N/A
 on the energy probes and passes every other one passes. A model that no probe
 could ask anything is N/A itself, since it has not earned a pass.

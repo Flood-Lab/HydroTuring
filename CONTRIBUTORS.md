@@ -46,6 +46,7 @@ long.
 | `momentum/routing-lag-consistency` | Binlan Zhang (Institute of Mountain Hazards and Environment, Chinese Academy of Sciences, Chengdu, China) |
 | `momentum/stage-discharge-monotonic` | Yuanhang Liu (Independent Researcher) |
 | `mass/exchange-response` | Songkun Yan (University of Oklahoma) |
+| `momentum/uniform-flow-friction-consistency` | Mofan Zhang (Department of Civil and Environmental Engineering, Stanford University, Stanford, CA, USA) |
 
 ## Models
 

@@ -28,8 +28,14 @@ it is rather than failing it on the store-axis noise the pairing produces.
 depth from their own outflow, so their rating is single-valued by construction.
 
 Four years of temperate weather with five multi-day storms, in a single reach
-whose width, slope and roughness are handed to every model through the static
-file. `stage` is a diagnostic the probe asks the model to report in metres. It
+whose width, slope, roughness and vertical datum are handed to every model
+through the static file. `stage` is a water-surface elevation on that datum,
+and the case declares it as `bed_elevation_m`: this reach puts zero at the
+bed, so the gauge reads the same numbers it always has. The declaration is
+what lets `requires.static` name the key, so a model that carries its own
+datum is `N/A (INCOMPATIBLE)` here rather than failing `non_degenerate` for a
+difference of convention — `CV(stage)` is a ratio of the level and is the one
+criterion here a datum does not cancel out of. `stage` is a diagnostic the probe asks the model to report in metres. It
 is deliberately not one of the storages the suite differences its budget over:
 a stage is a reading, not a volume, and summing it into `reported_states`
 would corrupt every closure test in the suite.

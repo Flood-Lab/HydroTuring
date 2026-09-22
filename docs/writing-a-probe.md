@@ -126,6 +126,13 @@ Every one is binary.
 | `scaling_monotonicity` | peak lag does not materially reverse and grows by a resolvable amount across catchment scales | paired runs, a geometry ladder |
 | `rating_monotonic` | stage does not fall against its running maximum as the abscissa rises: equal-count bin medians are taken over the abscissa and the summed running-maximum deficit is compared with an explicit `tolerance` when one is given, and otherwise with 8% of the rating's span. The share is that large because a stage read off a store is hysteretic by construction, and its binned rating dips below its own running maximum by a visible fraction of the span for that reason alone | one run |
 | `rating_loop` | where the gauge loops against the reach's store, the loop must be small enough to be noise or run the right way: at the same storage the rising limb sits lower than the falling one. A single-valued rating, or a loop below `min_loop_m` with an inconsistent sign across bins, is read as "no loop" and passes | one run |
+| `uniform_flow_friction` | on each labelled low, medium and high steady plateau, the reported discharge and stage must make Manning friction slope agree with the declared bed slope for the explicit rectangular section; CV and first-to-last-quarter trend gates reject blocks that have not converged | one run, three labelled plateaus |
+
+`stage` is an elevation on a case-declared fixed datum. A criterion that forms
+water depth, or any ratio or power of the level, must include
+`bed_elevation_m` in `requires.static` and use the shared `depth_series(run)`
+helper; it may not infer a datum. A criterion that uses only differences of
+stage does not need the bed elevation because a fixed datum cancels.
 
 Picking a denominator for `closure` and `regime_transfer`:
 
@@ -167,6 +174,23 @@ def generate(seed: int, variant: str = "control") -> tuple[pd.DataFrame, dict]:
 A probe whose expectation only holds over a long enough stretch, such as the
 sign of a response to warming, sets `case.min_window_days` and a submitted
 model's evaluation window is widened to at least that.
+
+By default every requested seed must be scoreable. If a criterion has a
+documented run-time precondition that can honestly exclude an individual seed,
+`case.min_scored_fraction` may allow partial coverage. The harness writes the
+coverage into the criterion message, and returns `N/A (INCOMPATIBLE)` when the
+scored share falls below the declared floor rather than letting a lucky
+minority decide the verdict.
+
+The floor guards a **pass**, not a verdict. A criterion decides a seed is
+unscoreable by reading the model's own output, so the model chooses which
+seeds leave the sample, and the rule has to be asymmetric or the same move
+works in both directions: a model would buy a pass by excluding the seed it
+would lose on, and escape a violation by excluding enough seeds to fall under
+the floor. So a failure measured on a seed that **was** scored stands however
+few of them are left, and only a verdict that would otherwise pass is held to
+the floor. Set `min_scored_fraction` below 1 only where a seed can be lost for
+a reason the model does not control.
 
 `invariance` takes `unchanged` (must be reported and must not move),
 `scaled` (must move by a factor) and `optional` (must not move *if the
@@ -320,10 +344,14 @@ The reference models available today:
 | `reference_snyder_router` | consumes public catchment geometry and routes rain with a conservative triangular unit hydrograph whose peak follows the duration-corrected Snyder lag from the excess-rainfall centroid | nothing, it must pass the routing-lag probe |
 | `reference_instant_router` | accepts the geometry but returns runoff in the rainfall row at every scale | `lag_time_bounds` |
 | `reference_inverse_router` | uses individually plausible lags that reverse once as catchment scale grows | `scaling_monotonicity` |
-| `reference_rating` | the bucket with a real rating curve: yield enters a shallow floodplain and a deep channel reservoir, and the stage is the depth the channel's volume makes in a fixed bed | must pass `momentum/stage-discharge-monotonic` |
+| `reference_rating` | the bucket with a real rating curve: yield enters a shallow floodplain and a deep channel reservoir, and the stage is the depth the channel's volume makes in a fixed bed, reported above the case's declared datum | must pass `momentum/stage-discharge-monotonic` |
 | `reference_rating_drift` | derives its stage from a slowly decaying running maximum of discharge (`peak = max(q, 0.997 * peak)` per day), so the gauge ratchets up with each flood far faster than it relaxes | `rating_monotonic` |
 | `reference_rating_inverted` | reads the loop backwards, high while the flood is arriving and low once it is leaving | `rating_loop` |
 | `reference_flat_stage` | reports a constant stage, so there is no rating and no loop | `non_degenerate` |
+| `reference_uniform_flow` | computes exact rectangular Manning normal depth from the declared geometry | must pass `momentum/uniform-flow-friction-consistency` |
+| `reference_saint_venant` | advances the one-dimensional continuity and momentum equations from a non-equilibrium state with finite-volume fluxes and Manning friction; it contains no normal-depth lookup | must pass `momentum/uniform-flow-friction-consistency` |
+| `reference_wrong_roughness` | computes its stage with Manning roughness 3% above the declared value, giving a 5.74% near-boundary friction residual | `uniform_flow_friction` |
+| `reference_wrong_slope` | computes its stage with bed slope 6% above the declared value, giving a 6% near-boundary friction residual | `uniform_flow_friction` |
 | `reference_coupled` | the bucket with snow sublimation and a surface energy budget; every kilogram converted at the latent heat of the phase it actually underwent | nothing, it must pass the energy probes |
 | `reference_soil_heat` | a synthetic fixed-layer fixture with conductive boundary fluxes and temperature integrated consistently | nothing, it must pass `soil_heat_storage` |
 | `reference_frozen_soil` | keeps the conductive fluxes but reports a constant soil temperature | `soil_heat_storage` |

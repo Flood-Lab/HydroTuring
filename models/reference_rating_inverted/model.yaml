@@ -1,5 +1,5 @@
 name: reference_rating_inverted
-version: "1.0.0"
+version: "1.1.0"
 description: >
   The routed bucket whose rating is read backwards. Stage is a strictly
   increasing function of the channel store, so it never falls as discharge
@@ -17,6 +17,7 @@ emits:
   states: [mrso, snw, canopy, channel]
   diagnostics: [stage]
 needs_forcing: [pr, tas, pet]
+uses_static: [bed_elevation_m]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

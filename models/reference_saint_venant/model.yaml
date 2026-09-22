@@ -1,0 +1,22 @@
+name: reference_saint_venant
+version: "1.0.0"
+description: >
+  A one-dimensional finite-volume Saint-Venant solver for a prismatic
+  rectangular reach. It prescribes upstream discharge, advances continuity
+  and momentum with bed-slope and Manning-friction source terms from a
+  non-equilibrium state, and reports the interior gauge after the reach has
+  converged. It never evaluates or inverts the Manning normal-depth formula.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [dis]
+  states: []
+  diagnostics: [stage]
+needs_forcing: [pr, tas, pet]
+needs_static: [area_km2, width_m, cross_section_shape, bed_elevation_m, slope, manning_n, reach_length_m]
+supports:
+  perturbation: false
+resources: {cpu: 1, memory_gb: 1, gpu: false}
