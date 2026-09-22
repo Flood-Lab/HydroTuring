@@ -33,9 +33,13 @@ mistaking it for a still-draining store. Across 500 generator seeds, the
 largest such cycle in the packaged SAC-SMA/Snow-17 baseline was 1.47%, while
 the separate quarter-shift gate still rejects a secular drift above 1%.
 
-Failure to meet the steadiness precondition is `N/A (INCOMPATIBLE)`, not a
-momentum violation: the experiment has not established the uniform-flow state
-in which the friction balance can be evaluated.
+A plateau that fails the steadiness precondition is skipped rather than used
+to judge momentum. Every steady plateau is still scored, so a non-steady
+plateau cannot hide a friction violation measured on another plateau. The
+probe is `N/A (INCOMPATIBLE)` only when none of the three plateaus is steady,
+because only then has the experiment established no uniform-flow state in
+which the friction balance can be evaluated. Reports retain the residual and
+steadiness diagnostics for every skipped plateau.
 
 Absolute residuals are averaged, so opposite-signed errors cannot cancel.
 The report also records the 95th-percentile and maximum residual and the mean

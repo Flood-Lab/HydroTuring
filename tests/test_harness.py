@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 
 from hydroturing import registry
+from hydroturing.criteria import CriterionIncompatibleError
 from hydroturing.harness import (
     IncompatibleError,
     build_case,
@@ -319,6 +320,36 @@ def test_all_seeds_must_pass(probe):
     closure = next(c for c in outcome.criteria if c.name == "closure")
     assert len(closure.per_seed) == 5
     assert all(entry["status"] == "fail" for entry in closure.per_seed)
+
+
+def test_one_incompatible_seed_does_not_discard_scored_failures(
+    probe, monkeypatch,
+):
+    """A run-time precondition can be seed-specific. Compatible seeds still
+    decide the verdict, and the skipped seed remains visible in the report."""
+    from hydroturing import harness
+
+    seeds = gate_seeds(probe.id, 2)
+    real_evaluate = harness.evaluate_criteria
+
+    def evaluate(runs, spec, control=None):
+        run = next(iter(runs.values()))
+        if run.case.seed == seeds[1]:
+            raise CriterionIncompatibleError("seed-local precondition failed")
+        return real_evaluate(runs, spec, control)
+
+    monkeypatch.setattr(harness, "evaluate_criteria", evaluate)
+    outcome = run_probe(registry.find_model("reference_leaky"), probe, seeds)
+
+    assert (outcome.verdict, outcome.reason) == (FAIL, VIOLATION)
+    closure = next(c for c in outcome.criteria if c.name == "closure")
+    assert closure.per_seed[0]["status"] == "fail"
+    assert closure.per_seed[1] == {
+        "seed": seeds[1],
+        "status": "incompatible",
+        "value": None,
+        "message": "seed-local precondition failed",
+    }
 
 
 def test_short_result_is_rejected(probe, tmp_path):

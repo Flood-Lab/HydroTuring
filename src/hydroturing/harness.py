@@ -479,6 +479,7 @@ def run_probe(
     }
     flags: list[str] = []
     windows: list[dict] = []
+    incompatible_seeds: list[tuple[int, str]] = []
 
     tmp_root = Path(workdir) if workdir else Path(tempfile.mkdtemp(prefix="hydroturing-"))
     tmp_root.mkdir(parents=True, exist_ok=True)
@@ -556,15 +557,22 @@ def run_probe(
                 if result.diagnostics.get("suspicious_exact"):
                     flags.append(f"suspicious_exact:{probe.id}")
         except CriterionIncompatibleError as exc:
-            return incompatible_outcome([str(exc)])
+            incompatible_seeds.append((seed, str(exc)))
         except Exception as exc:  # noqa: BLE001 - a runner, protocol or criterion failure is an ERROR
             return error_outcome(exc)
 
+    if len(incompatible_seeds) == len(seeds):
+        return incompatible_outcome([
+            f"seed {seed}: {message}" for seed, message in incompatible_seeds
+        ])
+
+    incompatible_by_seed = dict(incompatible_seeds)
     outcomes = []
     for name, pairs in per_criterion.items():
         # The worst seed decides. A model that passes four seeds and fails the
         # fifth has not shown conservation, it has shown luck.
         worst_seed, worst = min(pairs, key=lambda pair: (pair[1].passed, -abs(pair[1].value or 0.0)))
+        results_by_seed = dict(pairs)
         outcomes.append(
             CriterionOutcome(
                 name=name,
@@ -574,7 +582,21 @@ def run_probe(
                 threshold=worst.threshold,
                 worst_seed=worst_seed,
                 per_seed=[
-                    {"seed": s, "status": r.status, "value": r.value} for s, r in pairs
+                    (
+                        {
+                            "seed": seed,
+                            "status": "incompatible",
+                            "value": None,
+                            "message": incompatible_by_seed[seed],
+                        }
+                        if seed in incompatible_by_seed
+                        else {
+                            "seed": seed,
+                            "status": results_by_seed[seed].status,
+                            "value": results_by_seed[seed].value,
+                        }
+                    )
+                    for seed in seeds
                 ],
                 diagnostics=worst.diagnostics,
             )

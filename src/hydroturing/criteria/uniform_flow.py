@@ -141,7 +141,9 @@ def uniform_flow_friction(
             + ", ".join(missing_plateaus)
         )
 
-    steady_failures: list[str] = []
+    unsteady: list[str] = []
+    steady_labels: list[str] = []
+    skipped_labels: list[str] = []
     failures: list[str] = []
     plateau_diagnostics: dict[str, dict[str, float | int]] = {}
     mean_errors: list[float] = []
@@ -179,11 +181,10 @@ def uniform_flow_friction(
         depth_cv = _cv(depth)
         q_shift = _relative_quarter_shift(discharge)
         depth_shift = _relative_quarter_shift(depth)
-        if max(q_cv, depth_cv) > max_cv or max(q_shift, depth_shift) > max_shift:
-            steady_failures.append(
-                f"{label} is not steady (CV Q/depth {q_cv:.2%}/{depth_cv:.2%}; "
-                f"quarter shift {q_shift:.2%}/{depth_shift:.2%})"
-            )
+        is_steady = (
+            max(q_cv, depth_cv) <= max_cv
+            and max(q_shift, depth_shift) <= max_shift
+        )
 
         area = width * depth
         hydraulic_radius = area / (width + 2.0 * depth)
@@ -196,14 +197,8 @@ def uniform_flow_friction(
         mean_error = float(np.mean(normalized))
         p95_error = float(np.percentile(normalized, 95))
         max_error = float(np.max(normalized))
-        if mean_error > tolerance:
-            failures.append(
-                f"{label} residual {mean_error:.2%} exceeds {tolerance:.2%}"
-            )
-        mean_errors.append(mean_error)
-        p95_errors.append(p95_error)
-        max_errors.append(max_error)
         plateau_diagnostics[label] = {
+            "steady": is_steady,
             "mean_absolute_normalized_residual": mean_error,
             "p95_absolute_normalized_residual": p95_error,
             "max_absolute_normalized_residual": max_error,
@@ -219,23 +214,46 @@ def uniform_flow_friction(
             "steady_steps": steady_steps,
         }
 
-    if steady_failures:
+        if not is_steady:
+            skipped_labels.append(label)
+            unsteady.append(
+                f"{label} residual {mean_error:.2%}, CV Q/depth "
+                f"{q_cv:.2%}/{depth_cv:.2%}, quarter shift "
+                f"{q_shift:.2%}/{depth_shift:.2%}"
+            )
+            continue
+
+        steady_labels.append(label)
+        if mean_error > tolerance:
+            failures.append(
+                f"{label} residual {mean_error:.2%} exceeds {tolerance:.2%}"
+            )
+        mean_errors.append(mean_error)
+        p95_errors.append(p95_error)
+        max_errors.append(max_error)
+
+    if not steady_labels:
         raise CriterionIncompatibleError(
-            "uniform-flow precondition was not reached: "
-            + "; ".join(steady_failures)
+            "uniform-flow precondition was not reached on any plateau; "
+            "skipped as non-steady: " + "; ".join(unsteady)
         )
 
     worst_mean = max(mean_errors)
     summary = ", ".join(
         f"{label} {plateau_diagnostics[label]['mean_absolute_normalized_residual']:.2%}"
-        for label in expected
+        for label in steady_labels
+    )
+    skipped = (
+        "; skipped non-steady plateau(s): " + ", ".join(skipped_labels)
+        if skipped_labels
+        else ""
     )
     status = FAIL if failures else PASS
     message = (
-        "; ".join(failures)
+        "; ".join(failures) + skipped
         if failures
-        else f"three steady plateaus satisfy |S_f - S_0| / S_0: {summary} "
-             f"(limit {tolerance:.2%})"
+        else f"steady plateau(s) satisfy |S_f - S_0| / S_0: {summary} "
+             f"(limit {tolerance:.2%}){skipped}"
     )
     return CriterionResult(
         "uniform_flow_friction",
@@ -249,6 +267,8 @@ def uniform_flow_friction(
             "worst_max_absolute_normalized_residual": max(max_errors),
             "bed_slope": slope,
             "steady_steps": steady_steps,
+            "steady_plateaus": steady_labels,
+            "skipped_plateaus": skipped_labels,
             "plateaus": plateau_diagnostics,
         },
     )

@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from hydroturing import registry
-from hydroturing.criteria import CriterionIncompatibleError, depth_series, get
+from hydroturing.criteria import depth_series, get
 from hydroturing.criteria.base import FAIL, PASS
 from hydroturing.harness import build_case, run_probe
 from hydroturing.protocol import Case, RunResult
@@ -180,19 +180,35 @@ def test_opposite_signed_residuals_cannot_cancel():
     assert result.value > 0.45
 
 
-def test_a_slow_drift_is_incompatible_even_when_cv_is_loose():
+def test_a_slow_drift_skips_only_its_plateau_even_when_cv_is_loose():
     q, stage = _steady_series()
     q[-ROWS_PER_PLATEAU:] = np.linspace(22.0, 24.0, ROWS_PER_PLATEAU)
     stage[-ROWS_PER_PLATEAU:] = STATIC["bed_elevation_m"] + np.array([
         _depth(value, STATIC["slope"]) for value in q[-ROWS_PER_PLATEAU:]
     ])
-    with pytest.raises(
-        CriterionIncompatibleError,
-        match="uniform-flow precondition.*not steady.*quarter shift",
-    ):
-        get("uniform_flow_friction")(
-            _run(q, stage), None, _params(max_cv=1.0)
-        )
+    result = get("uniform_flow_friction")(
+        _run(q, stage), None, _params(max_cv=1.0)
+    )
+    assert result.status == PASS
+    assert result.diagnostics["steady_plateaus"] == ["low", "medium"]
+    assert result.diagnostics["skipped_plateaus"] == ["high"]
+    assert "skipped non-steady plateau(s): high" in result.message
+
+
+def test_a_nonsteady_plateau_cannot_hide_steady_friction_failures():
+    q, stage = _steady_series(slopes=(0.25 * STATIC["slope"],) * 3)
+    high = slice(-ROWS_PER_PLATEAU, None)
+    ripple = 1.0 + 0.03 * np.sin(np.linspace(0.0, 12.0 * np.pi, ROWS_PER_PLATEAU))
+    q[high] *= ripple
+
+    result = get("uniform_flow_friction")(_run(q, stage), None, _params())
+
+    assert result.status == FAIL
+    assert result.value == pytest.approx(0.75, abs=1e-10)
+    assert result.diagnostics["steady_plateaus"] == ["low", "medium"]
+    assert result.diagnostics["skipped_plateaus"] == ["high"]
+    assert "low residual 75.00%" in result.message
+    assert "skipped non-steady plateau(s): high" in result.message
 
 
 def test_dry_or_nonfinite_answers_fail_instead_of_being_skipped():
@@ -279,9 +295,14 @@ def test_nonsteady_output_is_incompatible_end_to_end(monkeypatch, tmp_path):
     class DriftingRunner:
         def run(self, model, probe, case, io_dir):
             result = real_runner.run(model, probe, case, io_dir)
-            high = np.flatnonzero(case.forcing["_plateau"].to_numpy() == "high")
-            scored = high[-90:]
-            result.table.loc[scored, "dis"] *= np.linspace(0.8, 1.2, len(scored))
+            for label in LABELS:
+                plateau = np.flatnonzero(
+                    case.forcing["_plateau"].to_numpy() == label
+                )
+                scored = plateau[-90:]
+                result.table.loc[scored, "dis"] *= np.linspace(
+                    0.8, 1.2, len(scored)
+                )
             return result
 
     monkeypatch.setattr(harness, "get_runner", lambda _: DriftingRunner())
@@ -294,6 +315,9 @@ def test_nonsteady_output_is_incompatible_end_to_end(monkeypatch, tmp_path):
     assert outcome.verdict == NOT_SCORED
     assert outcome.reason == INCOMPATIBLE
     assert "uniform-flow precondition was not reached" in outcome.incompatible[0]
+    assert "low residual" in outcome.incompatible[0]
+    assert "medium residual" in outcome.incompatible[0]
+    assert "high residual" in outcome.incompatible[0]
 
 
 @pytest.mark.parametrize("negative_depth", [-1.0e-12, -0.2])
