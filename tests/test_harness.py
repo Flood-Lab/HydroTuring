@@ -329,27 +329,70 @@ def test_one_incompatible_seed_does_not_discard_scored_failures(
     decide the verdict, and the skipped seed remains visible in the report."""
     from hydroturing import harness
 
-    seeds = gate_seeds(probe.id, 2)
+    seeds = gate_seeds(probe.id, 5)
     real_evaluate = harness.evaluate_criteria
 
     def evaluate(runs, spec, control=None):
         run = next(iter(runs.values()))
-        if run.case.seed == seeds[1]:
+        if run.case.seed == seeds[-1]:
             raise CriterionIncompatibleError("seed-local precondition failed")
         return real_evaluate(runs, spec, control)
 
     monkeypatch.setattr(harness, "evaluate_criteria", evaluate)
-    outcome = run_probe(registry.find_model("reference_leaky"), probe, seeds)
+    allows_one = replace(probe, min_scored_fraction=0.8)
+    outcome = run_probe(
+        registry.find_model("reference_leaky"), allows_one, seeds
+    )
 
     assert (outcome.verdict, outcome.reason) == (FAIL, VIOLATION)
     closure = next(c for c in outcome.criteria if c.name == "closure")
+    assert closure.message.startswith(
+        "scored on 4 of 5 seeds; 1 N/A (precondition not reached); "
+    )
     assert closure.per_seed[0]["status"] == "fail"
-    assert closure.per_seed[1] == {
-        "seed": seeds[1],
+    assert closure.per_seed[-1] == {
+        "seed": seeds[-1],
         "status": "incompatible",
         "value": None,
         "message": "seed-local precondition failed",
     }
+
+    from hydroturing import report
+    from hydroturing.scoring import ModelReport
+
+    archived = report.to_csv_rows(
+        ModelReport("reference_leaky", "1.0.0", "0.1.0", [outcome])
+    )[0]
+    assert "scored on 4 of 5 seeds; 1 N/A" in archived["detail"]
+
+
+def test_too_few_compatible_seeds_make_the_probe_incompatible(
+    probe, monkeypatch,
+):
+    """A model cannot earn PASS by declining most of the randomized cases."""
+    from hydroturing import harness
+
+    seeds = gate_seeds(probe.id, 5)
+    real_evaluate = harness.evaluate_criteria
+
+    def evaluate(runs, spec, control=None):
+        run = next(iter(runs.values()))
+        if run.case.seed in seeds[:4]:
+            raise CriterionIncompatibleError("seed-local precondition failed")
+        return real_evaluate(runs, spec, control)
+
+    monkeypatch.setattr(harness, "evaluate_criteria", evaluate)
+    requires_four = replace(probe, min_scored_fraction=0.8)
+    outcome = run_probe(
+        registry.find_model("reference_bucket"), requires_four, seeds
+    )
+
+    assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
+    assert outcome.criteria == []
+    assert outcome.incompatible[0] == (
+        "only 1 of 5 seeds could be scored; at least 4 (80%) are required"
+    )
+    assert len(outcome.incompatible) == 5
 
 
 def test_short_result_is_rejected(probe, tmp_path):

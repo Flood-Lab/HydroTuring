@@ -175,6 +175,13 @@ A probe whose expectation only holds over a long enough stretch, such as the
 sign of a response to warming, sets `case.min_window_days` and a submitted
 model's evaluation window is widened to at least that.
 
+By default every requested seed must be scoreable. If a criterion has a
+documented run-time precondition that can honestly exclude an individual seed,
+`case.min_scored_fraction` may allow partial coverage. The harness writes the
+coverage into the criterion message, and returns `N/A (INCOMPATIBLE)` when the
+scored share falls below the declared floor rather than letting a lucky
+minority decide the verdict.
+
 `invariance` takes `unchanged` (must be reported and must not move),
 `scaled` (must move by a factor) and `optional` (must not move *if the
 model reports it*), so a store a model lacks is not an invariance failure.

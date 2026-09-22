@@ -41,6 +41,13 @@ because only then has the experiment established no uniform-flow state in
 which the friction balance can be evaluated. Reports retain the residual and
 steadiness diagnostics for every skipped plateau.
 
+At least four of the five requested seeds must produce a score
+(`min_scored_fraction: 0.80`). One seed may be `N/A` because no plateau reached
+the precondition; its omission and the resulting seed coverage are written
+into the criterion message and archive row. With fewer than four scored seeds,
+the whole probe is `N/A` rather than allowing a verdict to rest on a lucky
+minority.
+
 Absolute residuals are averaged, so opposite-signed errors cannot cancel.
 The report also records the 95th-percentile and maximum residual and the mean
 and maximum Froude number at each plateau. The Froude number is diagnostic,

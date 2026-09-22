@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import inspect
+import math
 import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -561,12 +562,32 @@ def run_probe(
         except Exception as exc:  # noqa: BLE001 - a runner, protocol or criterion failure is an ERROR
             return error_outcome(exc)
 
-    if len(incompatible_seeds) == len(seeds):
+    scored_seed_count = len(seeds) - len(incompatible_seeds)
+    minimum_scored_seeds = max(
+        1, math.ceil(probe.min_scored_fraction * len(seeds))
+    )
+    if scored_seed_count == 0:
         return incompatible_outcome([
             f"seed {seed}: {message}" for seed, message in incompatible_seeds
         ])
+    if scored_seed_count < minimum_scored_seeds:
+        return incompatible_outcome([
+            f"only {scored_seed_count} of {len(seeds)} seeds could be scored; "
+            f"at least {minimum_scored_seeds} ({probe.min_scored_fraction:.0%}) "
+            "are required",
+            *(
+                f"seed {seed}: {message}"
+                for seed, message in incompatible_seeds
+            ),
+        ])
 
     incompatible_by_seed = dict(incompatible_seeds)
+    seed_coverage = (
+        f"scored on {scored_seed_count} of {len(seeds)} seeds; "
+        f"{len(incompatible_seeds)} N/A (precondition not reached)"
+        if incompatible_seeds
+        else ""
+    )
     outcomes = []
     for name, pairs in per_criterion.items():
         # The worst seed decides. A model that passes four seeds and fails the
@@ -577,7 +598,11 @@ def run_probe(
             CriterionOutcome(
                 name=name,
                 status=worst.status,
-                message=worst.message,
+                message=(
+                    f"{seed_coverage}; {worst.message}"
+                    if seed_coverage
+                    else worst.message
+                ),
                 value=worst.value,
                 threshold=worst.threshold,
                 worst_seed=worst_seed,
