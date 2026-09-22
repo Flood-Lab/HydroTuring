@@ -29,7 +29,11 @@ requires:
 case:
   generator: generate.py
   n_seeds: 5
-  min_scored_fraction: 0.80
+  # Every seed. Steadiness is measured on the model's own reported
+  # discharge and depth, so the model decides which seeds it is scored
+  # on; anything below 1.0 is a pass it can buy by making the seed it
+  # would lose on unscoreable. A failure on a scored seed still stands.
+  min_scored_fraction: 1.0
   timestep: PT1D
   period_days: 2772
   spinup_days: 365

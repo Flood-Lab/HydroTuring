@@ -121,7 +121,7 @@ def test_case_allows_five_slowest_store_time_constants_before_scoring():
     counts = scored["_plateau"].value_counts()
     steady_days = int(probe.criteria[0].params["steady_days"])
     assert float(probe.criteria[0].params["max_cv"]) == 0.015
-    assert probe.min_scored_fraction == 0.8
+    assert probe.min_scored_fraction == 1.0
     minimum_settling = math.ceil(
         5.0 / float(case.static["baseflow_coefficient"])
     )

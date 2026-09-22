@@ -570,17 +570,6 @@ def run_probe(
         return incompatible_outcome([
             f"seed {seed}: {message}" for seed, message in incompatible_seeds
         ])
-    if scored_seed_count < minimum_scored_seeds:
-        return incompatible_outcome([
-            f"only {scored_seed_count} of {len(seeds)} seeds could be scored; "
-            f"at least {minimum_scored_seeds} ({probe.min_scored_fraction:.0%}) "
-            "are required",
-            *(
-                f"seed {seed}: {message}"
-                for seed, message in incompatible_seeds
-            ),
-        ])
-
     incompatible_by_seed = dict(incompatible_seeds)
     seed_coverage = (
         f"scored on {scored_seed_count} of {len(seeds)} seeds; "
@@ -628,6 +617,22 @@ def run_probe(
         )
 
     failing = [o.name for o in outcomes if not o.passed]
+    # The floor is applied only to a verdict that would pass. A criterion
+    # decides a seed is unscoreable by reading the model's own output, so the
+    # model chooses which seeds leave the sample: let the floor outrank a
+    # failure and a model escapes a violation by making its worst seeds
+    # unscoreable, which is the same move in the opposite direction.
+    if not failing and scored_seed_count < minimum_scored_seeds:
+        return incompatible_outcome([
+            f"only {scored_seed_count} of {len(seeds)} seeds could be scored; "
+            f"at least {minimum_scored_seeds} ({probe.min_scored_fraction:.0%}) "
+            "are required for a pass",
+            *(
+                f"seed {seed}: {message}"
+                for seed, message in incompatible_seeds
+            ),
+        ])
+
     return ProbeOutcome(
         probe_id=probe.id,
         law=probe.law,

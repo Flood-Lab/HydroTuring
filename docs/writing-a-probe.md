@@ -182,6 +182,16 @@ coverage into the criterion message, and returns `N/A (INCOMPATIBLE)` when the
 scored share falls below the declared floor rather than letting a lucky
 minority decide the verdict.
 
+The floor guards a **pass**, not a verdict. A criterion decides a seed is
+unscoreable by reading the model's own output, so the model chooses which
+seeds leave the sample, and the rule has to be asymmetric or the same move
+works in both directions: a model would buy a pass by excluding the seed it
+would lose on, and escape a violation by excluding enough seeds to fall under
+the floor. So a failure measured on a seed that **was** scored stands however
+few of them are left, and only a verdict that would otherwise pass is held to
+the floor. Set `min_scored_fraction` below 1 only where a seed can be lost for
+a reason the model does not control.
+
 `invariance` takes `unchanged` (must be reported and must not move),
 `scaled` (must move by a factor) and `optional` (must not move *if the
 model reports it*), so a store a model lacks is not an invariance failure.

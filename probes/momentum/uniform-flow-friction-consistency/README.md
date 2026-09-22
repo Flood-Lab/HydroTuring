@@ -41,12 +41,18 @@ because only then has the experiment established no uniform-flow state in
 which the friction balance can be evaluated. Reports retain the residual and
 steadiness diagnostics for every skipped plateau.
 
-At least four of the five requested seeds must produce a score
-(`min_scored_fraction: 0.80`). One seed may be `N/A` because no plateau reached
-the precondition; its omission and the resulting seed coverage are written
-into the criterion message and archive row. With fewer than four scored seeds,
-the whole probe is `N/A` rather than allowing a verdict to rest on a lucky
-minority.
+All five requested seeds must produce a score (`min_scored_fraction: 1.0`).
+Steadiness is measured on the model's own reported discharge and depth, so the
+model decides which seeds it is scored on: any floor below 1 is a pass it can
+buy by making the one seed it would lose on unscoreable. A ripple of 2.2% on a
+single plateau is enough to do it. Over 260 generator seeds no packaged
+baseline loses a plateau, so the floor costs them nothing.
+
+The floor guards the pass and not the verdict. A friction violation measured on
+a seed that was scored still decides the outcome however many other seeds went
+`N/A`, because otherwise the same ripple would erase a violation instead of
+buying a pass. Seed coverage is written into the criterion message and the
+archive row either way.
 
 Absolute residuals are averaged, so opposite-signed errors cannot cancel.
 The report also records the 95th-percentile and maximum residual and the mean
