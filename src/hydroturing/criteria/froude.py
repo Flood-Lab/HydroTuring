@@ -59,25 +59,36 @@ different from one that is supercritical through every flood — and leaves
 the limit a probe parameter for a future case where a small share is the
 honest reading.
 
-Steps where the reach is effectively dry are not scored. The depth carries a
-floor of one centimetre so that a receding flow does not divide by zero, but
-a step that only clears the floor because of the floor says nothing about
-velocity, and scoring it would let a dry reach fail on arithmetic.
+A step is left out when nothing is moving through it, and for no other reason.
+The depth carries a floor of one centimetre, but the floor is a floor on the
+*division* rather than a dryness test: the depth is clamped to it, so a receding
+flow still has a number to divide by, and a step with water in it is scored at
+the clamped depth however shallow the model says it is. Deciding dryness on the
+depth itself would be backwards here. At a given discharge the shallowest step is
+the *fastest* one in the record — `Fr = Q / (w sqrt(g) d**1.5)` grows without
+bound as `d` falls — so a depth test drops exactly the steps this criterion exists
+to catch, and the direction of the error is the wrong way round: a model carrying
+its flood-peak discharge at a millimetre of depth would have those peaks excused
+while every step it reported honestly was still scored, so making its worst steps
+*more* wrong would move it from a failure to a pass.
 
 Leaving a step out is for steps the *reach* makes unscorable, not for values the
 criterion cannot read. A non-finite stage or discharge is refused rather than
-dropped: `NaN` compares false against both bounds, so the mask would quietly
+dropped: `NaN` compares false against every bound, so the mask would quietly
 score one step fewer and say nothing about it — an invalid input leaving the
-assessment by the same door an honest dry step does.
+assessment by the same door an honest dry step uses.
 
-The floor has a mirror, and a probe can give it a value: `max_depth_m`.
+The depth has a ceiling, and a probe gives it a value: `max_depth_m`.
 It is a section sanity bound and not the defence against a datum mismatch — that
 job belongs to the declared bed and the subtraction — but a depth deeper than
 the section could hold is not a depth in it, and a model that ignored the
 declared datum and reported a level is exactly what it catches once the offset
-is large. A probe that knows its reach sets the ceiling; without one the
-criterion takes the reading as it stands, because how deep is too deep for a
-section is a statement about the case rather than about `stage`.
+is large. Unlike the floor this one *refuses* the step rather than clamping it:
+clamping puts the reading back inside the range the bound exists to exclude, and
+an offset only ever adds to the depth. A probe that knows its reach sets the
+ceiling; without one the criterion takes the reading as it stands, because how
+deep is too deep for a section is a statement about the case rather than about
+`stage`.
 
 What the criterion cannot see is stated in the probe's README: it reads the
 pair, not either reading against the truth. A model that derives its stage
@@ -118,9 +129,10 @@ DEFAULT_RUNOFF = "mrro"
 # every model is judged in the same channel.
 DEFAULT_WIDTH_KEY = "width_m"
 DEFAULT_AREA_KEY = "area_km2"
-# A depth floor of one centimetre: enough that a receding flow does not divide
-# by zero, small enough that it never rescues a real cross-section. Steps that
-# only clear it because of it are not scored.
+# A depth floor of one centimetre, applied to the division and not to the mask:
+# enough that a receding flow does not divide by zero, small enough that it never
+# rescues a real cross-section. A step is excused for carrying no flow, never for
+# being shallow.
 DEFAULT_MIN_DEPTH_M = 0.01
 # No ceiling unless a probe sets one. A depth deeper than the declared section
 # could hold is not a depth in it, but how deep is too deep depends on the reach
@@ -142,23 +154,25 @@ DEFAULT_MIN_SCORED_FRACTION = 0.05
 
 def _depth(depth: np.ndarray, min_depth_m: float,
            max_depth_m: float | None = None) -> tuple[np.ndarray, np.ndarray]:
-    """The flow depth, and the mask of steps that are depths in this section.
+    """The depth the division uses, and the mask of depths this section holds.
 
     The depth arrives already formed: `depth_series` subtracts the case's
     declared `bed_elevation_m` from the reported `stage`, so nothing here has to
     know about the datum and nothing here may assume one.
 
-    The mask is the point of both bounds. A step whose depth only clears
-    `min_depth_m` because the floor lifted it is a dry step wearing a number,
-    and the velocity computed on it is arithmetic, not hydraulics. A step whose
-    depth passes `max_depth_m` is not a depth in the declared section at all,
-    and scoring it would let a model that ignored the declared datum pass,
-    comfortably, because an offset only ever adds to the depth.
+    Two bounds doing two different jobs. `min_depth_m` is a floor on the
+    division and not a dryness test: the returned depth is clamped to it so a
+    receding flow has a number to divide by, and the caller decides dryness from
+    the flow instead. `max_depth_m` is the mask, and it refuses rather than
+    clamps: a step whose depth is deeper than the declared section could hold is
+    not a reading of that section at all, and clamping it back into range would
+    re-admit the reading the bound exists to exclude, because an offset only ever
+    adds to the depth.
     """
-    deep_enough = depth > min_depth_m
+    within = np.ones(depth.shape, dtype=bool)
     if max_depth_m is not None:
-        deep_enough &= depth <= max_depth_m
-    return np.maximum(depth, min_depth_m), deep_enough
+        within = depth <= max_depth_m
+    return np.maximum(depth, min_depth_m), within
 
 
 def _discharge(run: RunResult, w, params: dict) -> tuple[np.ndarray | None, str | None, str | None]:
@@ -204,9 +218,10 @@ def froude_subcritical(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
 
     Reports the share of scored steps on which Fr exceeded `1 + tolerance`,
     and fails when that share passes `max_exceed_fraction`. A step is scored
-    when it reports a depth the declared section could hold — above the floor
-    and, when the probe sets `max_depth_m`, below it — and a record with too
-    few such steps is degenerate rather than passing.
+    when water is moving through it — a non-zero discharge — and its depth is one
+    the declared section could hold, so a step is excused for being dry or for
+    being deeper than the reach and never for being shallow. A record with too
+    few scored steps is degenerate rather than passing.
     """
     stage_var = str(params.get("stage", DEFAULT_STAGE))
     width_key = str(params.get("width_key", DEFAULT_WIDTH_KEY))
@@ -300,9 +315,10 @@ def froude_subcritical(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
     # the front, so the two line up on the same slice.
     depth_window = depth_all[run.case.spinup_steps:]
 
-    # A non-finite value is not a step to skip. Both masks below keep only what
-    # they can compare — `NaN > floor` and `NaN > 0` are both false — so a single
-    # bad value in the peak of a flood would leave the scored set quietly: one
+    # A non-finite value is not a step to skip. The mask below keeps only what
+    # it can compare — `NaN` is neither above zero nor below the ceiling, so both
+    # halves of it are false — and a single bad value in the peak of a flood would
+    # leave the scored set quietly: one
     # step fewer, a slightly smaller share, and a pass. That is an invalid input
     # leaving the assessment by the door an honest dry step uses, and the two
     # series being scored are the model's own readings, so the pair is refused
@@ -323,8 +339,18 @@ def froude_subcritical(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
             diagnostics={"non_finite_steps": n_bad, "discharge_source": q_source},
         )
 
-    depth, deep_enough = _depth(depth_window, min_depth_m, max_depth_m)
-    scored = deep_enough & (q > 0.0)
+    depth, within_section = _depth(depth_window, min_depth_m, max_depth_m)
+    # Dryness is read from the flow and not from the depth. A step is excused when
+    # nothing is moving through it; a *shallow* depth is not dryness but the
+    # fastest flow the record can hold, and the depth has already been clamped to
+    # the floor above so that every flowing step has a number to divide by. The
+    # magnitude rather than the signed value, because a discharge is a magnitude
+    # here: a step that reports a negative flow is water moving, and reading the
+    # sign as "nothing to score" would let a model take its worst steps out of the
+    # sample by flipping them — the same move as making them shallow. The
+    # magnitude is what enters `Fr` below for the same reason.
+    flow = np.abs(q)
+    scored = within_section & (flow > 0.0)
     n_scored = int(scored.sum())
     # Steps the ceiling refused: a depth the section could not hold. Counted
     # apart from the dry ones so that the message below can say which of the two
@@ -347,7 +373,7 @@ def froude_subcritical(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
             status=FAIL,
             message=(
                 "the reach is dry or flat through the record "
-                f"({n_scored} of {n} steps deep enough to score, "
+                f"({n_scored} of {n} steps carry flow within the section, "
                 f"needs {min_scored_fraction:.0%}){refused}; there is no flow "
                 "regime to read and the case is degenerate for this criterion"
             ),
@@ -359,11 +385,14 @@ def froude_subcritical(run: RunResult, probe: ProbeSpec, params: dict) -> Criter
             },
         )
 
-    # Fr = Q / (w * d^1.5 * sqrt(g)). Every factor is something the model
+    # Fr = |Q| / (w * d^1.5 * sqrt(g)). Every factor is something the model
     # declared, so a model cannot escape by reporting a stage and a discharge
-    # that disagree: the disagreement is exactly what is being scored.
+    # that disagree: the disagreement is exactly what is being scored. The
+    # magnitude of the flow, because the number is a ratio of speeds and a
+    # signed numerator would come out negative, which is below the limit at
+    # every step — a reading that cannot fail rather than one that passes.
     fr = np.zeros(n)
-    fr[scored] = q[scored] / (width_m * depth[scored] ** 1.5 * GRAVITY**0.5)
+    fr[scored] = flow[scored] / (width_m * depth[scored] ** 1.5 * GRAVITY**0.5)
 
     limit = 1.0 + tolerance
     exceed = np.zeros(n, dtype=bool)

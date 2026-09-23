@@ -85,8 +85,8 @@ criteria:
       # must-pass baselines give over the gate seeds — 4.44 m, `reference_bucket`
       # on the second gate seed, whose worst Fr there is 0.453 inverted through
       # the section's normal-depth relation — so the ceiling never comes near
-      # honest flow. Over a hundred seeds the worst honest Fr is 0.466, a depth
-      # of 5.27 m on seed 17, which still leaves the ceiling 1.9x of room.
+      # honest flow. Over seeds 0-99 the worst honest Fr is 0.466, a depth of
+      # 5.27 m on seed 17, which still leaves the ceiling 1.9x of room.
       max_depth_m: 10.0
 
   - non_degenerate:

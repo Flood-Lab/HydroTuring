@@ -13,9 +13,13 @@ three things about this criterion are easy to get wrong while staying green:
 * the width of the section is a static attribute, not a constant, so a
   criterion that hard-codes the width passes every gate while refusing to
   judge a model in the channel the case declared;
-* steps where the reach is dry are excluded rather than scored, and a
-  criterion that scores them fails an honest receding flow on the depth
-  floor instead of on its hydraulics;
+* a step is excused at one end of the depth range and refused at the other, and
+  both doors have to be read from the flow rather than from the depth: a step
+  the reach carries no water through is not scored, while a *shallow* step
+  carrying water is the fastest in the record and is scored at the floor —
+  excusing it is how a model buys a pass by reporting its flood peaks as
+  sub-centimetre, and the direction of the error is the tell, because making
+  those peaks *more* wrong moves the verdict from a failure to a pass;
 * `stage` is an elevation on the case's fixed vertical datum, so the depth is
   `stage - bed_elevation_m` and the criterion may not infer a datum: a case
   that declares none is refused, a reading taken from another zero reaches the
@@ -231,14 +235,105 @@ def test_a_dry_reach_has_no_regime_to_read():
     assert "degenerate" in result.message
 
 
-def test_nearly_dry_steps_are_excluded_from_the_scored_set():
-    """A stage at the floor is a dry step wearing a number."""
+def test_a_step_with_no_flow_is_still_excused():
+    """Dryness is read from the flow, so a step with no water in it leaves the
+    sample.
+
+    The floor is a floor on the division rather than a dryness test. A step the
+    reach carries nothing through has no velocity to read in it, and scoring it
+    would fail an honest receding flow on arithmetic instead of on its
+    hydraulics — so the one thing that still excuses a step is the absence of
+    flow, which is what keeps this from failing every record at baseflow.
+    """
     q = np.linspace(1.0, 50.0, 400)
     stage = manning_depth(q)
     stage[:200] = 0.0  # the first half of the record is dry
+    q = q.copy()
+    q[:200] = 0.0      # ... and carries nothing, which is what makes it dry
     result = FROUDE(build(q=q, stage=stage), None, {})
     assert result.status == PASS
     assert result.diagnostics["scored_steps"] == 200
+
+
+def test_a_shallow_step_carrying_water_is_scored_not_excused():
+    """The door the `NaN` fix did not close: depth decides dryness, so a model
+    that reports its worst steps as sub-centimetre takes them out of the sample.
+
+    A step with discharge behind it and a depth under the floor is not a dry
+    reach — at a given discharge it is the *fastest* step the record can hold,
+    because `Fr` grows without bound as the depth falls. The verdict was
+    therefore monotone in the wrong direction: peaks at a fifth of their honest
+    depth failed, and the same model made more wrong still — peaks at five
+    millimetres — passed, because the steps it would have failed on left the
+    scored set while the remaining 70% of the record stayed comfortably above
+    `min_scored_fraction` and nothing reported the gap.
+
+    The discharge is untouched throughout, so what this pins is that the depth
+    alone may not excuse a step.
+    """
+    q = np.linspace(1.0, 50.0, 400)
+    stage = manning_depth(q)
+    peaks = q >= np.quantile(q, 0.70)   # the 120 largest discharges
+    stage[peaks] = 0.005                # sub-centimetre, discharge unchanged
+
+    # The same record with its honest depths, so what fails is the depth.
+    assert FROUDE(build(q=q, stage=manning_depth(q)), None, {}).status == PASS
+
+    result = FROUDE(build(q=q, stage=stage), None, {})
+    assert result.status == FAIL
+    assert result.diagnostics["scored_steps"] == 400
+    assert result.diagnostics["exceeding_steps"] == int(peaks.sum())
+    assert result.diagnostics["max_froude"] > 100.0
+    assert "supercritical" in result.message
+
+
+def test_the_clamped_floor_is_what_a_shallow_flow_is_scored_at():
+    """A flowing step has a number to divide by, and the number is the floor.
+
+    `Fr = Q / (w d**1.5 sqrt(g))` with `d` at zero is not defined, so the floor
+    is doing its job when a millimetre of reported depth is read as the one
+    centimetre the division needs — and the result is enormous, which is the
+    point: that pair is not a reach, it is a discharge with no water under it.
+    """
+    q = np.linspace(1.0, 50.0, 400)
+    result = FROUDE(build(q=q, stage=np.full(400, 0.005)), None, {})
+    assert result.status == FAIL
+    assert result.diagnostics["scored_steps"] == 400
+    floor_fr = q / (WIDTH_M * 0.01**1.5 * GRAVITY**0.5)
+    assert result.diagnostics["max_froude"] == pytest.approx(float(floor_fr.max()))
+
+
+def test_a_negative_reading_is_water_moving_rather_than_an_excuse():
+    """A discharge is a magnitude here, so neither the mask nor the quotient may
+    read the sign.
+
+    Flipping the sign of the steps a model would fail on is the same move as
+    reporting them shallow, one step further out; and a numerator that keeps the
+    sign computes a negative quotient, which is under the limit at every step —
+    a reading that cannot fail rather than one that passes.
+    """
+    q = np.linspace(1.0, 50.0, 400)
+    honest_depth = manning_depth(q)
+    result = FROUDE(build(q=-q, stage=honest_depth), None, {})
+    assert result.diagnostics["scored_steps"] == 400
+
+    # The same pair with the sign taken off is the frame every other test here
+    # uses, so the magnitude is what the criterion reads.
+    flipped = FROUDE(build(q=q, stage=honest_depth), None, {})
+    assert result.diagnostics["max_froude"] == pytest.approx(
+        flipped.diagnostics["max_froude"])
+    assert result.status == flipped.status == PASS
+
+    # And a pinning that only a positive quotient would notice: the depth is a
+    # tenth of a metre at every flow, so the pair is supercritical on most of the
+    # record whether the discharge is reported up or down.
+    pinned = np.full(400, 0.10)
+    up = FROUDE(build(q=q, stage=pinned), None, {})
+    down = FROUDE(build(q=-q, stage=pinned), None, {})
+    assert up.status == down.status == FAIL
+    assert down.diagnostics["max_froude"] == pytest.approx(
+        up.diagnostics["max_froude"])
+    assert down.diagnostics["max_froude"] > 1.05
 
 
 def test_a_stage_on_the_wrong_datum_is_a_convention_mismatch():
@@ -360,6 +455,33 @@ def test_the_ceiling_leaves_a_depth_the_section_can_hold_alone():
     assert result.diagnostics["too_deep_steps"] == 0
     assert result.diagnostics["max_depth_m"] == 10.0
     assert result.diagnostics["scored_steps"] == 400
+
+
+def test_the_ceiling_still_refuses_where_the_floor_no_longer_does():
+    """The floor left the mask; the ceiling stays in it.
+
+    Both bounds used to be applied the same way — to the depth — and they are
+    not the same kind of statement. A shallow step is a real step and the floor
+    only gives the division a number; a step deeper than the section can hold is
+    not a reading of that section at all. Clamping it the way the floor clamps
+    would put the offset back inside the range the bound exists to exclude, and
+    an offset only ever adds to the depth, so a clamped offset is a comfortable
+    pass rather than a refusal.
+    """
+    q = np.linspace(1.0, 50.0, 400)
+    offset = manning_depth(q) + 25.0
+    refused = FROUDE(build(q=q, stage=offset), None, {"max_depth_m": 10.0})
+    assert refused.status == FAIL
+    assert refused.diagnostics["scored_steps"] == 0
+    assert refused.diagnostics["too_deep_steps"] == 400
+    assert "ceiling" in refused.message
+
+    # The same depth with the ceiling lifted is the pass a clamp would have
+    # bought: an offset only adds to the depth, and a deeper depth is a smaller
+    # Froude number.
+    quiet = FROUDE(build(q=q, stage=offset), None, {})
+    assert quiet.status == PASS
+    assert quiet.diagnostics["max_froude"] < 0.1
 
 
 def test_there_is_no_ceiling_unless_the_probe_sets_one():

@@ -69,10 +69,18 @@ is supercritical through every flood reports most of the record. The limit
 is a parameter, so a future case where a small share is the honest reading
 can say so without touching the criterion.
 
-Steps where the reach is effectively dry are **not scored**. The depth
-carries a one-centimetre floor so a receding flow does not divide by zero,
-but a step that only clears the floor because of the floor says nothing
-about velocity — scoring it would let a dry reach fail on arithmetic.
+A step is **not scored** only when nothing is moving through it. The depth
+carries a one-centimetre floor so a receding flow does not divide by zero, but
+the floor is a floor on the division and not a dryness test: a step carrying
+water is scored at the clamped depth however shallow the model says it is.
+Deciding dryness on the depth would be backwards here — at a given discharge
+the shallowest step is the *fastest* in the record, `Fr = Q / (w sqrt(g) d**1.5)`
+growing without bound as `d` falls — so it would excuse exactly the steps the
+probe exists to catch, and in the wrong direction: a model carrying its flood
+peaks at a millimetre of depth would be failed only while it was *nearly*
+honest, and would pass once it was wrong enough for the peaks to leave the
+sample. Dryness is read from the flow, and the flow is read as a magnitude, so a
+step reported with a negative discharge is water moving rather than an excuse.
 
 ## Where the separation comes from
 
@@ -80,17 +88,19 @@ A gauge that reads the flow it is carrying — Manning normal depth in the
 declared section — is subcritical by construction: substituting the
 normal-depth relation into Fr leaves `Fr = sqrt(S) / n * d**(1/6) / sqrt(g)`,
 which on a mild slope with a realistic roughness sits near 0.4 at every flow
-the case produces. Across the four must-pass baselines the worst Fr over the
-gate's three seeds runs between **0.376 and 0.453**, and no scored step
-exceeds one on any seed.
+the case produces. Across the four must-pass baselines the worst Fr runs between
+**0.376 and 0.453** over the gate's three seeds — and between **0.369 and
+0.466** over seeds 0–99 — and no scored step exceeds one on any seed.
 
 The must-fail puts the same flow through a section five times wider, so its
 gauge reports a depth `5**0.6` (~2.5) times shallower and the Froude number
-the pair implies is `5**0.9` (~4.3) times the honest one. It is supercritical
-on **83–90%** of scored steps, with a worst Fr of 1.77 to 1.93 and a median
-above one. The populations do not touch: the honest gauges' worst step (0.453)
-is 3.9 times below the failing model's worst, and the failing model sits above
-the limit on most of the record rather than at one marginal step.
+the pair implies is `5**0.9` (~4.3) times the honest one. On the gate seeds it is
+supercritical on **83.3–90.1%** of scored steps, with a worst Fr of 1.77 to 1.93
+and a median above one; over seeds 0–99 the same figures are **82.2–99.3%**,
+1.75 to 1.98, and a median of 1.17 to 1.24. The populations do not touch: the
+honest gauges' worst step (0.453 on the gate seeds) is 3.9 times below the
+failing model's worst, and the failing model sits above the limit on most of the
+record rather than at one marginal step.
 
 | Criterion | Asserts |
 | --- | --- |
@@ -161,24 +171,39 @@ numbers a model reports.
 10 m, four times the case's declared bankfull depth and 2.3 times the deepest
 reading a must-pass baseline gives over the gate seeds — **4.44 m**, from
 `reference_bucket` on the second gate seed, whose worst Fr there is 0.453 — so it
-never comes near honest flow. Over a hundred seeds the deepest honest reading is
-**5.27 m**, at a worst Fr of 0.466, which still leaves the ceiling 1.9x of room.
+never comes near honest flow. Over seeds 0–99 the deepest honest reading is
+**5.27 m**, on seed 17 at a worst Fr of 0.466, which still leaves the ceiling
+1.9x of room.
 What it catches is the other end: a model that
 ignored the declared datum and reported a level offset far enough to put its
-depth past what the section can hold, which is refused the way a dry step is.
+depth past what the section can hold, which is refused rather than scored. The
+ceiling refuses and does not clamp, deliberately: an offset only ever adds to the
+depth, so clamping the reading back into range would re-admit exactly what the
+bound exists to exclude.
 
-**A non-finite reading is refused rather than skipped.** Both masks compare
+**A non-finite reading is refused rather than skipped.** The mask compares
 against bounds, and `NaN` compares false against every one of them, so a step
 carrying a bad value would leave the scored set silently — one step fewer, and a
 share measured on what is left. The criterion refuses the record instead and
 reports how many steps were unreadable. Leaving a step out is for steps the
 *reach* makes unscorable, not for values the arithmetic cannot carry.
 
-**Steps at the depth floor are skipped.** A reach that is dry or nearly dry
-is not scored, so a model that only misbehaves at baseflow — reporting a
-velocity it could not have when there is almost no water — passes. The
-opposite case is covered: a gauge drawn for a wider section is too shallow at
-every flow, and is caught on most of the record rather than only in floods.
+**A shallow depth is not an excuse.** A step with no water in it is skipped; a
+step with a millimetre of water in it is the *fastest* step in the record and is
+scored at the one-centimetre floor. An earlier version of this criterion decided
+dryness from the depth instead, and a model could buy a pass with it: reporting
+its flood peaks at a millimetre left the 438 steps it would have failed on out of
+the sample, while the remaining 70% of the record was still scored, comfortably
+above the 5% `min_scored_fraction`, so nothing reported the third of the flood
+that went unexamined. Reading dryness from the flow closes that door.
+
+What is still open, and is the one number worth revisiting: a step is excused
+when the model reports *exactly* no flow through it, and the model is the one
+reporting. A model that zeroed its worst steps would still be bounded only by
+`min_scored_fraction` — at 5%, a fifth of the way down. After the change the
+honest baselines score 95.9% of the record or more, so the floor has room to be
+raised towards them; that is a decision for the case rather than for the
+criterion, and it is stated here rather than left to be discovered.
 
 ## What would make it sharper
 
