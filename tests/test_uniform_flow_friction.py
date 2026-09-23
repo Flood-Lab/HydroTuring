@@ -10,7 +10,7 @@ import pytest
 
 from hydroturing import registry
 from hydroturing.criteria import depth_series, get
-from hydroturing.criteria.base import FAIL, PASS
+from hydroturing.criteria.base import FAIL, PASS, CriterionIncompatibleError
 from hydroturing.harness import build_case, run_probe
 from hydroturing.protocol import Case, RunResult
 from hydroturing.runner import get_runner
@@ -187,13 +187,16 @@ def test_a_slow_drift_skips_only_its_plateau_even_when_cv_is_loose():
     stage[-ROWS_PER_PLATEAU:] = STATIC["bed_elevation_m"] + np.array([
         _depth(value, STATIC["slope"]) for value in q[-ROWS_PER_PLATEAU:]
     ])
-    result = get("uniform_flow_friction")(
-        _run(q, stage), None, _params(max_cv=1.0)
-    )
-    assert result.status == PASS
-    assert result.diagnostics["steady_plateaus"] == ["low", "medium"]
-    assert result.diagnostics["skipped_plateaus"] == ["high"]
-    assert "skipped non-steady plateau(s): high" in result.message
+    # The drift trips the quarter-shift gate on the high plateau alone. Low and
+    # medium are exact, but a pass needs every plateau steady, so the seed is
+    # not scored rather than passed on the two the model kept.
+    with pytest.raises(CriterionIncompatibleError) as raised:
+        get("uniform_flow_friction")(_run(q, stage), None, _params(max_cv=1.0))
+    message = str(raised.value)
+    assert "a pass needs every plateau steady" in message
+    assert "high residual" in message
+    assert "low residual" not in message
+    assert "medium residual" not in message
 
 
 def test_a_nonsteady_plateau_cannot_hide_steady_friction_failures():
@@ -210,6 +213,31 @@ def test_a_nonsteady_plateau_cannot_hide_steady_friction_failures():
     assert result.diagnostics["skipped_plateaus"] == ["high"]
     assert "low residual 75.00%" in result.message
     assert "skipped non-steady plateau(s): high" in result.message
+
+
+@pytest.mark.parametrize("wrong", range(3), ids=LABELS)
+def test_a_plateau_rippled_until_skipped_cannot_buy_a_pass(wrong):
+    """The plateau a model would fail on cannot be left out to pass on the rest.
+
+    Steadiness is read from the model's own output. Put a friction error on one
+    plateau, then ripple that plateau until it is skipped as non-steady: the
+    error leaves the scored set, and the two honest plateaus would pass. The
+    same model without the ripple fails, so the ripple is what buys the pass.
+    """
+    slopes = [STATIC["slope"]] * 3
+    slopes[wrong] = 0.25 * STATIC["slope"]
+    q, stage = _steady_series(slopes=tuple(slopes))
+    criterion = get("uniform_flow_friction")
+
+    assert criterion(_run(q, stage), None, _params()).status == FAIL
+
+    block = slice(wrong * ROWS_PER_PLATEAU, (wrong + 1) * ROWS_PER_PLATEAU)
+    q[block] *= 1.0 + 0.03 * np.sin(np.linspace(0.0, 12.0 * np.pi, ROWS_PER_PLATEAU))
+
+    with pytest.raises(
+        CriterionIncompatibleError, match="a pass needs every plateau steady"
+    ):
+        criterion(_run(q, stage), None, _params())
 
 
 def test_dry_or_nonfinite_answers_fail_instead_of_being_skipped():

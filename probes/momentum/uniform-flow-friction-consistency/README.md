@@ -35,11 +35,16 @@ the separate quarter-shift gate still rejects a secular drift above 1%.
 
 A plateau that fails the steadiness precondition is skipped rather than used
 to judge momentum. Every steady plateau is still scored, so a non-steady
-plateau cannot hide a friction violation measured on another plateau. The
-probe is `N/A (INCOMPATIBLE)` only when none of the three plateaus is steady,
-because only then has the experiment established no uniform-flow state in
-which the friction balance can be evaluated. Reports retain the residual and
-steadiness diagnostics for every skipped plateau.
+plateau cannot hide a friction violation measured on another plateau: that
+failure decides the seed however many plateaus were skipped. A pass, though,
+needs all three plateaus steady, and a seed with a skipped plateau and no
+failure is `N/A (INCOMPATIBLE)`. Steadiness is read from the model's own
+output, so the skipped plateau may be the one it would have failed on — a
+friction error four times the tolerance on one plateau, with a 3% ripple on
+the same plateau, would otherwise pass on the other two. The seed is scored
+the same way `min_scored_fraction` scores the probe: skipping can cost a
+verdict, never buy one. Reports retain the residual and steadiness diagnostics
+for every skipped plateau.
 
 All five requested seeds must produce a score (`min_scored_fraction: 1.0`).
 Steadiness is measured on the model's own reported discharge and depth, so the
