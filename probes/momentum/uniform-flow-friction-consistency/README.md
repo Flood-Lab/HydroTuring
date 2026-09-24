@@ -42,9 +42,10 @@ failure is `N/A (INCOMPATIBLE)`. Steadiness is read from the model's own
 output, so the skipped plateau may be the one it would have failed on — a
 friction error four times the tolerance on one plateau, with a 3% ripple on
 the same plateau, would otherwise pass on the other two. The seed is scored
-the same way `min_scored_fraction` scores the probe: skipping can cost a
-verdict, never buy one. Reports retain the residual and steadiness diagnostics
-for every skipped plateau.
+the same way `min_scored_fraction` scores the probe: skipping can cost a pass,
+never buy one. A violation confined to the skipped plateau ends as N/A rather
+than FAIL, and its residual stays in the N/A message. Reports retain the
+residual and steadiness diagnostics for every skipped plateau.
 
 All five requested seeds must produce a score (`min_scored_fraction: 1.0`).
 Steadiness is measured on the model's own reported discharge and depth, so the

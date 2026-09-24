@@ -264,8 +264,8 @@ def uniform_flow_friction(
     message = (
         "; ".join(failures) + skipped
         if failures
-        else f"steady plateau(s) satisfy |S_f - S_0| / S_0: {summary} "
-             f"(limit {tolerance:.2%}){skipped}"
+        else f"three steady plateaus satisfy |S_f - S_0| / S_0: {summary} "
+             f"(limit {tolerance:.2%})"
     )
     return CriterionResult(
         "uniform_flow_friction",
