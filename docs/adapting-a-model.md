@@ -83,6 +83,18 @@ actually consumes, and document their mapping to native parameters. Layer
 metadata makes that mapping auditable; a matching declaration alone does not
 prove that the model used it. See the [soil-storage case](../probes/energy/soil-heat-storage-consistency/README.md).
 
+For prescribed net radiation, declaring `rn` means the supplied value is the
+external radiative input to the reported surface budget. Use `needs_forcing`
+if the model requires it to run, or `uses_forcing` if it accepts that boundary
+when supplied and has a documented fallback otherwise. This declares the
+input condition, not successful energy conservation. Merely reading `rn` to
+construct incoming shortwave and longwave for a reference surface is
+insufficient if the model then computes different net radiation. Document
+that mapping without declaring prescribed-`rn` support; the
+[hourly surface-budget probe](../probes/energy/surface-energy-closure/README.md)
+will report `N/A (INCOMPATIBLE)` when the heat outputs are present. Do not
+alter native heat fluxes to match the benchmark's radiation.
+
 ## 2. Write the adapter
 
 Read `/io/request.json`, read the forcing, call your model, write the table.
