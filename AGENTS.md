@@ -254,12 +254,25 @@ is worse and is also dishonest.
 without; a missing input makes the case `N/A (INCOMPATIBLE)`.
 `uses_forcing` and `uses_static` declare optional inputs: the adapter must
 consume them whenever supplied, but can run without them using a documented
-fallback. The one carve-out is `gwh`, the prescribed external head, where the
-declaration is a semantic opt-in rather than a promise about the column: a
+fallback. Some declarations also carry a physical input contract. For
+`gwh`, the prescribed external head, the declaration is a semantic opt-in
+rather than a promise about the column: a
 model may read a head for another purpose, so declaring `gwh` asserts that the
 model's own `gwex` responds monotonically to that head, and
-`mass/exchange-response` holds it to the assertion rather than to the reading. A probe's `requires.forcing` and `requires.static` accept either
-declaration. For example, `energy/radiation-consistency` requires consumption
+`mass/exchange-response` holds it to the assertion rather than to the reading.
+
+Declaring `rn` means accepting the supplied net radiation as the external
+energy input to the reported surface budget. It does not assert that the
+resulting budget closes; that is what the energy criterion tests. An adapter
+that only uses `rn` to construct a reference sky, then lets its model compute
+a different net radiation, must document that mapping without declaring
+prescribed-`rn` support. `energy/surface-energy-closure` requires this input
+contract, so an adapter with the heat outputs but without that declaration
+is `N/A (INCOMPATIBLE)`. Do not infer compatibility from a small residual or
+turn a large residual into N/A.
+
+A probe's `requires.forcing` and `requires.static` accept either `needs_*`
+or `uses_*`. For example, `energy/radiation-consistency` requires consumption
 of `rlds` and `eps`; a model that does not declare it consumes both is
 `N/A (INCOMPATIBLE)` because it may be computing its own sky or emissivity.
 

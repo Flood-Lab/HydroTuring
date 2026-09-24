@@ -712,3 +712,18 @@ run_date,model,version,suite_version,runner,probe,verdict,reason,window,seeds,de
 2026-09-21,flex_lumped,1.2.0,0.1.0,subprocess,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
 2026-09-21,flex_topo,1.1.0,0.1.0,subprocess,mass/snowpack-mass-closure,N/A,INCOMPLETE,not run,,does not report snm
 2026-09-21,sacsma_snow17,1.1.0,0.1.0,subprocess,mass/snowpack-mass-closure,PASS,OK,full record,809506488 1316458602 1823410716 182879183 689831297,closure: cumulative residual 0.0000% of sum_pr (limit 5.0%); snowpack_response: snow accumulation and melt are non-trivial
+2026-09-24,cwatm,1.11-5baaadd.4,0.1.0,docker,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H; model does not declare that it consumes forcing rn"
+2026-09-24,dhbv2,0.5.4-hbv2ep100.3,0.1.0,docker,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H; model does not declare that it consumes forcing rn"
+2026-09-24,flex_lumped,1.2.0,0.1.0,subprocess,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model does not declare that it consumes forcing rn"
+2026-09-24,flex_topo,1.1.0,0.1.0,subprocess,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model does not declare that it consumes forcing rn"
+2026-09-24,google_flood_forecast,0.1.0-828dfc5,0.1.0,docker,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H; model does not declare that it consumes forcing rn"
+2026-09-24,lisflood,5.0.0-onecell.5,0.1.0,docker,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model does not declare that it consumes forcing rn"
+2026-09-24,modflow6,6.7.0-adapter.1,0.1.0,docker,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H; model does not declare that it consumes forcing rn"
+2026-09-24,reference_exchange_exact,0.1.0,0.1.0,subprocess,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H; model does not declare that it consumes forcing rn"
+2026-09-24,reference_exchange_sign_error,0.1.0,0.1.0,subprocess,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model timestep PT1D does not cover the probe's PT1H; model does not declare that it consumes forcing rn"
+2026-09-24,reference_frozen_soil,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing rn
+2026-09-24,reference_half_soil,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing rn
+2026-09-24,reference_soil_heat,1.0.0,0.1.0,subprocess,energy/surface-energy-closure,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing rn
+2026-09-24,sacsma_snow17,1.1.0,0.1.0,subprocess,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model does not declare that it consumes forcing rn"
+2026-09-24,summa,4.0.0-f787fa5.4,0.1.0,docker,energy/surface-energy-closure,N/A,INCOMPATIBLE,not run,,model does not declare that it consumes forcing rn
+2026-09-24,wflow_sbm,1.0.4-ht.4,0.1.0,docker,energy/surface-energy-closure,N/A,INCOMPLETE,not run,,"does not report hfls, hfss, hfg; model does not declare that it consumes forcing rn"

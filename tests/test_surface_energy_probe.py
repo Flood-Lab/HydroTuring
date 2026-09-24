@@ -18,10 +18,12 @@ from hydroturing.harness import (
     build_case,
     load_generator,
     resolve_window_days,
+    run_probe,
     select_window,
     window_case,
 )
 from hydroturing.protocol import FORCING_FILE, stage
+from hydroturing.runner import get_runner
 
 
 @pytest.fixture(scope="module")
@@ -90,3 +92,39 @@ def test_default_and_short_requested_windows_keep_all_scored_phases(probe):
     assert cut.spinup_steps == 48
     assert cut.window["rows"] == 336
     pd.testing.assert_frame_equal(cut.forcing, case.forcing)
+
+
+def test_heat_outputs_without_prescribed_rn_support_are_incompatible(probe, tmp_path):
+    model = registry.find_model("reference_coupled")
+    model = replace(model, needs_forcing=tuple(x for x in model.needs_forcing if x != "rn"))
+    result = run_probe(model, probe, seeds=[0], workdir=tmp_path)
+    assert (result.verdict, result.reason) == ("N/A", "INCOMPATIBLE")
+    assert result.incompatible == ["model does not declare that it consumes forcing rn"]
+
+
+@pytest.mark.parametrize("optional", [False, True])
+def test_prescribed_rn_can_be_required_or_optional(probe, tmp_path, optional):
+    model = registry.find_model("reference_coupled")
+    if optional:
+        model = replace(
+            model,
+            needs_forcing=tuple(x for x in model.needs_forcing if x != "rn"),
+            uses_forcing=("rn",),
+        )
+    result = run_probe(model, probe, seeds=[0], workdir=tmp_path)
+    assert (result.verdict, result.reason) == ("PASS", "OK")
+
+
+def test_missing_heat_outputs_keep_incomplete_classification(probe, tmp_path):
+    result = run_probe(registry.find_model("reference_bucket"), probe, seeds=[0], workdir=tmp_path)
+    assert (result.verdict, result.reason) == ("N/A", "INCOMPLETE")
+
+
+def test_summa_mock_is_incompatible_before_adapter_execution(probe, tmp_path, monkeypatch):
+    # The packaged adapter reads rn to build a sky, not to impose the model's
+    # own net radiation. Its heat outputs alone cannot make this comparison.
+    model = registry.find_model("summa")
+    monkeypatch.setattr(type(get_runner(model)), "run", lambda *args: pytest.fail("incompatible adapter ran"))
+    result = run_probe(model, probe, seeds=[0], workdir=tmp_path)
+    assert (result.verdict, result.reason) == ("N/A", "INCOMPATIBLE")
+    assert result.incompatible == ["model does not declare that it consumes forcing rn"]

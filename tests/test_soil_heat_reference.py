@@ -137,15 +137,14 @@ def test_rounded_reference_keeps_margin_at_largest_declared_capacity(probe, simu
 
 @pytest.mark.parametrize("name", ["reference_soil_heat", "reference_frozen_soil", "reference_half_soil"])
 def test_prescribed_net_radiation_case_is_incompatible_before_adapter_execution(tmp_path, name, monkeypatch):
-    # These references consume incoming radiation and a configured layer.
-    # The older net-radiation surface case cannot supply those inputs.
+    # These references consume incoming radiation, not a prescribed rn.
+    # Reject that boundary mismatch before constructing or running the case.
     surface_probe = registry.find_probe("energy/surface-energy-closure")
     model = registry.find_model(name)
     monkeypatch.setattr(type(get_runner(model)), "run", lambda *args: pytest.fail("incompatible adapter ran"))
     outcome = run_probe(model, surface_probe, [11], workdir=tmp_path)
     assert (outcome.verdict, outcome.reason) == (NOT_SCORED, INCOMPATIBLE)
-    assert any("rsds, rlds" in issue for issue in outcome.incompatible)
-    assert any("soil_heat_capacity_areal" in issue for issue in outcome.incompatible)
+    assert outcome.incompatible == ["model does not declare that it consumes forcing rn"]
 
 
 @pytest.mark.parametrize("kind,key", [
