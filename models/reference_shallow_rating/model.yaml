@@ -9,8 +9,9 @@ description: >
   nothing about it is degenerate and no budget moves. What it does is imply a
   velocity: at that depth, the declared section would have to deliver the
   flow about four times faster than the wave carrying it. Pins the Froude
-  check, which is the only criterion in the suite that reads a stage and a
-  discharge against each other.
+  check. `uniform_flow_friction` reads the same pair where the flow is steady
+  and catches this gauge too; what the Froude check adds is the regime the
+  pair implies, on a record that is never steady.
 authors: ["HydroTuring maintainers"]
 license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
@@ -28,7 +29,11 @@ needs_forcing: [pr, tas, pet]
 # `bed_elevation_m` is the datum its reported `stage` is an elevation on: the
 # depth the borrowed rating makes is added to it, so the model genuinely reads
 # the key rather than merely tolerating it.
-uses_static: [width_m, slope, manning_n, bed_elevation_m]
+# `cross_section_shape` is read the way the bucket reads it: this is the
+# wide-rectangular relation, and a case declaring another section is refused
+# rather than drawn as if it were rectangular. Declared, so the model is scored
+# wherever the bucket is rather than skipped for a key it does consume.
+uses_static: [width_m, slope, manning_n, bed_elevation_m, cross_section_shape]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}

@@ -231,7 +231,7 @@ the probe cannot ask the declared model interface this question.
 | `reference_saint_venant` | exact | advances one-dimensional continuity and momentum with a finite-volume solver from a non-equilibrium state; no normal-depth lookup | must pass `uniform_flow_friction` |
 | `reference_wrong_roughness` | broken | computes stage with Manning roughness 3% above the declared value, a 5.74% near-boundary residual | caught by `uniform_flow_friction` |
 | `reference_wrong_slope` | broken | computes stage with bed slope 6% above the declared value, a 6% near-boundary residual | caught by `uniform_flow_friction` |
-| `reference_shallow_rating` | broken | draws its gauge from a section five times wider than the one the case declares, so the depth is right for a different reach and too shallow for this one | caught by `froude_subcritical` |
+| `reference_shallow_rating` | broken | draws its gauge from a section five times wider than the one the case declares, so the depth is right for a different reach and too shallow for this one | caught by `froude_subcritical`, and by `uniform_flow_friction` at steady flow |
 | `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | N/A (INCOMPLETE) on budget probes; caught by `response_sign` |
 | `reference_in_sample` | broken | removes surface runoff above a fixed 55 mm daily precipitation cutoff | caught by `event_water_closure` |
 | `reference_calendar` | broken | a recession that drifts with the calendar year | caught by `invariance` (time origin) |

@@ -255,6 +255,88 @@ def test_a_step_with_no_flow_is_still_excused():
     assert result.diagnostics["scored_steps"] == 200
 
 
+def _runoff_for(q):
+    """The `mrro` in mm/day that is the same outflow as `q` in m3/s."""
+    return np.asarray(q, dtype=float) * SECONDS_PER_DAY / (AREA_KM2 * 1e6) * 1e3
+
+
+def test_a_zero_in_dis_with_runoff_behind_it_is_scored_on_the_runoff():
+    """A step is still only when every flow the model reports says so.
+
+    `dis` is preferred, so with the scored set decided on it alone a model that
+    reports both columns picks which steps are scored: the wider-reach rating,
+    with `dis` zeroed on exactly the steps it goes supercritical on and `mrro`
+    still carrying the water, passed — on the probe's own gate seeds too, where
+    it left 144 of 1460 steps scored. Under the contract the two columns are two
+    readings of one outflow, so the silent steps are scored on the runoff.
+    """
+    # Baseflow low enough that even the wider rating stays subcritical, as it
+    # does on the gate record, then the floods it fails on.
+    q = np.concatenate([np.full(60, 0.2), np.linspace(1.0, 50.0, 340)])
+    stage = manning_depth(q, width_m=5 * WIDTH_M)
+    fr = q / (WIDTH_M * stage ** 1.5 * GRAVITY ** 0.5)
+    lying = q.copy()
+    lying[fr > 1.05] = 0.0
+    n_zeroed = int((lying == 0.0).sum())
+    assert n_zeroed == 340  # every flood step, which is the point
+
+    result = FROUDE(build(q=lying, stage=stage, mrro=_runoff_for(q)), None, {})
+    assert result.status == FAIL
+    assert result.diagnostics["scored_steps"] == 400
+    assert result.diagnostics["second_reading"] == "mrro"
+    assert result.diagnostics["steps_read_from_second_reading"] == n_zeroed
+    assert f"{n_zeroed} of the scored steps report no 'dis'" in result.message
+
+    # With only `dis` to read, the same record is bounded by the floor alone:
+    # the criterion's own default lets it through, and the floor this probe
+    # declares refuses it as degenerate rather than passing it.
+    dis_only = build(q=lying, stage=stage)
+    assert FROUDE(dis_only, None, {}).status == PASS
+    declared = FROUDE(dis_only, None, {"min_scored_fraction": 0.9})
+    assert declared.status == FAIL
+    assert "dry or flat" in declared.message
+
+
+def test_a_step_both_readings_call_still_is_excused():
+    """The rule reads both columns and changes nothing where they agree: a
+    step with no flow in either is still dry, and an honest record that reports
+    both is scored exactly as it was, with no clause added to its message."""
+    q = np.linspace(1.0, 50.0, 400)
+    stage = manning_depth(q)
+    q[:200] = 0.0
+    runoff = _runoff_for(q)
+    result = FROUDE(build(q=q, stage=stage, mrro=runoff), None, {})
+    assert result.status == PASS
+    assert result.diagnostics["scored_steps"] == 200
+    assert result.diagnostics["steps_read_from_second_reading"] == 0
+    assert "report no 'dis'" not in result.message
+
+
+def test_a_bad_value_in_the_reading_a_silent_step_falls_back_to_is_refused():
+    """The non-finite refusal covers the flow as it is divided by. A `NaN` in
+    `mrro` behind a zero in `dis` would otherwise read as stillness and leave the
+    scored set by the door the refusal exists to close."""
+    q = np.linspace(1.0, 50.0, 400)
+    stage = manning_depth(q)
+    runoff = _runoff_for(q)
+    q[150] = 0.0
+    runoff[150] = np.nan
+    result = FROUDE(build(q=q, stage=stage, mrro=runoff), None, {})
+    assert result.status == FAIL
+    assert result.diagnostics["non_finite_steps"] == 1
+
+
+def test_the_probe_declares_a_scored_floor_the_honest_models_clear():
+    """The floor is what bounds a model that writes a zero into every flow
+    column it reports. Ninety per cent: the must-pass baselines score every step
+    on the gate seeds and at least 96% over seeds 0-99."""
+    from hydroturing.registry import find_probe
+
+    probe = find_probe("momentum/froude-regime")
+    (froude,) = [c for c in probe.criteria if c.name == "froude_subcritical"]
+    assert froude.params["min_scored_fraction"] == 0.9
+
+
 def test_a_shallow_step_carrying_water_is_scored_not_excused():
     """The door the `NaN` fix did not close: depth decides dryness, so a model
     that reports its worst steps as sub-centimetre takes them out of the sample.

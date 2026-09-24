@@ -70,7 +70,15 @@ criteria:
   - froude_subcritical:
       tolerance: 0.05
       max_exceed_fraction: 0.0
-      min_scored_fraction: 0.05
+      # How much of the record a model may leave unscored. A step is excused
+      # only when every flow column it reports says nothing moved, so this
+      # bounds the one thing the model still chooses: how much of its own
+      # record it declares still. The floor guards a pass and not a verdict —
+      # a failure on a scored step stands however few there are. Ninety per
+      # cent leaves real room: each of the four must-pass baselines and the
+      # must-fail score all 1460 steps on every gate seed, and over seeds
+      # 0-99 the lowest honest share is `sacsma_snow17` at 1400 of 1460, 96%.
+      min_scored_fraction: 0.9
       width_key: width_m
       # A section sanity bound, and nothing more than that. The datum is the
       # contract's job: the case declares `bed_elevation_m` and the criterion
@@ -107,10 +115,10 @@ baselines:
     # conserved to the floating point and its runoff is the bucket's, and its
     # gauge is not obviously broken — the stage varies as much as the honest
     # one's, rises monotonically with the flow, and the rating is
-    # single-valued, so every other criterion in the suite passes it. It is
-    # the only counterexample here that has to be, because the probe's claim
-    # is that nothing else reads the pair; a gauge pinned at a constant is
-    # caught by `non_degenerate` elsewhere and would demonstrate nothing. At
+    # single-valued, so every budget and every rating test passes it; only
+    # `uniform_flow_friction`, which reads the same pair at steady flow, fails
+    # it as well. A gauge pinned at a constant is caught by `non_degenerate`
+    # elsewhere and would demonstrate nothing. At
     # this factor the pair implies a Froude number 5**0.9 (~4.3) times the
     # honest one: supercritical on 83 to 90 per cent of scored steps, worst
     # Fr 1.77 to 1.93.

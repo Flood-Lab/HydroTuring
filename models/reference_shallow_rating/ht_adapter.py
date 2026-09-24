@@ -29,8 +29,7 @@ what the velocity is divided by, so the Froude number the pair implies is
 the flow faster than gravity allows, on most of the record and through every
 flood.
 
-It is a defect no other criterion in the suite can see, and that is the
-point:
+It is a defect no budget and no rating test can see:
 
 * the water is exact, so no budget moves — `mass/*` passes;
 * the stage varies (`cv` 0.70) and rises monotonically with the flow, so
@@ -39,11 +38,14 @@ point:
   single-valued and `rating_loop` reads no loop — which is the honest
   statement for a model that holds no water in transit, and passes.
 
-Only `froude_subcritical` reads the two numbers against each other, and only
-it fails. A gauge that does not move at all is caught by `non_degenerate` on
+Two criteria read the two numbers against each other. `uniform_flow_friction`
+does it where the flow is steady, and fails this gauge on
+`momentum/uniform-flow-friction-consistency`: a borrowed width is wrong at
+every flow, steady ones included. `froude_subcritical` does it on a record that
+is never steady, and asks which regime the pair implies. A gauge that does not
+move at all is caught by `non_degenerate` on
 `momentum/stage-discharge-monotonic` for a different reason, so this model
-deliberately does not use that shape: the fault has to be one nothing else
-reads.
+deliberately does not use that shape.
 """
 
 from __future__ import annotations
@@ -103,7 +105,7 @@ def stage_of(runoff_rate_mm_day: float, static: dict) -> float:
     The rating is a single-valued function of the flow, so the two limbs of a
     flood coincide and there is no loop to read. That is honest for a bucket
     that holds no water in transit, and it is the shape this model has to
-    have: the defect has to survive every other criterion in the suite.
+    have: the defect has to survive every budget and every rating test.
 
     `stage` is an elevation on the case's fixed vertical datum, so the depth the
     borrowed rating makes is reported above the declared bed rather than as the
@@ -119,6 +121,14 @@ def _manning(flow_rate_mm_day: float, static: dict) -> float:
     width_m = float(static.get("width_m", DEFAULT_WIDTH_M)) * RATING_WIDTH_FACTOR
     slope = float(static.get("slope", DEFAULT_SLOPE))
     manning_n = float(static.get("manning_n", DEFAULT_MANNING_N))
+    # The same refusal the bucket makes, for the same reason: this is the
+    # wide-rectangular relation, so a case declaring another section is one this
+    # gauge cannot draw. The borrowed width is the only difference between the
+    # two models, and a section this model silently read as rectangular would be
+    # a second one.
+    shape = str(static.get("cross_section_shape", "rectangular")).strip().lower()
+    if shape != "rectangular":
+        raise ValueError("reference_shallow_rating stage requires a rectangular section")
     if area_km2 <= 0.0 or width_m <= 0.0 or slope <= 0.0:
         return 0.0
     q_m3s = max(flow_rate_mm_day, 0.0) * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY

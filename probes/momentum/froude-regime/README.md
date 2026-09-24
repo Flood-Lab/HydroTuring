@@ -40,6 +40,13 @@ and still be scored here, because a pair can be internally consistent and be a
 pair from the wrong regime — the friction balance says what depth this flow
 needs, and this criterion says which regime that depth puts the flow in. Neither
 subsumes the other, and neither is a duplicate of the other's mechanism.
+Measured on `reference_bucket`'s own run, with its gauge left honest at steady
+flow and read at 40% of its depth on any step where the discharge jumps by more
+than a quarter: `uniform_flow_friction` passes it on its own first gate seed,
+where one step of 3137 is unsteady, and `froude_subcritical` fails it on this
+probe's first gate seed, 21 steps supercritical and a worst Fr of 1.76. A fault
+that lives only where the flow is changing is one the friction balance never
+sees, because it only reads a flow that has stopped changing.
 
 This is not an assumption about what the other criteria do; it is what the
 must-fail model is built to demonstrate. Its gauge applies the right law —
@@ -50,8 +57,12 @@ across the gate seeds read over the whole record, **identical** to the honest
 gauge's — a constant factor cancels from a coefficient of variation, so no
 variability threshold can separate them) and rises monotonically with the flow,
 and its rating is single-valued. Driven through every probe in the suite that can ask
-it anything, it **passes all of them** — including all three criteria of
-`momentum/stage-discharge-monotonic` — and fails only `froude_subcritical`.
+it anything, it passes every budget and every rating test — including all three
+criteria of `momentum/stage-discharge-monotonic` — and fails two:
+`froude_subcritical` here, and `uniform_flow_friction` on #114's probe, since a
+width borrowed from another reach is wrong at steady flow as well. The second is
+why the must-fail is not the whole argument for this probe; the transient-only
+gauge above is.
 
 ## Why a frequency, and why the limit is zero
 
@@ -79,7 +90,8 @@ growing without bound as `d` falls — so it would excuse exactly the steps the
 probe exists to catch, and in the wrong direction: a model carrying its flood
 peaks at a millimetre of depth would be failed only while it was *nearly*
 honest, and would pass once it was wrong enough for the peaks to leave the
-sample. Dryness is read from the flow, and the flow is read as a magnitude, so a
+sample. Dryness is read from the flow — from every flow column the model
+reports, not only the one preferred — and the flow is read as a magnitude, so a
 step reported with a negative discharge is water moving rather than an excuse.
 
 ## Where the separation comes from
@@ -111,13 +123,13 @@ Must-fail: `reference_shallow_rating`, the exact bucket with its gauge drawn
 for a section five times wider than the one the case declares. Its water is
 conserved to the floating point and its runoff is the bucket's, so the defect
 is confined to the gauge — and the gauge is not obviously broken. It rises
-with the flow, monotonically, and the whole rest of the suite accepts it. The
+with the flow, monotonically, and no budget or rating test objects to it. The
 single change is the width the rating is evaluated at, which is what isolates
 the one thing this probe asserts.
 
 ## Limitations
 
-Five things this probe does not see — or refuses to score — so that a green
+Six things this probe does not see — or refuses to score — so that a green
 result is not read as more than it is.
 
 **It reads the pair, not either reading against the truth.** A model that
@@ -194,16 +206,27 @@ scored at the one-centimetre floor. An earlier version of this criterion decided
 dryness from the depth instead, and a model could buy a pass with it: reporting
 its flood peaks at a millimetre left the 438 steps it would have failed on out of
 the sample, while the remaining 70% of the record was still scored, comfortably
-above the 5% `min_scored_fraction`, so nothing reported the third of the flood
+above the 5% `min_scored_fraction` it then declared, so nothing reported the third of the flood
 that went unexamined. Reading dryness from the flow closes that door.
 
-What is still open, and is the one number worth revisiting: a step is excused
-when the model reports *exactly* no flow through it, and the model is the one
-reporting. A model that zeroed its worst steps would still be bounded only by
-`min_scored_fraction` — at 5%, a fifth of the way down. After the change the
-honest baselines score 95.9% of the record or more, so the floor has room to be
-raised towards them; that is a decision for the case rather than for the
-criterion, and it is stated here rather than left to be discovered.
+**A zero in one flow column is not an excuse either.** A step is excused when
+the model reports that nothing moved through it, and the model is the one
+reporting. With the scored set decided on `dis` alone, the must-fail model
+could pass by writing a zero into `dis` on exactly the steps it goes
+supercritical on, while its `mrro` still carried every drop: that left 144,
+154 and 244 of 1460 steps scored on the three gate seeds, above the 5% floor
+this probe then declared, and all three passed. A gauge that was honest except
+at its top 5% of flows, zeroed there, passed the same way. Under the contract
+the two columns are two readings of the same outflow, so a step `dis` calls
+still and `mrro` does not is scored on `mrro`, and the message says how many
+were. Both constructions fail again, on all 1460 steps, and the honest
+baselines are unchanged.
+
+What is left is a model that writes a zero into every flow column it reports.
+That costs it the rest of the suite — `mrro` is the flux every mass budget
+closes on — and it is bounded here by `min_scored_fraction`, now **0.9**: the
+four must-pass baselines score all 1460 steps on every gate seed, and over
+seeds 0–99 the lowest honest share is `sacsma_snow17` at 1400 of 1460, 96%.
 
 ## What would make it sharper
 
