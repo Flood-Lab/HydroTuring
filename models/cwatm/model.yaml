@@ -1,5 +1,5 @@
 name: cwatm
-version: "1.11-5baaadd.4"
+version: "1.11-5baaadd.5"
 description: >
   CWatM, the Community Water Model of IIASA's Water Security group (Burek et
   al. 2020), the ISIMIP global hydrological model, at release 1.11 (commit
@@ -32,8 +32,11 @@ timestep: PT1D
 # sbl is snowEvap: CWatM subtracts it from the snow cover (snow_frost.py:790),
 # whose degree-day pack holds no liquid water, and adds it once to totalET
 # (landcoverType.py:1017), so it is the share of evspsbl that left as ice.
+# snm is Rain + SnowMelt + IceMelt: rain passing through the snow module plus
+# both melt terms removed from SnowCover. Interception is downstream of this
+# boundary in CWatM.
 emits:
-  fluxes: [pr, evspsbl, sbl, mrro, dis, gwex]
+  fluxes: [pr, evspsbl, sbl, snm, mrro, dis, gwex]
   states: [mrso, snw, canopy, gw, channel]
 
 needs_forcing: [pr, tas, pet]

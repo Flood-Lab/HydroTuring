@@ -209,6 +209,7 @@ fraction-weighted sums.
 | `pr` | the forcing, echoed |
 | `evspsbl` | `totalET`: transpiration, bare-soil, open-water, interception and snow evaporation |
 | `sbl` | `snowEvap`, the snow evaporation inside `totalET`: subtracted from the snow cover (`snow_frost.py:790`), whose degree-day pack holds no liquid water, and added once to `totalET` (`landcoverType.py:1017`), so it is the part of `evspsbl` that left the solid snow store, in mm/day like `evspsbl`. CWatM takes it at any temperature (`snow_frost.py:788` has no temperature condition), and about two thirds of it falls on days above 0 °C on the gate runs, so it is evaporation drawn from the solid snow store rather than resolved sublimation |
+| `snm` | `Rain + SnowMelt + IceMelt`: liquid water crossing the snow-module boundary. `Rain` is precipitation partitioned as liquid; `SnowMelt` and `IceMelt` are both removed from `SnowCover`. Canopy interception occurs downstream of this boundary |
 | `mrro` | `runoff`: surface runoff, interflow and baseflow after the runoff-concentration lag, i.e. what leaves the cell |
 | `dis` | the same over the catchment area, m3/s |
 | `gwex` | −`nonFossilGroundwaterAbs`: the water CWatM's own water-demand module pumped out of `storGroundwater` for a prescribed withdrawal (below); zero without one |
@@ -223,6 +224,14 @@ prescribed withdrawal, reported as `gwex`. Every step the adapter checks
 P − ET − Q + `gwex` against the change in the reported stores, and that
 CWatM's own total water storage `tws` equals their sum; both numbers go to
 `run.json`.
+
+Exact snowpack closure. The harness flags `suspicious_exact` on
+`mass/snowpack-mass-closure` because the snow budget closes to machine
+precision. `snm` is not solved as a residual: it is read from CWatM's native
+snow-module terms as `Rain + SnowMelt + IceMelt`. With `SnowFactor = 1.0`,
+precipitation is partitioned into `Rain + Snow`, while `SnowCover` changes by
+`Snow - SnowMelt - IceMelt - snowEvap`, so
+`pr - snm - sbl - Δsnw = 0` follows directly from CWatM's snow equations.
 
 ## Prescribed withdrawal
 

@@ -26,6 +26,9 @@ over the cell; land-cover variables are its own fraction-weighted sums):
              about two thirds of it on days above 0 degC on the gate runs, so
              it is evaporation drawn from the solid snow store rather than
              resolved sublimation
+* `snm`      Rain + SnowMelt + IceMelt: rain passing through the snow module
+             plus both melt terms removed from SnowCover. CWatM's canopy
+             interception is downstream of this snow-module boundary.
 * `mrro`     runoff: surface runoff, interflow and baseflow after CWatM's
              runoff-concentration lag, i.e. what leaves the cell
 * `dis`      the same over the catchment area, m3/s
@@ -159,8 +162,8 @@ from pathlib import Path
 import numpy as np
 from netCDF4 import Dataset
 
-MODEL = {"name": "cwatm", "version": "1.11-5baaadd.4"}
-COLUMNS = ["time", "pr", "evspsbl", "sbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
+MODEL = {"name": "cwatm", "version": "1.11-5baaadd.5"}
+COLUMNS = ["time", "pr", "evspsbl", "sbl", "snm", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0, "PT15M": 1.0 / 96.0, "PT5M": 1.0 / 288.0, "PT1M": 1.0 / 1440.0}
 
 CELL_DEG = 0.5  # size of the one-cell domain in degrees; its area is set by CellArea
@@ -730,7 +733,7 @@ def run_cwatm(settings: Path, n_steps: int, feed: np.ndarray | None = None,
     frame.initialize_run()
     v = model.var
 
-    names = ("P", "ET", "sbl", "Q", "soil", "snow", "canopy", "gw", "channel", "tws",
+    names = ("P", "ET", "sbl", "snm", "Q", "soil", "snow", "canopy", "gw", "channel", "tws",
              "gwabs", "demand", "unmet", "surface", "returnflow")
     out = {k: np.zeros(n_steps) for k in names}
     previous = scalar(v.totalSto) + scalar(v.storGroundwater) + scalar(v.gridcell_storage)
@@ -758,6 +761,7 @@ def run_cwatm(settings: Path, n_steps: int, feed: np.ndarray | None = None,
         out["P"][i] = scalar(v.Precipitation)
         out["ET"][i] = scalar(v.totalET)
         out["sbl"][i] = scalar(v.snowEvap)
+        out["snm"][i] = scalar(v.Rain + v.SnowMelt + v.IceMelt)
         out["Q"][i] = scalar(v.runoff)
         out["soil"][i] = scalar(v.sum_soil)
         out["snow"][i] = scalar(v.SnowCover)
@@ -831,6 +835,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str, med: dict | None 
             "pr": step["pr"],
             "evspsbl": out["ET"][i] * 1000.0 / dt_days,
             "sbl": out["sbl"][i] * 1000.0 / dt_days,
+            "snm": out["snm"][i] * 1000.0 / dt_days,
             "mrro": mrro,
             "dis": mrro / 1000.0 * area_m2 / 86400.0,
             "gwex": -out["gwabs"][i] * 1000.0 / dt_days,
@@ -853,6 +858,12 @@ def simulate(forcing: list[dict], static: dict, timestep: str, med: dict | None 
             "sbl": ("snowEvap = min(SnowCoverS, snowEvapFactor x potBareSoilEvap), subtracted from the snow cover "
                     "(snow_frost.py:788-790) and added once to totalET (landcoverType.py:1017); the degree-day "
                     "pack holds no liquid water, so it leaves as ice. A component of evspsbl, not an addition"),
+            "snm": (
+                "Rain + SnowMelt + IceMelt: liquid water crossing the snow-module "
+                "boundary. Rain is precipitation partitioned as liquid; SnowMelt and "
+                "IceMelt are both removed from SnowCover. Canopy interception occurs "
+                "downstream of this boundary"
+            ),
         },
         "states": {
             "mrso": "sum_w1 + sum_w2 + sum_w3 + sum_topwater, fraction-weighted over forest and grassland",
