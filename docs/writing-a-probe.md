@@ -189,7 +189,8 @@ and **not** an error: the exception says the run is one this criterion cannot
 judge, which is a statement about the run rather than about the model's physics.
 `depth_series()` raises it, for instance, when the column a model reports is a
 depth where the contract asks for an elevation on the case's declared datum, and
-`uniform_flow_friction` raises it when no plateau ever reached a steady state.
+`uniform_flow_friction` raises it when a plateau never reached a steady state
+and no steady plateau failed.
 Archiving either as a violation would put a fault in the record that was never
 measured, and the reason travels with it — the harness keeps the message, so the
 archive says which precondition was missed rather than only that something was.
@@ -203,6 +204,13 @@ the floor. So a failure measured on a seed that **was** scored stands however
 few of them are left, and only a verdict that would otherwise pass is held to
 the floor. Set `min_scored_fraction` below 1 only where a seed can be lost for
 a reason the model does not control.
+
+The same holds inside a seed, for any part a criterion leaves out on the
+model's own output — a plateau, an event, a step. Either the part could not have
+shown the violation (a step with no flow cannot be supercritical), or leaving it
+out must cost the pass rather than buy it. `uniform_flow_friction` does the
+second: a failure on a steady plateau stands, and a skipped plateau with no
+failure makes the seed `N/A`.
 
 `invariance` takes `unchanged` (must be reported and must not move),
 `scaled` (must move by a factor) and `optional` (must not move *if the
