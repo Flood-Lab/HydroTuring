@@ -183,6 +183,18 @@ coverage into the criterion message, and returns `N/A (INCOMPATIBLE)` when the
 scored share falls below the declared floor rather than letting a lucky
 minority decide the verdict.
 
+A criterion marks such a precondition by raising `CriterionIncompatibleError`,
+which `hydroturing.criteria` exports. The harness records that seed as
+`N/A (INCOMPATIBLE)` and leaves it out of the verdict. It is **not** a failure
+and **not** an error: the exception says the run is one this criterion cannot
+judge, which is a statement about the run rather than about the model's physics.
+`depth_series()` raises it, for instance, when the column a model reports is a
+depth where the contract asks for an elevation on the case's declared datum, and
+`uniform_flow_friction` raises it when no plateau ever reached a steady state.
+Archiving either as a violation would put a fault in the record that was never
+measured, and the reason travels with it — the harness keeps the message, so the
+archive says which precondition was missed rather than only that something was.
+
 The floor guards a **pass**, not a verdict. A criterion decides a seed is
 unscoreable by reading the model's own output, so the model chooses which
 seeds leave the sample, and the rule has to be asymmetric or the same move

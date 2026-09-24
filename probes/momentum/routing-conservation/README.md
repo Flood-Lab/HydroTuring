@@ -46,10 +46,14 @@ The leaky kernel escapes the three gate seeds at different allowances: 0.615,
 0.627 and **0.651 mm**. A must-fail counts as caught while any one seed still
 fails, so the gate stays green up to 0.651 mm and turns red above it. The value
 this probe ships sits **13.0x** under that point, and the 0.9 kernel is caught
-until 77.5 mm, about 1550x further out. Over a wider draw of 203 seeds the leaky
-kernel escapes some seeds from 0.47 mm, so an allowance between 0.47 and 0.651 mm
-would keep the gate green while letting the leak pass on some seeds. That is what the pair is for: one model says the criterion works,
-the other says the number is where the weather put it.
+until 77.5 mm, about 1550x further out. Over two wider draws of 203 seeds — 0–202
+and 1000–1202 — the first seed to escape does so at **0.484 mm** (seed 43) and
+**0.449 mm** (seed 1106), and the median seed of a draw needs 0.647 and 0.651 mm.
+So an allowance anywhere between about 0.45 and 0.651 mm would keep the gate green
+while letting the leak pass on some seeds. That is what the pair is for: one model says the criterion works,
+the other says the number is where the weather put it. Every figure in this
+paragraph is the smallest `min_allowance_mm` at which the 0.999 kernel passes a
+seed, read by bisection against that seed's own record.
 
 Both kernels report the store they leave behind, so what the gate scores is a
 router that retains water rather than a store that invents it.
