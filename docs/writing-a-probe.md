@@ -190,7 +190,8 @@ and **not** an error: the exception says the run is one this criterion cannot
 judge, which is a statement about the run rather than about the model's physics.
 `depth_series()` raises it, for instance, when the column a model reports is a
 depth where the contract asks for an elevation on the case's declared datum, and
-`uniform_flow_friction` raises it when no plateau ever reached a steady state.
+`uniform_flow_friction` raises it when a plateau never reached a steady state
+and no steady plateau failed.
 Archiving either as a violation would put a fault in the record that was never
 measured, and the reason travels with it — the harness keeps the message, so the
 archive says which precondition was missed rather than only that something was.
@@ -205,6 +206,13 @@ few of them are left, and only a verdict that would otherwise pass is held to
 the floor. Set `min_scored_fraction` below 1 only where a seed can be lost for
 a reason the model does not control.
 
+The same holds inside a seed, for any part a criterion leaves out on the
+model's own output — a plateau, an event, a step. Either the part could not have
+shown the violation (a step with no flow cannot be supercritical), or leaving it
+out must cost the pass rather than buy it. `uniform_flow_friction` does the
+second: a failure on a steady plateau stands, and a skipped plateau with no
+failure makes the seed `N/A`.
+
 `invariance` takes `unchanged` (must be reported and must not move),
 `scaled` (must move by a factor) and `optional` (must not move *if the
 model reports it*), so a store a model lacks is not an invariance failure.
@@ -214,6 +222,20 @@ it alone, so adding a variant to a probe never silently changes what its
 existing criteria measure. Declaring variants without a paired criterion, or a
 paired criterion without variants, is rejected at load time rather than
 becoming a silent no-op.
+
+An ordinary precondition can opt into checking every variant with
+`all_variants: true`. The harness runs that criterion independently on each
+variant and reports the worst result; a failure with no numeric value remains a
+failure in the aggregate. Leave this option off when the criterion is meant to
+describe only the control, and do not use it on a paired criterion.
+
+Ordinary criteria may also set `phase: <label>`. The harness then gives the
+criterion the contiguous rows carrying that host-side `_phase` label, with the
+preceding row as its initial state. Without `phase`, the criterion sees the
+whole post-spinup record. Phase labels are stripped before the adapter runs, so
+they cannot become a model input. Use a phase only when the law is explicitly
+about that labelled stretch; otherwise the unscoped window should cover the
+entire generated record.
 
 Draw everything that comes from the seed before you branch on the variant. Two
 variants that differ in the weather as well as in the perturbation cannot
