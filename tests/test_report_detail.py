@@ -62,6 +62,7 @@ HEADLINES = {
     ),
     "mass/warming-response": ("response_sign",),
     "mass/snowpack-mass-closure": ("closure", "snowpack_response",),
+    "momentum/froude-regime": ("froude_subcritical",),
     "momentum/routing-conservation": ("routing_conservation",),
     "momentum/routing-lag-consistency": (
         "lag_time_bounds",

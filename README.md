@@ -68,7 +68,7 @@ not.
 
 ## The probes
 
-Thirty-two: twenty-one under mass, seven under energy and four under momentum.
+Thirty-four: twenty-two under mass, seven under energy and five under momentum.
 Each was merged only after the acceptance gate saw it pass its declared
 exact reference and fail a purpose-built broken one on the named criterion.
 Four physical models, a bucket that conserves water exactly, two
@@ -78,12 +78,12 @@ the groundwater-exchange probe need outputs they do not report and are not
 scored for them; `mass/snowpack-mass-closure` scores only `sacsma_snow17`,
 the one physical model that reports `snm`. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Twelve of the thirty-two require no model output
+with any probe pull request. Twelve of the thirty-four require no model output
 beyond runoff. That output-only count includes `momentum/routing-lag-consistency`,
 which is eligible only when the model also declares that it consumes `pr` and
 the three geometry inputs `area_km2`, `main_channel_length_km` and
 `centroid_channel_length_km`. `ht list` prints the probes;
-[ROADMAP.md](ROADMAP.md#probes-we-want) has the five more we want, all
+[ROADMAP.md](ROADMAP.md#probes-we-want) has the four more we want, all
 unclaimed.
 
 | Probe | Law | What it asks | The broken model it catches |
@@ -121,6 +121,7 @@ unclaimed.
 | [`momentum/routing-lag-consistency`](probes/momentum/routing-lag-consistency) | momentum | The same isolated storm crosses four synthetic catchment geometries: does the runoff peak lie on a broad Snyder travel-time scale and grow across the geometry ladder? | `reference_instant_router`, `reference_inverse_router` |
 | [`momentum/stage-discharge-monotonic`](probes/momentum/stage-discharge-monotonic) | momentum | Does the stage a model reports rise with its discharge, and does the rating loop the way a flood wave does, the rising limb sitting lower than the falling one at the same discharge? | `reference_rating_drift`, `reference_rating_inverted`, `reference_flat_stage` |
 | [`momentum/uniform-flow-friction-consistency`](probes/momentum/uniform-flow-friction-consistency) | momentum | At steady uniform flow, do reported discharge and stage satisfy one Manning balance with the declared reach geometry and roughness? | `reference_wrong_roughness`, `reference_wrong_slope` |
+| [`momentum/froude-regime`](probes/momentum/froude-regime) | momentum | A stage and a discharge are two readings of one cross-section: does the pair a model reports stay subcritical, or does it imply a velocity the reach could not deliver? | `reference_shallow_rating` |
 
 ## Models
 
@@ -170,9 +171,9 @@ the probe cannot ask the declared model interface this question.
 | [`modflow6`](models/modflow6) | submitted | MODFLOW 6.7.0, the USGS's modular groundwater model: a transient one-river-cell aquifer run through flopy, reporting the RIV and STO budget terms as signed exchange and groundwater storage. Archived as evidential, not gated on. | **PASS**, 1 of 1 probe scored |
 | `reference_bucket` | exact | conserves water exactly by construction | must pass every probe that can ask it anything; N/A on the six energy probes and the groundwater-exchange probe that need outputs it does not report |
 | `reference_exchange_exact` | exact | a lagged-head bookkeeping reference that closes its own groundwater balance exactly and reports genuinely bidirectional exchange | must pass `mass/gw-sw-exchange-consistency`, the only probe that can ask it anything |
-| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, geometry-aware triangular lag | must pass every probe that can ask it anything; **PASS**, 24 of 24 |
-| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 23 of 23 |
-| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 24 of 24 |
+| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, geometry-aware triangular lag | must pass every probe that can ask it anything; **PASS**, 25 of 25 |
+| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 24 of 24 |
+| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 25 of 25 |
 | `reference_coupled` | exact | the bucket with snow sublimation and a surface energy budget: every kilogram converted at the latent heat of the phase it actually underwent | must pass every criterion of the three energy-flux probes; supports daily and hourly steps |
 | `reference_snow_energy` | exact | an energy-balance snowpack: melt bought with `max(0, Rn - H - LE - G) / lambda_f`, liquid held in the pore space and reported as `lwsnl`, cold content carried as an energy deficit and reported as `csnow` | must pass every criterion of `energy/snowmelt-energy-water`; supports daily and hourly steps |
 | `reference_degree_day` | broken | the same snowpack melted on air temperature through a degree-day factor, with a surface energy budget that closes around its evaporation alone, so nothing charges the fusion | caught by `melt_energy` |
@@ -231,6 +232,7 @@ the probe cannot ask the declared model interface this question.
 | `reference_saint_venant` | exact | advances one-dimensional continuity and momentum with a finite-volume solver from a non-equilibrium state; no normal-depth lookup | must pass `uniform_flow_friction` |
 | `reference_wrong_roughness` | broken | computes stage with Manning roughness 3% above the declared value, a 5.74% near-boundary residual | caught by `uniform_flow_friction` |
 | `reference_wrong_slope` | broken | computes stage with bed slope 6% above the declared value, a 6% near-boundary residual | caught by `uniform_flow_friction` |
+| `reference_shallow_rating` | broken | draws its gauge from a section five times wider than the one the case declares, so the depth is right for a different reach and too shallow for this one | caught by `froude_subcritical`, and by `uniform_flow_friction` at steady flow |
 | `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | N/A (INCOMPLETE) on budget probes; caught by `response_sign` |
 | `reference_in_sample` | broken | removes surface runoff above a fixed 55 mm daily precipitation cutoff | caught by `event_water_closure` |
 | `reference_calendar` | broken | a recession that drifts with the calendar year | caught by `invariance` (time origin) |
@@ -403,7 +405,7 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Thirty-two probes, twenty-one mass, seven energy, four momentum, synthetic track only. More
+Suite `0.1.0`, pre-release. Thirty-four probes, twenty-two mass, seven energy, five momentum, synthetic track only. More
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes; spatial and temporal closure, counterfactual response
 and invariance are represented in the suite. The roadmap lists the remaining

@@ -48,6 +48,7 @@ long.
 | `momentum/stage-discharge-monotonic` | Yuanhang Liu (Independent Researcher) |
 | `mass/exchange-response` | Songkun Yan (University of Oklahoma) |
 | `momentum/uniform-flow-friction-consistency` | Mofan Zhang (Department of Civil and Environmental Engineering, Stanford University, Stanford, CA, USA) |
+| `momentum/froude-regime` | Yuanhang Liu (Independent Researcher) |
 
 ## Models
 

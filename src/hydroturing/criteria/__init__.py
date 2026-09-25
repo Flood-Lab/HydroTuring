@@ -21,6 +21,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     degeneracy,
     event_water_closure,
     exchange,
+    froude,
     groundwater,
     human,
     limits,
