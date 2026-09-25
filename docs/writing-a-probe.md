@@ -222,6 +222,20 @@ existing criteria measure. Declaring variants without a paired criterion, or a
 paired criterion without variants, is rejected at load time rather than
 becoming a silent no-op.
 
+An ordinary precondition can opt into checking every variant with
+`all_variants: true`. The harness runs that criterion independently on each
+variant and reports the worst result; a failure with no numeric value remains a
+failure in the aggregate. Leave this option off when the criterion is meant to
+describe only the control, and do not use it on a paired criterion.
+
+Ordinary criteria may also set `phase: <label>`. The harness then gives the
+criterion the contiguous rows carrying that host-side `_phase` label, with the
+preceding row as its initial state. Without `phase`, the criterion sees the
+whole post-spinup record. Phase labels are stripped before the adapter runs, so
+they cannot become a model input. Use a phase only when the law is explicitly
+about that labelled stretch; otherwise the unscoped window should cover the
+entire generated record.
+
 Draw everything that comes from the seed before you branch on the variant. Two
 variants that differ in the weather as well as in the perturbation cannot
 isolate the perturbation, and the comparison means nothing.

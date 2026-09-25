@@ -40,7 +40,9 @@ def _resolve(bound, static: dict) -> float:
 @criterion("state_bounds")
 def state_bounds(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     """Every reported storage must stay inside its physical range."""
-    w = make_window(run, probe)
+    # When a paired probe requests all variants, score the labelled
+    # evaluation cycle rather than only the control's full record.
+    w = make_window(run, probe, params.get("phase"))
     static = run.case.static
     violations = []
     worst_excess, worst_var = 0.0, None
