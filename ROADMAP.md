@@ -84,6 +84,10 @@ One storm added: nothing may change before it, something must after.
 ### `mass/dry-down` &middot; **merged**
 Two years without rain: runoff can only fall, and only stored water can drain.
 
+### `mass/spinup-cycle-invariance` &middot; **merged**
+A repeated annual forcing cycle should produce the same evaluation-year response after different amounts of prior spin-up. The three variants share one calendar evaluation year while using coprime history offsets, separating slow physical stores from persistent hidden clocks.
+Contributed by Kaihao Long.
+
 ### `mass/steady-state` &middot; **merged**
 Three years of the same day: everything settles and the budget balances.
 
@@ -163,10 +167,10 @@ Contributed by Yaji Wang (University of Illinois Urbana-Champaign).
 ## Generalisation
 
 Conservation that holds only where a model was fitted is not conservation, it
-is a coincidence of the training distribution. These four probes ask whether
+is a coincidence of the training distribution. These probes ask whether
 the property survives a move — to another place, to another time, to a
-different question. Each has a template, so the harness work is done and what
-is left is the case.
+different question. Some use an existing criterion template; others, such as
+the spin-up probe, add a criterion because the case exposes a distinct failure.
 
 ### `mass/extreme-event-closure` &middot; **merged**
 Overlap rainfall events in one median-wet year of a twenty-year record toward

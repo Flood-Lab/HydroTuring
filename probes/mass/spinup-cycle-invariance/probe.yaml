@@ -1,0 +1,115 @@
+id: mass/spinup-cycle-invariance
+title: A periodic climate must forget extra spin-up cycles
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Kaihao Long
+    affiliation: School of Geography and Planning, Sun Yat-sen University, Guangzhou 510006, China
+    orcid: 0000-0001-7578-3378
+
+description: >
+  One seeded 365-day rain-dominated weather cycle repeats unchanged. The host
+  compares the same non-leap 2007 evaluation cycle after period offsets of
+  five, eight, and nine repetitions. Including the preceding spin-up year,
+  the variants have six, nine, and ten complete prior cycles. They start in
+  2001, 1998, and 1997 respectively, so their visible dates differ while
+  their evaluation-year forcing and static metadata agree. Once physical
+  references have reached their periodic
+  seasonal attractor, their runoff, evaporation, and reported stores must
+  agree. A hidden state that keeps evolving with the number of cycles instead
+  of converging is exposed, even when its water budget closes.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  # The variants use different absolute dates (2001/1998/1997 starts), but
+  # every record has the same contractual length and scores calendar year 2007.
+  # This keeps the coprime history offsets while avoiding a leap-phase mismatch.
+  period_days: 3652
+  period_years: 10
+  # One complete year supplies the state immediately before the scored
+  # record.  With zero spin-up, closure would use the first row after the
+  # first step as its initial state and drop that step's storage change.
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 300
+  min_window_days: 3652
+  variants: [short, plus3, long]
+
+criteria:
+  - closure:
+      denominator: sum_pr
+      threshold: 0.05
+      sinks: [evspsbl, mrro]
+      sources: [gwex]
+      # Closure is a precondition over every variant's complete post-spinup
+      # record, not just the selected evaluation cycle.
+      all_variants: true
+
+  - state_bounds:
+      mrso: [0.0, soil_capacity_mm]
+      snw: [0.0, null]
+      canopy: [0.0, canopy_capacity_mm]
+      gw: [0.0, null]
+      channel: [0.0, null]
+      all_variants: true
+
+  # The denominator in closure is the supplied precipitation.  Require the
+  # adapter to echo that same forcing instead of closing against a private,
+  # rescaled copy of it.
+  - forcing_fidelity:
+      variables: [pr]
+      rtol: 1.0e-6
+
+  - non_degenerate:
+      # SAC-SMA can legitimately produce about 1.3% runoff for this seeded,
+      # semi-arid cycle; 1% excludes the zero-runoff degenerate reference
+      # without rejecting that physical low-runoff case.
+      runoff_ratio: [0.01, 0.98]
+      min_flux_cv: 0.1
+      min_response: 0.05
+      cv_variables: [mrro, evspsbl]
+
+  - spinup_cycle_invariance:
+      variants: [short, plus3, long]
+      variables: [evspsbl, mrro, mrso, snw, canopy]
+      optional: [gwex, gw, channel]
+      threshold: 0.05
+      # 5% is the suite engineering rule.  Fluxes use a 0.05 mm/day floor.
+      # Storage uses a 1 mm fallback, with explicit floors below for this
+      # case's large soil store and near-empty snow/canopy stores.
+      # The four gate reference models each have a 0.00% departure in the
+      # calibrated run.  The archived 0.47% LISFLOOD result is a submitted
+      # model observation, not a gate-reference range.
+      flux_floor_mm_per_day: 0.05
+      state_floor_mm: 1.0
+      state_floors_mm:
+        mrso: 1.0
+        snw: 1.0
+        canopy: 0.01
+
+baselines:
+  must_pass: [reference_bucket, flex_lumped, flex_topo, sacsma_snow17]
+  must_fail:
+    reference_restless: spinup_cycle_invariance
+    reference_leaky: closure
+    reference_cheater: state_bounds
+    reference_degenerate: non_degenerate
+
+provenance: >
+  Synthetic. A deterministic 365-day forcing cycle is generated from the
+  recorded seed. The short, plus3, and long variants start in 2001, 1998, and
+  1997, respectively, and all score the same non-leap 2007 calendar year.
+  Their absolute dates differ intentionally, while static metadata and the
+  scored pr/tas/pet values are identical. Pairwise N+3 and N+4 offsets are
+  deliberate: their greatest common divisor is one, so a hidden clock with a
+  short integer period cannot align with every comparison. The fixed record
+  length preserves the existing probe contract while preventing leap-day phase
+  mismatches in the scored year.

@@ -512,15 +512,17 @@ through the split instead; its numbers are under What changed.
 ```
 ### HydroTuring `summa` v4.0.0-f787fa5.4
 
-FAIL (VIOLATION) · 8/22 probes passed · suite 0.1.0
+FAIL (VIOLATION) · 9/23 probes passed · suite 0.1.0
 ```
 
-It passes eight probes:
+It passes nine probes:
 - `pet-consistency`, with wet-soil evaporation 0.93 to 0.99 of demand against
   0.7;
 - `area-invariance`, `causality`, `extreme-rain` and `response-nonnegativity`;
 - `time-origin-invariance`, bit for bit;
-- `warming-response` and `routing-conservation`.
+- `warming-response` and `routing-conservation`;
+- `spinup-cycle-invariance`, with a worst short/long soil-water
+  difference of 0.01% against its 5% allowance.
 
 Against `4.0.0-f787fa5.3` no verdict changed. The fourth version's changes
 leave SUMMA's output the same bit for bit, and `flux_identity` still fails
@@ -531,7 +533,7 @@ probe on the canopy's `state_bounds` alone, holding up to 25 mm of ice against
 a 2 mm capacity on 68 steps, while every wet event's water budget closes to
 within 3e-4 of its allowance.
 `energy/radiation-consistency`, merged since, is N/A (INCOMPLETE): the adapter
-reports no `rlus` or `ts`. `energy/soil-heat-storage-consistency` is also N/A (INCOMPLETE), lacking its required layer diagnostics. `mass/ungauged-basin-closure` added one scored FAIL, bringing the count to 8 of 22. `mass/multi-decadal-drift` added another, bringing it to 8 of 23. Version 2 of `energy/surface-energy-closure` now requires prescribed-`rn` support, which this adapter does not declare. Its new N/A (INCOMPATIBLE) result removes that probe from the scored denominator, giving the current 8 of 22. This is a probe applicability change; the SUMMA adapter, model version and native fluxes are unchanged. The earlier FAIL row is retained in the archive alongside the new result.
+reports no `rlus` or `ts`. `energy/soil-heat-storage-consistency` is also N/A (INCOMPLETE), lacking its required layer diagnostics. `mass/ungauged-basin-closure` added one scored FAIL, bringing the count to 8 of 22. `mass/multi-decadal-drift` added another, bringing it to 8 of 23. Version 2 of `energy/surface-energy-closure` now requires prescribed-`rn` support, which this adapter does not declare. Its new N/A (INCOMPATIBLE) result removes that probe from the scored denominator, reducing that total to 8 of 22. The subsequent `mass/spinup-cycle-invariance` evaluation adds one PASS, giving the current 9 of 23. This is a probe applicability change; the SUMMA adapter, model version and native fluxes are unchanged. The earlier FAIL row is retained in the archive alongside the new result.
 
 In `4.0.0-f787fa5.3` the threshold translation flipped no probe verdict
 against `4.0.0-f787fa5.2`. It moved one failure inside a probe and changed the

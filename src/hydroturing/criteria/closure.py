@@ -41,7 +41,10 @@ def closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
         raise ValueError(f"unknown denominator '{denom_key}'")
     forcing_var, take_abs = DENOMINATORS[denom_key]
 
-    w = make_window(run, probe)
+    # A periodic probe may ask for closure on each selected evaluation cycle.
+    # The phase window supplies the state immediately before that cycle, so
+    # the first interval is not silently dropped from the budget.
+    w = make_window(run, probe, params.get("phase"))
     if forcing_var not in w.forcing.columns:
         raise ValueError(
             f"closure denominator '{denom_key}' needs forcing column "

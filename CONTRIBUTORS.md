@@ -22,6 +22,7 @@ long.
 | `mass/causality` | Zhi Li (CU Boulder) |
 | `mass/dry-down` | Zhi Li (CU Boulder) |
 | `mass/steady-state` | Zhi Li (CU Boulder) |
+| `mass/spinup-cycle-invariance` | Kaihao Long (School of Geography and Planning, Sun Yat-sen University, Guangzhou 510006, China) |
 | `mass/multi-decadal-drift` | Bing Li (Independent Researcher) |
 | `mass/extreme-rain` | Zhi Li (CU Boulder) |
 | `mass/runoff-bounds` | Zhi Li (CU Boulder) |

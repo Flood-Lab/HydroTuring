@@ -238,6 +238,18 @@ def uniform_flow_friction(
             "skipped as non-steady: " + "; ".join(unsteady)
         )
 
+    # A failure measured on a steady plateau stands however many others were
+    # skipped, but a pass needs all of them. Steadiness is read from the
+    # model's own discharge and depth, so a skipped plateau is one the model
+    # left out: if a pass survived it, a model wrong on one plateau would buy
+    # a pass by rippling that plateau until it was skipped. This is the rule
+    # `min_scored_fraction` applies to seeds, one level down.
+    if skipped_labels and not failures:
+        raise CriterionIncompatibleError(
+            "a pass needs every plateau steady; skipped as non-steady: "
+            + "; ".join(unsteady)
+        )
+
     worst_mean = max(mean_errors)
     summary = ", ".join(
         f"{label} {plateau_diagnostics[label]['mean_absolute_normalized_residual']:.2%}"
@@ -252,8 +264,8 @@ def uniform_flow_friction(
     message = (
         "; ".join(failures) + skipped
         if failures
-        else f"steady plateau(s) satisfy |S_f - S_0| / S_0: {summary} "
-             f"(limit {tolerance:.2%}){skipped}"
+        else f"three steady plateaus satisfy |S_f - S_0| / S_0: {summary} "
+             f"(limit {tolerance:.2%})"
     )
     return CriterionResult(
         "uniform_flow_friction",
