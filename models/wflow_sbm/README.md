@@ -64,8 +64,9 @@ That path is deliberately small and auditable rather than a new routing model:
 - case `width_m`, `slope` and `manning_n` are written to Wflow's native
   river maps; a supplied `cross_section_shape` is accepted only when it is
   rectangular;
-- precipitation and PET can remain zero, so land runoff is not used to create
-  the experiment's hydraulic input;
+- precipitation and PET must be zero on this routing-only path; the adapter
+  fails loudly otherwise, so land runoff or evapotranspiration cannot be
+  silently replaced by fabricated zero outputs;
 - `dis` on this path is the downstream cell's native river `q_av`, not the
   usual catchment-total runoff reconstructed from `mrro`.
 

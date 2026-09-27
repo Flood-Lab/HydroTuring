@@ -8,7 +8,7 @@ authors:
   - name: Jingzhi Chen
     github: mimosapudical
     affiliation: Department of Computer Science and Engineering, State University of New York at Buffalo, Buffalo, NY, USA
-    orcid: "https://orcid.org/0009-0001-4031-8545"
+    orcid: "0009-0001-4031-8545"
 
 description: >
   Low, medium and high steady river inflows are each perturbed by the same
@@ -48,10 +48,15 @@ criteria:
         medium: _pulse_medium
         high: _pulse_high
       response_hours: 72
-      # 5% is the pre-declared physical allowance from proposal #148. The
-      # 256-cell Saint-Venant gate reference clears it without widening the
-      # bound; the denominator is c_kin=dQ/dA, strictly positive because the
-      # generator enforces Q>0, S>0 and a wet rectangular section.
+      # First-moment timing is valid only when the local response is contained.
+      # Refuse to score if the positive excess at the response-window edge is
+      # still more than 1% of the event peak.
+      max_tail_fraction: 0.01
+      # 5% is the pre-declared physical allowance. The fixed ~80 m
+      # Saint-Venant transient mesh (50 cells over 4 km, 250 over 20 km)
+      # clears it without widening the bound; the denominator is c_kin=dQ/dA,
+      # strictly positive because the generator enforces Q>0, S>0 and a wet
+      # rectangular section.
       relative_tolerance: 0.05
       # Identification precondition: the model's settled outlet must represent
       # the prescribed q_in operating state before transient celerity is scored.

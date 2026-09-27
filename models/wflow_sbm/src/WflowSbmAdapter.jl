@@ -758,6 +758,9 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         for key in ("width_m", "cross_section_shape", "slope", "manning_n", "reach_length_m")
             haskey(static, key) || error("q_in routing path requires static '$key'")
         end
+        if any(x -> x != 0.0, forcing.pr) || any(x -> x != 0.0, forcing.pet)
+            error("q_in routing path requires pr == 0 and pet == 0")
+        end
         # Wflow's kinematic-wave river uses a fixed wetted perimeter based on
         # half bankfull depth. Keep its native 1 m bankfull depth; the probe's
         # wide sections make this independently close to the exact rectangular

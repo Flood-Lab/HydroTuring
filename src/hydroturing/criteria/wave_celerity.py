@@ -210,7 +210,8 @@ def _centroid(
             {"baseline_discharge_m3s": base, "response_peak_m3s": 0.0},
         )
     # Use response magnitude relative to the base flow as a simple non-degeneracy guard.
-    response_ratio = float(response.max()) / max(abs(base), 1.0e-12)
+    response_peak = float(response.max())
+    response_ratio = response_peak / max(abs(base), 1.0e-12)
     if response_ratio < min_fraction:
         raise _ResponseFailure(
             variant,
@@ -218,9 +219,33 @@ def _centroid(
             f"({response_ratio:.3g} of base; minimum {min_fraction:g})",
             {
                 "baseline_discharge_m3s": base,
-                "response_peak_m3s": float(response.max()),
+                "response_peak_m3s": response_peak,
                 "response_to_base_ratio": response_ratio,
                 "min_response_fraction": min_fraction,
+            },
+        )
+
+    # The first-moment identity is valid only for a contained response.  A
+    # slowly decaying tail truncated by response_hours would bias the centroid,
+    # so refuse to emit a celerity when the positive excess at the window edge
+    # remains material relative to the event peak.
+    max_tail_fraction = float(params.get("max_tail_fraction", 0.01))
+    if not np.isfinite(max_tail_fraction) or max_tail_fraction < 0.0:
+        raise ValueError("max_tail_fraction must be finite and non-negative")
+    tail_excess = max(float(discharge[response_stop - 1] - base), 0.0)
+    tail_fraction = tail_excess / max(response_peak, 1.0e-12)
+    if tail_fraction > max_tail_fraction + 1.0e-12:
+        raise _ResponseFailure(
+            variant,
+            f"variant '{variant}' response is not contained in the response window "
+            f"(tail {tail_fraction:.3g} of peak; maximum {max_tail_fraction:g})",
+            {
+                "baseline_discharge_m3s": base,
+                "response_peak_m3s": response_peak,
+                "response_tail_m3s": tail_excess,
+                "response_tail_fraction": tail_fraction,
+                "max_tail_fraction": max_tail_fraction,
+                "response_hours": response_hours,
             },
         )
 
@@ -279,22 +304,18 @@ def _pair(runs: dict[str, RunResult], probe: ProbeSpec, params: dict, state: str
     dt_hours = t_long - t_short
     timing_floor = float(params.get("timing_floor_hours", 0.05))
     if not np.isfinite(dt_hours) or dt_hours <= timing_floor:
-        return _Measurement(
-            state,
-            -1.0,
-            _kinematic_celerity(q_in_short, short.case.static, short_name),
-            float("inf"),
-            dt_hours,
-            t_short,
-            t_long,
-            var_short_h2,
-            var_long_h2,
-            q_in_short,
-            q_short,
-            q_long,
-            base_var_short,
-            base_var_long,
-            None,
+        raise _ResponseFailure(
+            "pair",
+            f"{state}: propagation is not downstream/resolved "
+            f"(short/long centroid difference {dt_hours:.6g} h; "
+            f"minimum {timing_floor:g} h)",
+            {
+                "state": state,
+                "delta_t_h": float(dt_hours) if np.isfinite(dt_hours) else None,
+                "short_centroid_h": t_short,
+                "long_centroid_h": t_long,
+                "timing_floor_hours": timing_floor,
+            },
         )
 
     # Both model outputs are read at the outlet, so the paired propagation

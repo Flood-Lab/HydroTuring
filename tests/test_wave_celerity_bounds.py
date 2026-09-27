@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
@@ -66,6 +68,7 @@ def _params(**overrides) -> dict:
         "base_flow_relative_tolerance": 0.01,
         "baseline_hours": 12,
         "response_hours": 72,
+        "max_tail_fraction": 0.01,
         "timing_floor_hours": 0.05,
         "ordering_margin_fraction": 0.0,
     }
@@ -511,6 +514,35 @@ def test_analytic_measurement_passes_when_celerity_matches_manning():
         _params(),
     )
     assert result.passed, result.message
+
+
+def test_truncated_slow_tail_is_rejected_before_centroid_timing():
+    runs = _synthetic_runs()
+    run = runs["long"]
+    table = run.table.copy()
+    pulse_start = 48 + 24
+    hours = np.arange(80, dtype=float)
+    table.loc[pulse_start:pulse_start + 79, "dis"] += 1.6 * np.exp(-hours / 80.0)
+    runs["long"] = RunResult(run.case, table, run.meta, run.wall_seconds)
+    result = get("wave_celerity_bounds")(runs, _probe(), _params())
+    assert not result.passed
+    assert "response is not contained in the response window" in result.message
+    assert result.diagnostics["response_tail_fraction"] > 0.01
+
+
+def test_unresolved_timing_diagnostics_are_strict_json():
+    runs = _synthetic_runs((1.0, 1.0, 1.0))
+    long = runs["long"]
+    short = runs["short"]
+    # Copy the short response onto the long reach so the paired centroid
+    # difference is exactly zero and the criterion takes the unresolved branch.
+    runs["long"] = RunResult(long.case, short.table.copy(), long.meta, long.wall_seconds)
+    result = get("wave_celerity_bounds")(runs, _probe(), _params(relative_tolerance=10.0))
+    assert not result.passed
+    assert "propagation is not downstream/resolved" in result.message
+    json.dumps(asdict(result), allow_nan=False)
+    assert "c_obs_m_s" not in result.diagnostics
+    assert "relative_residual" not in result.diagnostics
 
 
 def test_zero_response_is_a_scientific_failure_not_an_exception():
