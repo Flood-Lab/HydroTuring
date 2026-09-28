@@ -14,8 +14,10 @@ explicit stores and an explicit evaporation and can be scored on closure.
 What is reported
 ----------------
 Fluxes, as rates in mm per day: `pr` echoed as given, `evspsbl` the HBV
-actual evaporation, `mrro` the routed streamflow, `dis` that streamflow
-over the catchment area in m3/s. States, absolute, in mm, each averaged
+actual evaporation, `snm` the rain passing through the snow module plus
+liquid water released from it (`RAIN + tosoil`), `mrro` the routed
+streamflow, `dis` that streamflow over the catchment area in m3/s.
+States, absolute, in mm, each averaged
 over the HBV components the model runs in parallel:
 
 * `snw`     snowpack plus the liquid water held in it (SNOWPACK + MELTWATER)
@@ -105,8 +107,8 @@ import numpy as np
 import torch
 import yaml
 
-MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100.3"}
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
+MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100.4"}
+COLUMNS = ["time", "pr", "evspsbl", "snm", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 
 MODEL_DIR = Path(os.environ.get("DHBV_MODEL_DIR", "/model/dhbv_2"))
 THREADS = int(os.environ.get("DHBV_THREADS", "2"))
@@ -276,6 +278,34 @@ def regional_exchange(core, static_params, slz: np.ndarray, percolation: np.ndar
         added[t] = float(np.maximum(lf, -before).mean())
     return added
 
+def snow_module_outflow(core, static_params, forcing: torch.Tensor,
+                        elevation_m: float, tosoil: torch.Tensor) -> np.ndarray:
+    """Liquid water leaving HBV's snow module each step.
+
+    HBV partitions precipitation into RAIN and SNOW using parTT, with a
+    fixed 4 degC threshold above 2000 m. RAIN bypasses snow storage while
+    tosoil is liquid water released from MELTWATER. Their sum is therefore
+    the liquid flux delivered from the snow module to the soil system.
+    """
+    names = [p for p in core.phy_param_names if p not in core.dynamic_params]
+    nmul = core.nmul
+    raw = static_params[0, : len(names) * nmul].view(len(names), nmul)
+
+    lo, hi = core.parameter_bounds["parTT"]
+    par_tt = lo + (hi - lo) * raw[names.index("parTT")]
+
+    elevation = torch.full_like(par_tt, float(elevation_m))
+    threshold = torch.where(
+        elevation >= 2000.0,
+        torch.full_like(par_tt, 4.0),
+        par_tt,
+    )
+
+    pr = forcing[:, 0, 0].unsqueeze(-1)
+    tas = forcing[:, 0, 1].unsqueeze(-1)
+    rain = pr * (tas >= threshold.unsqueeze(0)).to(pr.dtype)
+
+    return (rain.mean(-1) + tosoil[:, 0, 0]).double().numpy()
 
 def standardise(values: np.ndarray, names: list[str], norm: dict) -> np.ndarray:
     mean = np.array([norm[v][2] for v in names], dtype=np.float64)
@@ -349,6 +379,13 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         _, static_params = model.nn_model(data["xc_nn_norm"], data["c_nn_norm"])
     states = model.phy_model.get_states()
     snowpack, meltwater, sm, suz, slz = (s[:, 0, :].mean(-1).double().numpy() for s in states)
+    snm = snow_module_outflow(
+        model.phy_model,
+        static_params,
+        data["x_phy"],
+        float(derived.get("meanelevation", norm["meanelevation"][2])),
+        out["tosoil"],
+    )
     gwex = regional_exchange(model.phy_model, static_params, states[4][:, 0, :].double().numpy(),
                              out["percolation"][:, 0, 0].double().numpy(), derived["uparea"], dt)
     routed = out["streamflow"][:, 0, 0].double().numpy()
@@ -363,6 +400,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             "time": step["time"],
             "pr": step["pr"],
             "evspsbl": float(aet[i] / dt),
+            "snm": float(snm[i] / dt),
             "mrro": float(mrro[i]),
             "dis": float(mrro[i] * 1.0e-3 * area_m2 / 86400.0),
             "gwex": float(gwex[i] / dt),
@@ -387,6 +425,10 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         "static_attributes_at_training_mean": [a for a in attr_names if a not in derived],
         "gwex": "regional groundwater exchange parRT * clamp((Ac - parAC)/1000, -1, 1), "
                 "reconstructed from the network's parameters; declared as a source",
+        "snm": (
+            "RAIN + tosoil: liquid precipitation bypassing snow storage plus "
+            "model-reported liquid water released from MELTWATER, mean over components"
+        ),
         "states": {
             "snw": "SNOWPACK + MELTWATER, mean over components",
             "mrso": "SM, mean over components",

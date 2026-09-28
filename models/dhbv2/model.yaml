@@ -1,5 +1,5 @@
 name: dhbv2
-version: "0.5.4-hbv2ep100.3"
+version: "0.5.4-hbv2ep100.4"
 description: >
   δHBV 2.0, the differentiable HBV behind the MHPI group's CONUS-scale water
   model (Song et al. 2025): an LSTM and an MLP write the parameters of an
@@ -27,8 +27,10 @@ timestep: PT1D
 # boxes, `channel` the water generated as runoff but still inside the unit
 # hydrograph. Canopy is zero because HBV has no interception store, which is
 # a statement about the model rather than a value invented for the column.
+# snm is RAIN + tosoil: liquid precipitation passing through the snow module
+# plus liquid water released from MELTWATER into the soil system.
 emits:
-  fluxes: [pr, evspsbl, mrro, dis, gwex]
+  fluxes: [pr, evspsbl, snm, mrro, dis, gwex]
   states: [mrso, snw, canopy, gw, channel]
 
 needs_forcing: [pr, tas, pet]
