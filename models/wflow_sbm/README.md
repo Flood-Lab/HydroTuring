@@ -125,6 +125,7 @@ model follows the calendar.
 | --- | --- |
 | `pr` | the forcing, echoed as given |
 | `evspsbl` | Wflow's total actual evapotranspiration (`actevap`): interception, soil evaporation, transpiration, open water |
+| `snm` | snowpack runoff: liquid water leaving the snow module, converted from a depth per model step to mm/day |
 | `mrro` | river `q_av` at the outlet + overland `q_av` + lateral subsurface `ssf` out of the outlet cell, as a depth rate over the cell |
 | `dis` | `mrro` over the catchment's area: `mrro × area_km2 / 86.4`, m3/s |
 | `gwex` | minus the leakage out of the saturated store (zero with `MaxLeakage` 0), and minus what Wflow's water allocation takes when a probe prescribes a withdrawal (below) |
@@ -144,6 +145,14 @@ probes apply to `mrso`. The contract's `gw` is groundwater *below* the soil colu
 `sbm` type has none (Wflow's `sbm_gwf` type adds an aquifer there). Reporting the saturated
 store as `gw` would count the soil capacity twice in the dry-down and runoff bounds, which
 add the initial `gw` to the capacity.
+
+The snowpack closure is exact to machine precision and is therefore flagged
+by the harness as `suspicious_exact`. This is not residual reconstruction:
+`snm` is read directly from Wflow's native `snow.runoff` variable. Wflow's HBV
+snow routine updates `snow_storage` and `snow_water` from the same
+precipitation, melt, refreezing and runoff terms, so the snowpack control
+volume closes algebraically when snow sublimation and lateral snow transport
+are absent.
 
 ## A prescribed withdrawal
 

@@ -61,6 +61,8 @@ Fluxes, as rates in mm per day unless stated:
 * `pr`       the forcing, echoed as the text it was given
 * `evspsbl`  Wflow's total actual evapotranspiration (`actevap`: interception, soil
              evaporation, transpiration, open water)
+* `snm`      snowpack `runoff`: liquid water leaving the snow module after
+             melt/refreezing and liquid-water retention
 * `mrro`     everything that leaves the cell as flow over the step, as a depth: the
              river's discharge at the outlet, plus the overland and lateral subsurface flow
              out of the outlet cell, which Wflow passes out of the map rather than into the
@@ -128,7 +130,7 @@ const WFLOW = Dict{String, Any}(
     "package" => "Wflow.jl", "version" => "1.0.4",
     "commit" => "82df72031511339d50fd9142fa159d0ec13e73c5", "model_type" => "sbm",
 )
-const COLUMNS = ("time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "channel")
+const COLUMNS = ("time", "pr", "evspsbl", "mrro", "dis", "gwex", "snm", "mrso", "snw", "canopy", "channel")
 const STEP_SECONDS = Dict("PT1D" => 86400, "PT1H" => 3600, "PT15M" => 900, "PT5M" => 300, "PT1M" => 60)
 const FILL = -9999.0
 const TIME_UNITS = "seconds since 1900-01-01 00:00:00"
@@ -688,8 +690,8 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
     domestic = withdrawal ? model.land.demand.domestic.variables : nothing
     removed_sw, removed_gw, shortfall, returned = zeros(n), zeros(n), zeros(n), zeros(n)
 
-    columns = zeros(n, 8)  # evspsbl mrro dis gwex mrso snw canopy channel
-    stored(i) = columns[i, 5] + columns[i, 6] + columns[i, 7] + columns[i, 8]
+    columns = zeros(n, 9)  # evspsbl mrro dis gwex mrso snw canopy channel
+    stored(i) = columns[i, 6] + columns[i, 7] + columns[i, 8] + columns[i, 9]
     initial = soil.ustoredepth[1] + soil.satwaterdepth[1] + snow.snow_storage[1] + snow.snow_water[1] +
         canopy.canopy_storage[1] + mm(overland.storage[1] + river.storage[1])
     worst_residual, cumulative_residual = 0.0, 0.0
@@ -713,10 +715,11 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         columns[i, 2] = mm(outflow * 86400.0)
         columns[i, 3] = columns[i, 2] * area_km2 / 86.4
         columns[i, 4] = withdrawal ? -(leakage + removed) / dt_days : -leakage / dt_days
-        columns[i, 5] = soil.ustoredepth[1] + soil.satwaterdepth[1]
-        columns[i, 6] = snow.snow_storage[1] + snow.snow_water[1]
-        columns[i, 7] = canopy.canopy_storage[1]
-        columns[i, 8] = mm(overland.storage[1] + river.storage[1])
+        columns[i, 5] = snow.runoff[1] / dt_days # Report snowpack runoff as a depth per model step
+        columns[i, 6] = soil.ustoredepth[1] + soil.satwaterdepth[1]
+        columns[i, 7] = snow.snow_storage[1] + snow.snow_water[1]
+        columns[i, 8] = canopy.canopy_storage[1]
+        columns[i, 9] = mm(overland.storage[1] + river.storage[1])
 
         before = i == 1 ? initial : stored(i - 1)
         residual = forcing.pr[i] * dt_days - leakage - removed - soil.actevap[1] - columns[i, 2] * dt_days -
