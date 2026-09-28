@@ -170,6 +170,7 @@ Every probe supplies all six.
 | --- | --- |
 | `pr` | the forcing, echoed |
 | `evspsbl` | transpiration + evaporation of intercepted water + soil evaporation (`TaWB + TaInterceptionWB + ESActWB`) |
+| `snm` | `Rain + SnowMelt`: liquid water leaving the snow-module control volume. `Rain` is liquid precipitation passing through the snow module; `SnowMelt` is water removed from `SnowCover` and already includes LISFLOOD's degree-day, summer ice-melt and exiting glacier-melt contributions. Canopy interception is downstream |
 | `mrro` | channel outflow at the outlet over the step (`ChanQAvg * DtSec`), as a depth over the cell |
 | `dis` | `mrro * area_km2 / 86.4`, m3/s |
 | `gwex` | what leaves the reported stores to the outside, negative: the lower zone's loss to deep groundwater (`GwLossWB`, zero at the default `GwLoss = 0`) plus, when `abstr` is prescribed, what the water-use module actually withdrew (`abstraction_GW_actual_M3 + withdrawal_CH_actual_M3`, plus lake and reservoir abstraction, less return flow to the channel; the last three are zero here), over the cell |

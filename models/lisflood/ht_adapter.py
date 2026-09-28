@@ -23,6 +23,10 @@ balance module (waterbalance.py) closes its budget with:
 * `pr`      the forcing, echoed.
 * `evspsbl` transpiration + evaporation of intercepted water + soil
             evaporation (TaWB + TaInterceptionWB + ESActWB).
+* `snm`     Rain + SnowMelt: liquid water leaving the snow module. Rain is
+            liquid precipitation passing through it; SnowMelt is water
+            removed from SnowCover and already includes LISFLOOD's degree-day,
+            summer ice-melt and exiting glacier-melt contributions.
 * `mrro`    the channel outflow at the outlet over the step (ChanQAvg * DtSec),
             as a depth over the cell.
 * `dis`     `mrro` over the catchment's stated area, in m3/s.
@@ -165,8 +169,8 @@ os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
 import numpy as np  # noqa: E402
 
-MODEL = {"name": "lisflood", "version": "5.0.0-onecell.5"}
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
+MODEL = {"name": "lisflood", "version": "5.0.0-onecell.6"}
+COLUMNS = ["time", "pr", "evspsbl", "snm", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 TIMESTEP_SECONDS = {"PT1D": 86400, "PT1H": 3600, "PT15M": 900, "PT5M": 300, "PT1M": 60}
 
 # The representative cell: the shipped test catchment's grid, from which every
@@ -547,6 +551,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
                 first(evaporation), first(outflow_m3s) * self.DtSec * m3_to_mm, first(self.GwLossWB),
                 *storage_terms(self, veg_axis[0]), first(self.TotalPrecipitationWB),
                 from_groundwater, from_channel, short, first(self.LZ),
+                first(self.Rain + self.SnowMelt),
             ))
 
     model = SteppedLisflood()
@@ -588,12 +593,13 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
     area_km2 = float(static["area_km2"])
     rows = []
     for step, rec in zip(forcing, records):
-        evaporation, outflow_mm, loss, soil, snow, canopy, groundwater, channel, _, gw_take, ch_take, _, _ = rec
+        evaporation, outflow_mm, loss, soil, snow, canopy, groundwater, channel, _, gw_take, ch_take, _, _, snm_mm = rec
         mrro = outflow_mm / dt_day
         rows.append({
             "time": step["time"],
             "pr": step["pr"],
             "evspsbl": evaporation / dt_day,
+            "snm": snm_mm / dt_day,
             "mrro": mrro,
             "dis": mrro * area_km2 / 86.4,
             "gwex": (0.0 - loss - gw_take - ch_take) / dt_day,
@@ -636,6 +642,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         },
         "fluxes": {
             "evspsbl": "TaWB + TaInterceptionWB + ESActWB",
+            "snm": "Rain + SnowMelt",
             "mrro": "ChanQAvg * DtSec at the outlet, over the cell",
             "dis": "mrro * area_km2 / 86.4",
             "gwex": "-(GwLossWB + abstraction_GW_actual_M3 + withdrawal_CH_actual_M3 over the cell)",
