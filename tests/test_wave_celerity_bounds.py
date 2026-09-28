@@ -516,6 +516,65 @@ def test_analytic_measurement_passes_when_celerity_matches_manning():
     assert result.passed, result.message
 
 
+def _muskingum_synthetic_runs(x: float = 0.3) -> dict[str, RunResult]:
+    """Route each six-hour pulse through one Muskingum subreach."""
+    runs = _synthetic_runs()
+    for side, length in (("short", 4000.0), ("long", 20000.0)):
+        run = runs[side]
+        forcing = run.case.forcing
+        discharge = np.empty(len(forcing), dtype=float)
+        # Rebuild the three state blocks from their prescribed steady states.
+        discharge[:] = STATE_Q[0]
+        discharge[48 + 96:48 + 2 * 96] = STATE_Q[1]
+        discharge[48 + 2 * 96:] = STATE_Q[2]
+
+        for i, (state, q) in enumerate(zip(STATES, STATE_Q)):
+            block_start = 48 + i * 96
+            block_stop = block_start + 96
+            pulse_start = block_start + 24
+            inflow = np.zeros(96, dtype=float)
+            local_start = pulse_start - block_start
+            inflow[local_start:local_start + 6] = 0.05 * q
+
+            k_hours = length / _c_kin(q) / 3600.0
+            denominator = 2.0 * k_hours * (1.0 - x) + 1.0
+            c0 = (1.0 - 2.0 * k_hours * x) / denominator
+            c1 = (1.0 + 2.0 * k_hours * x) / denominator
+            c2 = (2.0 * k_hours * (1.0 - x) - 1.0) / denominator
+            routed = np.zeros(96, dtype=float)
+            for j in range(95):
+                routed[j + 1] = (
+                    c0 * inflow[j + 1] + c1 * inflow[j] + c2 * routed[j]
+                )
+            discharge[block_start:block_stop] += routed
+
+        runs[side] = RunResult(
+            run.case,
+            pd.DataFrame({"time": forcing["time"], "dis": discharge}),
+            run.meta,
+            run.wall_seconds,
+        )
+    return runs
+
+
+def test_signed_first_moment_accepts_dipping_muskingum_response():
+    # With X=0.3 and one coarse subreach the long-reach C0 coefficient is
+    # negative, so the response initially dips below base.  Its signed first
+    # moment is nevertheless the correct K=L/c and must not be clipped away.
+    runs = _muskingum_synthetic_runs(x=0.3)
+    assert any(
+        np.any(
+            runs["long"].table["dis"].to_numpy(float)[48 + i * 96:48 + (i + 1) * 96]
+            < q - 1.0e-12
+        )
+        for i, q in enumerate(STATE_Q)
+    )
+    result = get("wave_celerity_bounds")(runs, _probe(), _params())
+    assert result.passed, result.message
+    for state in STATES:
+        assert abs(result.diagnostics["states"][state]["relative_residual"]) < 0.01
+
+
 def test_truncated_slow_tail_is_rejected_before_centroid_timing():
     runs = _synthetic_runs()
     run = runs["long"]

@@ -227,7 +227,7 @@ rainfall, removing a land-model confound identified during the physical-model
 audit.
 
 The criterion removes the pre-event discharge, takes the centroid of the
-positive transient response, and estimates
+signed transient response about the settled base, and estimates
 
 ```
 c_obs = Delta x / (t_long - t_short).
@@ -239,7 +239,7 @@ A 72-hour local response window ends
 before the next state transition, so the following plateau cannot pull the
 previous pulse centroid downstream. Before taking the first moment, the
 criterion also requires the final pulse-width block to contain at most 1% of
-the captured positive response volume. This integrated guard cannot be evaded
+the captured response magnitude (absolute signed excess). This integrated guard cannot be evaded
 by a response that happens to cross the baseline on the final sample while
 remaining material just beforehand. A slower tail is reported as "response not
 contained" rather than being truncated into a biased celerity. The generated
@@ -406,14 +406,13 @@ The exact Saint-Venant reference and Wflow do not share the same numerical
 scheme or routing implementation; they meet only at the externally visible
 physics asserted by the criterion.
 
-LISFLOOD was also audited as an independent candidate and rejected rather than
-tuned to pass. Wiring the declared geometry into its current HydroTuring
-one/two-cell kinematic-wave channel produced, on gate seed 397273707, observed
-paired celerities of about 12.9, 43.7 and 63.1 m/s versus Manning expectations
-of about 0.66, 0.78 and 1.00 m/s. Refining its channel routing sub-step from
-3600 s to 300 s changed those values only to about 12.8, 43.4 and 62.7 m/s.
-No LISFLOOD PASS is claimed: a physical-model disagreement is evidence to
-diagnose, not permission to relax the probe until it disappears.
+LISFLOOD was also explored as an independent candidate, but that audit used
+adapter wiring that is not present in this repository and has not been
+reproduced through the committed HydroTuring interface. Its numerical celerity
+values are therefore not used as evidence for or against the probe. A future
+LISFLOOD comparison should first expose the declared reach length through a
+reproducible adapter path before interpreting any routing discrepancy as model
+physics.
 
 ## Reproduction
 

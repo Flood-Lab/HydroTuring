@@ -195,9 +195,11 @@ def _centroid(
     response_steps = max(1, int(np.ceil(response_hours / (window.dt_days * 24.0))))
     response_stop = min(len(discharge), first + response_steps)
     response = np.zeros_like(discharge)
-    response[first:response_stop] = np.clip(
-        discharge[first:response_stop] - base, 0.0, None
-    )
+    # Temporal-moment routing identities apply to the signed perturbation.
+    # Do not clip a legitimate undershoot below the settled base: doing so
+    # changes the first moment and can turn a numerical Muskingum dip into a
+    # spurious wave-speed error.
+    response[first:response_stop] = discharge[first:response_stop] - base
     total = float(response.sum())
     min_fraction = float(params.get("min_response_fraction", 1.0e-4))
     pulse_depth = float(np.sum(event) * window.dt_days)
@@ -234,12 +236,13 @@ def _centroid(
         raise ValueError("max_tail_fraction must be finite and non-negative")
     pulse_steps = last - first + 1
     tail_start = max(first, response_stop - pulse_steps)
-    tail_sum = float(response[tail_start:response_stop].sum())
-    tail_fraction = tail_sum / max(total, 1.0e-12)
+    magnitude = np.abs(response)
+    tail_sum = float(magnitude[tail_start:response_stop].sum())
+    tail_fraction = tail_sum / max(float(magnitude.sum()), 1.0e-12)
     dt_seconds = window.dt_days * 86400.0
     tail_volume_m3 = tail_sum * dt_seconds
     response_volume_m3 = total * dt_seconds
-    tail_edge_excess = max(float(discharge[response_stop - 1] - base), 0.0)
+    tail_edge_excess = abs(float(discharge[response_stop - 1] - base))
     if tail_fraction > max_tail_fraction + 1.0e-12:
         tail_hours = (response_stop - tail_start) * window.dt_days * 24.0
         raise _ResponseFailure(
