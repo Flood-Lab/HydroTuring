@@ -285,17 +285,21 @@ stays open for the day a contract carries inflow.
 A route a later probe could take, from the second review of that pull request:
 `closure` accepts `denominator: sum_inflow`, which reads a forcing column
 `q_in`, and since #39 a probe can require models to declare that they consume it
-through `requires.forcing`. For a reach-only control volume that forms
-`[sum(q_in) - sum(mrro) - d(channel)] / sum(q_in)`, which on a reach-only router
-is complementary to the bound: destroying the last tenth fails it and passes the
+through `requires.forcing`. For a reach-only control volume, `closure` first converts the prescribed
+`q_in` from m3/s to per-step catchment-equivalent depth with `area_km2`, then
+forms the usual inflow-minus-outflow-minus-storage identity. On a reach-only
+router this is complementary to the bound: destroying the last tenth fails it and passes the
 bound, holding the water back does the reverse. It carries conditions that have
 to be written down with it — `closure` sums every reported store, so a
 full-catchment model needs the control volume set up explicitly; the denominator
 is zero on a truly inflow-free window, which `closure` reports as degenerate, so
-this is a prescribed-inflow test rather than the recession test #71 proposed; no
-generator produces `q_in` and no manifest declares it, so every model is N/A
-today; and an adapter that reports `channel` as cumulative inflow minus outflow
-closes by construction.
+this is a prescribed-inflow test rather than the recession test #71 proposed.
+`momentum/wave-celerity-bounds` now exercises the public `q_in` contract with
+routing-capable references and Wflow, so the input plumbing no longer has to be
+invented here; what remains open is a control-volume mass probe that scores
+`q_in`, outflow and channel storage together. An adapter that reports
+`channel` as cumulative inflow minus outflow would still close that identity
+by construction, so the anti-cheat design remains part of the open problem.
 
 ### `momentum/stage-discharge-monotonic` &middot; **merged**
 Steady-flow rating must be monotonic. Where a loop rating appears, it must be
@@ -318,11 +322,17 @@ Contributed by Mofan Zhang (Department of Civil and Environmental Engineering,
 Stanford University, Stanford, CA, USA; GitHub: Mofan-coding; ORCID:
 https://orcid.org/0000-0001-8839-1808).
 
-### `momentum/wave-celerity-bounds` &middot; hard &middot; **unclaimed**
-Kinematic wave celerity must be positive and near the Manning expectation for
-the reach geometry.
-*Discriminates:* models that route a flood wave upstream, or at a speed the
-channel cannot support.
+### `momentum/wave-celerity-bounds` &middot; **merged**
+Across low, medium and high hydraulic states, paired short and long reaches
+must imply downstream transient celerity within 5% of the declared
+Manning/kinematic dQ/dA expectation, and the resolved celerity must increase
+with flow.
+*Discriminates:* fixed-celerity routers that can remain causal and
+length-dependent while ignoring hydraulic state, and routers whose transient
+speed is inconsistent with the reach geometry.
+Contributed by Jingzhi Chen (Department of Computer Science and Engineering,
+State University of New York at Buffalo, Buffalo, NY, USA; GitHub:
+mimosapudical).
 
 ### `momentum/froude-regime` &middot; standard &middot; **unclaimed**
 Flow in a mild-sloped reach must stay subcritical.

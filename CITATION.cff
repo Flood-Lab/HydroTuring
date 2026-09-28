@@ -87,6 +87,10 @@ authors:
     family-names: Long
     affiliation: School of Geography and Planning, Sun Yat-sen University, Guangzhou 510006, China
     orcid: "https://orcid.org/0000-0001-7578-3378"
+  - given-names: Jingzhi
+    family-names: Chen
+    affiliation: Department of Computer Science and Engineering, State University of New York at Buffalo, Buffalo, NY, USA
+    orcid: "https://orcid.org/0009-0001-4031-8545"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

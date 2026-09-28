@@ -34,8 +34,10 @@ Paths inside `request.json` are relative to the request file's directory.
 ```
 /io/request.json          read-only: opaque case id, model seed, timestep, n_steps, outputs
 /io/input/forcing.csv     read-only: columns time, pr, tas, pet (mm/day, degC, mm/day),
-                          and, when a probe prescribes a human withdrawal, abstr (mm/day, net);
-                          when a probe prescribes an external hydraulic head, gwh (m);
+                          plus any probe-declared forcing. Routing probes may prescribe
+                          q_in (m3/s, positive into the routing control volume);
+                          a human-withdrawal probe may add abstr (mm/day, net);
+                          a head-driven exchange probe may add gwh (m);
                           a groundwater-exchange probe supplies gw_recharge (mm/day)
                           and sw_stage_m (m) instead
 /io/input/static.json     read-only: catchment attributes
@@ -47,6 +49,14 @@ The model seed is deterministic for reproducible stochastic inference, but it
 is not the generator seed recorded in the host-side report. Exit 0 on success.
 There is no network. Do not attempt to download weights or data at run time;
 bake them into the image.
+
+A routing probe may prescribe `q_in` in the forcing, in m3/s, positive
+into the routing control volume. It is already a discharge rather than a depth
+rate over the catchment: an adapter must map it to the model's river/reach
+inflow without multiplying by catchment area or by the row duration. A model
+that declares `q_in` in `needs_forcing` or `uses_forcing` is asserting that
+its routing process actually consumes that prescribed inflow; merely copying
+the name into the manifest is not enough.
 
 Some probes prescribe a human withdrawal in the forcing as an `abstr` column
 (mm/day, net of return flow). Honouring it means removing that water from the
@@ -157,6 +167,7 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | Name | Meaning | Units |
 | --- | --- | --- |
 | `pr` | precipitation, echoed back from the forcing | mm/day |
+| `q_in` | prescribed river/upstream inflow supplied to a routing control volume; positive into the reach. It is an input forcing, not an output flux, and a model opts in through `needs_forcing` or `uses_forcing` | m3/s |
 | `evspsbl` | evapotranspiration | mm/day |
 | `mrro` | total runoff | mm/day |
 | `dis` | river discharge | m3/s |

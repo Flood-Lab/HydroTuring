@@ -54,7 +54,31 @@ def closure(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     # The driver is taken from the forcing, never from what the model echoed
     # back. A model that quietly rescales its input is caught separately by
     # forcing_fidelity, not by silently changing the denominator here.
-    drive = w.volume(w.forcing[forcing_var])
+    if denom_key == "sum_inflow":
+        # q_in is a volumetric river inflow (m3/s), while water-budget sinks
+        # and storages are catchment-equivalent depths (mm). Convert each row
+        # before forming the closure identity:
+        #
+        #   m3/s * 86400 s/day * dt_days / (area_km2 * 1e6 m2) * 1000 mm/m
+        #   = q_in * 86.4 * dt_days / area_km2.
+        try:
+            area_km2 = float(run.case.static["area_km2"])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError(
+                "closure denominator 'sum_inflow' needs positive static 'area_km2'"
+            ) from None
+        if not np.isfinite(area_km2) or area_km2 <= 0:
+            raise ValueError(
+                "closure denominator 'sum_inflow' needs positive static 'area_km2'"
+            )
+        drive = (
+            np.asarray(w.forcing[forcing_var], dtype=float)
+            * 86.4
+            * w.dt_days
+            / area_km2
+        )
+    else:
+        drive = w.volume(w.forcing[forcing_var])
     if take_abs:
         drive = np.abs(drive)
 

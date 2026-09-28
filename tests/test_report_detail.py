@@ -69,6 +69,7 @@ HEADLINES = {
     ),
     "momentum/stage-discharge-monotonic": ("rating_monotonic", "rating_loop", "non_degenerate"),
     "momentum/uniform-flow-friction-consistency": ("uniform_flow_friction",),
+    "momentum/wave-celerity-bounds": ("wave_celerity_bounds",),
 }
 
 

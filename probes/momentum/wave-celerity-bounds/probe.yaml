@@ -1,0 +1,83 @@
+id: momentum/wave-celerity-bounds
+title: Transient flood-wave celerity responds to hydraulic state
+law: momentum
+track: synthetic
+version: 1
+
+authors:
+  - name: Jingzhi Chen
+    github: mimosapudical
+    affiliation: Department of Computer Science and Engineering, State University of New York at Buffalo, Buffalo, NY, USA
+    orcid: "0009-0001-4031-8545"
+
+description: >
+  Low, medium and high steady river inflows are each perturbed by the same
+  small pulse in a short and a long rectangular reach. The prescribed q_in
+  enters the routing control volume directly: forcing and every static
+  attribute except reach length are paired, so the short/long centroid
+  difference isolates propagation over the additional outlet travel distance
+  from dis alone. Observed celerity must be positive, remain within five percent of the
+  independently computed Manning/kinematic dQ/dA expectation, and increase
+  with hydraulic state. A fixed positive celerity can conserve mass, remain
+  causal and pass gross routing-lag tests while still failing this
+  state-response requirement.
+
+citation: https://doi.org/10.1080/02626660109492830
+
+requires:
+  fluxes: [dis]
+  forcing: [q_in]
+  static: [width_m, cross_section_shape, slope, manning_n, reach_length_m]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1H
+  period_days: 24
+  spinup_days: 20
+  min_window_days: 24
+  max_output_mb: 2.0
+  max_runtime_s: 300
+  variants: [short, long]
+
+criteria:
+  - wave_celerity_bounds:
+      states: [low, medium, high]
+      event_columns:
+        low: _pulse_low
+        medium: _pulse_medium
+        high: _pulse_high
+      response_hours: 72
+      # First-moment timing is valid only when the local response is contained.
+      # Refuse to score if the final pulse-width block still contains more than
+      # 1% of the captured positive response volume.
+      max_tail_fraction: 0.01
+      # 5% is the pre-declared physical allowance. The fixed ~80 m
+      # Saint-Venant transient mesh (50 cells over 4 km, 250 over 20 km)
+      # clears it without widening the bound; the denominator is c_kin=dQ/dA,
+      # strictly positive because the generator enforces Q>0, S>0 and a wet
+      # rectangular section.
+      relative_tolerance: 0.05
+      # Identification precondition: the model's settled outlet must represent
+      # the prescribed q_in operating state before transient celerity is scored.
+      base_flow_relative_tolerance: 0.01
+      baseline_hours: 12
+      min_response_fraction: 0.0001
+      timing_floor_hours: 0.05
+      ordering_margin_fraction: 0.05
+
+baselines:
+  must_pass:
+    - reference_saint_venant
+  must_fail:
+    reference_fixed_celerity: wave_celerity_bounds
+  must_fail_only:
+    - reference_fixed_celerity
+
+provenance: >
+  Synthetic hourly prescribed river inflow and seeded rectangular reach
+  geometry generated at run time. The positive reference advances the one-dimensional Saint-Venant
+  equations with the repository's finite-volume Rusanov solver; the criterion
+  verifies the settled outlet flow against prescribed q_in, then independently
+  derives dQ/dA from that prescribed operating point and the declared Manning geometry. Implements
+  accepted proposal #148.

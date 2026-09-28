@@ -83,6 +83,12 @@ actually consumes, and document their mapping to native parameters. Layer
 metadata makes that mapping auditable; a matching declaration alone does not
 prove that the model used it. See the [soil-storage case](../probes/energy/soil-heat-storage-consistency/README.md).
 
+Routing probes may supply `q_in`, a prescribed river inflow in m3/s, positive
+into the routing control volume. This is already a volumetric discharge: do
+not convert it through `area_km2` as though it were a depth rate. A model
+listing `q_in` under `uses_forcing` must map it to a real native
+river/reach-inflow path whenever the column is present.
+
 ## 2. Write the adapter
 
 Read `/io/request.json`, read the forcing, call your model, write the table.
