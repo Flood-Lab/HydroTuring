@@ -226,24 +226,34 @@ def _centroid(
         )
 
     # The first-moment identity is valid only for a contained response.  A
-    # slowly decaying tail truncated by response_hours would bias the centroid,
-    # so refuse to emit a celerity when the positive excess at the window edge
-    # remains material relative to the event peak.
+    # slowly decaying tail truncated by response_hours would bias the centroid.
+    # Check an integrated tail block rather than a single edge sample so a
+    # response cannot pass merely by crossing the baseline at the final row.
     max_tail_fraction = float(params.get("max_tail_fraction", 0.01))
     if not np.isfinite(max_tail_fraction) or max_tail_fraction < 0.0:
         raise ValueError("max_tail_fraction must be finite and non-negative")
-    tail_excess = max(float(discharge[response_stop - 1] - base), 0.0)
-    tail_fraction = tail_excess / max(response_peak, 1.0e-12)
+    pulse_steps = last - first + 1
+    tail_start = max(first, response_stop - pulse_steps)
+    tail_sum = float(response[tail_start:response_stop].sum())
+    tail_fraction = tail_sum / max(total, 1.0e-12)
+    dt_seconds = window.dt_days * 86400.0
+    tail_volume_m3 = tail_sum * dt_seconds
+    response_volume_m3 = total * dt_seconds
+    tail_edge_excess = max(float(discharge[response_stop - 1] - base), 0.0)
     if tail_fraction > max_tail_fraction + 1.0e-12:
+        tail_hours = (response_stop - tail_start) * window.dt_days * 24.0
         raise _ResponseFailure(
             variant,
             f"variant '{variant}' response is not contained in the response window "
-            f"(tail {tail_fraction:.3g} of peak; maximum {max_tail_fraction:g})",
+            f"(final {tail_hours:g} h contain {tail_fraction:.3g} of captured "
+            f"response volume; maximum {max_tail_fraction:g})",
             {
                 "baseline_discharge_m3s": base,
                 "response_peak_m3s": response_peak,
-                "response_tail_m3s": tail_excess,
+                "response_volume_m3": response_volume_m3,
+                "response_tail_volume_m3": tail_volume_m3,
                 "response_tail_fraction": tail_fraction,
+                "response_tail_edge_m3s": tail_edge_excess,
                 "max_tail_fraction": max_tail_fraction,
                 "response_hours": response_hours,
             },

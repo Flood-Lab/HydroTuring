@@ -49,8 +49,8 @@ criteria:
         high: _pulse_high
       response_hours: 72
       # First-moment timing is valid only when the local response is contained.
-      # Refuse to score if the positive excess at the response-window edge is
-      # still more than 1% of the event peak.
+      # Refuse to score if the final pulse-width block still contains more than
+      # 1% of the captured positive response volume.
       max_tail_fraction: 0.01
       # 5% is the pre-declared physical allowance. The fixed ~80 m
       # Saint-Venant transient mesh (50 cells over 4 km, 250 over 20 km)

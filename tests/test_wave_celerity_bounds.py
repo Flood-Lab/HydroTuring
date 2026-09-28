@@ -530,6 +530,27 @@ def test_truncated_slow_tail_is_rejected_before_centroid_timing():
     assert result.diagnostics["response_tail_fraction"] > 0.01
 
 
+def test_tail_volume_rejects_response_even_when_last_sample_returns_to_base():
+    runs = _synthetic_runs()
+    run = runs["long"]
+    table = run.table.copy()
+    pulse_start = 48 + 24
+    response_stop = pulse_start + 72
+
+    # A pointwise edge check would accept this because the final sample is
+    # exactly back at base, even though the preceding five hours still carry a
+    # material amount of response volume.
+    table.loc[response_stop - 6:response_stop - 2, "dis"] += 0.2
+    table.loc[response_stop - 1, "dis"] = STATE_Q[0]
+    runs["long"] = RunResult(run.case, table, run.meta, run.wall_seconds)
+
+    result = get("wave_celerity_bounds")(runs, _probe(), _params())
+    assert not result.passed
+    assert "response is not contained in the response window" in result.message
+    assert result.diagnostics["response_tail_edge_m3s"] == pytest.approx(0.0)
+    assert result.diagnostics["response_tail_fraction"] > 0.01
+
+
 def test_unresolved_timing_diagnostics_are_strict_json():
     runs = _synthetic_runs((1.0, 1.0, 1.0))
     long = runs["long"]

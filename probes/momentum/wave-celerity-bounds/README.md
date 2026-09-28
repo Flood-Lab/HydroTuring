@@ -238,8 +238,10 @@ component common to both variants and isolates the added routing distance.
 A 72-hour local response window ends
 before the next state transition, so the following plateau cannot pull the
 previous pulse centroid downstream. Before taking the first moment, the
-criterion also requires the positive excess at the window edge to be at most
-1% of that event's response peak. A slower tail is reported as "response not
+criterion also requires the final pulse-width block to contain at most 1% of
+the captured positive response volume. This integrated guard cannot be evaded
+by a response that happens to cross the baseline on the final sample while
+remaining material just beforehand. A slower tail is reported as "response not
 contained" rather than being truncated into a biased celerity. The generated
 record is hourly so timing quantisation is smaller than the short/long
 travel-time difference.
