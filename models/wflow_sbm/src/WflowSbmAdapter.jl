@@ -125,7 +125,7 @@ using PrecompileTools: @compile_workload, @setup_workload
 using TOML: TOML
 using Wflow: Wflow
 
-const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.4")
+const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.5")
 const WFLOW = Dict{String, Any}(
     "package" => "Wflow.jl", "version" => "1.0.4",
     "commit" => "82df72031511339d50fd9142fa159d0ec13e73c5", "model_type" => "sbm",
@@ -690,7 +690,7 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
     domestic = withdrawal ? model.land.demand.domestic.variables : nothing
     removed_sw, removed_gw, shortfall, returned = zeros(n), zeros(n), zeros(n), zeros(n)
 
-    columns = zeros(n, 9)  # evspsbl mrro dis gwex mrso snw canopy channel
+    columns = zeros(n, 9)  # evspsbl mrro dis gwex snm mrso snw canopy channel
     stored(i) = columns[i, 6] + columns[i, 7] + columns[i, 8] + columns[i, 9]
     initial = soil.ustoredepth[1] + soil.satwaterdepth[1] + snow.snow_storage[1] + snow.snow_water[1] +
         canopy.canopy_storage[1] + mm(overland.storage[1] + river.storage[1])
@@ -715,7 +715,7 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         columns[i, 2] = mm(outflow * 86400.0)
         columns[i, 3] = columns[i, 2] * area_km2 / 86.4
         columns[i, 4] = withdrawal ? -(leakage + removed) / dt_days : -leakage / dt_days
-        columns[i, 5] = snow.runoff[1] / dt_days # Report snowpack runoff as a depth per model step
+        columns[i, 5] = snow.runoff[1] / dt_days # Convert snowpack runoff from mm per step to mm/day
         columns[i, 6] = soil.ustoredepth[1] + soil.satwaterdepth[1]
         columns[i, 7] = snow.snow_storage[1] + snow.snow_water[1]
         columns[i, 8] = canopy.canopy_storage[1]

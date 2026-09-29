@@ -283,6 +283,7 @@ case on the full record (`window_days: full`).
 | `energy/pet-consistency` | PASS | OK | evaporation 0.96 of demand when the soil is wettest, 0.15 when driest |
 | `energy/radiation-consistency` | N/A | INCOMPLETE | does not report `rlus`, `ts` |
 | `energy/surface-energy-closure` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
+| `energy/snowmelt-energy-water` | N/A | INCOMPLETE | does not report `sbl`, `hfls`, `hfss`, `hfg`, `lwsnl`, `csnow`; model does not declare that it consumes forcing `rn` |
 | `mass/antecedent-monotonicity` | FAIL | VIOLATION | a wet month before the storm adds almost no runoff (0.0013 and 0.0005 of the storm on 2 of 3 seeds, where 0.02 is asked) |
 | `mass/area-invariance` | PASS | OK | identical to floating point at ten times the area |
 | `mass/catchment-closure` | PASS | OK | residual 1.8e-4 to 2.1e-4 of the rain; runoff ratio 0.45 to 0.52; ET 0.53 to 0.63 of demand |
@@ -303,7 +304,7 @@ case on the full record (`window_days: full`).
 | `mass/snowpack-mass-closure` | PASS | OK | snowpack closes to machine precision and shows non-trivial accumulation and melt |
 | `mass/spinup-cycle-invariance` | PASS | OK | repeated forcing reaches the same evaluation-year response for all three selected spin-up cycles; worst departure 0.00% |
 
-The five energy probes that need an energy output are N/A (INCOMPLETE) because wflow_sbm
+The six energy probes that need an energy output are N/A (INCOMPLETE) because wflow_sbm
 computes no latent, sensible or ground heat flux and no surface temperature; that is the
 model declining to be asked, not a failure.
 
