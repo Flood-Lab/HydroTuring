@@ -372,6 +372,9 @@ The reference models available today:
 | `reference_driven_exchange` | a head-driven boundary exchange against a constant catchment head; must pass `mass/exchange-response` | nothing, it must pass |
 | `reference_evolving_exchange` | the same boundary against a catchment head that moves, five-day time constant; must pass | nothing, it must pass |
 | `reference_recharge_exchange` | the evolving boundary on a losing catchment that drains half its runoff through it, storativity 1 mm/m; must pass | nothing, it must pass |
+| `reference_recharge_order_exact` | passive aquifer reference that partitions recharge exactly | nothing, it must pass |
+| `reference_recharge_blind` | ignores the added recharge while closing its own budget | `aquifer_recharge_ordering` |
+| `reference_recharge_overshoot` | explicit update overshoots after the pulse | `aquifer_recharge_ordering` |
 | `reference_noise_sink` | declares the prescribed head and never reads it; its exchange is the day's accounting error | `exchange_response` |
 | `reference_token_exchange` | the noise sink plus a head term a million times too small to be anything but a token | `exchange_response` |
 | `reference_steady_sink` | the same token over a steady sink rather than a noisy one, which a share of the exchange's variation cannot see | `exchange_response` |

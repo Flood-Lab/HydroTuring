@@ -17,7 +17,7 @@ requires:
   fluxes: [gw_sw_exchange, gw_to_sw, sw_to_gw]
   states: [gw]
   forcing: [gw_recharge, sw_stage_m]
-  static: [area_km2, aquifer_specific_yield, aquifer_storage_coefficient, river_conductance_m2_per_day, river_bottom_offset_m]
+  static: [area_km2, aquifer_specific_yield, aquifer_initial_head_m, river_conductance_m2_per_day]
 case:
   generator: generate.py
   n_seeds: 3
@@ -37,6 +37,7 @@ criteria:
       storage: gw
       rel_tol: 0.01
       abs_tol_mm: 1.0e-3
+      sources: [gw_boundary]
   - groundwater_balance:
       recharge: gw_recharge
       exchange: gw_sw_exchange
@@ -52,6 +53,9 @@ criteria:
       gw: [0.0, null]
       all_variants: true
 baselines:
+  # The standard catchment references do not expose a direct aquifer source.
+  # MODFLOW 6 is the independent physical baseline and is run with paired
+  # perturbations for this process.
   must_pass: [reference_recharge_order_exact]
   must_fail:
     reference_recharge_blind: aquifer_recharge_ordering

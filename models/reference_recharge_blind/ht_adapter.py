@@ -1,6 +1,7 @@
 from __future__ import annotations
 import argparse,csv,json
 from pathlib import Path
+MODE = "blind"
 COLUMNS=["time","gw_sw_exchange","gw_to_sw","sw_to_gw","gw"]
 def simulate(forcing,static,mode="exact"):
  sy=float(static["aquifer_specific_yield"]); area=float(static["area_km2"])*1e6; b=sy*1000.; k=float(static["river_conductance_m2_per_day"])/area*1000.; head=float(static["aquifer_initial_head_m"]); gw=b*head; rows=[]
@@ -14,7 +15,7 @@ def simulate(forcing,static,mode="exact"):
 def main():
  p=argparse.ArgumentParser(); p.add_argument("--request",required=True); a=p.parse_args(); path=Path(a.request).resolve(); req=json.loads(path.read_text()); d=path.parent
  with open(d/req["input"]["forcing"],newline="") as f: forcing=list(csv.DictReader(f))
- static=json.loads((d/req["input"]["static"]).read_text()); name=Path(__file__).parent.name; mode="blind" if "blind" in name else ("overshoot" if "overshoot" in name else "exact"); rows=simulate(forcing,static,mode)
+ static=json.loads((d/req["input"]["static"]).read_text()); rows=simulate(forcing,static,MODE)
  with open(d/req["output"]["table"],"w",newline="") as f: w=csv.DictWriter(f,fieldnames=COLUMNS); w.writeheader(); w.writerows(rows)
  (d/req["output"]["run"]).write_text(json.dumps({"status":"ok"}))
 if __name__=="__main__": main()
