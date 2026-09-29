@@ -343,6 +343,7 @@ states are end of step.
 | --- | --- | --- |
 | `pr` | the forcing, echoed as the text it arrived as | mm/day |
 | `evspsbl` | `-(scalarTotalET + scalarSnowSublimation + scalarCanopySublimation)`; SUMMA's total ET leaves sublimation out | positive upward, kg m-2 s-1 to mm/day; net deposition makes it negative |
+| `snm` | `scalarRainPlusMelt`: rain plus melt delivered to the soil before surface runoff | m/s to mm/day |
 | `mrro` | `averageRoutedRunoff`: surface runoff plus aquifer baseflow after the time-delay histogram | m/s to mm/day |
 | `channel` | cumulative `averageInstantRunoff` minus `averageRoutedRunoff` | mm; SUMMA normalises the histogram to sum to one |
 | `hfls` | `-scalarLatHeatTotal` | W m-2, positive away from the surface (SUMMA's are positive downward) |
@@ -552,6 +553,7 @@ packaging had to make.
 | `mass/antecedent-monotonicity` | +0.0002 to +0.0025 of the 60 mm storm (0.02 needed) | the wetter month's extra 120 mm is evaporated before the storm: 137 to 156 mm of ET in those 30 days against 19 to 42 mm in the drier run, on 131 to 157 mm of demand. Both runs meet the storm with soil water within 2 to 5 mm of each other (120 to 132 mm in an 802 mm-deep column), and neither drains within the month | model at this demand; passes with 90 percent humidity or a bare surface |
 | `mass/dry-down` | runoff rises 8.2 % between weeks 1 and 2 (1 of 3 seeds) | a delayed drainage pulse: after the last rains the column's free drainage keeps rising for four weeks, from 0.0022 to 0.0028 mm/day, on a runoff of a few thousandths of a mm. At the first version SUMMA's layer water showed the bottom layer wetting while the top dried | model (Richards redistribution) |
 | `mass/runoff-bounds` | `non_degenerate`: runoff/rain correlation 0.014 (1 of 5 seeds; 0.12 to 0.21 on the others) | 90 percent of that seed's runoff leaves in March to May as melt drains through the loam column and the aquifer. Its snow is now the probe's own: 0.340 of the precipitation against the rule's 0.343 | the humidity mock decides it, now through evaporation alone: at 90 percent humidity the seed passes (0.071), at 50 percent it fails further (0.007); under the direct mapping it failed at 0.019; the bounds themselves pass |
+| `mass/snowpack-mass-closure` | `closure`: cumulative residual 18.8474% of precipitation against the 5% limit; `state_bounds` and `snowpack_response` pass | `snm` is the native `scalarRainPlusMelt`, which is basal snowpack liquid drainage when explicit snow layers exist. The remaining snowpack budget does not report SUMMA's signed net `scalarSnowSublimation`; the probe treats missing `sbl` as zero, so real snow-atmosphere mass exchange remains in its residual | interface/contract limitation: SUMMA reports net sublimation/frost with either sign, whereas HydroTuring `sbl` is a non-negative share of `evspsbl`. The adapter leaves `sbl` absent rather than clipping or reinterpreting the native flux |
 | `mass/phase-counterfactual` | `phase_invariance`: runoff changes by -5.2 % of the rain when snow falls as rain (1 of 3 seeds; 3.5 and 4.4 % on the others; limit 5 %) | the `warm` variant now turns 93 percent of that seed's control snow into rain (snow 0.286 to 0.021 of precipitation), and SUMMA's runoff responds by just over the limit. `non_degenerate` passes on every seed (0.085 to 0.206) | model, close to the limit: the seed passes at 90 percent humidity (4.9 %) and 1 m/s wind (5.0 %) and fails at 50 percent humidity (10.0 %) or 4 m/s (7.1 %). Under the direct mapping `warm` kept 0.91 of the snow and the criterion passed at 2.4 to 3.3 %, testing nothing |
 
 ## Sensitivity
@@ -644,6 +646,15 @@ What the table says:
   - The threshold translation follows from the probes' definition and SUMMA's
     own wet-bulb routine.
   - The split was changed once, for the reason below.
+
+## What changed in 4.0.0-f787fa5.5
+
+`snm` is now reported from SUMMA's native `scalarRainPlusMelt`, converted
+from m s-1 to mm/day. With explicit snow layers this is the same basal
+liquid-water flux as `scalarSnowDrainage`; without an explicit snow layer it
+also carries rain and melt from "snow without a layer" into the soil. No
+SUMMA equations, parameters, forcing translation or states are changed.
+
 
 ## What changed in 4.0.0-f787fa5.4
 
