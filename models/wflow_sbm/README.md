@@ -271,7 +271,7 @@ ht run --model wflow_sbm --gate-seeds
 
 ## Result
 
-**FAIL (VIOLATION), 18 of 21 probes passed**, adapter `1.0.4-ht.4`, on the gate seeds, every
+**FAIL (VIOLATION), 19 of 22 probes passed**, adapter `1.0.4-ht.5`, on the gate seeds, every
 case on the full record (`window_days: full`).
 
 | Probe | Verdict | Reason | Detail |
@@ -300,6 +300,8 @@ case on the full record (`window_days: full`).
 | `mass/time-origin-invariance` | PASS | OK | identical to floating point in 1972 and 2000 |
 | `mass/warming-response` | PASS | OK | runoff falls by 0.27 to 0.31 per unit of added demand |
 | `momentum/routing-conservation` | PASS | OK | the channel holds at most 0.16 of what a 15-day hydrograph of recent runoff allows |
+| `mass/snowpack-mass-closure` | PASS | OK | snowpack closes to machine precision and shows non-trivial accumulation and melt |
+| `mass/spinup-cycle-invariance` | PASS | OK | repeated forcing reaches the same evaluation-year response for all three selected spin-up cycles; worst departure 0.00% |
 
 The five energy probes that need an energy output are N/A (INCOMPLETE) because wflow_sbm
 computes no latent, sensible or ground heat flux and no surface temperature; that is the

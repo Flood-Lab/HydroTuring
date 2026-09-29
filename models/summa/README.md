@@ -503,17 +503,18 @@ through the split instead; its numbers are under What changed.
 ## Verdict
 
 ```
-### HydroTuring `summa` v4.0.0-f787fa5.4
+### HydroTuring `summa` v4.0.0-f787fa5.5
 
-FAIL (VIOLATION) · 9/24 probes passed · suite 0.1.0
+FAIL (VIOLATION) · 9/25 probes passed · suite 0.1.0
 ```
 
-It passes eight probes:
+It passes nine probes:
 - `pet-consistency`, with wet-soil evaporation 0.93 to 0.99 of demand against
   0.7;
 - `area-invariance`, `causality`, `extreme-rain` and `response-nonnegativity`;
 - `time-origin-invariance`, bit for bit;
-- `warming-response` and `routing-conservation`.
+- `warming-response` and `routing-conservation`;
+- `spinup-cycle-invariance`, with at most 0.01% departure between the selected spin-up cycles.
 
 Against `4.0.0-f787fa5.3` no verdict changed. The fourth version's changes
 leave SUMMA's output the same bit for bit, and `flux_identity` still fails

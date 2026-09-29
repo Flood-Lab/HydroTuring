@@ -395,44 +395,23 @@ of their own.
 
 ## Result
 
-**FAIL (ERROR), 18 of 21 probes passed, 5 N/A (INCOMPLETE).** These are the
-rows of the full gate-seed run of `5.0.0-onecell.5`, made on the emulated host
-described under "Native re-run". The verdict is ERROR because two probes ran
-out of time on that host. Any ERROR among the scored probes makes the verdict
-FAIL (ERROR), whatever the other probes score.
+**FAIL (VIOLATION), 20 of 22 probes passed, 11 N/A (9 INCOMPLETE, 2 INCOMPATIBLE).** These are the rows of the full gate-seed run of `5.0.0-onecell.6`.
 
-The `mass/extreme-event-closure` row was added when that probe merged, from
-`5.0.0-onecell.5` on the same host. Its five twenty-year cases (7,665 rows
-each) finished in 134 s together, case generation included, against a 300 s
-budget for each case, and every wet event closes to 1e-13 mm.
-
-**The two ERROR rows are provisional.** They come from the emulated host and
-are to be replaced by a native x86-64 evaluation; "Native re-run" gives the
-commands and the row replacement.
-
-- **N/A (INCOMPLETE), 5, not scored:** `energy/evaporative-partition`,
-  `energy/latent-heat-et-consistency`, `energy/surface-energy-closure` and
-  `energy/radiation-consistency`, plus `energy/soil-heat-storage-consistency`. LISFLOOD reports no heat fluxes and no
-  surface temperature, so these probes cannot ask it anything.
-  They are neither a pass nor a fail, and do not decide the verdict.
-- **ERROR, 2:** `mass/precipitation-counterfactual` and
-  `mass/human-abstraction`. The container exceeded the 60 s budget, because a
-  ten-year record takes about 90 s under emulation (87 and 92 s when left to
-  finish).
-  These rows come from the emulated host.
-  - Run outside the limit on all three gate seeds,
-    `mass/precipitation-counterfactual` passes every criterion.
-  - `mass/human-abstraction` fails `human_abstraction` there. LISFLOOD
-    withdraws 17.0 to 33.1% of the prescription, from the sourced reserve to
-    none. That leaves a residual of 82.9 to 66.7% against a 5% limit;
-    `closure` and `state_bounds` pass.
-  - On a host fast enough for the budget, the first should PASS and the second
-    be VIOLATION. The model's verdict would then be FAIL (VIOLATION), with 17
-    of 19 probes passed and 5 N/A.
-- **VIOLATION, 1:** `mass/resolution-invariance`. Rain that falls within an
-  hour runs off, so `mrro` differs by 13.0% of `pr` between PT1H and PT1D,
-  against a 10% limit.
-- **PASS, 16:**
+- **N/A (INCOMPLETE), 9, not scored:** `energy/evaporative-partition`,
+    `energy/latent-heat-et-consistency`, `energy/surface-energy-closure`,
+    `energy/snowmelt-energy-water`, `energy/radiation-consistency`,
+    `mass/gw-sw-exchange-consistency`, `momentum/stage-discharge-monotonic`,
+    `momentum/uniform-flow-friction-consistency`, plus `energy/soil-heat-storage-consistency`. LISFLOOD reports no heat fluxes and no
+    surface temperature, so these probes cannot ask it anything.
+    They are neither a pass nor a fail, and do not decide the verdict.
+- **N/A (INCOMPATIBLE), 2, not scored:** `mass/exchange-response`, and
+    `momentum/routing-lag-consistency`.
+- **VIOLATION, 2:**
+  - `mass/human-abstraction`: of the prescribed 380 mm abstraction,
+    315.2 mm remains unaccounted for (82.94%, against a 5% limit).
+  - `mass/resolution-invariance`: `mrro` differs by 13.0% of `pr`
+    between PT1H and PT1D (limit 10%).
+- **PASS, 20:**
   - `energy/pet-consistency`;
   - `mass/antecedent-monotonicity`, `mass/area-invariance`,
     `mass/catchment-closure`, `mass/causality`, `mass/dry-down`,
@@ -440,7 +419,9 @@ commands and the row replacement.
   - `mass/phase-counterfactual`, `mass/response-nonnegativity`,
     `mass/runoff-bounds`, `mass/steady-state`, `mass/time-origin-invariance`
     and `mass/warming-response`;
-  - `momentum/routing-conservation` and `mass/ungauged-basin-closure`.
+  - `momentum/routing-conservation` and `mass/ungauged-basin-closure`,
+  - `mass/multi-decadal-drift`, `mass/precipitation-counterfactual`,
+    `mass/snowpack-mass-closure`, `mass/spinup-cycle-invariance`.
 
   The budget closes to 1e-13 mm per step. The harness flags `suspicious_exact`
   on `mass/catchment-closure` and `mass/time-origin-invariance`; "What the
@@ -458,7 +439,7 @@ Against the `.2` rows:
 - No other probe's verdict moved.
 
 The standing counts passes out of the 19 probes that could score LISFLOOD; the
-five N/A energy probes are in neither number.
+six N/A energy probes are in neither number.
 
 Against the `.3` rows, `.4` changes the environmental-flow reserve and the
 channel's bottom width, bankfull depth and gradient to the headwater values.
@@ -540,63 +521,6 @@ Neither the cell nor the routing sub-step moves it. The spread between seeds
 is the weather, and earlier comparisons across two seeds read it as a
 sub-step effect.
 
-**The two ERROR rows come from the host's speed.** Both probes score a ten-year
-daily record (4015 rows with spinup) in a container with a 60 s budget, and the
-harness stops a probe at its first timeout.
-- Run outside the limit on this host, each `.4` variant took 96 to 110 s, two
-  containers at a time.
-- Left to finish, the first ten-year cases of a `.5` run took 87 and 92 s. The
-  harness now kills a container at its 60 s budget, so a timed-out case no
-  longer runs on into the next probe.
-- Per step, a ten-year record runs at the speed of a 30-day case (21 to 23 ms).
-
-Nothing in the model slows down; ten years of LISFLOOD's Python framework
-under amd64 emulation simply need more than 60 s.
-
-## Native re-run
-
-**The two ERROR rows are provisional:** they come from an emulated host, and
-this re-run replaces them.
-
-Every row this package has archived was produced on an Apple-silicon host
-running the amd64 image under emulation. Two probes score a ten-year daily
-record in a container with a 60 s budget, `mass/precipitation-counterfactual`
-and `mass/human-abstraction`. Under emulation a ten-year run takes about
-90 s (87 and 92 s when left to finish), so their archived rows are ERROR
-because of the host's speed alone. On an
-x86-64 Linux host, from the repository root:
-
-```bash
-rm -f /tmp/lisflood-native.csv   # ht run --csv appends
-docker build -t hydroturing/lisflood:5.0.0-onecell.5 -f models/lisflood/Dockerfile models/lisflood
-ht verify-adapter --model lisflood
-ht run --model lisflood --gate-seeds --csv /tmp/lisflood-native.csv --markdown
-```
-
-To replace the archived rows with the native ones, drop every `lisflood` row
-from `models/result.csv` and append the new file's rows without its header,
-leaving every other model's bytes as they are:
-
-```bash
-grep -v ',lisflood,' models/result.csv > /tmp/result.csv
-tail -n +2 /tmp/lisflood-native.csv >> /tmp/result.csv
-mv /tmp/result.csv models/result.csv
-ht verify-adapter --model lisflood --csv models/result.csv
-git diff origin/main -- models/result.csv   # only lisflood lines
-```
-
-Then rewrite everything that describes the emulated host:
-- the verdict, its count and the ERROR narrative under "Result", and the
-  time-budget paragraph under "Mechanisms checked with targeted runs";
-- the ten-year timings in this README, in `model.yaml`'s closing comment and
-  in the top-level README row;
-- the share of `abstr` LISFLOOD withdraws and the residual, wherever they are
-  quoted, from the native `mass/human-abstraction` row;
-- the top-level README row and the three rows of `site/index.html`.
-
-If the ten-year cases still exceed 60 s on the native host, the ERROR is the
-model's own at its reference routing sub-step. The archived cases need about
-1.5 times this host's speed to fit (87 and 92 s against 60 s).
 
 ## Running it
 

@@ -18,7 +18,7 @@ adapter can read rather than reconstruct.
 
 ## Verdict
 
-**FAIL (VIOLATION)**, 17 of 21 probes passed, on the gate seeds and the full
+**FAIL (VIOLATION)**, 18 of 22 probes passed, on the gate seeds and the full
 record of every probe (`ht run --model cwatm --gate-seeds`). Four probes fail
 as VIOLATION, and they are not alike.
 
@@ -72,6 +72,8 @@ as VIOLATION, and they are not alike.
 | `mass/antecedent-monotonicity` | PASS | the wetter catchment runs off 9.2–16.6 mm more from the same 60 mm storm (0.15–0.28 of it; at least 0.02), within the 120 mm it was given. The window now opens on the storm, after ten dry days; it used to open on the first of them, which counted 2.8–4.0 mm of recession from the antecedent rain and divided by all of the month's rain (71–116 mm) |
 | `mass/warming-response` | PASS | runoff −0.25 and −0.28, evaporation +0.27 and +0.31 per unit of demand, warmer and cooler |
 | `momentum/routing-conservation` | PASS | the runoff-concentration store stays within 0.47 of the 15-day bound |
+| `mass/spinup-cycle-invariance` | PASS | the repeated forcing reaches the same evaluation-year response for all 3 selected spin-up cycles (worst short<->long:gw departure 0.00%) |
+| `mass/snowpack-mass-closure` | PASS | cumulative residual 0.0000% of sum_pr (limit 5.0%) |
 
 ### Preferential flow, runoff concentration and the dip
 
