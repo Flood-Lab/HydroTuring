@@ -26,6 +26,7 @@ long.
 | `mass/multi-decadal-drift` | Bing Li (Independent Researcher) |
 | `mass/extreme-rain` | Zhi Li (CU Boulder) |
 | `mass/runoff-bounds` | Zhi Li (CU Boulder) |
+| `mass/aquifer-recharge-ordering` | Zhenjiang Wu (Xi’an Jiaotong University) |
 | `mass/area-invariance` | Zhi Li (CU Boulder) |
 | `mass/response-nonnegativity` | Zhi Li (CU Boulder) |
 | `mass/antecedent-monotonicity` | Zhi Li (CU Boulder) |

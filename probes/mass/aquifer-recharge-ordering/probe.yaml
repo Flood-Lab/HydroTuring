@@ -1,0 +1,65 @@
+id: mass/aquifer-recharge-ordering
+title: Aquifer recharge preserves storage and exchange ordering
+law: mass
+track: synthetic
+version: 1
+authors:
+  - name: Zhenjiang Wu
+    affiliation: Institute of Global Environmental Change, Xi’an Jiaotong University, Xi’an 710049, China
+    orcid: 0000-0002-5329-4917
+    github: JustinLoiii
+description: >
+  Identical passive aquifer runs differ only by a nonnegative direct recharge
+  pulse. The added recharge must never lower groundwater storage, must not make
+  net exchange less favorable to the river, and must be partitioned between
+  storage and cumulative incremental exchange without loss or creation.
+requires:
+  fluxes: [gw_sw_exchange, gw_to_sw, sw_to_gw]
+  states: [gw]
+  forcing: [gw_recharge, sw_stage_m]
+  static: [area_km2, aquifer_specific_yield, aquifer_initial_head_m, aquifer_top_m, aquifer_bottom_m, river_conductance_m2_per_day]
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_days: 18
+  spinup_days: 2
+  min_window_days: 10
+  max_output_mb: 2.0
+  max_runtime_s: 60
+  variants: [control, recharge_added]
+criteria:
+  - aquifer_recharge_ordering:
+      control: control
+      perturbed: recharge_added
+      recharge: gw_recharge
+      exchange: gw_sw_exchange
+      storage: gw
+      rel_tol: 0.01
+      abs_tol_mm: 1.0e-3
+      sources: [gw_boundary]
+  - groundwater_balance:
+      recharge: gw_recharge
+      exchange: gw_sw_exchange
+      storage: gw
+      rel_tol: 0.01
+      abs_tol_mm: 2.0e-4
+      all_variants: true
+  - exchange_components:
+      rel_tol: 1.0e-6
+      abs_tol: 1.0e-4
+      all_variants: true
+  - state_bounds:
+      gw: [0.0, null]
+      all_variants: true
+baselines:
+  # The standard catchment references do not expose a direct aquifer source.
+  # MODFLOW 6 is the independent physical baseline and is run with paired
+  # perturbations for this process.
+  must_pass: [reference_recharge_order_exact]
+  must_fail:
+    reference_recharge_blind: aquifer_recharge_ordering
+    reference_recharge_overshoot: aquifer_recharge_ordering
+provenance: >
+  Synthetic deterministic forcing based on the accepted proposal in issue
+  https://github.com/Flood-Lab/HydroTuring/issues/135.
