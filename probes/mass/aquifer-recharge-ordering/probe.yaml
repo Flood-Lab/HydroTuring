@@ -17,7 +17,7 @@ requires:
   fluxes: [gw_sw_exchange, gw_to_sw, sw_to_gw]
   states: [gw]
   forcing: [gw_recharge, sw_stage_m]
-  static: [area_km2, aquifer_specific_yield, aquifer_initial_head_m, river_conductance_m2_per_day]
+  static: [area_km2, aquifer_specific_yield, aquifer_initial_head_m, aquifer_top_m, aquifer_bottom_m, river_conductance_m2_per_day]
 case:
   generator: generate.py
   n_seeds: 3
