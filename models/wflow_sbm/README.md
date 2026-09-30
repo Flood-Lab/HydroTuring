@@ -148,11 +148,13 @@ add the initial `gw` to the capacity.
 
 The snowpack closure is exact to machine precision and is therefore flagged
 by the harness as `suspicious_exact`. This is not residual reconstruction:
-`snm` is read directly from Wflow's native `snow.runoff` variable. Wflow's HBV
-snow routine updates `snow_storage` and `snow_water` from the same
-precipitation, melt, refreezing and runoff terms, so the snowpack control
-volume closes algebraically when snow sublimation and lateral snow transport
-are absent.
+`snm` is read directly from Wflow's native `snow.runoff` variable. In this
+probe `canopy_capacity_mm = 0`, which the adapter maps to `Cmax = 0`, so no
+water is removed by interception before precipitation reaches the snow
+module. Under that boundary condition, and with snow sublimation and lateral
+snow transport absent, Wflow's HBV snow routine updates `snow_storage` and
+`snow_water` from the same precipitation, melt, refreezing and runoff terms,
+so the snowpack control volume closes algebraically.
 
 ## A prescribed withdrawal
 

@@ -386,24 +386,30 @@ in 14.1 and 34.7 s of wall time, beside the archive run.
 | `mass/steady-state` | 1460 | 5.2 s | 30.7 s | 21 ms |
 | `mass/catchment-closure`, whole ten-year record | 4015 | 5.2 s | 91.7 s | 23 ms |
 
-A ten-year daily record takes 97 s there. That is over the 60 s budget of
-`mass/precipitation-counterfactual` and `mass/human-abstraction`. Left to
-finish, the first ten-year cases of a `.5` run took 87 and 92 s; that run's log
-records a load average of 15.6 at its start. The harness now kills a
-container at its time budget, so the archived ERROR rows record no wall time
-of their own.
+On that emulated Apple-silicon host, a ten-year daily record took about
+87--97 s, exceeding the 60 s budgets of
+`mass/precipitation-counterfactual` and `mass/human-abstraction`. Those
+measurements explain the historical ERROR rows from the emulated `.5` runs;
+they do not describe the current `5.0.0-onecell.6` archive, in which both
+ten-year probes completed and received scored verdicts.
 
 ## Result
 
 **FAIL (VIOLATION), 20 of 22 probes passed, 11 N/A (9 INCOMPLETE, 2 INCOMPATIBLE).** These are the rows of the full gate-seed run of `5.0.0-onecell.6`.
 
-- **N/A (INCOMPLETE), 9, not scored:** `energy/evaporative-partition`,
+- **N/A (INCOMPLETE), 9, not scored:**
+  - six energy probes — `energy/evaporative-partition`,
     `energy/latent-heat-et-consistency`, `energy/surface-energy-closure`,
-    `energy/snowmelt-energy-water`, `energy/radiation-consistency`,
-    `mass/gw-sw-exchange-consistency`, `momentum/stage-discharge-monotonic`,
-    `momentum/uniform-flow-friction-consistency`, plus `energy/soil-heat-storage-consistency`. LISFLOOD reports no heat fluxes and no
-    surface temperature, so these probes cannot ask it anything.
-    They are neither a pass nor a fail, and do not decide the verdict.
+    `energy/snowmelt-energy-water`, `energy/radiation-consistency`, and
+    `energy/soil-heat-storage-consistency` — require heat, radiation or
+    surface/soil-temperature diagnostics that this adapter does not report;
+  - `mass/gw-sw-exchange-consistency` cannot score because LISFLOOD does not
+    report the required `gw_sw_exchange` / `gw_to_sw` / `sw_to_gw`
+    interface for that probe;
+  - `momentum/stage-discharge-monotonic` and
+    `momentum/uniform-flow-friction-consistency` cannot score because the
+    adapter does not report river stage.
+  They are neither a pass nor a fail, and do not decide the verdict.
 - **N/A (INCOMPATIBLE), 2, not scored:** `mass/exchange-response`, and
     `momentum/routing-lag-consistency`.
 - **VIOLATION, 2:**
@@ -431,15 +437,16 @@ Against the `.2` rows:
 - `mass/area-invariance` moved from VIOLATION to PASS with the representative
   cell.
 - `mass/resolution-invariance` is VIOLATION in both (13.1% then, 13.0% now).
-- `mass/precipitation-counterfactual` is ERROR on this host in both.
+- `mass/precipitation-counterfactual` was ERROR in the historical emulated
+  runs because those ten-year cases exceeded their runtime budget.
 - `mass/human-abstraction` is new since `.2`.
 - The three energy-flux probes were FAIL (INCOMPLETE) under the earlier
   roll-up and are N/A (INCOMPLETE) under main's; `energy/radiation-consistency`,
   new since `.2`, is N/A too.
 - No other probe's verdict moved.
 
-The standing counts passes out of the 19 probes that could score LISFLOOD; the
-six N/A energy probes are in neither number.
+The standing counts passes out of the 22 probes that could score LISFLOOD;
+the N/A probes are excluded from both the numerator and denominator.
 
 Against the `.3` rows, `.4` changes the environmental-flow reserve and the
 channel's bottom width, bankfull depth and gradient to the headwater values.
@@ -447,14 +454,13 @@ No probe's verdict or reason moved:
 - the routing-sensitive probes still pass, and `mass/area-invariance` still
   departs by exactly 0;
 - `mass/resolution-invariance` is 13.0% in both;
-- the two ten-year probes are ERROR on this host in both.
+- the two ten-year probes were ERROR in those historical emulated runs
+  because they exceeded their runtime budgets.
 
 `.5` requires `latitude_deg`, `area_km2` and `canopy_capacity_mm` and records
-the latitude it used in `run.json`. Every probe supplies them, and re-run on
-all 20 probes with the same harness, no row moved against `.4` except its
-version and the contract row's timing. Re-run again with main's harness from
-`89f2f14`, which kills a timed-out container and counts passes out of the
-scored probes, no row moved either; these are the archived rows.
+the latitude it used in `run.json`. Every applicable probe supplies them.
+Re-running the then-current suite with the same harness moved no scored verdict
+against `.4` except for the adapter version and contract-row timing.
 
 ## Mechanisms checked with targeted runs
 

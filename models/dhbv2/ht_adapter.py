@@ -386,6 +386,27 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         float(derived.get("meanelevation", norm["meanelevation"][2])),
         out["tosoil"],
     )
+
+    snow_storage = snowpack + meltwater
+    pr_depth = np.asarray(
+        [float(step["pr"]) * dt for step in forcing],
+        dtype=np.float64,
+    )
+    # The model exposes end-of-step snow states but not the state immediately
+    # before row 0, so validate every transition that can be checked directly.
+    snow_residual = np.diff(snow_storage) - (pr_depth[1:] - snm[1:])
+    snow_module_max_residual = (
+        float(np.max(np.abs(snow_residual)))
+        if snow_residual.size
+        else 0.0
+    )
+    if snow_module_max_residual > 1.0e-4:
+        raise RuntimeError(
+            "reconstructed HBV rain partition is inconsistent with "
+            "SNOWPACK + MELTWATER: maximum step residual "
+            f"{snow_module_max_residual:.6g} mm"
+        )
+
     gwex = regional_exchange(model.phy_model, static_params, states[4][:, 0, :].double().numpy(),
                              out["percolation"][:, 0, 0].double().numpy(), derived["uparea"], dt)
     routed = out["streamflow"][:, 0, 0].double().numpy()
@@ -429,6 +450,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             "RAIN + tosoil: liquid precipitation bypassing snow storage plus "
             "model-reported liquid water released from MELTWATER, mean over components"
         ),
+        "snow_module_max_step_residual_mm": snow_module_max_residual,
         "states": {
             "snw": "SNOWPACK + MELTWATER, mean over components",
             "mrso": "SM, mean over components",

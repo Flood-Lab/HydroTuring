@@ -26,7 +26,7 @@ entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H]
 
 emits:
-  fluxes: [pr, evspsbl, snm, mrro, hfls, hfss, hfg]
+  fluxes: [pr, evspsbl, sbl, snm, mrro, hfls, hfss, hfg]
   states: [mrso, snw, canopy, gw, channel]
 
 needs_forcing: [pr, tas, pet]

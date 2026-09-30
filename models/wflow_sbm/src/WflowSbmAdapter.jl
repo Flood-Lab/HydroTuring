@@ -791,6 +791,7 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
             "dis" => "mrro over the catchment's area, m3/s",
             "gwex" => "minus the leakage from the saturated store (zero, MaxLeakage 0), and, when the case " *
                 "prescribes a withdrawal, minus what Wflow's allocation took for it (see human_withdrawal)",
+            "snm" => "snowpack runoff: liquid water leaving the snow module after melt, refreezing and liquid-water retention",
             "mrso" => "unsaturated store (all layers) + saturated store: the SBM soil column",
             "snw" => "dry snow + liquid water in the pack",
             "canopy" => "canopy storage",

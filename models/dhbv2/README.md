@@ -52,6 +52,12 @@ threshold rule as hydrodl2 v1.3.5, while `tosoil` is read directly from the
 model output. No snow sublimation process is present in this HBV core, so
 `sbl` is not declared.
 
+Each run cross-checks that reconstruction against the model's exposed snow
+stores: for every transition whose preceding state is available,
+`Δ(SNOWPACK + MELTWATER) = pr - snm`. The adapter fails loudly if the
+maximum step residual exceeds `1e-4` mm and records that maximum in
+`run.json`.
+
 
 ## Inputs
 

@@ -46,6 +46,10 @@ supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 2, gpu: false}
 
+# Uses default submitted-model scored window: 30 days at PT1D and 7 days at PT1H.
+# The harness retains the probe's spinup and widens the window
+# when a probe requires a longer minimum record.
+
 # Existing adapter mappings; no change to model equations.
 needs_static: [canopy_capacity_mm]
 uses_static: [soil_capacity_mm]
