@@ -484,28 +484,23 @@ whatever the temperature. It converts sublimated water at `LH_sub` = 2.8347e6,
 which is exactly the probe's value. The reported latent heat equals
 `LH_vap * E_liquid + LH_sub * E_ice` to 9.1e-4 W/m2. The probe asks for 2.501e6 - 2361 T.
 
-The adapter reports no `sbl`, so the criterion does two things:
-- On snow-free steps, where no pack lies and none could fall, it holds latent
-  heat to that equality.
-- Where a pack is or could be present, it asks only that latent heat lie
-  between the liquid and ice conversions of the reported evaporation.
+With signed `sbl` now reported, the latent-heat criteria take their reported
+split path. This exposes a semantic difference between the two uses of `sbl`
+in the current suite: the snowpack balance accepts negative `sbl` as net frost
+deposition, while the latent-heat split check treats the reported sublimating
+share as non-negative.
 
-SUMMA meets the interval on every such step. It fails the equality:
-- on 931 to 962 of 3650 days on the latent-heat probe, 928 to 960 of them with
-  the air more than 5.3 C from freezing;
-- on 141 to 171 of 1095 on the partition probe, all but one of them above
-  5.3 C.
+Accordingly, the current archive reports `flux_identity` violations from
+negative signed `sbl` on 146 steps in `energy/latent-heat-et-consistency` and
+51 steps in `energy/evaporative-partition`. The adapter does not clip those
+steps because doing so would break the native snowpack mass balance.
 
-The other 2 to 9 latent-heat days a seed are days when the canopy's ice
-sublimates, about 1 mm/day, with no snow on the ground and none falling.
-SUMMA converts that water at `LH_sub`, while the criterion's equality asks for
-the liquid value. They are the worst steps, 7.3 to 9.4 times the tolerance,
-and the ice comes from the rain frozen on the canopy (Rain on a freezing
-canopy).
-
-That is what `reference_constant_lambda` is built to show. The third version,
-which reported the signed sublimation as `sbl`, failed the same criterion
-through the split instead; its numbers are under What changed.
+A separate latent-heat mismatch remains. SUMMA uses
+`LH_vap = 2.501e6 J/kg` for liquid evaporation regardless of temperature,
+whereas the probe uses a temperature-dependent latent heat. The current runs
+therefore imply about 2.522--2.523e6 J/kg and reach worst residuals of
+23.75 and 23.39 times the criterion tolerance in the latent-heat and
+evaporative-partition probes, respectively.
 
 ## Verdict
 
@@ -662,9 +657,16 @@ What the table says:
 `snm` is now reported from SUMMA's native `scalarRainPlusMelt`, converted
 from m s-1 to mm/day. With explicit snow layers this is the same basal
 liquid-water flux as `scalarSnowDrainage`; without an explicit snow layer it
-also carries rain and melt from "snow without a layer" into the soil. No
-SUMMA equations, parameters, forcing translation or states are changed.
+also carries rain and melt from "snow without a layer" into the soil.
 
+Signed `sbl` is also restored from native `scalarSnowSublimation`, with the
+sign reversed to HydroTuring's snowpack convention: positive for sublimation
+from the pack and negative for frost deposition. This follows the contract's
+support for signed snow-atmosphere exchange and allows
+`mass/snowpack-mass-closure` to close to machine precision without clipping or
+residual reconstruction.
+
+No SUMMA equations, parameters, forcing translation or states are changed.
 
 ## What changed in 4.0.0-f787fa5.4
 
