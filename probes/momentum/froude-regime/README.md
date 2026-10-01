@@ -230,7 +230,8 @@ The criterion therefore scores the **larger** of the two columns a model
 reports. Under the contract they are readings of one outflow, so the discharge a
 model reports cannot be brought below the runoff the same model reports, and a
 step is excused only where the larger reading is still. Both constructions fail
-again, on all 1460 steps, with every one of those steps scored on the runoff.
+again, with all 1460 steps scored on the runoff (1,316 of them exceeding on the
+first gate seed).
 The honest records are untouched — worst Fr stays at 0.445, 0.389, 0.417 and
 0.413 over the gate seeds, and the must-fail at 1.894, to three decimals — and
 so is the archive: where a model reports one outflow in both columns the two
