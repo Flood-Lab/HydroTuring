@@ -395,16 +395,47 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
     # The model exposes end-of-step snow states but not the state immediately
     # before row 0, so validate every transition that can be checked directly.
     snow_residual = np.diff(snow_storage) - (pr_depth[1:] - snm[1:])
+    snow_abs_residual = np.abs(snow_residual)
+
+    # HBV exposes its native snow states and fluxes as float32. At deep
+    # snowpacks their representable spacing can exceed the fixed absolute
+    # tolerance used for ordinary states. Retain the 1e-4 mm floor, but
+    # allow several native float32 ULPs for roundoff.
+    native_scale = np.maximum.reduce([
+        np.abs(snowpack[:-1]),
+        np.abs(snowpack[1:]),
+        np.abs(meltwater[:-1]),
+        np.abs(meltwater[1:]),
+        np.abs(snm[1:]),
+        np.ones_like(snow_residual),
+    ])
+    native_ulp = np.spacing(
+        native_scale.astype(np.float32)
+    ).astype(np.float64)
+    snow_tolerance = np.maximum(
+        1.0e-4,
+        4.0 * native_ulp,
+    )
+
     snow_module_max_residual = (
-        float(np.max(np.abs(snow_residual)))
-        if snow_residual.size
+        float(np.max(snow_abs_residual))
+        if snow_abs_residual.size
         else 0.0
     )
-    if snow_module_max_residual > 1.0e-4:
+    snow_module_max_tolerance = (
+        float(np.max(snow_tolerance))
+        if snow_tolerance.size
+        else 1.0e-4
+    )
+
+    bad = snow_abs_residual > snow_tolerance
+    if np.any(bad):
+        worst = int(np.argmax(snow_abs_residual / snow_tolerance))
         raise RuntimeError(
             "reconstructed HBV rain partition is inconsistent with "
-            "SNOWPACK + MELTWATER: maximum step residual "
-            f"{snow_module_max_residual:.6g} mm"
+            "SNOWPACK + MELTWATER: step residual "
+            f"{snow_abs_residual[worst]:.6g} mm exceeds "
+            f"precision-aware tolerance {snow_tolerance[worst]:.6g} mm"
         )
 
     gwex = regional_exchange(model.phy_model, static_params, states[4][:, 0, :].double().numpy(),
@@ -451,6 +482,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             "model-reported liquid water released from MELTWATER, mean over components"
         ),
         "snow_module_max_step_residual_mm": snow_module_max_residual,
+        "snow_module_max_step_tolerance_mm": snow_module_max_tolerance,
         "states": {
             "snw": "SNOWPACK + MELTWATER, mean over components",
             "mrso": "SM, mean over components",

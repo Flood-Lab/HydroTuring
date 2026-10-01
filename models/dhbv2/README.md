@@ -54,9 +54,12 @@ model output. No snow sublimation process is present in this HBV core, so
 
 Each run cross-checks that reconstruction against the model's exposed snow
 stores: for every transition whose preceding state is available,
-`Δ(SNOWPACK + MELTWATER) = pr - snm`. The adapter fails loudly if the
-maximum step residual exceeds `1e-4` mm and records that maximum in
-`run.json`.
+`Δ(SNOWPACK + MELTWATER) = pr - snm`. The adapter retains a `1e-4` mm
+absolute tolerance floor and expands it, when necessary, to four float32
+ULPs at the native snow-state and flux scale. This accounts for δHBV2's
+native numerical precision at deep snowpacks without weakening the check
+for ordinary states. The maximum residual and maximum tolerance used are
+recorded in `run.json`.
 
 
 ## Inputs
