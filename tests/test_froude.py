@@ -360,16 +360,16 @@ def test_a_step_both_readings_call_still_is_excused():
     assert "are scored on 'mrro'" not in result.message
 
 
-def test_an_honest_runoff_above_the_discharge_is_scored_and_named():
-    """On honest output the larger reading is the runoff wherever routing lag
-    leaves it above the discharge, so the sentence has to be worded for that
-    and not only for a zero.
+def test_a_runoff_above_the_discharge_is_scored_and_named():
+    """The sentence names every step scored on the runoff, not only a zero.
 
-    A rising limb's runoff exceeds what the routing has released, which is an
-    honest difference between two real readings of one outflow. Those steps are
-    scored on the larger one — the numbers barely move, because they are not the
-    peak — and the message names them, because the message is what the archive
-    keeps and a verdict that rests on the runoff column should say so.
+    Under the contract the two columns are one outflow in two units (`AGENTS.md`:
+    `mrro` is what the routing has released, and `dis` is that over the area), so
+    on a conforming record they differ only by the rounding of the conversion and
+    the sentence never fires. A record whose runoff sits above its discharge, here
+    by half, is scored on the runoff: it still passes while the pair stays
+    subcritical, and the message says which reading the verdict rests on, because
+    the message is what the archive keeps.
     """
     q = np.linspace(1.0, 50.0, 400)
     stage = manning_depth(q)
