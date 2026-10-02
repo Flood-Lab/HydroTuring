@@ -35,8 +35,8 @@ import json
 import sys
 from pathlib import Path
 
-MODE = "degree_day"
-MODEL = {"name": "reference_degree_day", "version": "1.0.0"}
+MODE = "always_ripe"
+MODEL = {"name": "reference_always_ripe", "version": "1.0.0"}
 
 COLUMNS = [
     "time", "pr", "evspsbl", "mrro", "snm", "sbl", "hfls", "hfss", "hfg",
