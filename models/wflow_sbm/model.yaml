@@ -1,5 +1,5 @@
 name: wflow_sbm
-version: "1.0.4-ht.4"
+version: "1.0.4-ht.5"
 description: >
   wflow_sbm, the distributed hydrological model of Deltares' Wflow.jl at v1.0.4
   (van Verseveld et al. 2024, GMD, which evaluates v0.7.3): the SBM soil column
@@ -27,8 +27,9 @@ timestep: [PT1D, PT1H]
 # leakage out of the saturated store, zero in the test model and here, plus, when a probe
 # prescribes a withdrawal (`abstr`), minus what Wflow's water allocation took for it. There is no
 # `gw`: the sbm type has no store below the soil column, and run.json says so under `not_reported`.
+# `snm` is snowpack runoff; the snow routine has no sublimation flux.
 emits:
-  fluxes: [pr, evspsbl, mrro, dis, gwex]
+  fluxes: [pr, evspsbl, mrro, dis, gwex, snm]
   states: [mrso, snw, canopy, channel]
 
 needs_forcing: [pr, tas, pet]

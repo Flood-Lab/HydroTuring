@@ -18,7 +18,7 @@ adapter can read rather than reconstruct.
 
 ## Verdict
 
-**FAIL (VIOLATION)**, 17 of 21 probes passed, on the gate seeds and the full
+**FAIL (VIOLATION)**, 18 of 22 probes passed, on the gate seeds and the full
 record of every probe (`ht run --model cwatm --gate-seeds`). Four probes fail
 as VIOLATION, and they are not alike.
 
@@ -54,7 +54,7 @@ as VIOLATION, and they are not alike.
 | --- | --- | --- |
 | `mass/ungauged-basin-closure` | PASS | All 12 fixed seeds pass the native closure and companion checks; soil and canopy stores are nonzero (see the [storage coverage table](../../probes/mass/ungauged-basin-closure/README.md#storage-bound-coverage)) |
 | `energy/soil-heat-storage-consistency` | N/A (INCOMPLETE) | Required layer heat-storage diagnostics are not reported |
-| `energy/evaporative-partition`, `energy/latent-heat-et-consistency`, `energy/surface-energy-closure`, `energy/radiation-consistency` | N/A (INCOMPLETE) | CWatM reports no latent, sensible or ground heat flux, and no surface temperature or upward longwave (and the last two probes are hourly), so these probes cannot ask it anything |
+| `energy/evaporative-partition`, `energy/latent-heat-et-consistency`, `energy/surface-energy-closure`, `energy/radiation-consistency`, `energy/snowmelt-energy-water` | N/A (INCOMPLETE) | CWatM reports no latent, sensible or ground heat flux, and no surface temperature or upward longwave (and the last two probes are hourly), so these probes cannot ask it anything |
 | `energy/pet-consistency` | VIOLATION: evaporation on the wettest fifth of soil days is 0.695 of demand on the worst seed (0.695–0.705; at least 0.7) | a land cover's transpiration, bare-soil and interception evaporation together cannot exceed `crop_correct × cropKC × ETRef`, and the fraction-weighted crop coefficient is 0.689; snow evaporation is added on top of that cap, which is why the ratio sits just above 0.689 (Sensitivity). **A packaging choice**: with `preferentialFlow = False` it passes at 0.708–0.712, and higher crop coefficients or more forest pass too |
 | `mass/resolution-invariance` | VIOLATION: runoff differs by 52.1 % of the rain between PT1H and PT1D (38.6–52.1 %), evaporation by 0.6 % | CWatM has no dt (below); its groundwater reservoir releases `recessionCoeff × storage` per step, so at PT1H it drains 24 times too fast |
 | `mass/response-nonnegativity` | VIOLATION: runoff 0.29 mm/day below the control on 2002-02-12, eight days after 120 mm was added (seed 1713476937; the other two never dip) | on wetter soil preferential flow takes a larger share of a later storm, and its interflow part replaces surface runoff; runoff concentration releases interflow through a slower kernel than surface runoff, so the next day carries less (below). **A packaging choice**: with `preferentialFlow = False` it passes (largest dip 0.048 mm/day, within tolerance), and the verdict also moves with land cover and with the slope that sets the lag |
@@ -72,6 +72,8 @@ as VIOLATION, and they are not alike.
 | `mass/antecedent-monotonicity` | PASS | the wetter catchment runs off 9.2–16.6 mm more from the same 60 mm storm (0.15–0.28 of it; at least 0.02), within the 120 mm it was given. The window now opens on the storm, after ten dry days; it used to open on the first of them, which counted 2.8–4.0 mm of recession from the antecedent rain and divided by all of the month's rain (71–116 mm) |
 | `mass/warming-response` | PASS | runoff −0.25 and −0.28, evaporation +0.27 and +0.31 per unit of demand, warmer and cooler |
 | `momentum/routing-conservation` | PASS | the runoff-concentration store stays within 0.47 of the 15-day bound |
+| `mass/spinup-cycle-invariance` | PASS | the repeated forcing reaches the same evaluation-year response for all 3 selected spin-up cycles (worst short<->long:gw departure 0.00%) |
+| `mass/snowpack-mass-closure` | PASS | cumulative residual 0.0000% of sum_pr (limit 5.0%) |
 
 ### Preferential flow, runoff concentration and the dip
 
@@ -209,6 +211,7 @@ fraction-weighted sums.
 | `pr` | the forcing, echoed |
 | `evspsbl` | `totalET`: transpiration, bare-soil, open-water, interception and snow evaporation |
 | `sbl` | `snowEvap`, the snow evaporation inside `totalET`: subtracted from the snow cover (`snow_frost.py:790`), whose degree-day pack holds no liquid water, and added once to `totalET` (`landcoverType.py:1017`), so it is the part of `evspsbl` that left the solid snow store, in mm/day like `evspsbl`. CWatM takes it at any temperature (`snow_frost.py:788` has no temperature condition), and about two thirds of it falls on days above 0 °C on the gate runs, so it is evaporation drawn from the solid snow store rather than resolved sublimation |
+| `snm` | `Rain + SnowMelt + IceMelt`: liquid water crossing the snow-module boundary. `Rain` is precipitation partitioned as liquid; `SnowMelt` and `IceMelt` are both removed from `SnowCover`. Canopy interception occurs downstream of this boundary |
 | `mrro` | `runoff`: surface runoff, interflow and baseflow after the runoff-concentration lag, i.e. what leaves the cell |
 | `dis` | the same over the catchment area, m3/s |
 | `gwex` | −`nonFossilGroundwaterAbs`: the water CWatM's own water-demand module pumped out of `storGroundwater` for a prescribed withdrawal (below); zero without one |
@@ -223,6 +226,14 @@ prescribed withdrawal, reported as `gwex`. Every step the adapter checks
 P − ET − Q + `gwex` against the change in the reported stores, and that
 CWatM's own total water storage `tws` equals their sum; both numbers go to
 `run.json`.
+
+Exact snowpack closure. The harness flags `suspicious_exact` on
+`mass/snowpack-mass-closure` because the snow budget closes to machine
+precision. `snm` is not solved as a residual: it is read from CWatM's native
+snow-module terms as `Rain + SnowMelt + IceMelt`. With `SnowFactor = 1.0`,
+precipitation is partitioned into `Rain + Snow`, while `SnowCover` changes by
+`Snow - SnowMelt - IceMelt - snowEvap`, so
+`pr - snm - sbl - Δsnw = 0` follows directly from CWatM's snow equations.
 
 ## Prescribed withdrawal
 

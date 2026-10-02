@@ -28,6 +28,7 @@ registry.
 | --- | --- |
 | `pr` | the forcing, echoed |
 | `evspsbl` | HBV actual evaporation (`AET_hydro`) |
+| `snm` | `RAIN + tosoil`: liquid precipitation passing through the snow module plus liquid water released from `MELTWATER` to the soil system |
 | `mrro` | routed streamflow (`streamflow`) |
 | `dis` | the same over the catchment area, m3/s |
 | `snw` | `SNOWPACK + MELTWATER`: the snowpack and the liquid water it holds |
@@ -40,6 +41,26 @@ States are averaged over the three HBV components, as the model averages
 its fluxes. `canopy` is reported as identically zero because the model has
 no such store; that is a statement about its structure, not a value
 invented to satisfy a column, and it is recorded as such in `run.json`.
+
+For the snow-module boundary, δHBV 2.0 first partitions precipitation into
+`RAIN` and `SNOW`. `SNOW` enters `SNOWPACK`; melt moves internally from
+`SNOWPACK` to `MELTWATER`; and `tosoil` removes liquid water from
+`MELTWATER`. Rain bypasses both snow stores and is delivered to the soil
+together with `tosoil`. The adapter therefore reports `snm = RAIN + tosoil`.
+`RAIN` is reconstructed from the model's own learned `parTT` using the same
+threshold rule as hydrodl2 v1.3.5, while `tosoil` is read directly from the
+model output. No snow sublimation process is present in this HBV core, so
+`sbl` is not declared.
+
+Each run cross-checks that reconstruction against the model's exposed snow
+stores: for every transition whose preceding state is available,
+`Δ(SNOWPACK + MELTWATER) = pr - snm`. The adapter retains a `1e-4` mm
+absolute tolerance floor and expands it, when necessary, to four float32
+ULPs at the native snow-state and flux scale. This accounts for δHBV2's
+native numerical precision at deep snowpacks without weakening the check
+for ordinary states. The maximum residual and maximum tolerance used are
+recorded in `run.json`.
+
 
 ## Inputs
 
