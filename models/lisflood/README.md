@@ -395,20 +395,22 @@ ten-year probes completed and received scored verdicts.
 
 ## Result
 
-**FAIL (VIOLATION), 20 of 22 probes passed, 11 N/A (9 INCOMPLETE, 2 INCOMPATIBLE).** These are the rows of the full gate-seed run of `5.0.0-onecell.6`.
+**FAIL (VIOLATION), 20 of 22 probes passed, 13 N/A (11 INCOMPLETE, 2 INCOMPATIBLE).** These are the rows of the full gate-seed run of `5.0.0-onecell.6`.
 
-- **N/A (INCOMPLETE), 9, not scored:**
+- **N/A (INCOMPLETE), 11, not scored:**
   - six energy probes — `energy/evaporative-partition`,
     `energy/latent-heat-et-consistency`, `energy/surface-energy-closure`,
     `energy/snowmelt-energy-water`, `energy/radiation-consistency`, and
     `energy/soil-heat-storage-consistency` — require heat, radiation or
     surface/soil-temperature diagnostics that this adapter does not report;
-  - `mass/gw-sw-exchange-consistency` cannot score because LISFLOOD does not
-    report the required `gw_sw_exchange` / `gw_to_sw` / `sw_to_gw`
-    interface for that probe;
-  - `momentum/stage-discharge-monotonic` and
-    `momentum/uniform-flow-friction-consistency` cannot score because the
-    adapter does not report river stage.
+  - `mass/gw-sw-exchange-consistency` and
+    `mass/groundwater-datum-invariance` cannot score because LISFLOOD does
+    not report the required `gw_sw_exchange` / `gw_to_sw` / `sw_to_gw`
+    interface for those probes;
+  - `momentum/stage-discharge-monotonic`,
+    `momentum/uniform-flow-friction-consistency` and
+    `momentum/froude-regime` cannot score because the adapter does not report
+    river stage.
   They are neither a pass nor a fail, and do not decide the verdict.
 - **N/A (INCOMPATIBLE), 2, not scored:** `mass/exchange-response`, and
     `momentum/routing-lag-consistency`.
