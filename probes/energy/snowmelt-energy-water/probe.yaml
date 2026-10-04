@@ -2,7 +2,7 @@ id: energy/snowmelt-energy-water
 title: Melt reported as water must be paid for out of the energy budget
 law: energy
 track: synthetic
-version: 1
+version: 2
 
 authors:
   - name: Siddik Barbhuiya

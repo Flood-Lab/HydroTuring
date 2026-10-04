@@ -139,6 +139,61 @@ def test_a_fictitious_split_is_rejected(winter):
     assert "no snow" in result.message
 
 
+def test_frost_deposition_reported_as_negative_split_passes(winter):
+    """Deposition is negative `sbl`. It releases lambda_s per kilogram, so a
+    model that converts it there satisfies the equality as written; refusing
+    the sign would leave a model that deposits frost no honest way to say so."""
+    tas, pr, snw, evspsbl = winter
+    cold = snw > 0
+    evspsbl = np.where(cold, -0.4, evspsbl)          # net condensation onto the pack
+    sbl = np.where(cold, -0.4, 0.0)
+    hfls = (lambda_v(tas) * (evspsbl - sbl) + (LAMBDA_A + LAMBDA_F) * sbl) / SECONDS
+    result = run(evspsbl=evspsbl, tas=tas, hfls=hfls, snw=snw, pr=pr, sbl=sbl)
+    assert result.status == PASS, result.message
+
+
+def test_fictitious_deposition_on_a_warm_day_is_rejected(winter):
+    """The sign is free, but the claim still needs ice: deposition reported
+    where there is no snow and none could fall would bend lambda downwards."""
+    tas, pr, snw, evspsbl = winter
+    sbl = np.where(snw > 0, 0.0, -1.0)
+    hfls = (lambda_v(tas) * (evspsbl - sbl) + (LAMBDA_A + LAMBDA_F) * sbl) / SECONDS
+    result = run(evspsbl=evspsbl, tas=tas, hfls=hfls, snw=snw, pr=pr, sbl=sbl)
+    assert result.status != PASS
+    assert "no snow" in result.message
+
+
+def test_canopy_ice_counts_as_ice_only_near_freezing():
+    """Rain frozen on a canopy sublimates with no snow on the ground, and a
+    model that says so is right. A wet canopy on a warm day is not ice, so the
+    same claim there is still a fictitious split."""
+    tas = np.concatenate([np.full(N // 2, -2.0), np.full(N // 2, 25.0)])
+    pr = np.zeros(N)
+    snw = np.zeros(N)
+    evspsbl = np.full(N, 0.8)
+    sbl = evspsbl.copy()
+    hfls = (LAMBDA_A + LAMBDA_F) * evspsbl / SECONDS
+    canopy_cold = np.where(np.arange(N) < N // 2, 1.5, 0.0)
+    build_run = lambda canopy, s, h: get("flux_identity")(
+        _with_canopy(build(evspsbl=evspsbl, tas=tas, hfls=h, snw=snw, pr=pr, sbl=s), canopy), None, {})
+
+    cold_only = np.where(np.arange(N) < N // 2, sbl, 0.0)
+    cold_hfls = (lambda_v(tas) * (evspsbl - cold_only) + (LAMBDA_A + LAMBDA_F) * cold_only) / SECONDS
+    result = build_run(canopy_cold, cold_only, cold_hfls)
+    assert result.status == PASS, result.message
+
+    wet_warm = np.full(N, 1.5)
+    result = build_run(wet_warm, sbl, hfls)
+    assert result.status != PASS
+    assert "no snow" in result.message
+
+
+def _with_canopy(run_result, canopy):
+    table = run_result.table.copy()
+    table["canopy"] = canopy
+    return RunResult(case=run_result.case, table=table, meta={}, wall_seconds=0.0)
+
+
 def test_a_split_larger_than_the_evaporation_is_rejected(winter):
     tas, pr, snw, evspsbl = winter
     sbl = np.where(snw > 0, evspsbl * 2.0, 0.0)

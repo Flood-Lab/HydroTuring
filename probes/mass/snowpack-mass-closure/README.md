@@ -15,7 +15,9 @@ $$
 
 Here, `pr` is precipitation supplied by the forcing, `snm` is liquid water
 delivered by the model's snow module to the underlying hydrologic system,
-`sbl` is reported snow sublimation, and `snw` is total snowpack water storage.
+`sbl` is reported net sublimation (negative on frost deposition), and `snw`
+is total snowpack water storage. `sbl` counts every ice store a model has; the
+case sets no canopy (below), so here it is the pack's alone.
 The probe uses a daily timestep, so \(\Delta t = 1\) day.
 
 If a model does not report `sbl`, sublimation is taken as zero. Any real

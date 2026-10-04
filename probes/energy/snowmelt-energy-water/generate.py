@@ -48,7 +48,10 @@ STAGES = (
 STATIC = {
     "area_km2": 250.0,
     "soil_capacity_mm": 320.0,
-    "canopy_capacity_mm": 2.0,
+    # No canopy: `sbl` counts canopy ice as well as the pack, and melt_energy
+    # reads it as the pack's own loss, which it is only when no canopy holds
+    # water. The reference models carried none through the block at 2.0 either.
+    "canopy_capacity_mm": 0.0,
     "degree_day_factor_mm_per_C_day": 3.2,
     "baseflow_coefficient": 0.006,
     "snow_threshold_degC": 0.0,

@@ -92,8 +92,9 @@ model whose snow physics differs from the reference's is worse than no
 criterion. The inference did exactly that, with 23 percent of the tolerance to
 spare at the repository's own default. So the criterion no longer infers.
 
-**A model that reports `sbl`** — the sublimating share of its evaporation, a
-component of `evspsbl` and never an addition to it — is held to the equality
+**A model that reports `sbl`** — the net ice-vapour share of its evaporation,
+from every ice store it has, a component of `evspsbl` and never an addition to
+it — is held to the equality
 at every step, pack or no pack, because it has said which kilograms left as
 ice:
 
@@ -101,11 +102,14 @@ ice:
 LE = lambda_v(T) * (E - sbl) + lambda_s * sbl
 ```
 
-The claim has to be a real one: `sbl` may not be negative, may not exceed the
-evaporation it is a share of, and must be zero where the model itself reports
-no snow and none could fall. Without that last condition a warm-season model
-could report a fictitious sublimating share to bend its effective lambda
-upwards.
+The claim has to be a real one: `sbl` may not exceed the evaporation it is a
+share of, and must be zero where the model itself reports no ice to lose or
+gain. Ice can be in the pack, in snow that falls during the step, or in a
+reported `canopy` on a step within 2 °C of the snow threshold, where rain
+frozen on the leaves sublimates with no snow on the ground. Without that last
+condition a warm-season model could report a fictitious share to bend its
+effective lambda. A negative `sbl` is frost deposition: it releases
+`lambda_s` per kilogram, so the equality above holds for it as written.
 
 **A model that does not report `sbl`** is held to the equality at `lambda_v`
 on steps where it reports no pack and none could arrive, and to the interval
