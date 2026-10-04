@@ -54,12 +54,13 @@ model output. No snow sublimation process is present in this HBV core, so
 
 Each run cross-checks that reconstruction against the model's exposed snow
 stores: for every transition whose preceding state is available,
-`Δ(SNOWPACK + MELTWATER) = pr - snm`. The adapter retains a `1e-4` mm
-absolute tolerance floor and expands it, when necessary, to four float32
-ULPs at the native snow-state and flux scale. This accounts for δHBV2's
-native numerical precision at deep snowpacks without weakening the check
-for ordinary states. The maximum residual and maximum tolerance used are
-recorded in `run.json`.
+`Δ(SNOWPACK + MELTWATER) = pr - snm`. Roundoff is measured against a
+`1e-4` mm floor expanded, when necessary, to four float32 ULPs at the native
+snow-state and flux scale; the maximum residual, that tolerance and the
+number of steps over it are recorded in `run.json`. The adapter stops only
+above `max(1e-3 mm, 64 ULP)`. A misclassified rain moves whole millimetres,
+so that bound still catches any above about 0.01 mm at a 1,456 mm pack,
+while roundoff on another platform cannot turn a case into an ERROR.
 
 
 ## Inputs

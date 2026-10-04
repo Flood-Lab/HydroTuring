@@ -428,14 +428,22 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         else 1.0e-4
     )
 
-    bad = snow_abs_residual > snow_tolerance
+    # The fault this guards against, rain put on the wrong side of the
+    # partition, moves whole millimetres. Roundoff above four ULPs is recorded
+    # rather than fatal, so a platform whose float32 sums round a little
+    # differently cannot turn a case into an ERROR; the adapter stops only
+    # well above roundoff, which still catches any misclassified rain above
+    # about 0.01 mm at a 1,456 mm pack.
+    snow_steps_over_roundoff = int(np.count_nonzero(snow_abs_residual > snow_tolerance))
+    snow_fatal = np.maximum(1.0e-3, 64.0 * native_ulp)
+    bad = snow_abs_residual > snow_fatal
     if np.any(bad):
-        worst = int(np.argmax(snow_abs_residual / snow_tolerance))
+        worst = int(np.argmax(snow_abs_residual / snow_fatal))
         raise RuntimeError(
             "reconstructed HBV rain partition is inconsistent with "
             "SNOWPACK + MELTWATER: step residual "
             f"{snow_abs_residual[worst]:.6g} mm exceeds "
-            f"precision-aware tolerance {snow_tolerance[worst]:.6g} mm"
+            f"{snow_fatal[worst]:.6g} mm, far above float32 roundoff"
         )
 
     gwex = regional_exchange(model.phy_model, static_params, states[4][:, 0, :].double().numpy(),
@@ -483,6 +491,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         ),
         "snow_module_max_step_residual_mm": snow_module_max_residual,
         "snow_module_max_step_tolerance_mm": snow_module_max_tolerance,
+        "snow_module_steps_over_roundoff": snow_steps_over_roundoff,
         "states": {
             "snw": "SNOWPACK + MELTWATER, mean over components",
             "mrso": "SM, mean over components",
