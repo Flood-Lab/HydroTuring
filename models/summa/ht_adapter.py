@@ -131,12 +131,15 @@ Fluxes are step means, as rates in mm/day or W m-2; states are end of step.
 * `canopy`   scalarCanopyLiq + scalarCanopyIce
 * `gw`       scalarAquiferStorage, m to mm
 
-`sbl` is reported from SUMMA's native `scalarSnowSublimation`. SUMMA reports
-snow sublimation/frost as a signed net flux: sublimation removes mass from the
-snowpack and frost deposition adds mass. The adapter reverses SUMMA's native
-sign so that positive `sbl` denotes snow mass leaving the pack and negative
-`sbl` denotes deposition, consistently with the HydroTuring snowpack balance.
-Canopy sublimation remains part of `evspsbl` but not `sbl`.
+`sbl` is -(scalarSnowSublimation + scalarCanopySublimation): every kilogram
+that left or arrived as ice, from the pack and from the canopy. SUMMA keeps
+both as signed net fluxes over the step, positive downward, so a step of net
+frost deposition is negative `sbl`, as the contract defines it. Both are
+converted at LH_sub in SUMMA's energy balance, which is why the canopy term
+belongs in the share: left out, canopy ice that sublimates is declared liquid
+and the latent-heat equality is charged the difference. Where a probe sets no
+canopy (`mass/snowpack-mass-closure`) the adapter runs SUMMA bare, the canopy
+term is zero and `sbl` is the pack's own.
 
 Developer switches: SUMMA_HT_DIAG=1 writes SUMMA's raw series next to the
 request (only possible where that directory is writable, never under the
@@ -565,7 +568,7 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
     routed = out["averageRoutedRunoff"] * 1000.0 * per_day
     result = {
         "evspsbl": -out["scalarTotalET"] * per_day + snow_sublimation + canopy_sublimation,
-        "sbl": snow_sublimation,
+        "sbl": snow_sublimation + canopy_sublimation,
         "snm": out["scalarRainPlusMelt"] * 1000.0 * per_day,
         "mrro": routed,
         "hfls": -out["scalarLatHeatTotal"],
@@ -673,8 +676,8 @@ def describe(result, out, atmos, pr, tas, threshold_c, dt_days, timestep, catchm
                 "snow and canopy sublimation/frost are signed net fluxes"
             ),
             "sbl": (
-                "-scalarSnowSublimation: signed snowpack sublimation/frost; "
-                "positive for sublimation from the snowpack and negative for deposition"
+                "-(scalarSnowSublimation + scalarCanopySublimation): net ice-vapour exchange of "
+                "the pack and the canopy, positive for sublimation and negative for deposition"
             ),
             "snm": "scalarRainPlusMelt: rain plus melt delivered to soil before surface runoff",
             "mrro": "averageRoutedRunoff", "hfls": "-scalarLatHeatTotal", "hfss": "-scalarSenHeatTotal",
