@@ -68,22 +68,22 @@ not.
 
 ## The probes
 
-Thirty-two: twenty-one under mass, seven under energy and four under momentum.
+Thirty-five: twenty-three under mass, seven under energy and five under momentum.
 Each was merged only after the acceptance gate saw it pass its declared
 exact reference and fail a purpose-built broken one on the named criterion.
 Four physical models, a bucket that conserves water exactly, two
 hand-written FLEX models and the NWS's SAC-SMA with Snow-17, must pass
 every probe that can ask them anything; six of the seven energy probes and
-the groundwater-exchange probe need outputs they do not report and are not
+the two groundwater-exchange probes need outputs they do not report and are not
 scored for them; `mass/snowpack-mass-closure` scores only `sacsma_snow17`,
 the one physical model that reports `snm`. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Twelve of the thirty-two require no model output
+with any probe pull request. Twelve of the thirty-five require no model output
 beyond runoff. That output-only count includes `momentum/routing-lag-consistency`,
 which is eligible only when the model also declares that it consumes `pr` and
 the three geometry inputs `area_km2`, `main_channel_length_km` and
 `centroid_channel_length_km`. `ht list` prints the probes;
-[ROADMAP.md](ROADMAP.md#probes-we-want) has the five more we want, all
+[ROADMAP.md](ROADMAP.md#probes-we-want) has the four more we want, all
 unclaimed.
 
 | Probe | Law | What it asks | The broken model it catches |
@@ -108,7 +108,8 @@ unclaimed.
 | [`mass/precipitation-counterfactual`](probes/mass/precipitation-counterfactual) | mass | The same seed 20% wetter, 10% wetter and 20% drier: the water added or removed must be partitioned among evaporation, runoff and storage, and runoff must rise from drier to wetter. | `reference_cheater`, `reference_leaky`, `reference_degenerate` |
 | [`mass/human-abstraction`](probes/mass/human-abstraction) | mass | A prescribed net irrigation withdrawal must leave the budget: the same weather run with and without it, and the difference must account for exactly the abstracted volume. | `reference_abstraction_blind`, `reference_leaky` |
 | [`mass/snowpack-mass-closure`](probes/mass/snowpack-mass-closure) | mass | Does the internal snowpack water balance close across accumulation, storage and melt without stage cancellation? | `reference_snow_bypass`, `reference_snowless` |
-| [`mass/aquifer-recharge-ordering`](probes/mass/aquifer-recharge-ordering) | mass | Added direct aquifer recharge preserves storage and incremental exchange ordering. | `reference_recharge_blind`, `reference_recharge_overshoot` |
+| [`mass/aquifer-recharge-ordering`](probes/mass/aquifer-recharge-ordering) | mass | Added direct aquifer recharge preserves storage and incremental exchange ordering; the paired budget arm restates `groundwater_balance`, while the independent content is the storage and exchange ordering. | `reference_recharge_blind`, `reference_recharge_overshoot` |
+| [`mass/groundwater-datum-invariance`](probes/mass/groundwater-datum-invariance) | mass | A common vertical datum shift leaves the groundwater exchange trajectory unchanged. | `reference_datum_dependent`, `reference_zero_exchange` |
 | [`mass/gw-sw-exchange-consistency`](probes/mass/gw-sw-exchange-consistency) | mass | A model reporting groundwater-river exchange: do recharge, the net exchange (`gw_sw_exchange`, distinct from `gwex`) and the two signed directional components, and aquifer storage all agree? | `reference_exchange_sign_error` |
 | [`energy/pet-consistency`](probes/energy/pet-consistency) | energy | Evaporation reaches demand when the model's own soil is wettest, stays below it, and falls when the soil is driest. | `reference_thirsty` |
 | [`energy/latent-heat-et-consistency`](probes/energy/latent-heat-et-consistency) | energy | The evaporation a model reports as water and the evaporation implied by the latent heat it reports: are they the same evaporation? | `reference_two_head`, `reference_constant_lambda`, `reference_sublimation_blind`, `reference_energy_leak` |
@@ -122,6 +123,7 @@ unclaimed.
 | [`momentum/routing-lag-consistency`](probes/momentum/routing-lag-consistency) | momentum | The same isolated storm crosses four synthetic catchment geometries: does the runoff peak lie on a broad Snyder travel-time scale and grow across the geometry ladder? | `reference_instant_router`, `reference_inverse_router` |
 | [`momentum/stage-discharge-monotonic`](probes/momentum/stage-discharge-monotonic) | momentum | Does the stage a model reports rise with its discharge, and does the rating loop the way a flood wave does, the rising limb sitting lower than the falling one at the same discharge? | `reference_rating_drift`, `reference_rating_inverted`, `reference_flat_stage` |
 | [`momentum/uniform-flow-friction-consistency`](probes/momentum/uniform-flow-friction-consistency) | momentum | At steady uniform flow, do reported discharge and stage satisfy one Manning balance with the declared reach geometry and roughness? | `reference_wrong_roughness`, `reference_wrong_slope` |
+| [`momentum/froude-regime`](probes/momentum/froude-regime) | momentum | A stage and a discharge are two readings of one cross-section: does the pair a model reports stay subcritical, or does it imply a velocity the reach could not deliver? | `reference_shallow_rating` |
 
 ## Models
 
@@ -168,15 +170,18 @@ the probe cannot ask the declared model interface this question.
 | [`summa`](models/summa) | submitted | SUMMA 4.0.0, a land model that solves the water and energy balances of canopy, snow, soil and aquifer with one implicit solver, run as one lumped HRU from its shipped test-case setup, with the radiation and humidity it needs mocked from each forcing row. | **FAIL (VIOLATION)**, 9 of 24 probes passed. Its water budget closes to rounding and its surface energy budget to 0.2% of its own net radiation; what fails is a latent heat of vaporisation held at its 0 C value, a net radiation of its own that is not the probe's `rn` (every hourly phase, and a drought that warms the surface), a canopy that, as the shipped setup configures SUMMA, intercepts all rain and keeps what freezes near 0 C, holding up to 27 mm of ice against a 2 mm capacity on the probes that score it (also the only failure on the precipitation counterfactual), leaf area that keeps its seasons under constant weather, runoff that follows the melt rather than the rain on one seed, a 5.2% runoff response to turning snow into rain on another, Green-Ampt runoff that appears only at the hourly step, and no human water use, so the prescribed withdrawal on the human-abstraction probe is never taken. |
 | [`cwatm`](models/cwatm) | submitted | CWatM 1.11, IIASA's Community Water Model and an ISIMIP global hydrological model, run on one grid cell with every store it carries reported. | **FAIL (VIOLATION)**, 17 of 21 probes passed. Its budget closes to 0.03%, and its own water-demand module pumps a prescribed withdrawal out of groundwater to within 0.004%. That 0.03% is water its capillary rise creates, a few thousandths of a millimetre a day, and on `mass/extreme-event-closure` it fails 3 to 8 one-day drizzle events of under 0.07 mm per seed, where 0.001 to 0.005 mm more leaves or is stored than fell, against that probe's allowance of 5% of the rain or 0.001 mm, whichever is larger. It also fails on a groundwater reservoir with no dt that drains 24 times too fast at an hourly step (52% of the rain); on a 0.29 mm/day dip after an added storm, where preferential flow turns surface runoff into interflow that leaves through a slower runoff-concentration lag; and on evaporation on wet soil at 0.70 of demand, near the cap its crop coefficients set. The last two are packaging choices as much as results: this package follows the CWatM-Earth-30min template its parameters come from, and with `preferentialFlow = False`, the setting of the pinned model repository's own 30′ templates, both pass. |
 | [`lisflood`](models/lisflood) | submitted | LISFLOOD 5.0.0, the EC Joint Research Centre's distributed model behind EFAS and GloFAS, stepped through its own Python framework on one representative 5 km cell and reporting every store its own water balance module counts. | **FAIL (ERROR)**, 18 of 21 probes passed. Its budget closes to 1e-13 mm per step; it reports no heat fluxes and no surface temperature, so the five energy probes that need an energy output cannot ask it anything and are N/A. It fails the step probe because its potential infiltration is a pore-space storage multiplied by the step length, so rain falling within hours runs off at the hourly step (13.0% of the rain between PT1H and PT1D). The two ten-year probes take about 90 s per run under amd64 emulation against a 60 s budget, so their rows are ERROR from the host's speed, and those two ERROR rows alone make the verdict FAIL (ERROR). Run outside the limit, `mass/precipitation-counterfactual` passes every criterion. On `mass/human-abstraction`, LISFLOOD's own water-use rule takes the groundwater share in full and the rest only from channel water above an environmental-flow reserve, recording what the channel cannot give as shortage. On this one-cell water region it withdraws 17 to 33% of the prescription, from the sourced reserve to none, and leaves 67 to 83% where the probe allows 5%. |
-| [`modflow6`](models/modflow6) | submitted | MODFLOW 6.7.0, the USGS's modular groundwater model: a transient one-river-cell aquifer run through flopy, reporting the RIV and STO budget terms as signed exchange and groundwater storage. The updated recharge paired case is covered by the local MODFLOW 6 container. | **PASS**, 1 of 1 probe scored |
-| `reference_bucket` | exact | conserves water exactly by construction | must pass every probe that can ask it anything; N/A on the six energy probes and the groundwater-exchange probe that need outputs it does not report |
+| [`modflow6`](models/modflow6) | submitted | MODFLOW 6.7.0, the USGS's modular groundwater model: a transient one-river-cell aquifer run through flopy, reporting the RIV and STO budget terms as signed exchange and groundwater storage. Archived as evidential, not gated on. | **PASS**, 3 of 3 probes scored |
+| `reference_bucket` | exact | conserves water exactly by construction | must pass every probe that can ask it anything; N/A on the six energy probes and the two groundwater-exchange probes that need outputs it does not report |
 | `reference_exchange_exact` | exact | a lagged-head bookkeeping reference that closes its own groundwater balance exactly and reports genuinely bidirectional exchange | must pass `mass/gw-sw-exchange-consistency`, the only probe that can ask it anything |
 | `reference_recharge_order_exact` | exact | passive aquifer reference that partitions direct recharge between storage and river exchange | must pass `mass/aquifer-recharge-ordering` |
 | `reference_recharge_blind` | broken | ignores the added recharge while keeping an internally closed budget | caught by `aquifer_recharge_ordering` |
 | `reference_recharge_overshoot` | broken | explicit update overshoots after the recharge pulse | caught by `aquifer_recharge_ordering` |
-| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, geometry-aware triangular lag | must pass every probe that can ask it anything; **PASS**, 24 of 24 |
-| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 23 of 23 |
-| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 24 of 24 |
+| `reference_datum_exact` | exact | linear single-aquifer reference with all absolute heads and elevations shifted consistently | must pass `mass/groundwater-datum-invariance` |
+| `reference_datum_dependent` | broken | positive exchange whose conductance depends on the numerical initial head | caught by `datum_flux_invariance` |
+| `reference_zero_exchange` | broken | frozen aquifer reporting no exchange | caught by `datum_flux_invariance` |
+| [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, geometry-aware triangular lag | must pass every probe that can ask it anything; **PASS**, 25 of 25 |
+| [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 24 of 24 |
+| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 25 of 25 |
 | `reference_coupled` | exact | the bucket with snow sublimation and a surface energy budget: every kilogram converted at the latent heat of the phase it actually underwent | must pass every criterion of the three energy-flux probes; supports daily and hourly steps |
 | `reference_snow_energy` | exact | an energy-balance snowpack: melt bought with `max(0, Rn - H - LE - G) / lambda_f`, liquid held in the pore space and reported as `lwsnl`, cold content carried as an energy deficit and reported as `csnow` | must pass every criterion of `energy/snowmelt-energy-water`; supports daily and hourly steps |
 | `reference_degree_day` | broken | the same snowpack melted on air temperature through a degree-day factor, with a surface energy budget that closes around its evaporation alone, so nothing charges the fusion | caught by `melt_energy` |
@@ -235,6 +240,7 @@ the probe cannot ask the declared model interface this question.
 | `reference_saint_venant` | exact | advances one-dimensional continuity and momentum with a finite-volume solver from a non-equilibrium state; no normal-depth lookup | must pass `uniform_flow_friction` |
 | `reference_wrong_roughness` | broken | computes stage with Manning roughness 3% above the declared value, a 5.74% near-boundary residual | caught by `uniform_flow_friction` |
 | `reference_wrong_slope` | broken | computes stage with bed slope 6% above the declared value, a 6% near-boundary residual | caught by `uniform_flow_friction` |
+| `reference_shallow_rating` | broken | draws its gauge from a section five times wider than the one the case declares, so the depth is right for a different reach and too shallow for this one | caught by `froude_subcritical`, and by `uniform_flow_friction` at steady flow |
 | `reference_streamflow_only` | honest limit | reports discharge only, from a store that never reads the temperature | N/A (INCOMPLETE) on budget probes; caught by `response_sign` |
 | `reference_in_sample` | broken | removes surface runoff above a fixed 55 mm daily precipitation cutoff | caught by `event_water_closure` |
 | `reference_calendar` | broken | a recession that drifts with the calendar year | caught by `invariance` (time origin) |
@@ -407,7 +413,7 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Thirty-two probes, twenty-one mass, seven energy, four momentum, synthetic track only. More
+Suite `0.1.0`, pre-release. Thirty-five probes, twenty-three mass, seven energy, five momentum, synthetic track only. More
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes; spatial and temporal closure, counterfactual response
 and invariance are represented in the suite. The roadmap lists the remaining

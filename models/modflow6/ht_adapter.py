@@ -84,8 +84,11 @@ def run_modflow(forcing: list[dict], static: dict) -> list[dict]:
     river_conductance = float(static["river_conductance_m2_per_day"])
     river_bottom_offset = float(static["river_bottom_offset_m"])
     initial_head = float(static.get("aquifer_initial_head_m", 10.0))
-    top = float(static["aquifer_top_m"])
-    botm = float(static["aquifer_bottom_m"])
+    # Older probes do not provide datum geometry.  Keep the adapter compatible
+    # with those cases while allowing datum-aware probes to supply their own
+    # bounds through the optional uses_static inputs.
+    top = float(static.get("aquifer_top_m", 20.0))
+    botm = float(static.get("aquifer_bottom_m", 0.0))
 
     with tempfile.TemporaryDirectory(prefix="hydroturing-mf6-") as workdir:
         sim = flopy.mf6.MFSimulation(sim_name="ht_gw", sim_ws=workdir, exe_name=mf6_exe)

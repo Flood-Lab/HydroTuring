@@ -2,7 +2,9 @@ name: probe
 
 # Validates the benchmark itself. Runs on every change to a probe, to the
 # harness, or to a reference model, because any of the three can silently
-# break the acceptance gate.
+# break the acceptance gate; and on every change to the site, the scripts or
+# the tests, because tests/test_docs_in_sync.py checks the site's tables and
+# chart data against the archive.
 #
 # Read-only token and no secrets: a probe is arbitrary Python from a
 # contributor and must never see a credential.
@@ -14,6 +16,9 @@ on:
       - 'src/**'
       - 'schemas/**'
       - 'models/**'
+      - 'site/**'
+      - 'scripts/**'
+      - 'tests/**'
       - '.gitattributes'
       - '.github/workflows/probe-pr.yml'
   push:

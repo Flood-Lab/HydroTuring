@@ -1,0 +1,69 @@
+id: mass/groundwater-datum-invariance
+title: Groundwater exchange is invariant to a common vertical datum shift
+law: mass
+track: synthetic
+version: 1
+authors:
+  - name: Zhenjiang Wu
+    affiliation: Institute of Global Environmental Change, Xi’an Jiaotong University, Xi’an 710049, China
+    orcid: 0000-0002-5329-4917
+    github: JustinLoiii
+description: >
+  A single passive aquifer and river are run from identical initialization,
+  with the river stage and every absolute head/elevation shifted together by
+  250 m in the two transformed variants. Relative hydraulic differences,
+  storage properties and conductance are unchanged, so the signed exchange
+  trajectory must be identical. The experiment starts with spinup and applies
+  the shift from initialization rather than during scoring.
+requires:
+  fluxes: [gw_sw_exchange, gw_to_sw, sw_to_gw]
+  states: [gw]
+  forcing: [gw_recharge, sw_stage_m]
+  static: [area_km2, aquifer_specific_yield, aquifer_initial_head_m, aquifer_top_m, aquifer_bottom_m, river_conductance_m2_per_day]
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_days: 20
+  spinup_days: 2
+  min_window_days: 10
+  max_output_mb: 2.0
+  max_runtime_s: 60
+  variants: [control, datum_up, datum_down]
+criteria:
+  - datum_flux_invariance:
+      control: control
+      transformed: [datum_up, datum_down]
+      exchange: gw_sw_exchange
+      rtol: 1.0e-6
+      abs_tol_mm: 1.0e-5
+      minimum_activity_mm: 0.1
+  - exchange_directions:
+      minimum_gross_mm: 0.1
+      all_variants: true
+  - groundwater_balance:
+      recharge: gw_recharge
+      exchange: gw_sw_exchange
+      storage: gw
+      rel_tol: 0.01
+      abs_tol_mm: 2.0e-4
+      all_variants: true
+  - exchange_components:
+      rel_tol: 1.0e-6
+      abs_tol: 1.0e-4
+      all_variants: true
+  - state_bounds:
+      gw: [0.0, null]
+      all_variants: true
+baselines:
+  # The standard four physical references do not expose a single aquifer/river
+  # datum mapping. MODFLOW 6 is the independent physical baseline for this
+  # process and is archived separately after running the datum variants.
+  must_pass: [reference_datum_exact]
+  must_fail:
+    reference_datum_dependent: datum_flux_invariance
+    reference_zero_exchange: datum_flux_invariance
+provenance: >
+  Synthetic deterministic forcing based on the accepted proposal in issue
+  https://github.com/Flood-Lab/HydroTuring/issues/131. No committed data are
+  needed; the generator records the complete stage history from each seed.

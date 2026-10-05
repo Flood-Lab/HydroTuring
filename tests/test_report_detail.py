@@ -47,6 +47,7 @@ HEADLINES = {
     "mass/extreme-rain": ("monotone_response",),
     "mass/exchange-response": ("exchange_response",),
     "mass/gw-sw-exchange-consistency": ("exchange_components",),
+    "mass/groundwater-datum-invariance": ("datum_flux_invariance",),
     "mass/aquifer-recharge-ordering": ("aquifer_recharge_ordering",),
     "mass/human-abstraction": ("human_abstraction",),
     "mass/multi-decadal-drift": ("state_bounds", "total_storage_drift"),
@@ -63,6 +64,7 @@ HEADLINES = {
     ),
     "mass/warming-response": ("response_sign",),
     "mass/snowpack-mass-closure": ("closure", "snowpack_response",),
+    "momentum/froude-regime": ("froude_subcritical",),
     "momentum/routing-conservation": ("routing_conservation",),
     "momentum/routing-lag-consistency": (
         "lag_time_bounds",

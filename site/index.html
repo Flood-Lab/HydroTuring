@@ -22,6 +22,7 @@
   --pass:#2C7A57; --pass-soft:#DFF0E7;
   --fail:#A8501C; --fail-soft:#F6E5D9;
   --line:#D6E0E2; --line-strong:#B6C6C9;
+  --law-mass:#2A78D6; --law-energy:#EB6834; --law-momentum:#22A06B; --track:#DDE4E6;
   --shadow:0 1px 2px rgba(15,27,33,.06), 0 10px 30px -20px rgba(15,27,33,.35);
 }
 @media (prefers-color-scheme: dark){
@@ -32,6 +33,7 @@
     --pass:#63C193; --pass-soft:#14301F;
     --fail:#E28B57; --fail-soft:#33200F;
     --line:#20313A; --line-strong:#2E444E;
+    --law-mass:#3987E5; --law-energy:#D95926; --law-momentum:#1BAF7A; --track:#26363E;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -22px rgba(0,0,0,.9);
   }
 }
@@ -42,6 +44,7 @@
   --pass:#63C193; --pass-soft:#14301F;
   --fail:#E28B57; --fail-soft:#33200F;
   --line:#20313A; --line-strong:#2E444E;
+  --law-mass:#3987E5; --law-energy:#D95926; --law-momentum:#1BAF7A; --track:#26363E;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -22px rgba(0,0,0,.9);
 }
 *{box-sizing:border-box}
@@ -172,6 +175,85 @@ footer a:hover{color:var(--accent)}
 .footgrid a{display:block; text-decoration:none; margin-bottom:5px}
 a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
 [hidden]{display:none!important}
+
+/* ---------- charts: the probes by law, and each model's passes by law ---------- */
+.chart{position:relative; margin:0 0 18px}
+.chart-title{font-family:"IBM Plex Sans Condensed","IBM Plex Sans","PingFang SC","Microsoft YaHei",Arial,sans-serif;
+  font-size:15px; font-weight:600; color:var(--ink); margin:0 0 14px}
+.legend{list-style:none; padding:0; margin:0; display:grid; gap:9px; max-width:none}
+.legend li{display:flex; align-items:center; gap:9px; margin:0; font-size:14.5px; color:var(--ink-2)}
+.legend .val{color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums}
+.legend .pct{color:var(--muted); font-variant-numeric:tabular-nums}
+.legend-row{display:flex; flex-wrap:wrap; gap:8px 20px; margin:0 0 14px}
+.legend-row li{font-size:13.5px}
+.swatch{width:12px; height:12px; border-radius:3px; flex:none}
+.pie-wrap{display:flex; flex-wrap:wrap; align-items:center; gap:20px 40px}
+figure svg.pie{width:200px; height:200px; flex:none; overflow:visible}
+.pie path{stroke:var(--surface); stroke-width:2; outline:none; cursor:default}
+.pie path:hover,.pie path:focus-visible{filter:brightness(1.1)}
+.pie path:focus-visible{stroke:var(--ink)}
+.pie text{font-size:14px; font-weight:600; pointer-events:none; font-variant-numeric:tabular-nums}
+/* Three panels, one per law, each on its own scale: the grid places every
+   cell explicitly so the panel backdrops can span all rows of their column. */
+.lawgrid{display:grid; grid-template-columns:max-content repeat(3,minmax(0,1fr)) max-content; column-gap:18px; align-items:center}
+.lawgrid .panel{grid-row:1 / -1; align-self:stretch; border:1px solid var(--line-strong); border-radius:8px; margin:0 -7px}
+.lawgrid .law-head{display:flex; flex-direction:column; padding:8px 0 6px; line-height:1.3}
+.law-head .law-name{display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--ink)}
+.law-head .law-count{font-size:11.5px; color:var(--muted)}
+.lawgrid .total-head{font-size:11.5px; color:var(--muted); text-align:right; align-self:end; padding-bottom:6px}
+.lawgrid .name{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:12.3px; color:var(--ink); white-space:nowrap}
+.lawgrid .total{font-size:12.5px; color:var(--ink-2); text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums}
+/* The whole 22px cell is the hit target around a 10px bar. */
+.cell{display:flex; align-items:center; gap:6px; height:22px; outline:none; cursor:default; border-radius:3px}
+.cell .scale{flex:1; min-width:0; height:10px}
+.cell .track{display:block; position:relative; height:100%; min-width:2px; background:var(--track); border-radius:0 3px 3px 0; overflow:hidden}
+.cell .fill{position:absolute; left:0; top:0; bottom:0}
+.cell .v{flex:none; width:3.2em; text-align:right; font-size:11.5px; color:var(--ink-2); font-variant-numeric:tabular-nums}
+.cell.na .v{color:var(--muted)}
+.cell:hover .track,.cell:focus-visible .track{filter:brightness(1.08)}
+.cell:focus-visible{box-shadow:0 0 0 2px var(--ink)}
+.legend .swatches{display:inline-flex; gap:2px}
+/* The probes and models tables fold behind a summary row; the charts above them are the overview. */
+.table-toggle{margin:0 0 18px}
+.table-toggle > summary{display:flex; align-items:center; gap:12px; cursor:pointer; list-style:none; padding:13px 18px;
+  border:1px solid var(--line); border-radius:10px; background:var(--surface); box-shadow:var(--shadow);
+  font-size:14.5px; font-weight:600; color:var(--ink)}
+.table-toggle > summary::-webkit-details-marker{display:none}
+.table-toggle > summary::before{content:""; flex:none; width:7px; height:7px; margin:0 2px 2px 0;
+  border-right:2px solid var(--accent); border-bottom:2px solid var(--accent); transform:rotate(-45deg); transition:transform .15s}
+.table-toggle[open] > summary::before{transform:rotate(45deg); margin-bottom:4px}
+.table-toggle > summary:hover{background:var(--surface-2)}
+.table-toggle > summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.table-toggle[open] > summary{border-radius:10px 10px 0 0; border-bottom-color:transparent; box-shadow:none}
+.table-toggle > .tablewrap{margin:0; border-radius:0 0 10px 10px}
+.table-toggle .toggle-hint{margin-left:auto; font-size:13px; font-weight:400; color:var(--accent); white-space:nowrap}
+.table-toggle .when-open,.table-toggle[open] .when-closed{display:none}
+.table-toggle[open] .when-open{display:inline}
+.chart-note{margin:12px 0 0; font-size:13.5px; color:var(--muted); max-width:44em}
+.chart-data{margin-top:12px}
+.chart-data summary{cursor:pointer; font-size:13.5px; color:var(--accent)}
+.chart-data .tablewrap{margin:10px 0 0; box-shadow:none}
+.chart-data table{min-width:0; font-size:13.5px}
+.chart-data td,.chart-data th{padding:8px 14px}
+.chart-data td{font-variant-numeric:tabular-nums}
+.viz-tip{position:absolute; z-index:5; pointer-events:none; min-width:150px; max-width:240px; background:var(--surface);
+  border:1px solid var(--line-strong); border-radius:6px; padding:8px 11px; box-shadow:var(--shadow); font-size:13px; line-height:1.45}
+.viz-tip .tip-head{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:12px; color:var(--muted); margin-bottom:3px}
+.viz-tip .tip-row{display:flex; align-items:center; gap:7px}
+.viz-tip .tip-key{width:12px; height:2px; flex:none}
+.viz-tip strong{color:var(--ink)}
+.viz-tip .tip-label{color:var(--ink-2)}
+.viz-tip .tip-note{color:var(--muted); font-size:12.5px}
+/* On a phone the numbers move to the tooltip, the table view and the models
+   table below, so the three panels keep the width; long model names wrap at
+   their underscores. */
+@media (max-width:640px){
+  .lawgrid{grid-template-columns:max-content repeat(3,minmax(0,1fr)); column-gap:12px}
+  .lawgrid .panel{margin:0 -5px}
+  .lawgrid .name{font-size:10.5px; white-space:normal; max-width:7em; line-height:1.2}
+  .law-head .law-name{font-size:11px}
+  .law-head .swatch,.lawgrid .law-count,.lawgrid .total,.lawgrid .total-head,.cell .v{display:none}
+}
 </style>
 </head>
 <body>
@@ -268,7 +350,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <path d="M281 56 l6 -8 l6 8 a6 6 0 1 1 -12 0 z" fill="var(--accent)"/>
       <text x="296" y="67" class="brand">HydroTuring</text>
       <text x="417" y="86" class="note" data-i18n="infra.ht.sub" text-anchor="middle">does it conserve what physics says it must?</text>
-      <rect x="272" y="100" width="92" height="270" rx="6" fill="var(--surface-2)"/>
+      <rect x="272" y="100" width="92" height="262" rx="6" fill="var(--surface-2)"/>
       <text x="318" y="121" class="pillar" data-i18n="infra.mass" text-anchor="middle">MASS</text>
       <text x="318" y="138" class="note" data-i18n="infra.mass.s1" text-anchor="middle">water budget</text>
       <text x="318" y="151" class="note" data-i18n="infra.mass.s2" text-anchor="middle">closes</text>
@@ -319,7 +401,9 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <text x="296" y="345.00" class="probe" data-i18n="infra.probe.exchange">exchange</text>
       <circle cx="288" cy="350.10" r="2.4" fill="var(--pass)"/>
       <text x="296" y="353.60" class="probe" data-i18n="infra.probe.recharge">recharge order</text>
-      <rect x="372" y="100" width="92" height="250" rx="6" fill="var(--surface-2)"/>
+      <circle cx="288" cy="350.10" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="353.60" class="probe" data-i18n="infra.probe.datum">datum</text>
+      <rect x="372" y="100" width="92" height="262" rx="6" fill="var(--surface-2)"/>
       <text x="418" y="121" class="pillar" data-i18n="infra.energy" text-anchor="middle">ENERGY</text>
       <text x="418" y="138" class="note" data-i18n="infra.energy.s1" text-anchor="middle">energy budget</text>
       <text x="418" y="151" class="note" data-i18n="infra.energy.s2" text-anchor="middle">closes</text>
@@ -340,7 +424,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <text x="396" y="257" class="probe" data-i18n="infra.probe.snowmelt">snowmelt</text>
       <rect x="384" y="272" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
       <text x="418" y="296" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
-      <rect x="472" y="100" width="92" height="250" rx="6" fill="var(--surface-2)"/>
+      <rect x="472" y="100" width="92" height="262" rx="6" fill="var(--surface-2)"/>
       <text x="518" y="121" class="pillar" data-i18n="infra.momentum" text-anchor="middle">MOMENTUM</text>
       <text x="518" y="138" class="note" data-i18n="infra.momentum.s1" text-anchor="middle">routing conserves</text>
       <text x="518" y="151" class="note" data-i18n="infra.momentum.s2" text-anchor="middle">momentum</text>
@@ -353,29 +437,30 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-of
       <text x="496" y="201" class="probe" data-i18n="infra.probe.rating">stage rating</text>
       <circle cx="488" cy="211.5" r="2.4" fill="var(--pass)"/>
       <text x="496" y="215" class="probe" data-i18n="infra.probe.friction">friction</text>
-      <rect x="484" y="228" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
-      <text x="518" y="252" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
-      <text x="417" y="362" class="mono-small" data-i18n="infra.flow" text-anchor="middle">seed → case → run → one bit</text>
-      <rect x="272" y="372" width="68" height="72" rx="6" fill="var(--surface)" stroke="var(--line)"/>
-      <text x="306" y="395" class="step" data-i18n="infra.s1a" text-anchor="middle">seeded</text>
-      <text x="306" y="409" class="step" data-i18n="infra.s1b" text-anchor="middle">generator</text>
-      <text x="306" y="431" class="note-small" data-i18n="infra.s1n" text-anchor="middle">nothing stored</text>
-      <path d="M343 404 l4 4 l-4 4" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
-      <rect x="348" y="372" width="68" height="72" rx="6" fill="var(--surface)" stroke="var(--line)"/>
-      <text x="382" y="395" class="step" data-i18n="infra.s2a" text-anchor="middle">sealed</text>
-      <text x="382" y="409" class="step" data-i18n="infra.s2b" text-anchor="middle">container</text>
-      <text x="382" y="431" class="note-small" data-i18n="infra.s2n" text-anchor="middle">no network</text>
-      <path d="M419 404 l4 4 l-4 4" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
-      <rect x="424" y="372" width="68" height="72" rx="6" fill="var(--surface)" stroke="var(--line)"/>
-      <text x="458" y="395" class="step" data-i18n="infra.s3a" text-anchor="middle">binary</text>
-      <text x="458" y="409" class="step" data-i18n="infra.s3b" text-anchor="middle">criteria</text>
-      <text x="458" y="431" class="note-small" data-i18n="infra.s3n" text-anchor="middle">the 5% rule</text>
-      <path d="M495 404 l4 4 l-4 4" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
-      <rect x="500" y="372" width="68" height="72" rx="6" fill="var(--surface)" stroke="var(--line)"/>
-      <text x="534" y="395" class="step" data-i18n="infra.s4a" text-anchor="middle">acceptance</text>
-      <text x="534" y="409" class="step" data-i18n="infra.s4b" text-anchor="middle">gate</text>
-      <text x="534" y="428" class="note-small" data-i18n="infra.s4n" text-anchor="middle">must pass</text>
-      <text x="534" y="439" class="note-small" data-i18n="infra.s4n2" text-anchor="middle">must fail</text>
+      <text x="496" y="229" class="probe" data-i18n="infra.probe.froude">subcritical</text>
+      <rect x="484" y="244" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
+      <text x="518" y="268" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
+      <text x="417" y="374" class="mono-small" data-i18n="infra.flow" text-anchor="middle">seed → case → run → one bit</text>
+      <rect x="272" y="384" width="68" height="72" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="306" y="407" class="step" data-i18n="infra.s1a" text-anchor="middle">seeded</text>
+      <text x="306" y="421" class="step" data-i18n="infra.s1b" text-anchor="middle">generator</text>
+      <text x="306" y="443" class="note-small" data-i18n="infra.s1n" text-anchor="middle">nothing stored</text>
+      <path d="M343 416 l4 4 l-4 4" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+      <rect x="348" y="384" width="68" height="72" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="382" y="407" class="step" data-i18n="infra.s2a" text-anchor="middle">sealed</text>
+      <text x="382" y="421" class="step" data-i18n="infra.s2b" text-anchor="middle">container</text>
+      <text x="382" y="443" class="note-small" data-i18n="infra.s2n" text-anchor="middle">no network</text>
+      <path d="M419 416 l4 4 l-4 4" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+      <rect x="424" y="384" width="68" height="72" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="458" y="407" class="step" data-i18n="infra.s3a" text-anchor="middle">binary</text>
+      <text x="458" y="421" class="step" data-i18n="infra.s3b" text-anchor="middle">criteria</text>
+      <text x="458" y="443" class="note-small" data-i18n="infra.s3n" text-anchor="middle">the 5% rule</text>
+      <path d="M495 416 l4 4 l-4 4" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+      <rect x="500" y="384" width="68" height="72" rx="6" fill="var(--surface)" stroke="var(--line)"/>
+      <text x="534" y="407" class="step" data-i18n="infra.s4a" text-anchor="middle">acceptance</text>
+      <text x="534" y="421" class="step" data-i18n="infra.s4b" text-anchor="middle">gate</text>
+      <text x="534" y="440" class="note-small" data-i18n="infra.s4n" text-anchor="middle">must pass</text>
+      <text x="534" y="451" class="note-small" data-i18n="infra.s4n2" text-anchor="middle">must fail</text>
       <line x1="574" y1="266" x2="646" y2="266" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#infra-arrow)"/>
       <text x="610" y="246" class="mono-small" text-anchor="middle">result.csv</text>
       <text x="610" y="258" class="mono-small" text-anchor="middle">run.json</text>
@@ -484,6 +569,16 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (VIOLATION)  [2/6 probes p
   <div class="wrap">
     <h2 data-i18n="probes.h">The probes</h2>
     <div data-i18n-html="probes.intro"></div>
+    <figure class="chart" id="law-pie">
+      <div class="chart-title" data-i18n="chart.pie.title">Merged probes, by conservation law</div>
+      <div class="pie-wrap">
+        <svg class="pie" viewBox="0 0 200 200" role="group" aria-labelledby="law-pie-alt"><title id="law-pie-alt" data-i18n="chart.pie.alt">Pie chart of the merged probes by the conservation law each one tests</title><g class="slices"></g></svg>
+        <ul class="legend"></ul>
+      </div>
+      <div class="viz-tip" hidden></div>
+    </figure>
+    <details class="table-toggle" id="probes-table">
+      <summary><span class="toggle-label" data-toggle="probes"></span><span class="toggle-hint"><span class="when-closed" data-i18n="table.show">Show</span><span class="when-open" data-i18n="table.hide">Hide</span></span></summary>
     <div class="tablewrap">
       <table>
         <thead><tr>
@@ -495,6 +590,7 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (VIOLATION)  [2/6 probes p
         <tbody data-i18n-html="probes.rows"></tbody>
       </table>
     </div>
+    </details>
     <div data-i18n-html="probes.legend"></div>
   </div>
 </section>
@@ -503,6 +599,19 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (VIOLATION)  [2/6 probes p
   <div class="wrap">
     <h2 data-i18n="models.h">Models evaluated</h2>
     <div data-i18n-html="models.intro"></div>
+    <figure class="chart" id="law-bars">
+      <div class="chart-title" data-i18n="chart.bars.title">Probes passed, by conservation law</div>
+      <ul class="legend legend-row"></ul>
+      <div class="lawgrid" role="group"></div>
+      <p class="chart-note" data-i18n="chart.bars.caption">One panel per conservation law, each on its own scale.</p>
+      <details class="chart-data">
+        <summary data-i18n="chart.table">Show the numbers</summary>
+        <div class="tablewrap"><table></table></div>
+      </details>
+      <div class="viz-tip" hidden></div>
+    </figure>
+    <details class="table-toggle" id="models-table">
+      <summary><span class="toggle-label" data-toggle="models"></span><span class="toggle-hint"><span class="when-closed" data-i18n="table.show">Show</span><span class="when-open" data-i18n="table.hide">Hide</span></span></summary>
     <div class="tablewrap">
       <table>
         <thead><tr>
@@ -515,6 +624,7 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (VIOLATION)  [2/6 probes p
         <tbody data-i18n-html="models.rows"></tbody>
       </table>
     </div>
+    </details>
     <div data-i18n-html="models.legend"></div>
   </div>
 </section>
@@ -596,6 +706,22 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (VIOLATION)  [2/6 probes p
   </div>
 </footer>
 
+<!-- Written by scripts/site_standings.py from models/result.csv; do not edit by hand. -->
+<script type="application/json" id="ht-standings">
+{"probes":{"mass":24,"energy":7,"momentum":5},
+"models":{
+"cwatm":{"mass":[16,19],"energy":[0,1],"momentum":[1,1]},
+"dhbv2":{"mass":[9,19],"energy":[1,1],"momentum":[1,1]},
+"flex_lumped":{"mass":[19,19],"energy":[1,1],"momentum":[5,5]},
+"flex_topo":{"mass":[19,19],"energy":[1,1],"momentum":[4,4]},
+"google_flood_forecast":{"mass":[5,11],"energy":[0,0],"momentum":[0,0]},
+"lisflood":{"mass":[16,19],"energy":[1,1],"momentum":[1,1]},
+"modflow6":{"mass":[3,3],"energy":[0,0],"momentum":[0,0]},
+"sacsma_snow17":{"mass":[20,20],"energy":[1,1],"momentum":[4,4]},
+"summa":{"mass":[7,19],"energy":[1,4],"momentum":[1,1]},
+"wflow_sbm":{"mass":[16,19],"energy":[1,1],"momentum":[1,1]}
+}}
+</script>
 <script>
 const I18N = {
 en: {
@@ -663,6 +789,7 @@ en: {
   "infra.probe.ungauged":"ungauged",
   "infra.probe.exchange":"exchange",
   "infra.probe.recharge":"recharge order",
+  "infra.probe.datum":"datum shift",
   "infra.probe.gwexchange":"gw exchange",
   "infra.probe.pet":"PET demand",
   "infra.probe.latent":"latent heat",
@@ -675,6 +802,7 @@ en: {
   "infra.probe.routinglag":"travel time",
   "infra.probe.rating":"stage rating",
   "infra.probe.friction":"friction",
+  "infra.probe.froude":"subcritical",
   "infra.flow":"seed → case → run → one bit",
   "infra.s1a":"seeded",
   "infra.s1b":"generator",
@@ -717,16 +845,34 @@ en: {
   "models.th5":"Verdict",
   "models.intro":"<p>Every model that has been run against the suite. A submitted model is evaluated in an isolated container on a flood-event window of each probe's generated record. A physical model is one the acceptance gate requires every probe to pass; it is evaluated the same way, and a probe that fails one is examined before the model is.</p><p>The standings of dhbv2, wflow_sbm, summa, cwatm and lisflood now include mass/extreme-event-closure: lisflood passes it, and dhbv2, wflow_sbm, summa and cwatm fail it.</p>",
   "models.legend":"<p>Every evaluation is appended to <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>, with the probe, the window, the seeds and the worst criterion. Each verdict is PASS, FAIL or N/A, with its reason; the numbers under it are in the archive and in each model's README. The <em>Probes passed</em> column counts passes out of the probes that could be scored on that model: a probe it does not report enough for, or cannot consume, is N/A and left out, so the totals differ between models. To submit a model, open a <a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">model submission</a>.</p>",
+  "probes.toggle":"Probe table: {m} merged, {o} on the roadmap",
+  "models.toggle":"Model table: {n} models, what each one is and its verdict",
+  "table.show":"Show",
+  "table.hide":"Hide",
+  "law.mass":"Mass",
+  "law.energy":"Energy",
+  "law.momentum":"Momentum",
+  "chart.pie.title":"Merged probes, by conservation law",
+  "chart.pie.alt":"Pie chart of the merged probes by the conservation law each one tests",
+  "chart.probes":"{n} probes",
+  "chart.bars.title":"Probes passed, by conservation law",
+  "chart.bars.caption":"One panel per conservation law, each on its own scale, the full width of a panel being every probe under that law. The gray bar is how many of them could score the model; the colored part is how many it passed. A probe that is N/A for a model is left out, as in the table below, and a dash means no probe under that law could score it.",
+  "chart.passedkey":"passed",
+  "chart.passed":"{p} of {s} passed",
+  "chart.na":"{n} N/A, not scored",
+  "chart.notpassed":"not passed",
+  "chart.total":"Total",
+  "chart.table":"Show the numbers",
   "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>submitted</td><td>Google Flood Hub's mean-embedding forecast LSTM, through OpenHydroNet with the published weights. Discharge only.</td><td>5 / 11</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">dhbv2</td><td>submitted</td><td>δHBV 2.0, the MHPI differentiable HBV: networks write the parameters of a bucket model that reports its stores, its evaporation and, declared, its regional groundwater exchange.</td><td>11 / 21</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">wflow_sbm</td><td>submitted</td><td>Deltares' Wflow.jl SBM, adapted in Julia: a soil column with unsaturated and saturated stores, interception, snow and kinematic-wave routing, run on one representative cell at the resolution of Wflow's Moselle model.</td><td>18 / 21</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">summa</td><td>submitted</td><td>SUMMA 4.0.0, a land model solving the water and energy balances of canopy, snow, soil and aquifer with one implicit solver; one lumped HRU, with the radiation and humidity it needs mocked from the forcing.</td><td>9 / 24</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">cwatm</td><td>submitted</td><td>CWatM 1.11, IIASA's Community Water Model: a process-based global hydrological model run on one grid cell, reporting its snow, soil, canopy, groundwater and runoff-concentration stores.</td><td>17 / 21</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">lisflood</td><td>submitted</td><td>LISFLOOD 5.0.0, the EC JRC's distributed model behind EFAS and GloFAS, stepped through its own Python framework on one representative 5 km cell.</td><td>18 / 21</td><td><span class="tag fail">FAIL (ERROR)</span></td></tr>
-<tr><td class="mono">modflow6</td><td>submitted</td><td>MODFLOW 6.7.0, the USGS's modular groundwater model with datum-aware paired inputs.</td><td>1 / 1</td><td><span class="tag merged">PASS</span></td></tr>
-<tr><td class="mono">flex_lumped</td><td>physical</td><td>Lumped FLEX/HBV from chrimerss/HydrologicModels: interception, beta-partitioned soil, fast and slow reservoirs, a geometry-aware lag.</td><td>24 / 24</td><td><span class="tag merged">PASS</span></td></tr>
-<tr><td class="mono">flex_topo</td><td>physical</td><td>FLEX-Topo: plateau, hillslope and wetland units on the Wark catchment's real fractions, sharing one groundwater store.</td><td>23 / 23</td><td><span class="tag merged">PASS</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>24 / 24</td><td><span class="tag merged">PASS</span></td></tr>
+$13 / 3</td><td><span class="tag merged">PASS</span></td></tr>
+<tr><td class="mono">flex_lumped</td><td>physical</td><td>Lumped FLEX/HBV from chrimerss/HydrologicModels: interception, beta-partitioned soil, fast and slow reservoirs, a geometry-aware lag.</td><td>25 / 25</td><td><span class="tag merged">PASS</span></td></tr>
+<tr><td class="mono">flex_topo</td><td>physical</td><td>FLEX-Topo: plateau, hillslope and wetland units on the Wark catchment's real fractions, sharing one groundwater store.</td><td>24 / 24</td><td><span class="tag merged">PASS</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>25 / 25</td><td><span class="tag merged">PASS</span></td></tr>
 `,
   "probes.h":"The probes",
   "probes.intro":"<p>Every probe in the suite, and every one the roadmap is waiting for. A merged probe is in the repository and passes the acceptance gate against the reference models. A wanted probe is named, unclaimed, and yours to take.</p>",
@@ -745,7 +891,6 @@ en: {
 <tr><td class="mono">mass/extreme-rain</td><td>mass</td><td>The largest storm scaled to ten times: runoff cannot fall, nor exceed the rain added.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/runoff-bounds</td><td>mass</td><td>Over ten years, is the runoff possible at all: at least rain minus demand minus storage, at most rain plus storage? Runoff only.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/area-invariance</td><td>mass</td><td>The same weather on a ten times larger catchment: every depth identical.</td><td><span class="tag merged">merged</span></td></tr>
-<tr><td class="mono">mass/aquifer-recharge-ordering</td><td>mass</td><td>Added direct aquifer recharge preserves storage and incremental exchange ordering.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/response-nonnegativity</td><td>mass</td><td>One storm added: from that day on, runoff may never be lower than without it.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/antecedent-monotonicity</td><td>mass</td><td>The same storm after a dry month and a wet one: more runoff from the wet one, no more than the extra water.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/phase-counterfactual</td><td>mass</td><td>The same water as rain instead of snow: timing moves, the integrated volumes do not.</td><td><span class="tag merged">merged</span></td></tr>
@@ -755,6 +900,8 @@ en: {
 <tr><td class="mono">mass/ungauged-basin-closure</td><td>mass</td><td>Closure across soil/canopy attributes and five rain-fed climate classes.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/exchange-response</td><td>mass</td><td>A declared exchange must answer the external head it was given: raise the head and more water must come in, lower it and less.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/gw-sw-exchange-consistency</td><td>mass</td><td>A model reporting groundwater-river exchange: do recharge, the net exchange and its two signed directions, and aquifer storage all agree?</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/aquifer-recharge-ordering</td><td>mass</td><td>Added direct aquifer recharge preserves storage and incremental exchange ordering.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">mass/groundwater-datum-invariance</td><td>mass</td><td>A common vertical datum shift leaves groundwater exchange unchanged.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">energy/pet-consistency</td><td>energy</td><td>Evaporation reaches demand when the model's own soil is wettest, never exceeds it, and falls when driest.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">energy/latent-heat-et-consistency</td><td>energy</td><td>The evaporation a model reports as water and the one implied by its latent heat: are they the same evaporation?</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">energy/evaporative-partition</td><td>energy</td><td>One summer without rain under radiation that did not change: the latent heat a drying surface gives up has to warm the air.</td><td><span class="tag merged">merged</span></td></tr>
@@ -764,6 +911,7 @@ en: {
 <tr><td class="mono">energy/snowmelt-energy-water</td><td>energy</td><td>A pack built over a cold winter and then melted down over a dry block that opens below -14 C and warms through zero: does the surface energy budget pay both the fusion for the ice that changed phase and the cold content of warming the pack?</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>momentum</td><td>The channel store is never negative and never holds more than its hydrograph can.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>momentum</td><td>Under the same one-day storm, runoff peak lag must match the Snyder-Hack geometric timescale and grow with basin scale.</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">momentum/froude-regime</td><td>momentum</td><td>Flow in a mild-sloped reach must stay subcritical.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>mass</td><td>Event water budgets under overlapping storms targeting synthetic 100-year rainfall depths.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>mass</td><td>Precipitation minus snow-module liquid outflow and sublimation must match the change in snow water storage within each snow regime.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>mass</td><td>Fifty years of repeated warm weather: total reported storage must not keep drifting.</td><td><span class="tag merged">merged</span></td></tr>
@@ -772,8 +920,7 @@ en: {
 <tr><td class="mono">momentum/channel-routing-mass</td><td>momentum</td><td>Inflow minus outflow minus the change in channel storage, per reach.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>momentum</td><td>A stage reading rises with discharge, and where the rating loops, the rising limb sits lower than the falling one at the same discharge.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>momentum</td><td>At three steady flows, discharge and stage must satisfy one Manning balance with the declared rectangular geometry and roughness.</td><td><span class="tag merged">merged</span></td></tr>
-<tr><td class="mono">momentum/wave-celerity-bounds</td><td>momentum</td><td>Kinematic wave celerity must be positive and near the Manning expectation.</td><td><span class="tag wanted">wanted</span></td></tr>
-<tr><td class="mono">momentum/froude-regime</td><td>momentum</td><td>Flow in a mild-sloped reach must stay subcritical.</td><td><span class="tag wanted">wanted</span></td></tr>`,
+<tr><td class="mono">momentum/wave-celerity-bounds</td><td>momentum</td><td>Kinematic wave celerity must be positive and near the Manning expectation.</td><td><span class="tag wanted">wanted</span></td></tr>`,
   "verdict.h":"Verdicts",
   "verdict.body":`<p>A probe that can ask the model something passes or fails it, with the reason recorded separately, because these mean very different things. A probe that cannot ask it anything is <strong>N/A</strong>: not scored, and neither a pass nor a fail.</p>
 <ul><li><strong>VIOLATION</strong> — the model reported its budget and the budget did not close. The probe fails.</li>
@@ -888,6 +1035,7 @@ es: {
   "infra.probe.ungauged":"sin aforo",
   "infra.probe.exchange":"intercambio",
   "infra.probe.recharge":"orden de recarga",
+  "infra.probe.datum":"datum vert.",
   "infra.probe.gwexchange":"intercambio subt.",
   "infra.probe.pet":"demanda",
   "infra.probe.latent":"calor latente",
@@ -900,6 +1048,7 @@ es: {
   "infra.probe.routinglag":"retardo",
   "infra.probe.rating":"curva de gasto",
   "infra.probe.friction":"fricción",
+  "infra.probe.froude":"subcrítico",
   "infra.flow":"semilla → caso → ejecución → un bit",
   "infra.s1a":"generador",
   "infra.s1b":"con semilla",
@@ -942,16 +1091,34 @@ es: {
   "models.th5":"Veredicto",
   "models.intro":"<p>Todos los modelos que se han ejecutado contra la batería. Un modelo enviado se evalúa en un contenedor aislado sobre una ventana de crecida del registro generado de cada prueba. Un modelo físico es uno que la compuerta de aceptación exige que toda prueba supere; se evalúa igual, y una prueba que lo falla se examina antes que el modelo.</p><p>Las cifras de dhbv2, wflow_sbm, summa, cwatm y lisflood ya incluyen mass/extreme-event-closure: lisflood la supera, y dhbv2, wflow_sbm, summa y cwatm la fallan.</p>",
   "models.legend":"<p>Cada evaluación se añade a <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>, con la prueba, la ventana, las semillas y el peor criterio. Cada veredicto es PASS, FAIL o N/A, con su razón; los números están en el archivo y en el README de cada modelo. La columna <em>Pruebas superadas</em> cuenta los aprobados entre las pruebas que pudieron puntuarse en ese modelo: una para la que el modelo no informa lo suficiente, o que no se le puede aplicar, es N/A y queda fuera, así que los totales difieren entre modelos. Para enviar un modelo, abre un <a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">envío de modelo</a>.</p>",
+  "probes.toggle":"Tabla de pruebas: {m} integradas, {o} en la hoja de ruta",
+  "models.toggle":"Tabla de modelos: {n} modelos, qué es cada uno y su veredicto",
+  "table.show":"Mostrar",
+  "table.hide":"Ocultar",
+  "law.mass":"Masa",
+  "law.energy":"Energía",
+  "law.momentum":"Momento",
+  "chart.pie.title":"Pruebas integradas, por ley de conservación",
+  "chart.pie.alt":"Gráfico circular de las pruebas integradas según la ley de conservación que examina cada una",
+  "chart.probes":"{n} pruebas",
+  "chart.bars.title":"Pruebas superadas, por ley de conservación",
+  "chart.bars.caption":"Un panel por ley de conservación, cada uno con su propia escala: el ancho completo de un panel son todas las pruebas de esa ley. La barra gris es cuántas de ellas pudieron puntuar el modelo; la parte coloreada, cuántas superó. Una prueba que es N/A para un modelo queda fuera, como en la tabla de abajo, y un guion indica que ninguna prueba de esa ley pudo puntuarlo.",
+  "chart.passedkey":"superada",
+  "chart.passed":"{p} de {s} superadas",
+  "chart.na":"{n} N/A, sin puntuar",
+  "chart.notpassed":"no superada",
+  "chart.total":"Total",
+  "chart.table":"Ver las cifras",
   "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>enviado</td><td>El LSTM de pronóstico de Google Flood Hub, vía OpenHydroNet con los pesos publicados. Solo caudal.</td><td>5 / 11</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">dhbv2</td><td>enviado</td><td>δHBV 2.0, el HBV diferenciable de MHPI: redes que escriben los parámetros de un modelo de cubetas que reporta sus almacenes, su evaporación y, declarado, su intercambio regional de agua subterránea.</td><td>11 / 21</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">wflow_sbm</td><td>enviado</td><td>El SBM de Wflow.jl de Deltares, adaptado en Julia: una columna de suelo con almacenes no saturado y saturado, intercepción, nieve y tránsito por onda cinemática, en una celda representativa a la resolución del modelo del Mosela de Wflow.</td><td>18 / 21</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">summa</td><td>enviado</td><td>SUMMA 4.0.0, un modelo de superficie terrestre que resuelve los balances de agua y energía del dosel, la nieve, el suelo y el acuífero con un único esquema implícito; una HRU agregada, con la radiación y la humedad que necesita simuladas a partir del forzamiento.</td><td>9 / 24</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">cwatm</td><td>enviado</td><td>CWatM 1.11, el Community Water Model del IIASA: un modelo hidrológico global basado en procesos, ejecutado sobre una sola celda, que reporta sus almacenes de nieve, suelo, dosel, agua subterránea y concentración de escorrentía.</td><td>17 / 21</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">lisflood</td><td>enviado</td><td>LISFLOOD 5.0.0, el modelo distribuido del JRC de la Comisión Europea detrás de EFAS y GloFAS, avanzado paso a paso con su propio marco de Python en una celda representativa de 5 km.</td><td>18 / 21</td><td><span class="tag fail">FALLA (ERROR)</span></td></tr>
-<tr><td class="mono">modflow6</td><td>enviado</td><td>MODFLOW 6.7.0, el modelo modular de agua subterránea del USGS: un acuífero transitorio de una celda de río ejecutado con flopy, que reporta el intercambio señalado y el almacenamiento subterráneo a partir de sus propios términos de balance RIV y STO.</td><td>1 / 1</td><td><span class="tag merged">PASS</span></td></tr>
-<tr><td class="mono">flex_lumped</td><td>físico</td><td>FLEX/HBV agregado de chrimerss/HydrologicModels: intercepción, suelo con partición beta, embalses rápido y lento, un retardo basado en la geometría.</td><td>24 / 24</td><td><span class="tag merged">PASA</span></td></tr>
-<tr><td class="mono">flex_topo</td><td>físico</td><td>FLEX-Topo: unidades de meseta, ladera y humedal con las fracciones reales de la cuenca Wark, un solo almacén subterráneo.</td><td>23 / 23</td><td><span class="tag merged">PASA</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>24 / 24</td><td><span class="tag merged">PASA</span></td></tr>
+$13 / 3</td><td><span class="tag merged">PASA</span></td></tr>
+<tr><td class="mono">flex_lumped</td><td>físico</td><td>FLEX/HBV agregado de chrimerss/HydrologicModels: intercepción, suelo con partición beta, embalses rápido y lento, un retardo basado en la geometría.</td><td>25 / 25</td><td><span class="tag merged">PASA</span></td></tr>
+<tr><td class="mono">flex_topo</td><td>físico</td><td>FLEX-Topo: unidades de meseta, ladera y humedal con las fracciones reales de la cuenca Wark, un solo almacén subterráneo.</td><td>24 / 24</td><td><span class="tag merged">PASA</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>25 / 25</td><td><span class="tag merged">PASA</span></td></tr>
 `,
   "probes.h":"Las pruebas",
   "probes.intro":"<p>Todas las pruebas de la batería, y todas las que la hoja de ruta espera. Una prueba integrada está en el repositorio y supera la compuerta de aceptación frente a los modelos de referencia. Una prueba que se busca tiene nombre, nadie la ha reclamado, y es tuya si la tomas.</p>",
@@ -970,7 +1137,6 @@ es: {
 <tr><td class="mono">mass/extreme-rain</td><td>masa</td><td>La mayor tormenta multiplicada por diez: la escorrentía no puede bajar ni superar la lluvia añadida.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/runoff-bounds</td><td>masa</td><td>En diez años, ¿es posible esa escorrentía? Al menos lluvia menos demanda menos almacenamiento; a lo sumo lluvia más almacenamiento. Solo con caudal.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/area-invariance</td><td>masa</td><td>El mismo tiempo sobre una cuenca diez veces mayor: cada lámina idéntica.</td><td><span class="tag merged">integrada</span></td></tr>
-<tr><td class="mono">mass/aquifer-recharge-ordering</td><td>masa</td><td>La recarga directa conserva el almacenamiento y el orden del intercambio incremental.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/response-nonnegativity</td><td>masa</td><td>Una tormenta añadida: desde ese día la escorrentía nunca puede ser menor que sin ella.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/antecedent-monotonicity</td><td>masa</td><td>La misma tormenta tras un mes seco y tras uno húmedo: más escorrentía en el húmedo, y no más que el agua extra.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/phase-counterfactual</td><td>masa</td><td>La misma agua como lluvia en vez de nieve: cambia el momento, no los volúmenes integrados.</td><td><span class="tag merged">integrada</span></td></tr>
@@ -980,6 +1146,8 @@ es: {
 <tr><td class="mono">mass/ungauged-basin-closure</td><td>masa</td><td>Cierre entre atributos del suelo y dosel y cinco clases climáticas pluviales.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/exchange-response</td><td>masa</td><td>Un intercambio declarado debe responder a la carga hidráulica externa que se le dio: al subirla debe entrar más agua, y al bajarla menos.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/gw-sw-exchange-consistency</td><td>masa</td><td>Un modelo que reporta el intercambio agua subterránea-río: ¿concuerdan la recarga, el intercambio neto con sus dos direcciones señaladas, y el almacenamiento del acuífero?</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/aquifer-recharge-ordering</td><td>masa</td><td>La recarga directa conserva el almacenamiento y el orden del intercambio incremental.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">mass/groundwater-datum-invariance</td><td>masa</td><td>Un cambio común del datum vertical no cambia el intercambio subterráneo.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">energy/pet-consistency</td><td>energía</td><td>La evaporación alcanza la demanda cuando el suelo del propio modelo está más húmedo, nunca la supera y baja cuando está más seco.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">energy/latent-heat-et-consistency</td><td>energía</td><td>La evaporación que un modelo reporta como agua y la que implica su calor latente: ¿son la misma evaporación?</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">energy/evaporative-partition</td><td>energía</td><td>Un verano sin lluvia bajo una radiación que no cambió: el calor latente que cede una superficie que se seca tiene que calentar el aire.</td><td><span class="tag merged">integrada</span></td></tr>
@@ -989,6 +1157,7 @@ es: {
 <tr><td class="mono">energy/snowmelt-energy-water</td><td>energía</td><td>Un manto acumulado en invierno y fundido parcialmente en un bloque seco que empieza por debajo de -14 C y se calienta atravesando el cero: ¿paga el balance energético de superficie tanto el calor de fusión del hielo que cambió de fase como el contenido de frío de calentar el manto?</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>momento</td><td>El almacén del cauce nunca es negativo ni retiene más de lo que cabe en su hidrograma.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>momento</td><td>Ante la misma tormenta de un día, el retardo del pico de escorrentía debe ajustarse a la escala temporal geométrica de Snyder-Hack y aumentar con la escala de la cuenca.</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">momentum/froude-regime</td><td>momento</td><td>El flujo en un tramo de pendiente suave debe mantenerse subcrítico.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>masa</td><td>Balances de agua por evento bajo tormentas superpuestas con objetivos sintéticos de lluvia de 100 años.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>masa</td><td>La precipitación menos la salida líquida del módulo de nieve y la sublimación debe coincidir con el cambio en el almacenamiento de agua en la nieve dentro de cada régimen nival.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>masa</td><td>Cincuenta años de clima repetido: el almacenamiento total reportado no debe seguir derivando.</td><td><span class="tag merged">integrada</span></td></tr>
@@ -997,8 +1166,7 @@ es: {
 <tr><td class="mono">momentum/channel-routing-mass</td><td>momento</td><td>Entrada menos salida menos el cambio de almacenamiento en el cauce, por tramo.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>momento</td><td>La cota sube con el caudal y, donde la curva forma un bucle, la rama ascendente queda por debajo de la descendente a un mismo caudal.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>momento</td><td>En tres caudales estacionarios, caudal y cota deben satisfacer un mismo balance de Manning con la geometría rectangular y rugosidad declaradas.</td><td><span class="tag merged">integrada</span></td></tr>
-<tr><td class="mono">momentum/wave-celerity-bounds</td><td>momento</td><td>La celeridad de la onda cinemática debe ser positiva y cercana a la esperada por Manning.</td><td><span class="tag wanted">se busca</span></td></tr>
-<tr><td class="mono">momentum/froude-regime</td><td>momento</td><td>El flujo en un tramo de pendiente suave debe mantenerse subcrítico.</td><td><span class="tag wanted">se busca</span></td></tr>`,
+<tr><td class="mono">momentum/wave-celerity-bounds</td><td>momento</td><td>La celeridad de la onda cinemática debe ser positiva y cercana a la esperada por Manning.</td><td><span class="tag wanted">se busca</span></td></tr>`,
   "verdict.h":"Veredictos",
   "verdict.body":`<p>Una prueba que puede preguntarle algo al modelo lo aprueba o lo reprueba, con el motivo registrado por separado, porque significan cosas muy distintas. Una prueba que no puede preguntarle nada es <strong>N/A</strong>: no se puntúa, y no es ni un aprobado ni un fallo.</p>
 <ul><li><strong>VIOLATION</strong> — el modelo informó su balance y el balance no cerró. La prueba falla.</li>
@@ -1113,6 +1281,7 @@ zh: {
   "infra.probe.ungauged":"无资料",
   "infra.probe.exchange":"对外交换",
   "infra.probe.recharge":"补给顺序",
+  "infra.probe.datum":"垂向基准",
   "infra.probe.gwexchange":"地下水交换",
   "infra.probe.pet":"蒸散需求",
   "infra.probe.latent":"潜热一致",
@@ -1125,6 +1294,7 @@ zh: {
   "infra.probe.routinglag":"传播时间",
   "infra.probe.rating":"水位流量关系",
   "infra.probe.friction":"摩阻",
+  "infra.probe.froude":"缓流",
   "infra.flow":"种子 → 案例 → 运行 → 一位判定",
   "infra.s1a":"带种子的",
   "infra.s1b":"生成器",
@@ -1167,16 +1337,34 @@ zh: {
   "models.th5":"结论",
   "models.intro":"<p>所有已在本套件上运行过的模型。提交模型在隔离容器中，于每个检验项生成记录的洪水事件窗口上评估。物理模型是验收闸门要求每个检验项都必须通过的模型，以同样方式评估；若某检验项未能通过物理模型，先检查检验项，再检查模型。</p><p>dhbv2、wflow_sbm、summa、cwatm 和 lisflood 的成绩现已计入 mass/extreme-event-closure：lisflood 通过，dhbv2、wflow_sbm、summa 和 cwatm 未通过。</p>",
   "models.legend":"<p>每次评估都会追加到 <a href=\"https://github.com/Flood-Lab/HydroTuring/blob/main/models/result.csv\">models/result.csv</a>，记录检验项、窗口、种子与最差准则。每项结论为 PASS、FAIL 或 N/A，并附原因；其下的数字在归档和各模型的 README 中。「通过检验项」一栏只在能对该模型计分的检验项中计数：模型上报的信息不足、或无法施加于该模型的检验项记为 N/A，不计入，因此各模型的总数不同。提交模型请打开<a href=\"https://github.com/Flood-Lab/HydroTuring/issues/new?template=model_submission.yml\">模型提交</a>。</p>",
+  "probes.toggle":"检验项一览：已合并 {m} 项，路线图上 {o} 项",
+  "models.toggle":"模型一览：{n} 个模型的简介与结论",
+  "table.show":"展开",
+  "table.hide":"收起",
+  "law.mass":"质量",
+  "law.energy":"能量",
+  "law.momentum":"动量",
+  "chart.pie.title":"已合并检验项（按守恒定律）",
+  "chart.pie.alt":"已合并检验项按所检验守恒定律划分的饼图",
+  "chart.probes":"{n} 项检验",
+  "chart.bars.title":"通过的检验项（按守恒定律）",
+  "chart.bars.caption":"每个守恒定律一个面板，各用各的刻度：面板全宽代表该定律下的全部检验项。灰色横条是其中能对该模型计分的检验项数，彩色部分是通过的数量。对某模型为 N/A 的检验项不计入（与下表一致），短横表示该定律下没有检验项能对其计分。",
+  "chart.passedkey":"通过",
+  "chart.passed":"通过 {p} / {s}",
+  "chart.na":"{n} 项 N/A，未计分",
+  "chart.notpassed":"未通过",
+  "chart.total":"合计",
+  "chart.table":"查看数据",
   "models.rows":`<tr><td class="mono">google_flood_forecast</td><td>提交模型</td><td>Google Flood Hub 的均值嵌入预报 LSTM，经 OpenHydroNet 以公开权重运行。仅输出流量。</td><td>5 / 11</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">dhbv2</td><td>提交模型</td><td>δHBV 2.0，MHPI 的可微 HBV：神经网络写出水桶模型的参数，模型报告蓄水、蒸发，并申报其区域地下水交换。</td><td>11 / 21</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">wflow_sbm</td><td>提交模型</td><td>Deltares 的 Wflow.jl SBM，以 Julia 适配：含非饱和与饱和蓄水的土壤柱、截留、积雪与运动波汇流，以 Wflow 莫泽尔河模型分辨率的单个代表性网格运行。</td><td>18 / 21</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">summa</td><td>提交模型</td><td>SUMMA 4.0.0，陆面模型：以同一隐式求解器求解冠层、积雪、土壤与含水层的水量和能量平衡；按单个集总 HRU 运行，所需辐射与湿度由强迫数据模拟。</td><td>9 / 24</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">cwatm</td><td>提交模型</td><td>CWatM 1.11，IIASA 的社区水模型（Community Water Model）：基于过程的全球水文模型，在单个网格上运行，报告积雪、土壤、冠层、地下水与产流汇集滞蓄。</td><td>17 / 21</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">lisflood</td><td>提交模型</td><td>LISFLOOD 5.0.0，欧盟委员会联合研究中心支撑 EFAS 与 GloFAS 的分布式模型，通过其自身的 Python 框架在单个 5 公里代表性网格上逐步运行。</td><td>18 / 21</td><td><span class="tag fail">未通过（错误）</span></td></tr>
-<tr><td class="mono">modflow6</td><td>提交模型</td><td>MODFLOW 6.7.0，美国地质调查局的模块化地下水模型：通过 flopy 运行的单河流网格瞬态含水层，依据其自身的 RIV 与 STO 收支项报告带符号交换量与地下水储量。</td><td>1 / 1</td><td><span class="tag merged">PASS</span></td></tr>
-<tr><td class="mono">flex_lumped</td><td>物理模型</td><td>来自 chrimerss/HydrologicModels 的集总 FLEX/HBV：截留、beta 分配的土壤、快慢水库与基于几何的滞时。</td><td>24 / 24</td><td><span class="tag merged">通过</span></td></tr>
-<tr><td class="mono">flex_topo</td><td>物理模型</td><td>FLEX-Topo：台地、坡地与湿地单元按 Wark 流域的真实面积比共享一个地下水库。</td><td>23 / 23</td><td><span class="tag merged">通过</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>24 / 24</td><td><span class="tag merged">通过</span></td></tr>
+$13 / 3</td><td><span class="tag merged">通过</span></td></tr>
+<tr><td class="mono">flex_lumped</td><td>物理模型</td><td>来自 chrimerss/HydrologicModels 的集总 FLEX/HBV：截留、beta 分配的土壤、快慢水库与基于几何的滞时。</td><td>25 / 25</td><td><span class="tag merged">通过</span></td></tr>
+<tr><td class="mono">flex_topo</td><td>物理模型</td><td>FLEX-Topo：台地、坡地与湿地单元按 Wark 流域的真实面积比共享一个地下水库。</td><td>24 / 24</td><td><span class="tag merged">通过</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>25 / 25</td><td><span class="tag merged">通过</span></td></tr>
 `,
   "probes.h":"检验项一览",
   "probes.intro":"<p>套件中的每一项检验，以及路线图正在等待的每一项。已合并的检验项已在仓库中，并在参照模型上通过验收闸门。征集中的检验项已有名字、尚无人认领，欢迎认领。</p>",
@@ -1195,7 +1383,6 @@ zh: {
 <tr><td class="mono">mass/extreme-rain</td><td>质量</td><td>最大暴雨放大十倍：径流不得减少，也不得超过所加降雨。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/runoff-bounds</td><td>质量</td><td>十年之内，这样的径流是否可能：至少为降雨减去需求再减去蓄水，至多为降雨加蓄水？仅凭径流即可判定。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/area-invariance</td><td>质量</td><td>同样的天气，流域面积放大十倍：每一项深度都必须完全相同。</td><td><span class="tag merged">已合并</span></td></tr>
-<tr><td class="mono">mass/aquifer-recharge-ordering</td><td>质量</td><td>直接补给不能降低地下水储量或逆转交换增量。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/response-nonnegativity</td><td>质量</td><td>加入一场暴雨：自那天起，径流在任何一天都不得低于未加雨的情形。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/antecedent-monotonicity</td><td>质量</td><td>同一场暴雨，分别落在干月与湿月之后：湿的流域径流更多，且不超过多出的水量。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/phase-counterfactual</td><td>质量</td><td>同样的水以雨而非雪的形式落下：时间会变，积分体积不变。</td><td><span class="tag merged">已合并</span></td></tr>
@@ -1205,6 +1392,8 @@ zh: {
 <tr><td class="mono">mass/ungauged-basin-closure</td><td>质量</td><td>跨土壤、冠层属性及五类降雨气候的水量闭合。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/exchange-response</td><td>质量</td><td>申报的对外交换必须响应给定的外部水头：抬高水头，流入必须增加；降低水头，流入必须减少。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/gw-sw-exchange-consistency</td><td>质量</td><td>报告地下水-河流交换的模型：补给量、带符号双向交换分量之和与净交换量、含水层储量三者是否一致？</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/aquifer-recharge-ordering</td><td>质量</td><td>直接补给不能降低地下水储量或逆转交换增量。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">mass/groundwater-datum-invariance</td><td>质量</td><td>统一垂向基准平移不应改变地下水交换。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">energy/pet-consistency</td><td>能量</td><td>当模型自身土壤最湿时蒸发达到需求、永不超过需求，最干时蒸发下降。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">energy/latent-heat-et-consistency</td><td>能量</td><td>模型作为水量报告的蒸发与其潜热通量所隐含的蒸发：是否是同一个蒸发？</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">energy/evaporative-partition</td><td>能量</td><td>净辐射不变的情况下一个无雨的夏天：干燥地表让出的潜热必须去加热空气。</td><td><span class="tag merged">已合并</span></td></tr>
@@ -1214,6 +1403,7 @@ zh: {
 <tr><td class="mono">energy/snowmelt-energy-water</td><td>能量</td><td>积雪在寒冬累积，随后在一个干燥区段内部分融化：该区段起始温度低于 -14 C 并逐步升温越过冰点。地表能量预算是否既支付了发生相变的冰所需的熔化潜热，也支付了使积雪升温所需的冷储量？</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>动量</td><td>河道蓄水永不为负，也永不超过其单位线所能容纳的量。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>动量</td><td>在同一场单日暴雨下，径流峰值时滞必须符合 Snyder-Hack 几何时间尺度，并随流域尺度增大。</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">momentum/froude-regime</td><td>动量</td><td>缓坡河段的水流必须保持缓流。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/extreme-event-closure</td><td>质量</td><td>叠加降雨以超过合成气候的百年一遇雨量阈值，逐事件检查水量闭合。</td><td><span class="tag merged">已合入</span></td></tr>
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>质量</td><td>各积雪阶段内，降水减去雪模块液态出流和升华后，必须与雪水储量变化一致。</td><td><span class="tag merged">已合入</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>质量</td><td>五十年重复暖天气：报告的总蓄水不得持续漂移。</td><td><span class="tag merged">已合并</span></td></tr>
@@ -1222,8 +1412,7 @@ zh: {
 <tr><td class="mono">momentum/channel-routing-mass</td><td>动量</td><td>逐河段：入流减出流减河道蓄量变化。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>动量</td><td>水位随流量单调上升；出现绳套时，同一流量下涨洪段的水位低于落洪段。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>动量</td><td>在三个稳态流量下，流量与水位必须和所声明的矩形河道几何及糙率满足同一个曼宁平衡。</td><td><span class="tag merged">已合并</span></td></tr>
-<tr><td class="mono">momentum/wave-celerity-bounds</td><td>动量</td><td>运动波波速必须为正，且接近曼宁公式的预期。</td><td><span class="tag wanted">征集中</span></td></tr>
-<tr><td class="mono">momentum/froude-regime</td><td>动量</td><td>缓坡河段的水流必须保持缓流。</td><td><span class="tag wanted">征集中</span></td></tr>`,
+<tr><td class="mono">momentum/wave-celerity-bounds</td><td>动量</td><td>运动波波速必须为正，且接近曼宁公式的预期。</td><td><span class="tag wanted">征集中</span></td></tr>`,
   "verdict.h":"判定结果",
   "verdict.body":`<p>能够向模型提出问题的检验项给出通过或未通过的结论，失败原因单独记录，因为两者的科学含义完全不同。无法向模型提出任何问题的检验项记为 <strong>N/A</strong>：不计分，既不算通过，也不算未通过。</p>
 <ul><li><strong>VIOLATION</strong>（违反）——模型上报了自己的收支，而收支没有闭合。该检验项未通过。</li>
@@ -1291,6 +1480,281 @@ function detectLang() {
   return "en";
 }
 
+/* ---------- charts ----------
+   Both charts are drawn from the #ht-standings block, which
+   scripts/site_standings.py writes from models/result.csv. Names go into the
+   DOM through textContent only. */
+const LAWS = ["mass", "energy", "momentum"];
+const SVG_NS = "http://www.w3.org/2000/svg";
+const STANDINGS = (() => {
+  try { return JSON.parse(document.getElementById("ht-standings").textContent); }
+  catch (e) { return null; }
+})();
+
+function fill(template, vars) {
+  return String(template).replace(/\{(\w+)\}/g, (_, key) => (key in vars ? vars[key] : ""));
+}
+
+function el(tag, attrs, text) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs || {})) node.setAttribute(key, value);
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function svgEl(tag, attrs) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(attrs || {})) node.setAttribute(key, value);
+  return node;
+}
+
+// White or black, whichever clears the filled color better, for a label set
+// inside a fill. Against white and true black one of the two always reaches
+// 4.5:1 (WCAG AA for the 14px count); the site's ink is lighter than black and
+// would leave mid-tones such as the light-mode mass blue short of it with both.
+function inkOn(node) {
+  const rgb = (getComputedStyle(node).fill.match(/\d+(\.\d+)?/g) || [0, 0, 0]).slice(0, 3).map(Number);
+  const lin = rgb.map((c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+  const lum = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+  return (1.05 / (lum + 0.05)) >= ((lum + 0.05) / 0.05) ? "#FFFFFF" : "#000000";
+}
+
+function tooltip(figure) {
+  const tip = figure.querySelector(".viz-tip");
+  function place(x, y) {
+    const width = tip.offsetWidth, height = tip.offsetHeight;
+    let left = x + 14;
+    if (left + width > figure.clientWidth - 8) left = x - width - 14;
+    let top = y - height - 12;
+    if (top < 8) top = y + 18;
+    tip.style.left = Math.max(8, left) + "px";
+    tip.style.top = top + "px";
+  }
+  function at(event, target) {
+    const box = figure.getBoundingClientRect();
+    if (event && event.type.startsWith("pointer")) return [event.clientX - box.left, event.clientY - box.top];
+    const r = target.getBoundingClientRect();
+    return [r.left + r.width / 2 - box.left, r.top - box.top];
+  }
+  // One tooltip serves every mark in the figure. A focused mark keeps it when
+  // the pointer leaves another mark; Escape dismisses it (WCAG 1.4.13).
+  let focused = null;
+  return {
+    bind(node, build) {
+      const show = (event) => { tip.replaceChildren(...build()); tip.hidden = false; place(...at(event, node)); };
+      node.addEventListener("pointerenter", show);
+      node.addEventListener("pointermove", (event) => place(...at(event, node)));
+      node.addEventListener("pointerleave", () => {
+        if (!focused) tip.hidden = true;
+        else if (focused.node !== node) focused.show(null);
+      });
+      node.addEventListener("focus", (event) => { focused = { node, show }; show(event); });
+      node.addEventListener("blur", () => { if (focused && focused.node === node) focused = null; tip.hidden = true; });
+      node.addEventListener("keydown", (event) => { if (event.key === "Escape") tip.hidden = true; });
+    },
+  };
+}
+
+// Values lead, labels follow; a short line keys the series.
+function tipContent(head, color, value, label, note) {
+  const nodes = [];
+  if (head) nodes.push(el("div", { class: "tip-head" }, head));
+  const row = el("div", { class: "tip-row" });
+  const key = el("span", { class: "tip-key" });
+  key.style.background = color;
+  row.append(key, el("strong", {}, value), el("span", { class: "tip-label" }, label));
+  nodes.push(row);
+  if (note) nodes.push(el("div", { class: "tip-note" }, note));
+  return nodes;
+}
+
+function legendItem(color, label, value, extra) {
+  const item = el("li");
+  const swatch = el("span", { class: "swatch", "aria-hidden": "true" });
+  swatch.style.background = color;
+  item.append(swatch, el("span", {}, label));
+  if (value !== undefined) item.append(el("span", { class: "val" }, value));
+  if (extra !== undefined) item.append(el("span", { class: "pct" }, extra));
+  return item;
+}
+
+function renderPie(dict) {
+  const figure = document.getElementById("law-pie");
+  if (!figure || !STANDINGS) return;
+  const group = figure.querySelector(".slices");
+  const legend = figure.querySelector(".legend");
+  group.replaceChildren();
+  legend.replaceChildren();
+  const counts = LAWS.map((law) => STANDINGS.probes[law] || 0);
+  const total = counts.reduce((a, b) => a + b, 0);
+  if (!total) return;
+  // Whole percentages by largest remainder, so the legend always sums to 100.
+  const exact = counts.map((n) => (n / total) * 100);
+  const pcts = exact.map(Math.floor);
+  exact.map((x, i) => [x - Math.floor(x), i]).sort((a, b) => b[0] - a[0])
+    .slice(0, 100 - pcts.reduce((a, b) => a + b, 0)).forEach(([, i]) => { pcts[i] += 1; });
+  const tips = tooltip(figure);
+  const cx = 100, cy = 100, r = 96;
+  let angle = -Math.PI / 2;
+  LAWS.forEach((law, i) => {
+    const n = counts[i];
+    if (!n) return;
+    const sweep = (n / total) * 2 * Math.PI;
+    const a0 = angle, a1 = angle + sweep;
+    angle = a1;
+    const name = dict["law." + law] || law;
+    const pct = pcts[i] + "%";
+    const point = (a, radius) => [cx + radius * Math.cos(a), cy + radius * Math.sin(a)];
+    const [x0, y0] = point(a0, r), [x1, y1] = point(a1, r);
+    const d = n === total
+      ? `M${cx} ${cy - r} A${r} ${r} 0 1 1 ${cx} ${cy + r} A${r} ${r} 0 1 1 ${cx} ${cy - r} Z`
+      : `M${cx} ${cy} L${x0} ${y0} A${r} ${r} 0 ${sweep > Math.PI ? 1 : 0} 1 ${x1} ${y1} Z`;
+    const probes = fill(dict["chart.probes"], { n });
+    const path = svgEl("path", { d, tabindex: "0", role: "img", "aria-label": `${name}: ${probes}, ${pct}` });
+    path.style.fill = `var(--law-${law})`;
+    group.append(path);
+    if (sweep > 0.3) {
+      const [tx, ty] = point((a0 + a1) / 2, r * 0.62);
+      const label = svgEl("text", { x: tx, y: ty, "text-anchor": "middle", "dominant-baseline": "central", "aria-hidden": "true" });
+      label.textContent = String(n);
+      label.style.fill = inkOn(path);
+      group.append(label);
+    }
+    tips.bind(path, () => tipContent(null, `var(--law-${law})`, probes, `${name} · ${pct}`));
+    legend.append(legendItem(`var(--law-${law})`, name, String(n), pct));
+  });
+}
+
+function renderBars(dict) {
+  const figure = document.getElementById("law-bars");
+  if (!figure || !STANDINGS) return;
+  const grid = figure.querySelector(".lawgrid");
+  const legend = figure.querySelector(".legend");
+  const table = figure.querySelector("table");
+  grid.replaceChildren();
+  legend.replaceChildren();
+  table.replaceChildren();
+  if (!LAWS.some((law) => STANDINGS.probes[law])) return;
+
+  const passedKey = el("li");
+  const swatches = el("span", { class: "swatches", "aria-hidden": "true" });
+  for (const law of LAWS) {
+    const swatch = el("span", { class: "swatch" });
+    swatch.style.background = `var(--law-${law})`;
+    swatches.append(swatch);
+  }
+  passedKey.append(swatches, el("span", {}, dict["chart.passedkey"]));
+  legend.append(passedKey, legendItem("var(--track)", dict["chart.notpassed"]));
+
+  // Follow the models table's order, so the chart and the table read alike.
+  const listed = [...document.querySelectorAll('tbody[data-i18n-html="models.rows"] td.mono')]
+    .map((cell) => cell.textContent.trim());
+  const models = listed.filter((m) => m in STANDINGS.models)
+    .concat(Object.keys(STANDINGS.models).filter((m) => !listed.includes(m)));
+
+  // Every cell is placed explicitly: auto-placement would flow around the
+  // panel backdrops, which span every row of their column.
+  const put = (node, row, column) => {
+    node.style.gridRow = String(row);
+    node.style.gridColumn = String(column);
+    grid.append(node);
+  };
+  grid.style.gridTemplateRows = `auto repeat(${models.length}, minmax(22px, auto))`;
+  LAWS.forEach((law, i) => {
+    const panel = el("div", { class: "panel", "aria-hidden": "true" });
+    panel.style.gridColumn = String(i + 2);
+    grid.append(panel);
+  });
+  put(el("div", { "aria-hidden": "true" }), 1, 1);
+  LAWS.forEach((law, i) => {
+    const head = el("div", { class: "law-head" });
+    const title = el("span", { class: "law-name" });
+    const swatch = el("span", { class: "swatch", "aria-hidden": "true" });
+    swatch.style.background = `var(--law-${law})`;
+    title.append(swatch, el("span", {}, dict["law." + law] || law));
+    head.append(title, el("span", { class: "law-count" }, fill(dict["chart.probes"], { n: STANDINGS.probes[law] })));
+    put(head, 1, i + 2);
+  });
+  put(el("div", { class: "total-head" }, dict["chart.total"]), 1, 5);
+
+  const thead = el("thead");
+  const head = el("tr");
+  head.append(el("th", {}, dict["models.th1"]));
+  for (const law of LAWS) head.append(el("th", {}, dict["law." + law] || law));
+  head.append(el("th", {}, dict["chart.total"]));
+  thead.append(head);
+  const tbody = el("tbody");
+  table.append(thead, tbody);
+
+  const tips = tooltip(figure);
+  models.forEach((model, index) => {
+    const row = index + 2;
+    const counts = STANDINGS.models[model];
+    const passed = LAWS.reduce((sum, law) => sum + counts[law][0], 0);
+    const scored = LAWS.reduce((sum, law) => sum + counts[law][1], 0);
+    // Break opportunities after underscores, used only where the name has to wrap.
+    const label = el("div", { class: "name" });
+    model.split("_").forEach((part, k, parts) => {
+      label.append(document.createTextNode(part + (k < parts.length - 1 ? "_" : "")));
+      if (k < parts.length - 1) label.append(el("wbr"));
+    });
+    put(label, row, 1);
+    const line = el("tr");
+    line.append(el("td", { class: "mono" }, model));
+    LAWS.forEach((law, i) => {
+      const [p, s] = counts[law];
+      const all = STANDINGS.probes[law] || 0;
+      const name = dict["law." + law] || law;
+      const na = all - s;
+      const note = na > 0 ? fill(dict["chart.na"], { n: na }) : null;
+      const value = s ? fill(dict["chart.passed"], { p, s }) : note;
+      const cell = el("div", { class: s ? "cell" : "cell na", tabindex: "0", role: "img", "aria-label": `${model}, ${name}: ${value}` });
+      const scale = el("span", { class: "scale" });
+      if (s) {
+        // The track is the probes under this law that could score the model,
+        // on this panel's own scale; the fill is the share it passed.
+        const track = el("span", { class: "track" });
+        track.style.width = (s / all) * 100 + "%";
+        const done = el("span", { class: "fill" });
+        done.style.width = (p / s) * 100 + "%";
+        done.style.background = `var(--law-${law})`;
+        track.append(done);
+        scale.append(track);
+      }
+      cell.append(scale, el("span", { class: "v" }, s ? `${p}/${s}` : "–"));
+      put(cell, row, i + 2);
+      tips.bind(cell, () => tipContent(model, `var(--law-${law})`, s ? value : "–", name, s ? note : value));
+      line.append(el("td", {}, s ? `${p} / ${s}` : "–"));
+    });
+    put(el("div", { class: "total" }, scored ? `${passed} / ${scored}` : "–"), row, 5);
+    line.append(el("td", {}, scored ? `${passed} / ${scored}` : "–"));
+    tbody.append(line);
+  });
+}
+
+// The summary rows of the folded tables carry their counts, read off the rendered rows.
+function renderToggles(dict) {
+  const probes = document.querySelectorAll('tbody[data-i18n-html="probes.rows"] tr');
+  const merged = document.querySelectorAll('tbody[data-i18n-html="probes.rows"] .tag.merged').length;
+  const models = document.querySelectorAll('tbody[data-i18n-html="models.rows"] tr').length;
+  const counts = { probes: { m: merged, o: probes.length - merged, n: probes.length }, models: { n: models } };
+  for (const label of document.querySelectorAll(".toggle-label[data-toggle]")) {
+    const key = label.dataset.toggle;
+    label.textContent = fill(dict[key + ".toggle"] || "", counts[key] || {});
+  }
+}
+
+let chartDict = null;
+function renderCharts(dict) {
+  chartDict = dict;
+  renderPie(dict);
+  renderBars(dict);
+}
+// Labels inside the pie pick white or ink from the fill, which changes with the color scheme.
+if (window.matchMedia) {
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (chartDict) renderCharts(chartDict); });
+}
+
 function applyLang(lang) {
   const dict = I18N[lang] || I18N.en;
   document.documentElement.lang = lang === "zh" ? "zh" : lang;
@@ -1306,6 +1770,8 @@ function applyLang(lang) {
   for (const button of document.querySelectorAll(".langs button")) {
     button.setAttribute("aria-pressed", String(button.dataset.lang === lang));
   }
+  renderToggles(dict);
+  renderCharts(dict);
   try { localStorage.setItem("hydroturing.lang", lang); } catch (e) { /* ignore */ }
 }
 

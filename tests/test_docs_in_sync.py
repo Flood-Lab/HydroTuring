@@ -197,6 +197,38 @@ def test_site_flowchart_shows_every_probe():
         assert html.count(f'"{key}":') == 3, f"{key} lacks a translation in one of the three languages"
 
 
+def test_site_charts_are_drawn_from_the_archive():
+    """The site's two charts read a JSON block that scripts/site_standings.py
+    writes. It has to say what the archive says, and its per-law counts have
+    to add up to the same standing the models tables are checked against."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "site_standings", REPO_ROOT / "scripts" / "site_standings.py"
+    )
+    site_standings = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(site_standings)
+
+    assert site_standings.embedded(read("site/index.html")) == site_standings.standings(), (
+        "the site's chart data is stale; run python3 scripts/site_standings.py"
+    )
+    data = site_standings.standings()
+    assert sum(data["probes"].values()) == len(PROBE_IDS)
+    for probe_id, law in site_standings.probe_laws().items():
+        assert PROBES[probe_id].law == law, f"{probe_id}: chart counts it under {law}"
+    archived = _archived_standings()
+    charted = {model for model in EVALUATED_MODELS if model in archived}
+    assert set(data["models"]) == charted, (
+        f"the chart leaves out {sorted(charted - set(data['models']))} "
+        f"or adds {sorted(set(data['models']) - charted)}"
+    )
+    for model, counts in data["models"].items():
+        passed = sum(p for p, _ in counts.values())
+        scored = sum(s for _, s in counts.values())
+        expected = (archived[model]["passed"], archived[model]["scored"])
+        assert (passed, scored) == expected, f"{model}: chart says {passed} of {scored}, archive {expected}"
+
+
 @pytest.mark.parametrize("variable", FLUX_VARS + STATE_VARS + DIAG_VARS)
 def test_agents_doc_defines_every_variable(variable):
     assert f"| `{variable}` |" in read("AGENTS.md"), (
