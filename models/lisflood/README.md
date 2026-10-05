@@ -393,6 +393,8 @@ measurements explain the historical ERROR rows from the emulated `.5` runs;
 they do not describe the current `5.0.0-onecell.6` archive, in which both
 ten-year probes completed and received scored verdicts.
 
+The current `5.0.0-onecell.6` rows were generated on a native x86-64 host with a 13th Gen Intel(R) Core(TM) i5-13400F. On this host, the ten-year adapter invocations for `mass/precipitation-counterfactual` took 12.95--14.65 s each (13.57 s mean), and those for `mass/human-abstraction` took 14.14--14.97 s each (14.54 s mean), all within the probes' 60 s per-invocation runtime budgets.
+
 ## Result
 
 **FAIL (VIOLATION), 20 of 22 probes passed, 13 N/A (11 INCOMPLETE, 2 INCOMPATIBLE).** These are the rows of the full gate-seed run of `5.0.0-onecell.6`.
