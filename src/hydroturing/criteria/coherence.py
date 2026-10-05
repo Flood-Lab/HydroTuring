@@ -91,8 +91,16 @@ def flux_identity(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRe
     sublimation_var = params.get("sublimation", "sbl")
     # Stores other than the pack that can hold the ice a reported split says
     # left, and how far above the snow threshold they may still be frozen.
-    other_ice = [str(v) for v in params.get("other_ice_stores", ["canopy"])]
-    other_ice_margin = float(params.get("other_ice_margin_degC", 2.0))
+    other_ice = params.get("other_ice_stores", ["canopy"])
+    if not isinstance(other_ice, (list, tuple)):
+        raise ValueError(f"other_ice_stores must be a list of column names, got {other_ice!r}")
+    other_ice = [str(v) for v in other_ice]
+    other_ice_margin = float(params.get("other_ice_margin_degC", 0.5))
+    # How much more frost a step may deposit than the vapour that arrived, as
+    # a rate. 0.01 mm/day buys at most 0.04 W m-2 of latent heat at any step,
+    # a twelfth of the absolute floor; SUMMA's largest excess on the gate seeds
+    # is 0.0028 mm/day, deposition onto snow beside liquid evaporating.
+    deposition_allowance = float(params.get("deposition_allowance_mm_per_day", 0.01))
 
     w = make_window(run, probe)
     for var in (flux, water):
@@ -150,10 +158,10 @@ def flux_identity(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRe
 
     # A reported split may also come from ice held outside the pack: rain that
     # freezes on a canopy sublimates there with no snow on the ground. Such a
-    # store counts only where it holds water and the air is near or below the
-    # snow threshold, so a wet canopy on a warm day cannot carry a split. On
-    # the gate seeds SUMMA's canopy-ice sublimation without snow falls at or
-    # below 0.07 degC.
+    # store counts only where it holds water and the air is below, or at most
+    # 0.5 degC above, the snow threshold, so a wet canopy on a mild day cannot
+    # carry a split. On the gate seeds SUMMA's canopy-ice sublimation without
+    # snow falls at or below 0.07 degC.
     ice_possible = pack_possible.copy()
     for store in other_ice:
         if store not in w.table.columns:
@@ -166,14 +174,23 @@ def flux_identity(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRe
     failures: list[str] = []
     if reported_split:
         # The split is a claim about the model's own evaporation, so it has to
-        # be one: never more sublimation than what evaporated, and zero where
-        # the model itself reports no ice to lose or gain. Without the last of
-        # these, a model could report a fictitious share to bend its effective
-        # lambda on a warm day. A negative split is frost deposition, which
+        # be one: no more sublimation than what evaporated, no more deposition
+        # than the vapour that arrived, and zero where the model itself reports
+        # no ice to lose or gain. A negative split is frost deposition, which
         # releases lambda_s per kilogram, so the equality covers it as written.
+        # The bounds are what keep the equality from being solved for: with
+        # deposition unbounded, any latent heat below lambda_s E is matched by
+        # sbl = (LE - lambda_v E) / (lambda_s - lambda_v), so a model reporting
+        # half the latent heat its evaporation needs would pass on every icy
+        # step. With both bounds a split can move the required latent heat only
+        # inside the interval a model without `sbl` is held to. Without the
+        # no-ice condition, a model could report a fictitious share to bend its
+        # effective lambda on a warm day.
         checks = (
             (subl > np.maximum(et_mass, 0.0) + 1e-9,
              "larger than the evaporation it is a share of"),
+            (subl < np.minimum(et_mass, 0.0) - deposition_allowance * dt,
+             "more deposition than the condensation it is a share of"),
             ((~ice_possible) & (np.abs(subl) > 1e-9),
              "non-zero where the model reports no snow or frozen store and none could fall"),
         )
@@ -209,11 +226,13 @@ def flux_identity(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRe
         return float(slack[mask].max()) if mask.any() else 0.0
 
     split_steps = int((subl > 0).sum())
+    deposit_steps = int((subl < 0).sum())
     detail = f"implied lambda {implied:.4g} J/kg; worst step {worst:.2f} of tolerance"
     if reported_split:
         detail += (
             f" ({split_steps} steps report sublimation, worst there "
-            f"{worst_in(subl > 0):.2f})"
+            f"{worst_in(subl > 0):.2f}; {deposit_steps} report deposition, worst there "
+            f"{worst_in(subl < 0):.2f})"
         )
     else:
         detail += (
@@ -243,11 +262,13 @@ def flux_identity(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRe
             "implied_lambda_j_per_kg": implied,
             "worst_slack": worst,
             "worst_slack_sublimating": worst_in(subl > 0.0),
+            "worst_slack_depositing": worst_in(subl < 0.0),
             "worst_slack_bounded": worst_in(bounded),
             "bounded_steps": int(bounded.sum()),
             "reported_split": bool(reported_split),
             "violating_steps": n_bad,
             "sublimating_steps": split_steps,
+            "depositing_steps": deposit_steps,
             "rel_tol": rel_tol,
             "abs_floor_w_m2": abs_floor,
         },

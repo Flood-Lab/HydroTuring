@@ -484,13 +484,17 @@ which is exactly the probe's value. The reported latent heat equals
 `LH_vap * E_liquid + LH_sub * E_ice` to 9.1e-4 W/m2. The probe asks for 2.501e6 - 2361 T.
 
 With `sbl` reported, the criterion holds every step to the equality
-`LE = lambda_v (E - sbl) + lambda_s sbl`. Every step that reports sublimation
-meets it: the worst is 0.81 to 0.85 of the tolerance on the five latent-heat
-seeds and 0.86 on partition, frost deposition included. What fails is the
-liquid share converted at `LH_vap`: on 966 to 1013 of 3650 days a seed on the
-latent-heat probe, worst 4.95 to 5.64 times the tolerance, and on 177 of 1095
-on partition's worst seed, worst 5.15 times. That is what
-`reference_constant_lambda` is built to show.
+`LE = lambda_v (E - sbl) + lambda_s sbl`. Every step that reports net
+sublimation meets it: the worst is 0.81 to 0.85 of the tolerance on the five
+latent-heat seeds and 0.75 to 0.86 on partition. What fails is the liquid
+share converted at `LH_vap`: on 966 to 1013 of 3650 days a seed on the
+latent-heat probe, worst 4.95 to 5.64 times the tolerance, and on 151 to 183
+of 1095 on partition, worst 4.69 to 5.15 times. That is what
+`reference_constant_lambda` is built to show. The steps that report frost
+deposition fail the same way (146 to 193 a seed on latent-heat, worst 2.42 to
+3.92; 25 to 55 on partition, worst 1.96 to 2.07): the frost is never more than
+0.0028 mm/day, and every such step evaporates liquid beside it, which is what
+the constant `LH_vap` gets wrong.
 
 The share counts the canopy. On every seed the worst step of a snow-only share
 was canopy ice sublimating over a pack, about 3 to 4 mm a day at air just above
@@ -674,7 +678,7 @@ gained a twentieth probe. Each change and its effect:
 
 - **`sbl` is no longer reported.**
   - Why: SUMMA's snow and canopy sublimation are net fluxes, negative when
-    frost deposits. The contract's `sbl` is a non-negative share of
+    frost deposits. The contract's `sbl` was then a non-negative share of
     `evspsbl`, and no such share describes a step of net deposition. Clipping
     at zero would misstate those steps.
   - Effect: `evspsbl` is unchanged, with deposition inside it.

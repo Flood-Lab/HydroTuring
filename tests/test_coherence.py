@@ -188,6 +188,51 @@ def test_canopy_ice_counts_as_ice_only_near_freezing():
     assert "no snow" in result.message
 
 
+@pytest.mark.parametrize("tas_c, frozen", [(0.3, True), (1.0, False)])
+def test_canopy_ice_margin_is_half_a_degree_above_the_threshold(tas_c, frozen):
+    """Canopy water counts as ice up to 0.5 degC above the snow threshold: the
+    daily mean can sit just above freezing while the leaves stay frozen. Beyond
+    it the same claim is a fictitious split."""
+    tas = np.full(N, tas_c)
+    pr, snw = np.zeros(N), np.zeros(N)
+    evspsbl = sbl = np.full(N, 0.8)
+    hfls = (LAMBDA_A + LAMBDA_F) * evspsbl / SECONDS
+    result = get("flux_identity")(
+        _with_canopy(build(evspsbl=evspsbl, tas=tas, hfls=hfls, snw=snw, pr=pr, sbl=sbl), np.full(N, 1.5)),
+        None, {})
+    assert (result.status == PASS) is frozen, result.message
+
+
+def test_a_canopy_that_empties_during_the_step_still_held_ice():
+    """Ice on the canopy at the start of a step can all sublimate within it,
+    so a canopy that ends the step empty still counts if it began wet."""
+    tas = np.full(N, -2.0)
+    pr, snw = np.zeros(N), np.zeros(N)
+    canopy = np.where(np.arange(N) % 2 == 0, 0.8, 0.0)      # wet, then sublimated away
+    evspsbl = np.full(N, 0.8)
+    sbl = np.where(canopy == 0.0, 0.8, 0.0)                  # the step that ends empty
+    hfls = (lambda_v(tas) * (evspsbl - sbl) + (LAMBDA_A + LAMBDA_F) * sbl) / SECONDS
+    result = get("flux_identity")(
+        _with_canopy(build(evspsbl=evspsbl, tas=tas, hfls=hfls, snw=snw, pr=pr, sbl=sbl), canopy),
+        None, {})
+    assert result.status == PASS, result.message
+
+
+def test_solving_the_equality_with_deposition_is_rejected(winter):
+    """Unbounded deposition would let a model match any latent heat below
+    lambda_s E by solving for sbl. Half the latent heat its evaporation needs
+    on every pack step, with the deposition that would excuse it, must fail,
+    as it does when the model reports no split at all."""
+    tas, pr, snw, evspsbl = winter
+    hfls = np.where(snw > 0, 0.5, 1.0) * lambda_v(tas) * evspsbl / SECONDS
+    solved = np.where(snw > 0, (hfls * SECONDS - lambda_v(tas) * evspsbl)
+                      / (LAMBDA_A + LAMBDA_F - lambda_v(tas)), 0.0)
+    result = run(evspsbl=evspsbl, tas=tas, hfls=hfls, snw=snw, pr=pr, sbl=solved)
+    assert result.status != PASS
+    assert "more deposition" in result.message
+    assert run(evspsbl=evspsbl, tas=tas, hfls=hfls, snw=snw, pr=pr).status != PASS
+
+
 def _with_canopy(run_result, canopy):
     table = run_result.table.copy()
     table["canopy"] = canopy
