@@ -26,6 +26,7 @@ long.
 | `mass/multi-decadal-drift` | Bing Li (Independent Researcher) |
 | `mass/extreme-rain` | Zhi Li (CU Boulder) |
 | `mass/runoff-bounds` | Zhi Li (CU Boulder) |
+| `mass/groundwater-datum-invariance` | Zhenjiang Wu (Xi’an Jiaotong University) |
 | `mass/area-invariance` | Zhi Li (CU Boulder) |
 | `mass/response-nonnegativity` | Zhi Li (CU Boulder) |
 | `mass/antecedent-monotonicity` | Zhi Li (CU Boulder) |
@@ -48,6 +49,8 @@ long.
 | `momentum/stage-discharge-monotonic` | Yuanhang Liu (Independent Researcher) |
 | `mass/exchange-response` | Songkun Yan (University of Oklahoma) |
 | `momentum/uniform-flow-friction-consistency` | Mofan Zhang (Department of Civil and Environmental Engineering, Stanford University, Stanford, CA, USA) |
+| `momentum/froude-regime` | Yuanhang Liu (Independent Researcher) |
+
 | `momentum/wave-celerity-bounds` | Jingzhi Chen (Department of Computer Science and Engineering, State University of New York at Buffalo, Buffalo, NY, USA) |
 
 ## Models

@@ -1,0 +1,17 @@
+name: reference_datum_dependent
+version: "0.1.0"
+description: Intentionally datum-dependent conductance reference.
+authors: [HydroTuring maintainers]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: [python3, ht_adapter.py]
+timestep: PT1D
+emits:
+  fluxes: [gw_sw_exchange, gw_to_sw, sw_to_gw]
+  states: [gw]
+needs_forcing: [gw_recharge, sw_stage_m]
+needs_static: [area_km2, aquifer_specific_yield, aquifer_initial_head_m, aquifer_top_m, aquifer_bottom_m, river_conductance_m2_per_day]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
+

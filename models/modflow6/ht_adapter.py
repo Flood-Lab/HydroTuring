@@ -14,12 +14,10 @@ import tempfile
 
 import flopy
 
-MODEL = {"name": "modflow6", "version": "6.7.0-adapter.1"}
+MODEL = {"name": "modflow6", "version": "6.7.0-adapter.2"}
 COLUMNS = ["time", "gw_sw_exchange", "gw_to_sw", "sw_to_gw", "gw"]
 NROW = 10
 NCOL = 10
-TOP = 20.0
-BOTM = 0.0
 K = 1.0
 RIVER_ROW = 5
 RIVER_COL = 5
@@ -86,6 +84,11 @@ def run_modflow(forcing: list[dict], static: dict) -> list[dict]:
     river_conductance = float(static["river_conductance_m2_per_day"])
     river_bottom_offset = float(static["river_bottom_offset_m"])
     initial_head = float(static.get("aquifer_initial_head_m", 10.0))
+    # Older probes do not provide datum geometry.  Keep the adapter compatible
+    # with those cases while allowing datum-aware probes to supply their own
+    # bounds through the optional uses_static inputs.
+    top = float(static.get("aquifer_top_m", 20.0))
+    botm = float(static.get("aquifer_bottom_m", 0.0))
 
     with tempfile.TemporaryDirectory(prefix="hydroturing-mf6-") as workdir:
         sim = flopy.mf6.MFSimulation(sim_name="ht_gw", sim_ws=workdir, exe_name=mf6_exe)
@@ -101,7 +104,7 @@ def run_modflow(forcing: list[dict], static: dict) -> list[dict]:
         gwf = flopy.mf6.ModflowGwf(sim, modelname="ht_gw", save_flows=True)
         flopy.mf6.ModflowGwfdis(
             gwf, nlay=1, nrow=NROW, ncol=NCOL, delr=delr, delc=delc,
-            top=TOP, botm=BOTM,
+            top=top, botm=botm,
         )
         flopy.mf6.ModflowGwfic(gwf, strt=initial_head)
         flopy.mf6.ModflowGwfnpf(gwf, icelltype=1, k=K)
@@ -135,7 +138,7 @@ def run_modflow(forcing: list[dict], static: dict) -> list[dict]:
 
         budget_file = gwf.output.budget()
         rows = []
-        gw_mm = specific_yield * max(initial_head - BOTM, 0.0) * 1000.0
+        gw_mm = specific_yield * max(initial_head - botm, 0.0) * 1000.0
         for period, forcing_row in enumerate(forcing):
             q_records = budget_file.get_data(text="RIV", kstpkper=(0, period))[0]
             # MODFLOW RIV q is positive into the aquifer, i.e. the river

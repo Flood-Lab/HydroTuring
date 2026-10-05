@@ -1,0 +1,39 @@
+name: reference_shallow_rating
+version: "1.0.0"
+description: >
+  The exact bucket with a rating borrowed from another reach: its gauge reads
+  Manning normal depth drawn for a section five times wider than the one the
+  case declares, so the depth it reports is the right depth for a different
+  channel and too shallow for this one. Its water is conserved exactly and
+  its runoff is the bucket's, and the gauge still rises with the flow, so
+  nothing about it is degenerate and no budget moves. What it does is imply a
+  velocity: at that depth, the declared section would have to deliver the
+  flow about four times faster than the wave carrying it. Pins the Froude
+  check. `uniform_flow_friction` reads the same pair where the flow is steady
+  and catches this gauge too; what the Froude check adds is the regime the
+  pair implies, on a record that is never steady.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
+emits:
+  fluxes: [pr, evspsbl, mrro, dis, gwex]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [stage]
+needs_forcing: [pr, tas, pet]
+# `width_m` is the key this model reads and then scales — the rating it borrows
+# is the one a section `RATING_WIDTH_FACTOR` times wider would need — and
+# `slope` and `manning_n` are read by the same normal-depth function, so the
+# probe has to be able to see that the model consumed the declared section.
+# `bed_elevation_m` is the datum its reported `stage` is an elevation on: the
+# depth the borrowed rating makes is added to it, so the model genuinely reads
+# the key rather than merely tolerating it.
+# `cross_section_shape` is read the way the bucket reads it: this is the
+# wide-rectangular relation, and a case declaring another section is refused
+# rather than drawn as if it were rectangular. Declared, so the model is scored
+# wherever the bucket is rather than skipped for a key it does consume.
+uses_static: [width_m, slope, manning_n, bed_elevation_m, cross_section_shape]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

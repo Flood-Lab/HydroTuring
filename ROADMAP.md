@@ -97,6 +97,11 @@ The largest storm scaled to ten times: runoff cannot fall, nor exceed the rain a
 ### `mass/runoff-bounds` &middot; **merged**
 Over ten years, is the runoff possible at all? The mass question a runoff-only model has to answer.
 
+### `mass/groundwater-datum-invariance` &middot; **merged**
+
+A common translation of all absolute groundwater heads and river elevations must leave the exchange trajectory unchanged.
+Contributed by Zhenjiang Wu (Xi'an Jiaotong University).
+
 ### `mass/area-invariance` &middot; **merged**
 The same weather on a ten times larger catchment: every depth identical.
 
@@ -285,21 +290,17 @@ stays open for the day a contract carries inflow.
 A route a later probe could take, from the second review of that pull request:
 `closure` accepts `denominator: sum_inflow`, which reads a forcing column
 `q_in`, and since #39 a probe can require models to declare that they consume it
-through `requires.forcing`. For a reach-only control volume, `closure` first converts the prescribed
-`q_in` from m3/s to per-step catchment-equivalent depth with `area_km2`, then
-forms the usual inflow-minus-outflow-minus-storage identity. On a reach-only
-router this is complementary to the bound: destroying the last tenth fails it and passes the
+through `requires.forcing`. For a reach-only control volume that forms
+`[sum(q_in) - sum(mrro) - d(channel)] / sum(q_in)`, which on a reach-only router
+is complementary to the bound: destroying the last tenth fails it and passes the
 bound, holding the water back does the reverse. It carries conditions that have
 to be written down with it — `closure` sums every reported store, so a
 full-catchment model needs the control volume set up explicitly; the denominator
 is zero on a truly inflow-free window, which `closure` reports as degenerate, so
-this is a prescribed-inflow test rather than the recession test #71 proposed.
-`momentum/wave-celerity-bounds` now exercises the public `q_in` contract with
-routing-capable references and Wflow, so the input plumbing no longer has to be
-invented here; what remains open is a control-volume mass probe that scores
-`q_in`, outflow and channel storage together. An adapter that reports
-`channel` as cumulative inflow minus outflow would still close that identity
-by construction, so the anti-cheat design remains part of the open problem.
+this is a prescribed-inflow test rather than the recession test #71 proposed; no
+generator produces `q_in` and no manifest declares it, so every model is N/A
+today; and an adapter that reports `channel` as cumulative inflow minus outflow
+closes by construction.
 
 ### `momentum/stage-discharge-monotonic` &middot; **merged**
 Steady-flow rating must be monotonic. Where a loop rating appears, it must be
@@ -322,6 +323,18 @@ Contributed by Mofan Zhang (Department of Civil and Environmental Engineering,
 Stanford University, Stanford, CA, USA; GitHub: Mofan-coding; ORCID:
 https://orcid.org/0000-0001-8839-1808).
 
+### `momentum/froude-regime` &middot; **merged**
+A stage and a discharge are two readings of one cross-section. On a declared
+mild slope the pair a model reports has to stay subcritical, because water
+that outruns the wave carrying it cannot be sustained there. No budget sees
+it — a stage is not a store, so nothing is differenced over it — and no
+rating test sees it either: a gauge drawn for the wrong section varies as
+much as an honest one and rises with the flow, which is what the probe's
+counterexample is built to show.
+*Discriminates:* spurious supercritical flow, which usually signals the model
+is not solving anything resembling momentum.
+Contributed by Yuanhang Liu (Independent Researcher).
+
 ### `momentum/wave-celerity-bounds` &middot; **merged**
 Across low, medium and high hydraulic states, paired short and long reaches
 must imply downstream transient celerity within 5% of the declared
@@ -334,45 +347,3 @@ Contributed by Jingzhi Chen (Department of Computer Science and Engineering,
 State University of New York at Buffalo, Buffalo, NY, USA; GitHub:
 mimosapudical).
 
-### `momentum/froude-regime` &middot; standard &middot; **unclaimed**
-Flow in a mild-sloped reach must stay subcritical.
-*Discriminates:* spurious supercritical flow, which usually signals the model
-is not solving anything resembling momentum.
-
----
-
-## Beyond conservation
-
-Counterfactual response and invariance have moved up into
-[Generalisation](#generalisation): the harness runs paired cases now, and both
-have templates. What remains out of scope for suite 0.1, listed so nobody
-builds it twice:
-
-- **Real-data track.** Internal closure under observed forcing. Note this
-  tests something different from the synthetic track: observed budgets do not
-  close, so observations can never be the reference.
-- **Spatial permutation.** Reorder the reaches of a network, or the years of a
-  record, and require the long-run totals to be unchanged. Weaker than it
-  looks, because storage carries across the boundary: only the totals are
-  invariant, not the series. Worth doing once the routing probes exist.
-- **Cross-model agreement.** Not a conservation test at all, and a different
-  kind of claim. Noted here only so it is clear it is deliberately absent.
-
----
-
-## Adding something not on this list
-
-Welcome, and please propose it first. The proposal form asks one question
-that matters more than the rest: *how would a model pass your probe while
-understanding no physics?* If you can answer that, you have a probe. If you
-cannot, you may have a diagnostic rather than a test.
-
-## Models we want
-
-All of them, and this list deliberately does not exist. There is no roadmap
-for models because there is no shortlist: any published rainfall-runoff
-model, any LSTM, any foundation model making a hydrologic claim is in scope,
-and the useful judgement is which ones the field would learn something from.
-Open a [model proposal](../../issues/new?template=model_submission.yml) and
-say why. The form's *packaging status* field decides whether the work lands
-with you or with the maintainer; it does not affect your credit either way.

@@ -356,7 +356,10 @@ For a merged probe:
    something and a probe it is N/A on is in neither number; the flowchart
    under "How it works" gains a labelled entry in the right pillar,
    with an `infra.probe.<key>` translation in each language, measured against
-   the pillar's width. The badge count is generated and needs nothing.
+   the pillar's width. The badge count is generated and needs nothing. The
+   two charts, the probes by law and each model's passes by law, read a JSON
+   block that `python3 scripts/site_standings.py` rewrites from
+   `models/result.csv`; run it after archiving the rows in step 5.
 5. `models/result.csv`: one row per evaluated model on the new probe, written
    by `ht run --model <name> --probe <id> --gate-seeds --csv models/result.csv`
    rather than by hand. A probe that cannot be put to the model is archived
@@ -366,6 +369,6 @@ For a merged probe:
    an adapter author it exists except this table.
 
 For a merged model: the README models table, the CONTRIBUTORS models table,
-the site's `models.rows` in all three languages, and the archive rows from
-`ht run` on every probe. The pages workflow redeploys the site on any push
+the site's `models.rows` in all three languages, the archive rows from
+`ht run` on every probe, and `python3 scripts/site_standings.py` after them. The pages workflow redeploys the site on any push
 that touches `site/`, `probes/` or `models/`.
