@@ -1,6 +1,6 @@
 name: reference_recharge_order_exact
 version: "0.1.0"
-description: Recharge ordering reference.
+description: "Recharge-ordering reference: the exact solution of one aquifer cell draining to a river, so added recharge is stored, then released on the cell's own time constant."
 authors: [HydroTuring maintainers]
 license: PolyForm-Noncommercial-1.0.0
 runner: subprocess

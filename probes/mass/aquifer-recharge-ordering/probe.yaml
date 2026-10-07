@@ -42,6 +42,7 @@ criteria:
       recharge: gw_recharge
       exchange: gw_sw_exchange
       storage: gw
+      sources: [gw_boundary]
       rel_tol: 0.01
       abs_tol_mm: 2.0e-4
       all_variants: true

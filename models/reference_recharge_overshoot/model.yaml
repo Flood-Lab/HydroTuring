@@ -1,6 +1,6 @@
 name: reference_recharge_overshoot
 version: "0.1.0"
-description: Recharge ordering reference.
+description: "Recharge-ordering reference that sends 120% of a recharge day to the river, so its storage falls below the control's."
 authors: [HydroTuring maintainers]
 license: PolyForm-Noncommercial-1.0.0
 runner: subprocess

@@ -1,6 +1,6 @@
 name: reference_recharge_blind
 version: "0.1.0"
-description: Recharge ordering reference.
+description: "Recharge-ordering reference that ignores gw_recharge, so its own budget no longer closes."
 authors: [HydroTuring maintainers]
 license: PolyForm-Noncommercial-1.0.0
 runner: subprocess
