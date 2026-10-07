@@ -126,6 +126,7 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_snow_energy",
     "reference_degree_day",
     "reference_warming_free",
+    "reference_always_ripe",
     "reference_diurnal_bias",
     "reference_abstraction_blind",
     "reference_soil_heat",

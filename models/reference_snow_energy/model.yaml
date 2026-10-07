@@ -19,7 +19,7 @@ runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H]
 emits:
-  fluxes: [pr, evspsbl, mrro, sbl, hfls, hfss, hfg]
+  fluxes: [pr, evspsbl, mrro, snm, sbl, hfls, hfss, hfg]
   states: [mrso, snw, canopy, channel]
   diagnostics: [lwsnl, csnow]
 needs_forcing: [pr, tas, pet, rn]

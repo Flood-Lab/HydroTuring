@@ -1,0 +1,159 @@
+id: energy/snowpack-ripening
+title: Meltwater must not leave a snowpack that still holds cold content
+law: energy
+track: synthetic
+version: 1
+
+authors:
+  - name: Siddik Barbhuiya
+    affiliation: >-
+      Indian Institute of Technology Mandi,
+      Mandi, Himachal Pradesh, India
+    orcid: "0000-0003-1278-5151"
+    github: Barbhuiya12
+
+description: >
+  Build a snowpack over a cold winter, then warm it through a dry block that
+  opens below -14 C and ends above +4 C. A pack below freezing refreezes the
+  water its surface produces, paying down its cold content with the latent
+  heat, and nothing drains until that deficit is gone and the pore space has
+  filled. So the water a model reports leaving the snow module, snm, must not
+  flow while the cold content it reports, csnow, is still positive, beyond
+  five percent of the peak pack. Melt itself is not forbidden: in a layered
+  pack surface melt percolates into colder snow and refreezes there, which
+  releases no water and is invisible to this check. This corrects the earlier
+  ROADMAP entry energy/snowpack-cold-content, whose rule of no melt below
+  freezing would fail a correct layered model. The check is a consistency
+  check between a model's outflow and its own cold content, not an energy
+  balance: it catches drainage that ignores the cold content the model
+  carries, and cannot catch a model that reports less cold content than it
+  has, which only a surface energy balance such as
+  energy/snowmelt-energy-water can. It needs no energy fluxes, so it reaches
+  temperature-index models that probe cannot score. Filed under energy because
+  the rule is one of energy -- latent heat paying a deficit -- read through
+  water.
+
+requires:
+  # Outflow, the pack, and the pack's own cold content. No energy fluxes and no
+  # forcing entry: the criterion reads `rn` and `tas` from the case as bounds on
+  # what the weather makes possible, not as drivers a model must consume. In
+  # this suite `requires.forcing` means consume it or be N/A (INCOMPATIBLE), and
+  # requiring `rn` would make N/A exactly the temperature-index models -- Snow-17
+  # declares `needs_forcing: [pr, tas, pet]` -- this probe exists to reach. A
+  # pack that ignores radiation still cannot take in more energy than the
+  # radiation and the air supply, so the bound holds for it without its reading
+  # them. `lwsnl` is read when a model reports it and treated as zero otherwise.
+  fluxes: [snm]
+  states: [snw]
+  diagnostics: [csnow]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_days: 210
+  spinup_days: 30
+  # The whole record: the criterion needs the pack's peak and the block's
+  # opening row, and a 30-day window inside the accumulation asks nothing.
+  min_window_days: 240
+  max_output_mb: 2.0
+  max_runtime_s: 60
+
+criteria:
+  - snowpack_ripening:
+      outflow: snm
+      pack: snw
+      liquid: lwsnl
+      cold_content: csnow
+      driver: rn
+      air_temperature: tas
+      precipitation: pr
+      segment_column: _regime
+      scored_label: melt
+      # Water that left while the pack held cold content, as a share of the
+      # peak pack. Not zero, because melt at the snow-ground interface forms at
+      # the base and never crosses the cold pack, so it drains however cold the
+      # pack is. Snow-17 does exactly that (`daygm`, 0.1 mm/day in its adapter),
+      # and every millimetre it releases while cold is ground melt: over seeds
+      # 0-199, 0.39 to 0.68% of the peak pack, which this clears 7.4 times
+      # over. The degree-day model it exists to catch releases 27 to 78% of its
+      # pack while cold over the same seeds.
+      threshold: 0.05
+      # That ground melt is fixed per day, not proportional to the pack, so the
+      # share it makes depends on the pack's size and the floor has to follow
+      # from it. NWS documents DAYGM from 0.0 mm/day, where the ground freezes,
+      # to 0.3 mm/day in mild climates with deep snow. At 0.3 over the longest
+      # cold stretch this case produces, 47 days, a pack releases 14.1 mm while
+      # cold, inside five percent only above 282 mm. A thinner pack is refused
+      # rather than scored -- unless what left it while cold is more than that
+      # ground melt could be (max_ground_melt_mm_per_day below), in which case
+      # the failure is measured and stands. This case's smallest peak pack over
+      # seeds 0-199 is
+      # 621.6 mm and its median 843 mm, so at its own sizes the rule covers
+      # DAYGM up to 0.66 mm/day, over twice the documented range.
+      min_peak_pack_mm: 300.0
+      # NWS's upper DAYGM, the ground melt a thin pack is excused for: below the
+      # floor, a pack is refused only while what left it while cold fits inside
+      # this rate over its cold days.
+      max_ground_melt_mm_per_day: 0.3
+      # The cold content below which a pack counts as ripe, J/m2: the tolerance
+      # energy/snowmelt-energy-water uses for the same variable.
+      cold_content_tolerance_j: 1.0
+      # The pack must open cold. The air stays at or below -12 C through the
+      # whole accumulation and below -14 C into the block, and the honest packs
+      # open at a mean -15.9 to -24.0 C. A pack reported within 2 K of melting on
+      # the opening row is a state this forcing did not produce, and it is the
+      # plainest way to empty the check: report the pack ripe and nothing leaving
+      # it counts. A property of this case, not of snowpacks in general.
+      min_opening_depression_k: 2.0
+      # The pack must open as ice: at least half the peak pack standing as ice
+      # (snw - lwsnl) on the row before the block. Nothing melts before it, and
+      # the honest packs open with 99.99 to 100% of their peak as ice and no
+      # liquid (seeds 0-19). Without it a model could report the pack liquid,
+      # or dip snw, on that one row: at zero ice the check above is skipped, and
+      # a token csnow over a token ice reads as a cold pack.
+      min_opening_ice_share: 0.5
+      # Cold content cannot fall faster than energy arrives: net radiation plus
+      # sensible heat from air warmer than the pack, the pack's temperature
+      # coming from its own cold content and ice. W/m2/K. Snow-17 warms from the
+      # air rather than from radiation, and needs at most 4.28 over every
+      # warming step of seeds 0-39; a bound on radiation alone fails it on 111 of
+      # 1459 of them. 10 is what a bulk coefficient rho c_p C_H U gives at about
+      # 4 m/s, leaving it 2.3 times of room, and a model that reports its true
+      # cold content on the opening row and none the next needs 5.2 to 73 times
+      # the bound. That is all it stops: a single step's fall. A cold content
+      # written down at the bound's own rate from the opening row reaches zero
+      # weeks before an honest pack would ripen, and is covered by the stated
+      # limit in the README's Scope, not by this bound. No fall is credited to
+      # ice leaving: ice that melts is at 0 C and carries no cold content.
+      sensible_heat_coefficient: 10.0
+      # The pack temperature the bound reads is floored at the coldest air in
+      # the record less this margin. The honest packs never go below that air
+      # (closest 0.08 K above it, seeds 0-19). Without the floor, one row with
+      # the pack declared nearly all liquid reads as impossibly cold, and the
+      # sensible heat that follows would cover any fall.
+      pack_temperature_margin_k: 2.0
+
+baselines:
+  # The energy-balance pack pays its cold content before it melts, and drains
+  # nothing while cold. Snow-17 routes nothing to outflow until its heat deficit
+  # NEGHS and its liquid-holding capacity are both satisfied, and leaks only its
+  # ground melt. Neither is scored by energy/snowmelt-energy-water's energy
+  # identity in the same way -- Snow-17 reports no energy fluxes and is N/A
+  # there -- which is the point of this probe.
+  must_pass: [reference_snow_energy, sacsma_snow17]
+  must_fail:
+    # Melts on air temperature whatever its cold content, so water leaves the
+    # pack while the pack is still cold: 27 to 78% of the peak pack over seeds
+    # 0-199. This is the construction the probe exists to catch.
+    reference_degree_day: snowpack_ripening
+    # The same pack reporting itself ripe throughout, so the residual has
+    # nothing to count. Caught because it opens the block ripe after a winter
+    # that never reached freezing.
+    reference_always_ripe: snowpack_ripening
+
+provenance: >
+  Synthetic. Generated at run time by generate.py from a recorded seed, on the
+  case energy/snowmelt-energy-water scores, so the pack, the weather and the
+  melt season differ with every seed and nothing is committed as data.
+  Proposal and agreed scope: https://github.com/Flood-Lab/HydroTuring/issues/147.

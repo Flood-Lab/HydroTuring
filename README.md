@@ -68,22 +68,23 @@ not.
 
 ## The probes
 
-Thirty-five: twenty-three under mass, seven under energy and five under momentum.
+Thirty-six: twenty-three under mass, eight under energy and five under momentum.
 Each was merged only after the acceptance gate saw it pass its declared
 exact reference and fail a purpose-built broken one on the named criterion.
 Four physical models, a bucket that conserves water exactly, two
 hand-written FLEX models and the NWS's SAC-SMA with Snow-17, must pass
-every probe that can ask them anything; six of the seven energy probes and
-the two groundwater-exchange probes need outputs they do not report and are not
-scored for them; `mass/snowpack-mass-closure` scores only `sacsma_snow17`,
-the one physical model that reports `snm`. A probe that fails a
+every probe that can ask them anything; six of the eight energy probes and
+the two groundwater-exchange probes need outputs none of them report and are not
+scored for them; `energy/snowpack-ripening` needs a cold content, which only
+`sacsma_snow17` reports, and `mass/snowpack-mass-closure` scores only
+`sacsma_snow17`, the one physical model that reports `snm`. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Twelve of the thirty-five require no model output
+with any probe pull request. Twelve of the thirty-six require no model output
 beyond runoff. That output-only count includes `momentum/routing-lag-consistency`,
 which is eligible only when the model also declares that it consumes `pr` and
 the three geometry inputs `area_km2`, `main_channel_length_km` and
 `centroid_channel_length_km`. `ht list` prints the probes;
-[ROADMAP.md](ROADMAP.md#probes-we-want) has the four more we want, all
+[ROADMAP.md](ROADMAP.md#probes-we-want) has the three more we want, all
 unclaimed.
 
 | Probe | Law | What it asks | The broken model it catches |
@@ -117,6 +118,7 @@ unclaimed.
 | [`energy/radiation-consistency`](probes/energy/radiation-consistency) | energy | The surface temperature a model reports and the upward longwave it reports: do they describe one surface, hour by hour, at the emissivity it was given? | `reference_air_emitter`, `reference_no_reflection` |
 | [`energy/soil-heat-storage-consistency`](probes/energy/soil-heat-storage-consistency) | energy | Does heat retained in a soil layer agree with its temperature change during heating and recovery? | `reference_frozen_soil`, `reference_half_soil` |
 | [`energy/snowmelt-energy-water`](probes/energy/snowmelt-energy-water) | energy | A pack built over a cold winter and then melted down over a dry block that opens below -14 C and warms through zero: does the surface energy budget pay both the fusion for the ice that changed phase and the cold content of warming the pack? | `reference_degree_day`, `reference_warming_free` |
+| [`energy/snowpack-ripening`](probes/energy/snowpack-ripening) | energy | The same cold winter and dry warming block: does meltwater stay in the pack until the cold content the model itself reports is gone, rather than draining from a pack that has not ripened? A consistency check on the model's own cold content, so it reaches temperature-index models that report no energy fluxes. | `reference_degree_day`, `reference_always_ripe` |
 | [`mass/exchange-response`](probes/mass/exchange-response) | mass | A declared head-driven exchange must respond to its external head: the same weather with the prescribed head as given, raised and lowered from the first scored step — a model that declares it consumes the head must answer with more inflow when it is raised and less when lowered, by at least a share of how much its own exchange moves that any head-driven boundary clears. | `reference_noise_sink`, `reference_token_exchange` |
 | [`momentum/routing-conservation`](probes/momentum/routing-conservation) | momentum | The channel store is never negative and never holds more than its hydrograph can. | `reference_stuck_router`, `reference_leaky_router` |
 | [`momentum/routing-lag-consistency`](probes/momentum/routing-lag-consistency) | momentum | The same isolated storm crosses four synthetic catchment geometries: does the runoff peak lie on a broad Snyder travel-time scale and grow across the geometry ladder? | `reference_instant_router`, `reference_inverse_router` |
@@ -134,7 +136,7 @@ hand-written conceptual models from
 [chrimerss/HydrologicModels](https://github.com/chrimerss/HydrologicModels)
 and the NWS's SAC-SMA with Snow-17 must pass every probe that can ask them
 anything, so a probe that fails one is wrong until shown otherwise. All four
-report water and no energy, so all four are N/A, with reason INCOMPLETE, on
+report water and no energy fluxes, so all four are N/A, with reason INCOMPLETE, on
 the six probes that need an energy output: the four that need the latent,
 sensible and ground heat fluxes, `energy/latent-heat-et-consistency`,
 `energy/evaporative-partition`, `energy/surface-energy-closure` and
@@ -143,7 +145,10 @@ sensible and ground heat fluxes, `energy/latent-heat-et-consistency`,
 upward longwave, and `energy/soil-heat-storage-consistency`, which needs
 layer boundary heat fluxes and soil temperature. Not scored rather than passing: they have not
 violated conservation of energy, they have declined to be falsifiable about
-it, exactly as `reference_streamflow_only` does on the budget probes. A broken model is broken in one specific way, so that no criterion
+it, exactly as `reference_streamflow_only` does on the budget probes.
+`energy/snowpack-ripening` needs no energy flux, only a cold content, so it
+scores `sacsma_snow17`, whose Snow-17 carries one as `NEGHS`, and leaves the
+other three N/A. A broken model is broken in one specific way, so that no criterion
 goes untested.
 
 A standing counts the probes a model passed out of the probes that could score
@@ -177,11 +182,12 @@ the probe cannot ask the declared model interface this question.
 | `reference_zero_exchange` | broken | frozen aquifer reporting no exchange | caught by `datum_flux_invariance` |
 | [`flex_lumped`](models/flex_lumped) | physical | lumped FLEX/HBV: interception, beta-partitioned unsaturated store, fast and slow reservoirs, geometry-aware triangular lag | must pass every probe that can ask it anything; **PASS**, 25 of 25 |
 | [`flex_topo`](models/flex_topo) | physical | FLEX-Topo: plateau, hillslope and wetland units on real Wark fractions sharing one groundwater store | must pass every probe that can ask it anything; **PASS**, 24 of 24 |
-| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 25 of 25 |
+| [`sacsma_snow17`](models/sacsma_snow17) | physical | the NWS's SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it | must pass every probe that can ask it anything; **PASS**, 26 of 26 |
 | `reference_coupled` | exact | the bucket with snow sublimation and a surface energy budget: every kilogram converted at the latent heat of the phase it actually underwent | must pass every criterion of the three energy-flux probes; supports daily and hourly steps |
-| `reference_snow_energy` | exact | an energy-balance snowpack: melt bought with `max(0, Rn - H - LE - G) / lambda_f`, liquid held in the pore space and reported as `lwsnl`, cold content carried as an energy deficit and reported as `csnow` | must pass every criterion of `energy/snowmelt-energy-water`; supports daily and hourly steps |
-| `reference_degree_day` | broken | the same snowpack melted on air temperature through a degree-day factor, with a surface energy budget that closes around its evaporation alone, so nothing charges the fusion | caught by `melt_energy` |
+| `reference_snow_energy` | exact | an energy-balance snowpack: melt bought with `max(0, Rn - H - LE - G) / lambda_f`, liquid held in the pore space and reported as `lwsnl`, cold content carried as an energy deficit and reported as `csnow`, and its outflow reported as `snm` | must pass every criterion of `energy/snowmelt-energy-water` and `energy/snowpack-ripening`; supports daily and hourly steps |
+| `reference_degree_day` | broken | the same snowpack melted on air temperature through a degree-day factor, with a surface energy budget that closes around its evaporation alone, so nothing charges the fusion; its melt leaves the pack while the pack is still cold | caught by `melt_energy` and `snowpack_ripening` |
 | `reference_warming_free` | broken | melts on the energy actually available and reports its cold content honestly, but charges its budget for the fusion alone, so the pack warms towards 0 °C for nothing | caught by `melt_energy` |
+| `reference_always_ripe` | broken | the degree-day pack reporting itself ripe throughout, so no water it releases is counted as leaving a cold pack | caught by `snowpack_ripening`, on the pack opening its melt block ripe after a winter that never reached freezing |
 | `reference_soil_heat` | exact | a synthetic fixed-layer fixture driven by incoming radiation, with prescribed depth, heat capacity and initial temperature | must pass `soil_heat_storage`; checks budget consistency, not temperature accuracy |
 | `reference_frozen_soil` | broken | retains the conductive fluxes but reports a frozen soil temperature | caught by `soil_heat_storage` |
 | `reference_half_soil` | broken | retains the conductive fluxes but halves the reported soil-temperature change | caught by `soil_heat_storage` |
@@ -409,7 +415,7 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Thirty-five probes, twenty-three mass, seven energy, five momentum, synthetic track only. More
+Suite `0.1.0`, pre-release. Thirty-six probes, twenty-three mass, eight energy, five momentum, synthetic track only. More
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes; spatial and temporal closure, counterfactual response
 and invariance are represented in the suite. The roadmap lists the remaining
