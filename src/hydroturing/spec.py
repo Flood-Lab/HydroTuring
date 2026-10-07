@@ -190,6 +190,7 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_zero_exchange",
     "reference_uniform_flow",
     "reference_saint_venant",
+    "reference_fixed_celerity",
     "reference_wrong_roughness",
     "reference_wrong_slope",
 }

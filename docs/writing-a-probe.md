@@ -128,6 +128,7 @@ Every one is binary.
 | `rating_monotonic` | stage does not fall against its running maximum as the abscissa rises: equal-count bin medians are taken over the abscissa and the summed running-maximum deficit is compared with an explicit `tolerance` when one is given, and otherwise with 8% of the rating's span. The share is that large because a stage read off a store is hysteretic by construction, and its binned rating dips below its own running maximum by a visible fraction of the span for that reason alone | one run |
 | `rating_loop` | where the gauge loops against the reach's store, the loop must be small enough to be noise or run the right way: at the same storage the rising limb sits lower than the falling one. A single-valued rating, or a loop below `min_loop_m` with an inconsistent sign across bins, is read as "no loop" and passes | one run |
 | `uniform_flow_friction` | on each labelled low, medium and high steady plateau, the reported discharge and stage must make Manning friction slope agree with the declared bed slope for the explicit rectangular section; CV and first-to-last-quarter trend gates reject blocks that have not converged | one run, three labelled plateaus |
+| `wave_celerity_bounds` | paired short/long reaches estimate transient celerity from response-centroid delay; celerity must be downstream, within the declared relative allowance of rectangular Manning dQ/dA, and increase by more than the configured state-separation margin from low to medium to high flow | paired runs, three hydraulic states × two reach lengths |
 | `froude_subcritical` | the share of scored steps on which the reach went supercritical (`Fr > 1 + tolerance`) stays within `max_exceed_fraction`, with `Fr = abs(Q) / (w * d**1.5 * sqrt(g))` read from the model's own stage and discharge and the case's declared width, the depth being `stage - bed_elevation_m`; a step is excused only when no flow column the model reports shows water moving, so a zero written into `dis` while `mrro` still carries the water is scored on `mrro`, and a shallow depth is scored at the one-centimetre floor rather than skipped and a depth above `max_depth_m` is refused rather than scored; a model reporting a depth where the contract asks for a level is N/A (INCOMPATIBLE) rather than failed, a non-finite reading is failed rather than dropped out of the mask, and below `min_scored_fraction` steps carrying flow the case is degenerate and the criterion refuses to score | one run |
 
 `stage` is an elevation on a case-declared fixed datum. A criterion that forms
@@ -143,6 +144,14 @@ Picking a denominator for `closure` and `regime_transfer`:
 | `sum_pr` | water budgets | not needed, precipitation is non-negative |
 | `sum_abs_rn` | energy budgets | required, net radiation crosses zero nightly |
 | `sum_inflow` | routing | not needed |
+
+`sum_inflow` reads the public forcing column `q_in`: prescribed river inflow
+in m3/s, positive into the routing control volume. Before comparing it with
+the suite's mm/day water fluxes and mm storages, `closure` converts each row
+to catchment-equivalent depth using `area_km2`; a probe using this denominator
+therefore also needs that static area. The probe must list `q_in` under
+`requires.forcing`, and an eligible model must actually consume it through
+`needs_forcing` or `uses_forcing`; see the /io contract in `AGENTS.md`.
 
 ### Labelled stretches
 
@@ -388,7 +397,8 @@ The reference models available today:
 | `reference_rating_inverted` | reads the loop backwards, high while the flood is arriving and low once it is leaving | `rating_loop` |
 | `reference_flat_stage` | reports a constant stage, so there is no rating and no loop | `non_degenerate` |
 | `reference_uniform_flow` | computes exact rectangular Manning normal depth from the declared geometry | must pass `momentum/uniform-flow-friction-consistency` |
-| `reference_saint_venant` | advances the one-dimensional continuity and momentum equations from a non-equilibrium state with finite-volume fluxes and Manning friction; it contains no normal-depth lookup | must pass `momentum/uniform-flow-friction-consistency` |
+| `reference_saint_venant` | advances the one-dimensional continuity and momentum equations from a non-equilibrium state with finite-volume fluxes and Manning friction; its sub-daily path propagates transients continuously and contains no normal-depth lookup | must pass `momentum/uniform-flow-friction-consistency` and `momentum/wave-celerity-bounds` |
+| `reference_fixed_celerity` | delays the prescribed discharge at a fixed 1 m/s for every hydraulic state | `wave_celerity_bounds` |
 | `reference_wrong_roughness` | computes its stage with Manning roughness 3% above the declared value, giving a 5.74% near-boundary friction residual | `uniform_flow_friction` |
 | `reference_wrong_slope` | computes its stage with bed slope 6% above the declared value, giving a 6% near-boundary friction residual | `uniform_flow_friction` |
 | `reference_shallow_rating` | draws its gauge for a section five times the declared width: the right depth for a different channel, with its water conserved exactly and its rating still single-valued and monotone | `froude_subcritical`, and `uniform_flow_friction` at steady flow |

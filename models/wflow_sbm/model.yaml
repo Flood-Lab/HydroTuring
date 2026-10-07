@@ -1,16 +1,17 @@
 name: wflow_sbm
-version: "1.0.4-ht.4"
+version: "1.0.4-ht.5"
 description: >
   wflow_sbm, the distributed hydrological model of Deltares' Wflow.jl at v1.0.4
   (van Verseveld et al. 2024, GMD, which evaluates v0.7.3): the SBM soil column
   with an unsaturated and a saturated store, Gash or Rutter interception, HBV
   snow, and kinematic waves for lateral subsurface, overland and river flow.
-  Run through Wflow's own time loop on one representative cell at the
-  resolution of Wflow's Moselle test model, land, river and outlet at once,
-  every depth per unit area, with the catchment's soil and canopy capacities
-  and snow parameters from static.json and every other parameter from the
-  Moselle model's medians. The catchment's area enters only the discharge.
-  The adapter is written in Julia. README.md lists every choice.
+  Run through Wflow's own time loop. Ordinary catchment probes use one
+  representative land/river/outlet cell at the resolution of Wflow's Moselle
+  test model, with catchment capacities from static.json and remaining
+  parameters from Moselle medians. A case that supplies q_in instead uses the
+  documented two-cell native river-routing path so prescribed inflow traverses
+  the declared reach geometry. The adapter is written in Julia; README.md
+  lists every choice and both domains.
 authors:
   - "Deltares and contributors (Wflow.jl); van Verseveld et al. (2024)"
   - "HydroTuring maintainers (adapter)"
@@ -32,6 +33,8 @@ emits:
   states: [mrso, snw, canopy, channel]
 
 needs_forcing: [pr, tas, pet]
+uses_forcing: [q_in]
+uses_static: [soil_capacity_mm, canopy_capacity_mm, width_m, cross_section_shape, slope, manning_n, reach_length_m]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 2, gpu: false}
@@ -40,5 +43,6 @@ resources: {cpu: 1, memory_gb: 2, gpu: false}
 # the whole record; a ten-year daily record runs in seconds, so nothing is gained by cutting it.
 window_days: full
 
-# Existing adapter mappings; no change to model equations.
-uses_static: [soil_capacity_mm, canopy_capacity_mm]
+# q_in and reach geometry are optional. When q_in is supplied, the adapter
+# exposes Wflow's native two-cell river kinematic-wave path; otherwise the
+# established one-cell SBM path is unchanged.

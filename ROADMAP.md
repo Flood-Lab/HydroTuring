@@ -335,46 +335,15 @@ counterexample is built to show.
 is not solving anything resembling momentum.
 Contributed by Yuanhang Liu (Independent Researcher).
 
-### `momentum/wave-celerity-bounds` &middot; hard &middot; **unclaimed**
-Kinematic wave celerity must be positive and near the Manning expectation for
-the reach geometry.
-*Discriminates:* models that route a flood wave upstream, or at a speed the
-channel cannot support.
+### `momentum/wave-celerity-bounds` &middot; **merged**
+Across low, medium and high hydraulic states, paired short and long reaches
+must imply downstream transient celerity within 5% of the declared
+Manning/kinematic dQ/dA expectation, and the resolved celerity must increase
+with flow.
+*Discriminates:* fixed-celerity routers that can remain causal and
+length-dependent while ignoring hydraulic state, and routers whose transient
+speed is inconsistent with the reach geometry.
+Contributed by Jingzhi Chen (Department of Computer Science and Engineering,
+State University of New York at Buffalo, Buffalo, NY, USA; GitHub:
+mimosapudical).
 
----
-
-## Beyond conservation
-
-Counterfactual response and invariance have moved up into
-[Generalisation](#generalisation): the harness runs paired cases now, and both
-have templates. What remains out of scope for suite 0.1, listed so nobody
-builds it twice:
-
-- **Real-data track.** Internal closure under observed forcing. Note this
-  tests something different from the synthetic track: observed budgets do not
-  close, so observations can never be the reference.
-- **Spatial permutation.** Reorder the reaches of a network, or the years of a
-  record, and require the long-run totals to be unchanged. Weaker than it
-  looks, because storage carries across the boundary: only the totals are
-  invariant, not the series. Worth doing once the routing probes exist.
-- **Cross-model agreement.** Not a conservation test at all, and a different
-  kind of claim. Noted here only so it is clear it is deliberately absent.
-
----
-
-## Adding something not on this list
-
-Welcome, and please propose it first. The proposal form asks one question
-that matters more than the rest: *how would a model pass your probe while
-understanding no physics?* If you can answer that, you have a probe. If you
-cannot, you may have a diagnostic rather than a test.
-
-## Models we want
-
-All of them, and this list deliberately does not exist. There is no roadmap
-for models because there is no shortlist: any published rainfall-runoff
-model, any LSTM, any foundation model making a hydrologic claim is in scope,
-and the useful judgement is which ones the field would learn something from.
-Open a [model proposal](../../issues/new?template=model_submission.yml) and
-say why. The form's *packaging status* field decides whether the work lands
-with you or with the maintainer; it does not affect your credit either way.

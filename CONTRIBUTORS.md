@@ -51,6 +51,8 @@ long.
 | `momentum/uniform-flow-friction-consistency` | Mofan Zhang (Department of Civil and Environmental Engineering, Stanford University, Stanford, CA, USA) |
 | `momentum/froude-regime` | Yuanhang Liu (Independent Researcher) |
 
+| `momentum/wave-celerity-bounds` | Jingzhi Chen (Department of Computer Science and Engineering, State University of New York at Buffalo, Buffalo, NY, USA) |
+
 ## Models
 
 Proposed models, with who proposed them and who packaged them. These are

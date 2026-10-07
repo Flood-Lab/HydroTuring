@@ -123,7 +123,7 @@ using PrecompileTools: @compile_workload, @setup_workload
 using TOML: TOML
 using Wflow: Wflow
 
-const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.4")
+const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.5")
 const WFLOW = Dict{String, Any}(
     "package" => "Wflow.jl", "version" => "1.0.4",
     "commit" => "82df72031511339d50fd9142fa159d0ec13e73c5", "model_type" => "sbm",
@@ -231,6 +231,7 @@ struct Forcing
     pr::Vector{Float64}
     tas::Vector{Float64}
     pet::Vector{Float64}
+    q_in::Union{Nothing, Vector{Float64}}   # optional prescribed river inflow, m3/s
     abstr::Union{Nothing, Vector{Float64}}  # prescribed net withdrawal, mm/day, when the case gives one
 end
 
@@ -247,6 +248,7 @@ function read_forcing(path::AbstractString)
         [String(strip(r[col["time"]])) for r in rows],
         [String(strip(r[col["pr"]])) for r in rows],
         number("pr"), number("tas"), number("pet"),
+        haskey(col, "q_in") ? number("q_in") : nothing,
         haskey(col, "abstr") ? number("abstr") : nothing,
     )
 end
@@ -400,8 +402,84 @@ function write_forcing(path::AbstractString, cell::Float64, stamps::Vector{DateT
     return path
 end
 
+const ROUTING_SOURCE_LENGTH_M = 100.0
+
+function two_route_cells(upstream::Real, downstream::Real = upstream)
+    grid = Array{Union{Missing, Float64}}(missing, 2, 2)
+    grid[1, 1] = Float64(upstream)
+    grid[2, 1] = Float64(downstream)
+    return grid
+end
+
+"""
+Write a minimal two-cell river chain for a routing-only q_in experiment.
+
+Cell 1 drains east (PCRaster LDD 6) into cell 2, which is the pit (5).
+The first river cell has a fixed 100 m source length in every variant.  The
+second cell carries the probe's reach_length_m, so paired differences change
+only the propagation length under test.
+"""
+function write_routing_static_maps(path::AbstractString, cell::Float64, maps::AbstractDict,
+                                   reach_length_m::Float64)
+    x, y = coordinates(cell)
+    NCDataset(path, "c") do ds
+        defDim(ds, "x", 2)
+        defDim(ds, "y", 2)
+        defDim(ds, "layer", 4)
+        defVar(ds, "x", x, ("x",))
+        defVar(ds, "y", y, ("y",))
+        defVar(ds, "layer", [1.0, 2.0, 3.0, 4.0], ("layer",))
+        defVar(ds, "wflow_river", two_route_cells(1.0, 1.0), ("x", "y"))
+        for (name, value) in maps
+            name == "c" && continue
+            grid = if name == "wflow_ldd"
+                two_route_cells(6.0, 5.0)
+            elseif name == "wflow_riverlength"
+                two_route_cells(ROUTING_SOURCE_LENGTH_M, reach_length_m)
+            elseif name == "wflow_subcatch"
+                two_route_cells(1.0, 1.0)
+            else
+                two_route_cells(value, value)
+            end
+            defVar(ds, name, grid, ("x", "y"); fillvalue = FILL)
+        end
+        cc = Array{Union{Missing, Float64}}(missing, 2, 2, 4)
+        cc[1, 1, :] = maps["c"]
+        cc[2, 1, :] = maps["c"]
+        defVar(ds, "c", cc, ("x", "y", "layer"); fillvalue = FILL)
+    end
+    return path
+end
+
+function write_routing_forcing(path::AbstractString, cell::Float64,
+                               stamps::Vector{DateTime},
+                               series::Vector{Pair{String, Vector{Float64}}},
+                               q_in::Vector{Float64})
+    x, y = coordinates(cell)
+    n = length(stamps)
+    NCDataset(path, "c") do ds
+        defDim(ds, "x", 2)
+        defDim(ds, "y", 2)
+        defDim(ds, "time", n)
+        defVar(ds, "x", x, ("x",))
+        defVar(ds, "y", y, ("y",))
+        defVar(ds, "time", stamps, ("time",);
+            attrib = ["units" => TIME_UNITS, "calendar" => "standard"])
+        for (name, values) in series
+            grid = Array{Union{Missing, Float64}}(missing, 2, 2, n)
+            grid[1, 1, :] = values
+            grid[2, 1, :] = values
+            defVar(ds, name, grid, ("x", "y", "time"); fillvalue = FILL)
+        end
+        inflow = zeros(2, 2, n)
+        inflow[1, 1, :] = q_in
+        defVar(ds, "river_inflow", inflow, ("x", "y", "time"); fillvalue = FILL)
+    end
+    return path
+end
+
 function write_config(path::AbstractString, first_end::DateTime, last_end::DateTime, dt::Int;
-                      withdrawal::Bool = false)
+                      withdrawal::Bool = false, external_river_inflow::Bool = false)
     config = Dict{String, Any}(
         "dir_input" => ".",
         "dir_output" => ".",
@@ -440,6 +518,9 @@ function write_config(path::AbstractString, first_end::DateTime, last_end::DateT
             "static" => Dict{String, Any}(STATIC_NAMES),
         ),
     )
+    if external_river_inflow
+        config["input"]["forcing"]["river_water__external_inflow_volume_flow_rate"] = "river_inflow"
+    end
     if withdrawal
         # A prescribed net withdrawal goes through Wflow's own water demand and allocation: the
         # domestic sector, with gross and net demand both the prescription (so no return flow),
@@ -650,9 +731,44 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
     area_km2 = Float64(static["area_km2"])
     cell, capacity, maps = catchment(static)
     cell = apply_overrides!(maps, cell, static, capacity, overrides)
+    routing_only = forcing.q_in !== nothing
+
+    # These are declared as uses_static, so consume them whenever the case
+    # supplies them, not only on the q_in path.  This keeps the manifest an
+    # honest statement of the adapter contract.
+    if haskey(static, "cross_section_shape")
+        shape = lowercase(strip(String(static["cross_section_shape"])))
+        shape == "rectangular" ||
+            error("wflow_sbm reach geometry currently supports cross_section_shape='rectangular'")
+    end
+    for (key, mapname) in (
+        ("width_m", "wflow_riverwidth"),
+        ("slope", "RiverSlope"),
+        ("manning_n", "N_River"),
+        ("reach_length_m", "wflow_riverlength"),
+    )
+        if haskey(static, key)
+            value = Float64(static[key])
+            value > 0.0 || error("wflow_sbm needs positive $key")
+            maps[mapname] = value
+        end
+    end
+
+    if routing_only
+        for key in ("width_m", "cross_section_shape", "slope", "manning_n", "reach_length_m")
+            haskey(static, key) || error("q_in routing path requires static '$key'")
+        end
+        if any(x -> x != 0.0, forcing.pr) || any(x -> x != 0.0, forcing.pet)
+            error("q_in routing path requires pr == 0 and pet == 0")
+        end
+        # Wflow's kinematic-wave river uses a fixed wetted perimeter based on
+        # half bankfull depth. Keep its native 1 m bankfull depth; the probe's
+        # wide sections make this independently close to the exact rectangular
+        # hydraulic-radius derivative without fitting an adapter parameter.
+        maps["RiverDepth"] = MOSELLE.river_depth
+    end
 
     stamps = [parse_time(t) + Second(dt) for t in forcing.time]
-    write_static_maps(joinpath(workdir, "staticmaps.nc"), cell, maps)
     withdrawal = forcing.abstr !== nothing
     series = [
         "precip" => forcing.pr .* dt_days,
@@ -663,8 +779,32 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
     # a supply, not a withdrawal, and is not passed on (run.json counts such steps).
     prescribed_mm = withdrawal ? max.(forcing.abstr, 0.0) .* dt_days : zeros(n)
     withdrawal && push!(series, "abstr" => prescribed_mm)
-    write_forcing(joinpath(workdir, "forcing.nc"), cell, stamps, series)
-    toml = write_config(joinpath(workdir, "wflow_sbm.toml"), stamps[1], stamps[end], dt; withdrawal)
+    if routing_only
+        write_routing_static_maps(
+            joinpath(workdir, "staticmaps.nc"),
+            cell,
+            maps,
+            Float64(static["reach_length_m"]),
+        )
+        write_routing_forcing(
+            joinpath(workdir, "forcing.nc"),
+            cell,
+            stamps,
+            series,
+            forcing.q_in,
+        )
+    else
+        write_static_maps(joinpath(workdir, "staticmaps.nc"), cell, maps)
+        write_forcing(joinpath(workdir, "forcing.nc"), cell, stamps, series)
+    end
+    toml = write_config(
+        joinpath(workdir, "wflow_sbm.toml"),
+        stamps[1],
+        stamps[end],
+        dt;
+        withdrawal,
+        external_river_inflow = routing_only,
+    )
 
     config = Wflow.Config(toml)
     model = Wflow.Model(config)
@@ -682,6 +822,8 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
     land = model.domain.land.parameters
     area = land.area[1]
     mm(volume_m3) = volume_m3 / area * 1000.0
+    sink = routing_only ? model.domain.river.network.order[end] : 1
+    catchment_mm(volume_m3) = volume_m3 / (area_km2 * 1.0e6) * 1000.0
 
     allocation = withdrawal ? model.land.allocation.variables : nothing
     river_allocation = withdrawal ? model.routing.river_flow.allocation.variables : nothing
@@ -690,8 +832,12 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
 
     columns = zeros(n, 8)  # evspsbl mrro dis gwex mrso snw canopy channel
     stored(i) = columns[i, 5] + columns[i, 6] + columns[i, 7] + columns[i, 8]
-    initial = soil.ustoredepth[1] + soil.satwaterdepth[1] + snow.snow_storage[1] + snow.snow_water[1] +
-        canopy.canopy_storage[1] + mm(overland.storage[1] + river.storage[1])
+    initial = if routing_only
+        catchment_mm(sum(overland.storage) + sum(river.storage))
+    else
+        soil.ustoredepth[1] + soil.satwaterdepth[1] + snow.snow_storage[1] + snow.snow_water[1] +
+            canopy.canopy_storage[1] + mm(overland.storage[1] + river.storage[1])
+    end
     worst_residual, cumulative_residual = 0.0, 0.0
     wflow_errors = zeros(4)
     river_error_mm = 0.0  # signed: Wflow's river balance error summed over the record, as a depth
@@ -699,8 +845,10 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
 
     for i in 1:n
         Wflow.run_timestep!(model; write_model_output = false)
-        outflow = river.q_av[1] + overland.q_av[1] + lateral.ssf[1] / 86400.0  # m3/s out of the cell
-        leakage = soil.actleakage[1]
+        outflow = routing_only ?
+            river.q_av[sink] :
+            river.q_av[1] + overland.q_av[1] + lateral.ssf[1] / 86400.0
+        leakage = routing_only ? 0.0 : soil.actleakage[1]
         if withdrawal
             # What Wflow's allocation took this step, from the river and then the saturated store.
             removed_sw[i] = mm(river_allocation.act_surfacewater_abst_vol[1])
@@ -709,18 +857,32 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
             returned[i] = domestic.returnflow[1]
         end
         removed = removed_sw[i] + removed_gw[i]
-        columns[i, 1] = soil.actevap[1] / dt_days
-        columns[i, 2] = mm(outflow * 86400.0)
-        columns[i, 3] = columns[i, 2] * area_km2 / 86.4
-        columns[i, 4] = withdrawal ? -(leakage + removed) / dt_days : -leakage / dt_days
-        columns[i, 5] = soil.ustoredepth[1] + soil.satwaterdepth[1]
-        columns[i, 6] = snow.snow_storage[1] + snow.snow_water[1]
-        columns[i, 7] = canopy.canopy_storage[1]
-        columns[i, 8] = mm(overland.storage[1] + river.storage[1])
+        if routing_only
+            columns[i, 1] = 0.0
+            columns[i, 2] = outflow * 86.4 / area_km2
+            columns[i, 3] = outflow
+            columns[i, 4] = 0.0
+            columns[i, 5] = 0.0
+            columns[i, 6] = 0.0
+            columns[i, 7] = 0.0
+            columns[i, 8] = catchment_mm(sum(overland.storage) + sum(river.storage))
+        else
+            columns[i, 1] = soil.actevap[1] / dt_days
+            columns[i, 2] = mm(outflow * 86400.0)
+            columns[i, 3] = columns[i, 2] * area_km2 / 86.4
+            columns[i, 4] = withdrawal ? -(leakage + removed) / dt_days : -leakage / dt_days
+            columns[i, 5] = soil.ustoredepth[1] + soil.satwaterdepth[1]
+            columns[i, 6] = snow.snow_storage[1] + snow.snow_water[1]
+            columns[i, 7] = canopy.canopy_storage[1]
+            columns[i, 8] = mm(overland.storage[1] + river.storage[1])
+        end
 
         before = i == 1 ? initial : stored(i - 1)
-        residual = forcing.pr[i] * dt_days - leakage - removed - soil.actevap[1] - columns[i, 2] * dt_days -
-            (stored(i) - before)
+        drive_mm = routing_only ?
+            forcing.q_in[i] * dt * 1000.0 / (area_km2 * 1.0e6) :
+            forcing.pr[i] * dt_days
+        residual = drive_mm - leakage - removed - columns[i, 1] * dt_days -
+            columns[i, 2] * dt_days - (stored(i) - before)
         worst_residual = max(worst_residual, abs(residual))
         cumulative_residual += residual
         wflow_errors[1] = max(wflow_errors[1], abs(balance.land_water_balance.error[1]))
@@ -742,18 +904,25 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         "timestep" => timestep,
         "interception" => interception,
         "domain" => Dict{String, Any}(
-            "cells" => "one representative cell in a 2 x 2 metre grid: land, river and outlet (ldd 5)",
+            "cells" => routing_only ?
+                "two-cell river chain for q_in: fixed 100 m source cell -> tested reach -> outlet" :
+                "one representative cell in a 2 x 2 metre grid: land, river and outlet (ldd 5)",
             "cell_source" => "square with the mean cell area of Wflow's Moselle test model (0.00833 degrees, Wflow's lattometres)",
             "cell_side_m" => cell,
             "cell_area_m2" => area,
             "flow_length_m" => land.flow_length[1],
             "flow_width_m" => land.flow_width[1],
             "surface_flow_width_m" => land.surface_flow_width[1],
-            "river_length_m" => maps["wflow_riverlength"],
+            "river_length_m" => routing_only ?
+                [ROUTING_SOURCE_LENGTH_M, Float64(static["reach_length_m"])] :
+                maps["wflow_riverlength"],
             "river_width_m" => maps["wflow_riverwidth"],
             "river_fraction" => land.river_fraction[1],
             "catchment_area_km2" => area_km2,
-            "catchment_area_enters" => "only dis = mrro * area_km2 / 86.4",
+            "catchment_area_enters" => routing_only ?
+                "only the equivalent mrro and diagnostic storage conversion; dis is native downstream river q_av" :
+                "only dis = mrro * area_km2 / 86.4",
+            "routing_only_q_in" => routing_only,
         ),
         "parameters" => Dict{String, Any}(
             "from_static_json" => Dict{String, Any}(
@@ -768,11 +937,22 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
             "static_maps_written" => jsonable(maps),
             "static_attributes_unused" => sort([String(k) for k in keys(static) if !(k in (
                 "area_km2", "soil_capacity_mm", "canopy_capacity_mm", "snow_threshold_degC",
-                "degree_day_factor_mm_per_C_day"))]),
+                "degree_day_factor_mm_per_C_day",
+                "width_m", "cross_section_shape", "slope", "manning_n", "reach_length_m"))]),
         ),
         "wflow_model_options" => options,
         "wflow_parameters" => parameters,
         "wflow_code_constants" => WFLOW_CODE_CONSTANTS,
+        "routing_probe" => routing_only ? Dict{String, Any}(
+            "driver" => "q_in mapped to Wflow river_water__external_inflow_volume_flow_rate",
+            "source_cell_length_m" => ROUTING_SOURCE_LENGTH_M,
+            "tested_reach_length_m" => Float64(static["reach_length_m"]),
+            "width_m" => Float64(static["width_m"]),
+            "slope" => Float64(static["slope"]),
+            "manning_n" => Float64(static["manning_n"]),
+            "sink_index" => sink,
+            "output" => "routing.river_flow.variables.q_av at the sink",
+        ) : nothing,
         "human_withdrawal" => withdrawal_record(model, withdrawal, forcing, prescribed_mm, removed_sw,
             removed_gw, shortfall, returned, river_error_mm, dt_days),
         "switched_off" => [
@@ -785,7 +965,9 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         "reported" => Dict{String, Any}(
             "evspsbl" => "actevap: interception + soil evaporation + transpiration + open water",
             "mrro" => "river q_av at the outlet + overland q_av + lateral subsurface flow out of the outlet cell, as a depth over the cell",
-            "dis" => "mrro over the catchment's area, m3/s",
+            "dis" => routing_only ?
+                "native q_av at the downstream cell of the two-cell river chain, m3/s" :
+                "mrro over the catchment's area, m3/s",
             "gwex" => "minus the leakage from the saturated store (zero, MaxLeakage 0), and, when the case " *
                 "prescribes a withdrawal, minus what Wflow's allocation took for it (see human_withdrawal)",
             "mrso" => "unsaturated store (all layers) + saturated store: the SBM soil column",

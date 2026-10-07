@@ -1,0 +1,21 @@
+name: reference_fixed_celerity
+version: "1.0.0"
+description: >
+  Deliberately broken routing reference for momentum/wave-celerity-bounds.
+  It reads the supplied reach geometry and transports the prescribed discharge
+  to the reach outlet at a fixed positive 1 m/s, independent of hydraulic state.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1H
+emits:
+  fluxes: [dis]
+  states: []
+  diagnostics: []
+needs_forcing: [pr, tas, pet]
+uses_forcing: [q_in]
+needs_static: [area_km2, width_m, cross_section_shape, bed_elevation_m, slope, manning_n, reach_length_m]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
