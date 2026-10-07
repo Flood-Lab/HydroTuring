@@ -27,6 +27,7 @@ long.
 | `mass/extreme-rain` | Zhi Li (CU Boulder) |
 | `mass/runoff-bounds` | Zhi Li (CU Boulder) |
 | `mass/groundwater-datum-invariance` | Zhenjiang Wu (Xi’an Jiaotong University) |
+| `mass/aquifer-recharge-ordering` | Zhenjiang Wu (Institute of Global Environmental Change, Xi’an Jiaotong University) |
 | `mass/area-invariance` | Zhi Li (CU Boulder) |
 | `mass/response-nonnegativity` | Zhi Li (CU Boulder) |
 | `mass/antecedent-monotonicity` | Zhi Li (CU Boulder) |

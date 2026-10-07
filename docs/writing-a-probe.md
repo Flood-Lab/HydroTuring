@@ -107,6 +107,7 @@ Every one is binary.
 | `counterfactual_response` | added or removed water is partitioned, not absorbed; `perturbed` may name one variant or a list, each scored against the control | paired runs |
 | `invariance` | a transform the physics ignores changes nothing | paired runs |
 | `datum_flux_invariance` | a common vertical datum shift leaves groundwater exchange unchanged, with a nonzero activity guard | paired runs |
+| `aquifer_recharge_ordering` | added direct aquifer recharge cannot lower storage or reverse incremental exchange, and is conserved cumulatively | paired runs |
 | `resolution_invariance` | integrated volumes agree between the same weather at two steps | paired runs at different steps |
 | `response_sign` | perturb one driver both ways, hold the rest: each response must point the way physics says, by a real share of the change in demand | paired runs |
 | `causality` | nothing may change before an added storm, and runoff must answer it after | paired runs |
@@ -376,6 +377,9 @@ The reference models available today:
 | `reference_driven_exchange` | a head-driven boundary exchange against a constant catchment head; must pass `mass/exchange-response` | nothing, it must pass |
 | `reference_evolving_exchange` | the same boundary against a catchment head that moves, five-day time constant; must pass | nothing, it must pass |
 | `reference_recharge_exchange` | the evolving boundary on a losing catchment that drains half its runoff through it, storativity 1 mm/m; must pass | nothing, it must pass |
+| `reference_recharge_order_exact` | the exact daily solution of one aquifer cell draining to a river; must pass `mass/aquifer-recharge-ordering` | nothing, it must pass |
+| `reference_recharge_blind` | ignores `gw_recharge`, so its own budget no longer closes | `aquifer_recharge_ordering` |
+| `reference_recharge_overshoot` | sends 120% of a recharge day to the river, so its storage falls below the control's | `aquifer_recharge_ordering` |
 | `reference_noise_sink` | declares the prescribed head and never reads it; its exchange is the day's accounting error | `exchange_response` |
 | `reference_token_exchange` | the noise sink plus a head term a million times too small to be anything but a token | `exchange_response` |
 | `reference_steady_sink` | the same token over a steady sink rather than a noisy one, which a share of the exchange's variation cannot see | `exchange_response` |

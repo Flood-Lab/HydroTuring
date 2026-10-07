@@ -27,6 +27,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     human,
     limits,
     radiation,
+    recharge_ordering,
     rating,
     regime,
     response,
