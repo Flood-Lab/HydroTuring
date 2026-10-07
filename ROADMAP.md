@@ -128,7 +128,9 @@ block total-storage drift exposes it. Checks all reported stores without
 inventing a finite groundwater capacity.
 Contributed by Bing Li (@hiter-joe).
 
-### `mass/routing-network-closure` &middot; standard &middot; **unclaimed**
+### `mass/routing-network-closure` &middot; standard &middot; **accepted**
+Claimed by Jiao Wang in [#108](https://github.com/Flood-Lab/HydroTuring/issues/108).
+
 A branching network. Mass must close reach by reach, not only basin-wide.
 *Discriminates:* models that conserve globally while moving water between
 reaches non-physically.
@@ -237,7 +239,13 @@ Heating and recovery are scored separately, so a closed surface budget
 cannot hide a frozen or half-amplitude soil temperature.
 Contributed by Han Wang ([@cehw](https://github.com/cehw)).
 
-### `energy/snowpack-cold-content` &middot; hard &middot; **unclaimed**
+### `energy/snowpack-cold-content` &middot; hard &middot; **in progress**
+Claimed by Siddik Barbhuiya as `energy/snowpack-ripening` in
+[#147](https://github.com/Flood-Lab/HydroTuring/issues/147), with implementation in
+[#150](https://github.com/Flood-Lab/HydroTuring/pull/150). The proposal refines
+the original direction below: it tests meltwater leaving a cold pack rather
+than forbidding internal melt in a layered pack.
+
 The full snowpack energy budget including cold content and phase change. Melt
 must not occur while the pack is below freezing.
 *Discriminates:* models that melt snow on a warm day regardless of whether
@@ -335,7 +343,10 @@ counterexample is built to show.
 is not solving anything resembling momentum.
 Contributed by Yuanhang Liu (Independent Researcher).
 
-### `momentum/wave-celerity-bounds` &middot; hard &middot; **unclaimed**
+### `momentum/wave-celerity-bounds` &middot; hard &middot; **in progress**
+Claimed by Jingzhi Chen in [#148](https://github.com/Flood-Lab/HydroTuring/issues/148),
+with implementation in [#149](https://github.com/Flood-Lab/HydroTuring/pull/149).
+
 Kinematic wave celerity must be positive and near the Manning expectation for
 the reach geometry.
 *Discriminates:* models that route a flood wave upstream, or at a speed the

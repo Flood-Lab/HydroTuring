@@ -83,8 +83,8 @@ beyond runoff. That output-only count includes `momentum/routing-lag-consistency
 which is eligible only when the model also declares that it consumes `pr` and
 the three geometry inputs `area_km2`, `main_channel_length_km` and
 `centroid_channel_length_km`. `ht list` prints the probes;
-[ROADMAP.md](ROADMAP.md#probes-we-want) has the four more we want, all
-unclaimed.
+[ROADMAP.md](ROADMAP.md#probes-we-want) has four further directions: three
+are claimed, and channel-routing mass closure awaits a suitable inflow contract.
 
 | Probe | Law | What it asks | The broken model it catches |
 | --- | --- | --- | --- |
