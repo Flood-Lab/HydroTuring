@@ -207,9 +207,12 @@ Four are arithmetic consistency checks on a single row:
   step** of the block rather than on a single row, because the construction it
   closes is a one-step excursion that returns. `snw` alone, not `snw + canopy`, because the
   identity differences `snw - lwsnl` and summing the canopy in would let the
-  same dip hide there. One consequence, since this case carries no canopy water
-  through the block: a probe whose case did would see canopy unloading faster
-  than the tolerance refused, and would need a different bound. This bounds gains in one store, so it is **narrower
+  same dip hide there. The case has no canopy (`canopy_capacity_mm = 0`, from
+  probe version 2), so no canopy water is carried through the block; a probe
+  whose case did would see canopy unloading faster than the tolerance refused,
+  and would need a different bound. The empty canopy also keeps `sbl`, which
+  counts canopy ice as well as the pack, equal to the pack's own sublimation in
+  `M`. This bounds gains in one store, so it is **narrower
   than `closure`** rather than a per-step form of it: `closure` is cumulative
   and spans every store, which is exactly why a one-step excursion that
   returns nets to nothing there. Deposition a model reports in `sbl` is netted

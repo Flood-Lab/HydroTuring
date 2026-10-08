@@ -102,6 +102,9 @@ Fluxes are step means, as rates in mm/day or W m-2; states are end of step.
 * `evspsbl`  total evapotranspiration including snow and canopy sublimation
              (SUMMA's scalarTotalET leaves sublimation out), positive upward;
              net deposition makes it negative
+* `snm`      scalarRainPlusMelt: liquid water delivered from the snow-system
+             boundary to the soil before surface runoff, including rain
+             passing through and snowmelt; mm/day
 * `mrro`     routed runoff (averageRoutedRunoff): surface runoff plus aquifer
              baseflow after the time-delay histogram
 * `channel`  cumulative instantaneous minus routed runoff: water inside the
@@ -128,10 +131,15 @@ Fluxes are step means, as rates in mm/day or W m-2; states are end of step.
 * `canopy`   scalarCanopyLiq + scalarCanopyIce
 * `gw`       scalarAquiferStorage, m to mm
 
-`sbl` is not reported. SUMMA's snow and canopy sublimation are net fluxes over
-each step, negative when frost deposits, and they are carried inside
-`evspsbl`. The contract's `sbl` is the non-negative share of `evspsbl` that
-left as ice, and no non-negative share describes a step of net deposition.
+`sbl` is -(scalarSnowSublimation + scalarCanopySublimation): every kilogram
+that left or arrived as ice, from the pack and from the canopy. SUMMA keeps
+both as signed net fluxes over the step, positive downward, so a step of net
+frost deposition is negative `sbl`, as the contract defines it. Both are
+converted at LH_sub in SUMMA's energy balance, which is why the canopy term
+belongs in the share: left out, canopy ice that sublimates is declared liquid
+and the latent-heat equality is charged the difference. Where a probe sets no
+canopy (`mass/snowpack-mass-closure`) the adapter runs SUMMA bare, the canopy
+term is zero and `sbl` is the pack's own.
 
 Developer switches: SUMMA_HT_DIAG=1 writes SUMMA's raw series next to the
 request (only possible where that directory is writable, never under the
@@ -162,8 +170,8 @@ from pathlib import Path
 import netCDF4
 import numpy as np
 
-MODEL = {"name": "summa", "version": "4.0.0-f787fa5.4"}
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "hfls", "hfss", "hfg",
+MODEL = {"name": "summa", "version": "4.0.0-f787fa5.5"}
+COLUMNS = ["time", "pr", "evspsbl", "sbl", "snm", "mrro", "hfls", "hfss", "hfg",
            "mrso", "snw", "canopy", "gw", "channel"]
 
 SUMMA_EXE = os.environ.get("SUMMA_EXE", "/opt/summa/bin/summa.exe")
@@ -210,6 +218,7 @@ SUMMA_WETBULB_K = 6.54e-4  # WETBULBTMP's normalising factor (C-1)
 OUTPUT_VARS = [
     "scalarTotalET", "scalarSnowSublimation", "scalarCanopySublimation",
     "scalarSurfaceRunoff", "scalarAquiferBaseflow", "scalarRainfall", "scalarSnowfall",
+    "scalarRainPlusMelt",
     "scalarLatHeatTotal", "scalarSenHeatTotal", "scalarGroundNetNrgFlux",
     "scalarCanopyNetNrgFlux", "scalarNetRadiation", "scalarGroundAbsorbedSolar",
     "scalarCanopyAbsorbedSolar", "scalarLWNetGround", "scalarLWNetCanopy",
@@ -553,11 +562,14 @@ def simulate(rows: list[dict], columns: list[str], static: dict, timestep: str):
         raise RuntimeError(f"SUMMA wrote {len(out['scalarTotalET'])} steps for {len(rows)} rows")
 
     per_day = SECONDS_PER_DAY
-    sublimation = -(out["scalarSnowSublimation"] + out["scalarCanopySublimation"]) * per_day
+    snow_sublimation = -out["scalarSnowSublimation"] * per_day
+    canopy_sublimation = -out["scalarCanopySublimation"] * per_day
     instant = out["averageInstantRunoff"] * 1000.0 * per_day
     routed = out["averageRoutedRunoff"] * 1000.0 * per_day
     result = {
-        "evspsbl": -out["scalarTotalET"] * per_day + sublimation,
+        "evspsbl": -out["scalarTotalET"] * per_day + snow_sublimation + canopy_sublimation,
+        "sbl": snow_sublimation + canopy_sublimation,
+        "snm": out["scalarRainPlusMelt"] * 1000.0 * per_day,
         "mrro": routed,
         "hfls": -out["scalarLatHeatTotal"],
         "hfss": -out["scalarSenHeatTotal"],
@@ -659,10 +671,15 @@ def describe(result, out, atmos, pr, tas, threshold_c, dt_days, timestep, catchm
             "channel": "cumulative averageInstantRunoff - averageRoutedRunoff (time-delay histogram)",
         },
         "fluxes": {
-            "evspsbl": "-(scalarTotalET + scalarSnowSublimation + scalarCanopySublimation); sublimation "
-                       "and deposition are net, so a step of net deposition lowers it",
-            "sbl": "not reported: SUMMA's sublimation is a net flux, negative on deposition, and the "
-                   "contract's sbl is a non-negative share",
+            "evspsbl": (
+                "-(scalarTotalET + scalarSnowSublimation + scalarCanopySublimation); "
+                "snow and canopy sublimation/frost are signed net fluxes"
+            ),
+            "sbl": (
+                "-(scalarSnowSublimation + scalarCanopySublimation): net ice-vapour exchange of "
+                "the pack and the canopy, positive for sublimation and negative for deposition"
+            ),
+            "snm": "scalarRainPlusMelt: rain plus melt delivered to soil before surface runoff",
             "mrro": "averageRoutedRunoff", "hfls": "-scalarLatHeatTotal", "hfss": "-scalarSenHeatTotal",
             "hfg": "scalarGroundNetNrgFlux (top of the snow-soil column); the canopy's net energy "
                    "flux is in no column",

@@ -125,6 +125,7 @@ model follows the calendar.
 | --- | --- |
 | `pr` | the forcing, echoed as given |
 | `evspsbl` | Wflow's total actual evapotranspiration (`actevap`): interception, soil evaporation, transpiration, open water |
+| `snm` | snowpack runoff: liquid water leaving the snow module, converted from a depth per model step to mm/day |
 | `mrro` | river `q_av` at the outlet + overland `q_av` + lateral subsurface `ssf` out of the outlet cell, as a depth rate over the cell |
 | `dis` | `mrro` over the catchment's area: `mrro × area_km2 / 86.4`, m3/s |
 | `gwex` | minus the leakage out of the saturated store (zero with `MaxLeakage` 0), and minus what Wflow's water allocation takes when a probe prescribes a withdrawal (below) |
@@ -144,6 +145,16 @@ probes apply to `mrso`. The contract's `gw` is groundwater *below* the soil colu
 `sbm` type has none (Wflow's `sbm_gwf` type adds an aquifer there). Reporting the saturated
 store as `gw` would count the soil capacity twice in the dry-down and runoff bounds, which
 add the initial `gw` to the capacity.
+
+The snowpack closure is exact to machine precision and is therefore flagged
+by the harness as `suspicious_exact`. This is not residual reconstruction:
+`snm` is read directly from Wflow's native `snow.runoff` variable. In this
+probe `canopy_capacity_mm = 0`, which the adapter maps to `Cmax = 0`, so no
+water is removed by interception before precipitation reaches the snow
+module. Under that boundary condition, and with snow sublimation and lateral
+snow transport absent, Wflow's HBV snow routine updates `snow_storage` and
+`snow_water` from the same precipitation, melt, refreezing and runoff terms,
+so the snowpack control volume closes algebraically.
 
 ## A prescribed withdrawal
 
@@ -262,7 +273,7 @@ ht run --model wflow_sbm --gate-seeds
 
 ## Result
 
-**FAIL (VIOLATION), 18 of 21 probes passed**, adapter `1.0.4-ht.4`, on the gate seeds, every
+**FAIL (VIOLATION), 19 of 22 probes passed**, adapter `1.0.4-ht.5`, on the gate seeds, every
 case on the full record (`window_days: full`).
 
 | Probe | Verdict | Reason | Detail |
@@ -274,6 +285,7 @@ case on the full record (`window_days: full`).
 | `energy/pet-consistency` | PASS | OK | evaporation 0.96 of demand when the soil is wettest, 0.15 when driest |
 | `energy/radiation-consistency` | N/A | INCOMPLETE | does not report `rlus`, `ts` |
 | `energy/surface-energy-closure` | N/A | INCOMPLETE | does not report `hfls`, `hfss`, `hfg` |
+| `energy/snowmelt-energy-water` | N/A | INCOMPLETE | does not report `sbl`, `hfls`, `hfss`, `hfg`, `lwsnl`, `csnow`; model does not declare that it consumes forcing `rn` |
 | `mass/antecedent-monotonicity` | FAIL | VIOLATION | a wet month before the storm adds almost no runoff (0.0013 and 0.0005 of the storm on 2 of 3 seeds, where 0.02 is asked) |
 | `mass/area-invariance` | PASS | OK | identical to floating point at ten times the area |
 | `mass/catchment-closure` | PASS | OK | residual 1.8e-4 to 2.1e-4 of the rain; runoff ratio 0.45 to 0.52; ET 0.53 to 0.63 of demand |
@@ -291,8 +303,10 @@ case on the full record (`window_days: full`).
 | `mass/time-origin-invariance` | PASS | OK | identical to floating point in 1972 and 2000 |
 | `mass/warming-response` | PASS | OK | runoff falls by 0.27 to 0.31 per unit of added demand |
 | `momentum/routing-conservation` | PASS | OK | the channel holds at most 0.16 of what a 15-day hydrograph of recent runoff allows |
+| `mass/snowpack-mass-closure` | PASS | OK | snowpack closes to machine precision and shows non-trivial accumulation and melt |
+| `mass/spinup-cycle-invariance` | PASS | OK | repeated forcing reaches the same evaluation-year response for all three selected spin-up cycles; worst departure 0.00% |
 
-The five energy probes that need an energy output are N/A (INCOMPLETE) because wflow_sbm
+The six energy probes that need an energy output are N/A (INCOMPLETE) because wflow_sbm
 computes no latent, sensible or ground heat flux and no surface temperature; that is the
 model declining to be asked, not a failure.
 

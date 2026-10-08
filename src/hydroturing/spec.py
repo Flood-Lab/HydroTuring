@@ -61,9 +61,11 @@ UNITS = {
     # budget adds the two. groundwater_balance credits this column to gw,
     # never gwex, because gwex may leave from any reported store.
     "gw_boundary": "mm day-1",
-    # The sublimating share of `evspsbl`, not a flux in addition to it. A model
-    # that reports it is stating which part of its evaporation left the surface
-    # as ice, which is the only way a criterion can know without guessing.
+    # The net ice-vapour share of `evspsbl`, not a flux in addition to it:
+    # sublimation minus frost deposition from every ice store, negative on net
+    # deposition. A model that reports it is stating which part of its
+    # evaporation left or arrived as ice, which is the only way a criterion can
+    # know without guessing.
     "sbl": "mm day-1",
     "snm": "mm day-1",
     "hfls": "W m-2",
