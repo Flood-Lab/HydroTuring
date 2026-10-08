@@ -158,8 +158,8 @@ numbers in both runs; keep it that way and do not reseed from the clock.
 | --- | --- | --- |
 | `pr` | precipitation, echoed back from the forcing | mm/day |
 | `evspsbl` | evapotranspiration | mm/day |
-| `mrro` | total runoff | mm/day |
-| `dis` | river discharge | m3/s |
+| `mrro` | total runoff: the water that leaves the catchment as flow over the step, after the model's routing has released it. Runoff generated but still in transit is `channel`, not `mrro`, so a model that routes reports the routed outflow here and not the generated runoff that CMIP's `mrro` names; reporting the generated runoff beside a `channel` store counts the water in transit twice, once as gone and once as stored | mm/day |
+| `dis` | river discharge. Where `mrro` is also reported, the two are one outflow in two units, `dis = mrro × area_km2 / 86.4`; `momentum/froude-regime` scores the larger of the two, so a `dis` below `mrro` is read at `mrro` | m3/s |
 | `gwex` | a declared exchange with the outside: regional groundwater, inter-basin transfer; positive into the catchment | mm/day |
 | `gw_sw_exchange` | net river-aquifer exchange, positive into the aquifer; unlike `gwex`, this moves water between two stores inside the control volume (`gw` and `channel`), so it is never added to `gwex` or counted as a `closure` source | mm/day |
 | `gw_to_sw` | groundwater-to-river exchange component: the aquifer losing to the river, so it is never positive; a component of `gw_sw_exchange`, not of `gwex`, and not an addition to it | mm/day |
