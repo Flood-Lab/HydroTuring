@@ -1,0 +1,25 @@
+name: reference_always_ripe
+version: "1.0.0"
+description: >
+  The degree-day snowpack of reference_degree_day, reporting its pack ripe on
+  every row: `csnow` is zero throughout, though the pack melts and drains on
+  air temperature while it is still cold. A check that counts only water
+  leaving a pack that holds cold content has nothing to count here, so the
+  model exists to show that energy/snowpack-ripening catches the plainest way
+  to empty its sum: a pack built under a winter that never reached freezing
+  cannot open the melt block ripe. It does not show more than that; a cold
+  content written down gradually is the stated limit in the probe's Scope.
+authors: ["HydroTuring maintainers"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: [PT1D, PT1H]
+emits:
+  fluxes: [pr, evspsbl, mrro, snm, sbl, hfls, hfss, hfg]
+  states: [mrso, snw, canopy, channel]
+  diagnostics: [lwsnl, csnow]
+needs_forcing: [pr, tas, pet, rn]
+needs_static: [soil_capacity_mm, canopy_capacity_mm, baseflow_coefficient, snow_threshold_degC, degree_day_factor_mm_per_C_day]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

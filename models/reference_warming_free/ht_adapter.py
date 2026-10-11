@@ -12,11 +12,19 @@ at the latent heat of fusion. `csnow` is the energy still needed to bring that
 ice to 0 C, which is what separates energy that warmed a cold pack from energy
 that melted a ripe one.
 
-MODE picks which of the three siblings this file is:
+MODE picks which of the four siblings this file is:
 
     snow_energy   exact: every joule accounted at the phase change it drove
     degree_day    melt on air temperature, energy budget closed by itself
     warming_free  melts correctly but warms its cold pack for nothing
+    always_ripe   melts like degree_day and reports its pack ripe throughout
+
+`snm` is what the snow module hands the ground: rain that passes through and
+water that drains from the pore space, the same quantity `reference_bucket`
+reports. A cold pack drains nothing, because its `drain()` releases only liquid
+the ice cannot hold and the energy-balance siblings refreeze liquid before they
+let the pack cool; `degree_day` melts on air temperature whatever the pack's
+cold content, so water leaves it while the pack is still cold.
 """
 
 from __future__ import annotations
@@ -31,7 +39,7 @@ MODE = "warming_free"
 MODEL = {"name": "reference_warming_free", "version": "1.0.0"}
 
 COLUMNS = [
-    "time", "pr", "evspsbl", "mrro", "sbl", "hfls", "hfss", "hfg",
+    "time", "pr", "evspsbl", "mrro", "snm", "sbl", "hfls", "hfss", "hfg",
     "mrso", "snw", "canopy", "channel", "lwsnl", "csnow",
 ]
 
@@ -189,7 +197,7 @@ def simulate(forcing, static, dt_days=1.0):
         sensible = K_H * (0.0 - tas)
 
         if pack.ice > 0.0 or pack.liquid > 0.0:
-            if MODE == "degree_day":
+            if MODE in ("degree_day", "always_ripe"):
                 # Melt on air temperature, with the energy budget closing
                 # around the evaporation alone: nothing pays for the fusion.
                 ddf = static["degree_day_factor_mm_per_C_day"]
@@ -246,9 +254,14 @@ def simulate(forcing, static, dt_days=1.0):
             "evspsbl": (liquid_evap + sublimation) / dt_days,
             "sbl": sublimation / dt_days,
             "mrro": (surface + baseflow) / dt_days,
+            "snm": water_in / dt_days,
             "hfls": latent, "hfss": hfss, "hfg": ground,
             "mrso": soil, "snw": pack.total(), "canopy": canopy, "channel": 0.0,
-            "lwsnl": pack.liquid, "csnow": pack.cold_content(),
+            "lwsnl": pack.liquid,
+            # `always_ripe` carries the same cold content as `degree_day` and
+            # says it has none, which is the plainest way to empty a check that
+            # counts only water leaving a pack that still holds cold content.
+            "csnow": 0.0 if MODE == "always_ripe" else pack.cold_content(),
         })
     return rows
 

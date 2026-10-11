@@ -237,11 +237,20 @@ Heating and recovery are scored separately, so a closed surface budget
 cannot hide a frozen or half-amplitude soil temperature.
 Contributed by Han Wang ([@cehw](https://github.com/cehw)).
 
-### `energy/snowpack-cold-content` &middot; hard &middot; **unclaimed**
-The full snowpack energy budget including cold content and phase change. Melt
-must not occur while the pack is below freezing.
-*Discriminates:* models that melt snow on a warm day regardless of whether
-the pack has the energy to melt.
+### `energy/snowpack-ripening` &middot; **merged**
+Proposed here as `energy/snowpack-cold-content`, whose rule -- melt must not
+occur while the pack is below freezing -- would fail a correct layered model:
+surface melt percolates into colder snow beneath it and refreezes there. The
+probe that took its place holds the water *leaving* the pack, `snm`, to the
+cold content the model itself reports, `csnow`: over the same cold winter and
+dry warming block as `energy/snowmelt-energy-water`, no more than five percent
+of the peak pack may drain while that cold content is still positive. The
+pack must open the block cold, and its cold content cannot fall faster than
+net radiation and sensible heat could supply. A consistency check rather than
+an energy balance, so it needs no energy fluxes and scores temperature-index
+models such as Snow-17. Catches a degree-day pack that drains while cold, and
+separately a pack that reports itself ripe throughout.
+Contributed by Siddik Barbhuiya (IIT Mandi).
 
 ### `energy/radiation-consistency` &middot; **merged**
 The surface temperature a model reports and the upward longwave it reports

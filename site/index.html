@@ -420,8 +420,10 @@ figure svg.pie{width:200px; height:200px; flex:none; overflow:visible}
       <text x="396" y="243" class="probe" data-i18n="infra.probe.soilheat">soil heat</text>
       <circle cx="388" cy="253.5" r="2.4" fill="var(--pass)"/>
       <text x="396" y="257" class="probe" data-i18n="infra.probe.snowmelt">snowmelt</text>
-      <rect x="384" y="272" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
-      <text x="418" y="296" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
+      <circle cx="388" cy="267.5" r="2.4" fill="var(--pass)"/>
+      <text x="396" y="271" class="probe" data-i18n="infra.probe.ripening">ripening</text>
+      <rect x="384" y="286" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
+      <text x="418" y="310" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
       <rect x="472" y="100" width="92" height="262" rx="6" fill="var(--surface-2)"/>
       <text x="518" y="121" class="pillar" data-i18n="infra.momentum" text-anchor="middle">MOMENTUM</text>
       <text x="518" y="138" class="note" data-i18n="infra.momentum.s1" text-anchor="middle">routing conserves</text>
@@ -706,7 +708,7 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (VIOLATION)  [2/6 probes p
 
 <!-- Written by scripts/site_standings.py from models/result.csv; do not edit by hand. -->
 <script type="application/json" id="ht-standings">
-{"probes":{"mass":23,"energy":7,"momentum":5},
+{"probes":{"mass":23,"energy":8,"momentum":5},
 "models":{
 "cwatm":{"mass":[16,19],"energy":[0,1],"momentum":[1,1]},
 "dhbv2":{"mass":[9,19],"energy":[1,1],"momentum":[1,1]},
@@ -715,7 +717,7 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (VIOLATION)  [2/6 probes p
 "google_flood_forecast":{"mass":[5,11],"energy":[0,0],"momentum":[0,0]},
 "lisflood":{"mass":[16,19],"energy":[1,1],"momentum":[1,1]},
 "modflow6":{"mass":[2,2],"energy":[0,0],"momentum":[0,0]},
-"sacsma_snow17":{"mass":[20,20],"energy":[1,1],"momentum":[4,4]},
+"sacsma_snow17":{"mass":[20,20],"energy":[2,2],"momentum":[4,4]},
 "summa":{"mass":[7,19],"energy":[1,4],"momentum":[1,1]},
 "wflow_sbm":{"mass":[16,19],"energy":[1,1],"momentum":[1,1]}
 }}
@@ -795,6 +797,7 @@ en: {
   "infra.probe.radiation":"radiation",
   "infra.probe.soilheat":"soil heat",
   "infra.probe.snowmelt":"snowmelt",
+  "infra.probe.ripening":"ripening",
   "infra.probe.routing":"routing",
   "infra.probe.routinglag":"travel time",
   "infra.probe.rating":"stage rating",
@@ -869,7 +872,7 @@ en: {
 <tr><td class="mono">modflow6</td><td>submitted</td><td>MODFLOW 6.7.0, the USGS's modular groundwater model: a transient one-river-cell aquifer run through flopy, reporting signed exchange and groundwater storage from its own RIV and STO budget terms.</td><td>2 / 2</td><td><span class="tag merged">PASS</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>physical</td><td>Lumped FLEX/HBV from chrimerss/HydrologicModels: interception, beta-partitioned soil, fast and slow reservoirs, a geometry-aware lag.</td><td>25 / 25</td><td><span class="tag merged">PASS</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>physical</td><td>FLEX-Topo: plateau, hillslope and wetland units on the Wark catchment's real fractions, sharing one groundwater store.</td><td>24 / 24</td><td><span class="tag merged">PASS</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>25 / 25</td><td><span class="tag merged">PASS</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>26 / 26</td><td><span class="tag merged">PASS</span></td></tr>
 `,
   "probes.h":"The probes",
   "probes.intro":"<p>Every probe in the suite, and every one the roadmap is waiting for. A merged probe is in the repository and passes the acceptance gate against the reference models. A wanted probe is named, unclaimed, and yours to take.</p>",
@@ -905,6 +908,7 @@ en: {
 <tr><td class="mono">energy/radiation-consistency</td><td>energy</td><td>Do the surface temperature and the upward longwave a model reports describe one surface, hour by hour, at the emissivity it was given?</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">energy/soil-heat-storage-consistency</td><td>energy</td><td>Does heat retained in a soil layer agree with its temperature change?</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">energy/snowmelt-energy-water</td><td>energy</td><td>A pack built over a cold winter and then melted down over a dry block that opens below -14 C and warms through zero: does the surface energy budget pay both the fusion for the ice that changed phase and the cold content of warming the pack?</td><td><span class="tag merged">merged</span></td></tr>
+<tr><td class="mono">energy/snowpack-ripening</td><td>energy</td><td>The same cold winter and dry warming block: does meltwater stay in the pack until the cold content the model itself reports is gone, rather than draining from a pack that has not ripened?</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>momentum</td><td>The channel store is never negative and never holds more than its hydrograph can.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>momentum</td><td>Under the same one-day storm, runoff peak lag must match the Snyder-Hack geometric timescale and grow with basin scale.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/froude-regime</td><td>momentum</td><td>Flow in a mild-sloped reach must stay subcritical.</td><td><span class="tag merged">merged</span></td></tr>
@@ -912,7 +916,6 @@ en: {
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>mass</td><td>Precipitation minus snow-module liquid outflow and sublimation must match the change in snow water storage within each snow regime.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>mass</td><td>Fifty years of repeated warm weather: total reported storage must not keep drifting.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">mass/routing-network-closure</td><td>mass</td><td>A branching network: mass must close reach by reach.</td><td><span class="tag wanted">wanted</span></td></tr>
-<tr><td class="mono">energy/snowpack-cold-content</td><td>energy</td><td>The full snowpack energy budget, cold content and phase change included.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">momentum/channel-routing-mass</td><td>momentum</td><td>Inflow minus outflow minus the change in channel storage, per reach.</td><td><span class="tag wanted">wanted</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>momentum</td><td>A stage reading rises with discharge, and where the rating loops, the rising limb sits lower than the falling one at the same discharge.</td><td><span class="tag merged">merged</span></td></tr>
 <tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>momentum</td><td>At three steady flows, discharge and stage must satisfy one Manning balance with the declared rectangular geometry and roughness.</td><td><span class="tag merged">merged</span></td></tr>
@@ -1039,6 +1042,7 @@ es: {
   "infra.probe.radiation":"radiación",
   "infra.probe.soilheat":"calor suelo",
   "infra.probe.snowmelt":"deshielo",
+  "infra.probe.ripening":"maduración",
   "infra.probe.routing":"tránsito",
   "infra.probe.routinglag":"retardo",
   "infra.probe.rating":"curva de gasto",
@@ -1113,7 +1117,7 @@ es: {
 <tr><td class="mono">modflow6</td><td>enviado</td><td>MODFLOW 6.7.0, el modelo modular de agua subterránea del USGS: un acuífero transitorio de una celda de río ejecutado con flopy, que reporta el intercambio señalado y el almacenamiento subterráneo a partir de sus propios términos de balance RIV y STO.</td><td>2 / 2</td><td><span class="tag merged">PASA</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>físico</td><td>FLEX/HBV agregado de chrimerss/HydrologicModels: intercepción, suelo con partición beta, embalses rápido y lento, un retardo basado en la geometría.</td><td>25 / 25</td><td><span class="tag merged">PASA</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>físico</td><td>FLEX-Topo: unidades de meseta, ladera y humedal con las fracciones reales de la cuenca Wark, un solo almacén subterráneo.</td><td>24 / 24</td><td><span class="tag merged">PASA</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>25 / 25</td><td><span class="tag merged">PASA</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>26 / 26</td><td><span class="tag merged">PASA</span></td></tr>
 `,
   "probes.h":"Las pruebas",
   "probes.intro":"<p>Todas las pruebas de la batería, y todas las que la hoja de ruta espera. Una prueba integrada está en el repositorio y supera la compuerta de aceptación frente a los modelos de referencia. Una prueba que se busca tiene nombre, nadie la ha reclamado, y es tuya si la tomas.</p>",
@@ -1149,6 +1153,7 @@ es: {
 <tr><td class="mono">energy/radiation-consistency</td><td>energía</td><td>¿Describen la temperatura superficial y la onda larga ascendente que reporta un modelo una misma superficie, hora a hora, con la emisividad que se le dio?</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">energy/soil-heat-storage-consistency</td><td>energía</td><td>¿Concuerda el calor almacenado en el suelo con su cambio de temperatura?</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">energy/snowmelt-energy-water</td><td>energía</td><td>Un manto acumulado en invierno y fundido parcialmente en un bloque seco que empieza por debajo de -14 C y se calienta atravesando el cero: ¿paga el balance energético de superficie tanto el calor de fusión del hielo que cambió de fase como el contenido de frío de calentar el manto?</td><td><span class="tag merged">integrada</span></td></tr>
+<tr><td class="mono">energy/snowpack-ripening</td><td>energía</td><td>El mismo invierno frío y el mismo bloque seco de calentamiento: ¿permanece el agua de fusión en el manto hasta que desaparece el contenido frío que el propio modelo reporta, en lugar de drenar de un manto que aún no ha madurado?</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>momento</td><td>El almacén del cauce nunca es negativo ni retiene más de lo que cabe en su hidrograma.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>momento</td><td>Ante la misma tormenta de un día, el retardo del pico de escorrentía debe ajustarse a la escala temporal geométrica de Snyder-Hack y aumentar con la escala de la cuenca.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/froude-regime</td><td>momento</td><td>El flujo en un tramo de pendiente suave debe mantenerse subcrítico.</td><td><span class="tag merged">integrada</span></td></tr>
@@ -1156,7 +1161,6 @@ es: {
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>masa</td><td>La precipitación menos la salida líquida del módulo de nieve y la sublimación debe coincidir con el cambio en el almacenamiento de agua en la nieve dentro de cada régimen nival.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>masa</td><td>Cincuenta años de clima repetido: el almacenamiento total reportado no debe seguir derivando.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">mass/routing-network-closure</td><td>masa</td><td>Una red ramificada: la masa debe cerrar tramo a tramo.</td><td><span class="tag wanted">se busca</span></td></tr>
-<tr><td class="mono">energy/snowpack-cold-content</td><td>energía</td><td>El balance energético completo del manto de nieve, con contenido frío y cambio de fase.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">momentum/channel-routing-mass</td><td>momento</td><td>Entrada menos salida menos el cambio de almacenamiento en el cauce, por tramo.</td><td><span class="tag wanted">se busca</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>momento</td><td>La cota sube con el caudal y, donde la curva forma un bucle, la rama ascendente queda por debajo de la descendente a un mismo caudal.</td><td><span class="tag merged">integrada</span></td></tr>
 <tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>momento</td><td>En tres caudales estacionarios, caudal y cota deben satisfacer un mismo balance de Manning con la geometría rectangular y rugosidad declaradas.</td><td><span class="tag merged">integrada</span></td></tr>
@@ -1283,6 +1287,7 @@ zh: {
   "infra.probe.radiation":"辐射一致",
   "infra.probe.soilheat":"土层储热",
   "infra.probe.snowmelt":"融雪耦合",
+  "infra.probe.ripening":"积雪成熟",
   "infra.probe.routing":"汇流演算",
   "infra.probe.routinglag":"传播时间",
   "infra.probe.rating":"水位流量关系",
@@ -1357,7 +1362,7 @@ zh: {
 <tr><td class="mono">modflow6</td><td>提交模型</td><td>MODFLOW 6.7.0，美国地质调查局的模块化地下水模型：通过 flopy 运行的单河流网格瞬态含水层，依据其自身的 RIV 与 STO 收支项报告带符号交换量与地下水储量。</td><td>2 / 2</td><td><span class="tag merged">通过</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>物理模型</td><td>来自 chrimerss/HydrologicModels 的集总 FLEX/HBV：截留、beta 分配的土壤、快慢水库与基于几何的滞时。</td><td>25 / 25</td><td><span class="tag merged">通过</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>物理模型</td><td>FLEX-Topo：台地、坡地与湿地单元按 Wark 流域的真实面积比共享一个地下水库。</td><td>24 / 24</td><td><span class="tag merged">通过</span></td></tr>
-<tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>25 / 25</td><td><span class="tag merged">通过</span></td></tr>
+<tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>26 / 26</td><td><span class="tag merged">通过</span></td></tr>
 `,
   "probes.h":"检验项一览",
   "probes.intro":"<p>套件中的每一项检验，以及路线图正在等待的每一项。已合并的检验项已在仓库中，并在参照模型上通过验收闸门。征集中的检验项已有名字、尚无人认领，欢迎认领。</p>",
@@ -1393,6 +1398,7 @@ zh: {
 <tr><td class="mono">energy/radiation-consistency</td><td>能量</td><td>模型报告的地表温度与上行长波辐射，在给定发射率下是否逐小时描述同一个表面？</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">energy/soil-heat-storage-consistency</td><td>能量</td><td>土层留存的热量是否与土温变化一致？</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">energy/snowmelt-energy-water</td><td>能量</td><td>积雪在寒冬累积，随后在一个干燥区段内部分融化：该区段起始温度低于 -14 C 并逐步升温越过冰点。地表能量预算是否既支付了发生相变的冰所需的熔化潜热，也支付了使积雪升温所需的冷储量？</td><td><span class="tag merged">已合并</span></td></tr>
+<tr><td class="mono">energy/snowpack-ripening</td><td>能量</td><td>同样的寒冬与干燥升温区段：融水是否留在积雪中，直到模型自身报告的冷储量耗尽，而不是从尚未成熟的积雪中排出？</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/routing-conservation</td><td>动量</td><td>河道蓄水永不为负，也永不超过其单位线所能容纳的量。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/routing-lag-consistency</td><td>动量</td><td>在同一场单日暴雨下，径流峰值时滞必须符合 Snyder-Hack 几何时间尺度，并随流域尺度增大。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/froude-regime</td><td>动量</td><td>缓坡河段的水流必须保持缓流。</td><td><span class="tag merged">已合并</span></td></tr>
@@ -1400,7 +1406,6 @@ zh: {
 <tr><td class="mono">mass/snowpack-mass-closure</td><td>质量</td><td>各积雪阶段内，降水减去雪模块液态出流和升华后，必须与雪水储量变化一致。</td><td><span class="tag merged">已合入</span></td></tr>
 <tr><td class="mono">mass/multi-decadal-drift</td><td>质量</td><td>五十年重复暖天气：报告的总蓄水不得持续漂移。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">mass/routing-network-closure</td><td>质量</td><td>分叉河网：质量须逐河段闭合。</td><td><span class="tag wanted">征集中</span></td></tr>
-<tr><td class="mono">energy/snowpack-cold-content</td><td>能量</td><td>完整的积雪能量收支，含冷储量与相变。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">momentum/channel-routing-mass</td><td>动量</td><td>逐河段：入流减出流减河道蓄量变化。</td><td><span class="tag wanted">征集中</span></td></tr>
 <tr><td class="mono">momentum/stage-discharge-monotonic</td><td>动量</td><td>水位随流量单调上升；出现绳套时，同一流量下涨洪段的水位低于落洪段。</td><td><span class="tag merged">已合并</span></td></tr>
 <tr><td class="mono">momentum/uniform-flow-friction-consistency</td><td>动量</td><td>在三个稳态流量下，流量与水位必须和所声明的矩形河道几何及糙率满足同一个曼宁平衡。</td><td><span class="tag merged">已合并</span></td></tr>
