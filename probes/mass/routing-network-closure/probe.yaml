@@ -1,0 +1,96 @@
+# ---------------------------------------------------------------------------
+# This file proposes a reach-indexed routing output contract. 
+# The contract, criteria, references, and extension
+# of the existing wflow_sbm adapter must land before this probe can gate.
+# ---------------------------------------------------------------------------
+
+id: mass/routing-network-closure
+title: Reach-by-reach mass closure in a branching routing network
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Jiao Wang
+    affiliation: University of California Davis
+    github: joannawang-100
+
+description: >
+  A component-level test for physical, hybrid, and learned hydrological models
+  that expose a reach-resolved routing state. Two independently prescribed
+  headwater inflows enter a fixed daily Y network. Mass must close separately
+  in every reach and at the zero-storage junction, and routed water may not
+  remain trapped after the forcing has receded.
+
+# Proposed contract extension. routing.csv has columns time, reach_id, q_in,
+# q_out, and channel_storage. Headwater q_in must echo the prescribed forcing;
+# q_in for C is reported independently so junction transfer remains testable.
+requires:
+  routing: [q_in, q_out, channel_storage]
+  forcing: [q_in_A, q_in_B]
+  static: [routing_network]
+
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_days: 90
+  spinup_days: 365
+  min_window_days: 90
+  max_output_mb: 5.0
+  max_runtime_s: 60
+
+# All routing_* criteria are proposed additions to the criterion registry.
+criteria:
+  - routing_input_fidelity:
+      headwater_forcing: {A: q_in_A, B: q_in_B}
+      rtol: 1.0e-6
+      atol_m3_s: 1.0e-9
+
+  - routing_reach_closure:
+      threshold: 0.05
+      aggregate: sum_absolute_interval_residual
+      minimum_inflow_volume_mm: 1.0
+
+  - routing_junction_closure:
+      threshold: 0.05
+      aggregate: sum_absolute_interval_residual
+      minimum_throughflow_volume_mm: 1.0
+
+  # Per-reach analogue of the merged routing_conservation criterion. The
+  # absolute allowance is provisional until calibrated against the extended
+  # wflow_sbm adapter on all gate seeds.
+  - routing_recession_bound:
+      apply_to: each_reach
+      max_lag_days: 15
+      lookback_days: 30
+      tolerance: 0.05
+      min_allowance_mm: 0.05
+
+  - routing_state_bounds:
+      storage_lower_m3: 0.0
+      storage_upper_static: channel_capacity_m3
+      discharge_lower_m3_s: 0.0
+      storage_atol_m3: 1.0e-6
+      discharge_atol_m3_s: 1.0e-9
+
+# wflow_sbm already exists in HydroTuring as a one-cell adapter. It must be
+# version-bumped and extended to a three-river-cell Y network with external
+# inflow forcing and routing.csv output before it can satisfy this declaration.
+baselines:
+  must_pass: [reference_network_exact, wflow_sbm]
+  must_fail:
+    reference_network_input_rescale: routing_input_fidelity
+    reference_network_compensation: routing_reach_closure
+    reference_network_junction_loss: routing_junction_closure
+    reference_network_temporal_shift: routing_reach_closure
+    reference_network_stuck_router: routing_recession_bound
+    reference_network_leaky_router: routing_recession_bound
+    reference_network_negative: routing_state_bounds
+
+provenance: >
+  Synthetic. Generated at run time by generate.py from a recorded seed. Two
+  headwater inflows are prescribed independently in forcing.csv. The fixed
+  topology is declared in static.json, with no precipitation, channel
+  evaporation, lateral channel inflow, groundwater-channel exchange,
+  withdrawal, or inter-basin transfer.
