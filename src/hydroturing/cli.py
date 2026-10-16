@@ -233,12 +233,29 @@ def cmd_verify_adapter(args) -> int:
     if args.probe:
         candidates = [registry.find_probe(args.probe, roots)]
     else:
-        # The closure probe is the reference implementation and the natural
-        # smoke test. A model that cannot consume it, at its step, with its
-        # forcing or on its window, is checked on the first probe it can
-        # consume instead: one it cannot is N/A for it and asks the adapter
-        # nothing.
-        candidates = sorted(probes, key=lambda p: (p.id != "mass/catchment-closure", p.id))
+        if model.emits_routing:
+            # Reach-indexed output can only be verified on a probe that
+            # supplies a routing network. Prefer one when the model declares
+            # routing output, then fall back to the ordinary probe order.
+            candidates = sorted(
+                probes,
+                key=lambda p: (
+                    not bool(p.requires_routing),
+                    p.id != "mass/catchment-closure",
+                    p.id,
+                ),
+            )
+        else:
+            # The closure probe is the reference implementation and the
+            # natural smoke test. A model that cannot consume it is checked
+            # on the first probe it can consume instead.
+            candidates = sorted(
+                probes,
+                key=lambda p: (
+                    p.id != "mass/catchment-closure",
+                    p.id,
+                ),
+            )
 
     workdir = Path(args.workdir) if args.workdir else None
     result = None

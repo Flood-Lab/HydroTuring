@@ -39,11 +39,19 @@ STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
 # pack rather than evidence of a phase change.
 DIAG_VARS = ("ts", "tsoil_layer", "stage", "lwsnl", "csnow")
 
+# Reach-indexed routing variables live in output/routing.csv rather than the
+# one-row-per-timestep result table.
+ROUTING_VARS = ("reach_q_in", "q_out", "channel_storage")
+
 UNITS = {
     "pr": "mm day-1",
     "evspsbl": "mm day-1",
     "mrro": "mm day-1",
     "dis": "m3 s-1",
+    "q_in": "m3 s-1",
+    "reach_q_in": "m3 s-1",
+    "q_out": "m3 s-1",
+    "channel_storage": "m3",
     "gwex": "mm day-1",
     # Net river-aquifer exchange, positive into the aquifer. Unlike gwex
     # (a source or sink crossing the catchment boundary), this moves water
@@ -270,6 +278,8 @@ class ProbeSpec:
     min_scored_fraction: float = 1.0
     # Missing diagnostic outputs cause INCOMPLETE, as for missing fluxes.
     requires_diagnostics: tuple[str, ...] = ()
+    # Reach-indexed variables requested from output/routing.csv.
+    requires_routing: tuple[str, ...] = ()
     # Case-supplied inputs the verdict rests on: forcing columns and
     # static.json keys a model must declare it consumes, or it is judged
     # against values it never read and is INCOMPATIBLE instead.
@@ -379,6 +389,8 @@ class ModelManifest:
     window_days: int | str | None = None
     # Diagnostics the model reports in addition to its fluxes and states.
     emits_diagnostics: tuple[str, ...] = ()
+    # Reach-indexed variables written to output/routing.csv.
+    emits_routing: tuple[str, ...] = ()
     # Static inputs the adapter cannot run without.
     needs_static: tuple[str, ...] = ()
     # Optional inputs the adapter consumes whenever the case supplies them.
@@ -404,7 +416,11 @@ class ModelManifest:
         INCOMPLETE: the model cannot demonstrate conservation because it never
         says enough to be checked, and it has not violated it either.
         """
-        return [v for v in probe.required_vars if v not in self.emitted]
+        missing = [v for v in probe.required_vars if v not in self.emitted]
+        missing.extend(
+            v for v in probe.requires_routing if v not in self.emits_routing
+        )
+        return missing
 
 
 def load_probe(path: str | Path) -> ProbeSpec:
@@ -497,12 +513,24 @@ def load_probe(path: str | Path) -> ProbeSpec:
     # asked for as a state would be met by the flux and never noticed.
     unknown = [
         name
-        for key, known in (("fluxes", FLUX_VARS), ("states", STATE_VARS), ("diagnostics", DIAG_VARS))
+        for key, known in (
+            ("fluxes", FLUX_VARS),
+            ("states", STATE_VARS),
+            ("diagnostics", DIAG_VARS),
+            ("routing", ROUTING_VARS),
+        )
         for name in requires.get(key, [])
         if name not in known
     ]
     if unknown:
         raise SpecError(f"{spec_file}: unknown variables in requires: {unknown}")
+    if requires.get("routing") and "routing_network" not in requires.get(
+        "static", []
+    ):
+        raise SpecError(
+            f"{spec_file}: requires.routing also needs requires.static "
+            "to include routing_network"
+        )
     return ProbeSpec(
         id=raw["id"],
         title=raw["title"],
@@ -514,6 +542,7 @@ def load_probe(path: str | Path) -> ProbeSpec:
         requires_fluxes=tuple(requires.get("fluxes", [])),
         requires_states=tuple(requires.get("states", [])),
         requires_diagnostics=tuple(requires.get("diagnostics", [])),
+        requires_routing=tuple(requires.get("routing", [])),
         requires_forcing=tuple(requires.get("forcing", [])),
         requires_static=tuple(requires.get("static", [])),
         generator=case["generator"],
@@ -591,6 +620,7 @@ def load_model(path: str | Path) -> ModelManifest:
     unknown = [v for v in raw["emits"]["fluxes"] if v not in FLUX_VARS]
     unknown += [v for v in raw["emits"]["states"] if v not in STATE_VARS]
     unknown += [v for v in raw["emits"].get("diagnostics", []) if v not in DIAG_VARS]
+    unknown += [v for v in raw["emits"].get("routing", []) if v not in ROUTING_VARS]
     if unknown:
         raise SpecError(f"{spec_file}: unknown variables in emits: {unknown}")
 
@@ -607,6 +637,7 @@ def load_model(path: str | Path) -> ModelManifest:
         emits_fluxes=tuple(raw["emits"]["fluxes"]),
         emits_states=tuple(raw["emits"]["states"]),
         emits_diagnostics=tuple(raw["emits"].get("diagnostics", [])),
+        emits_routing=tuple(raw["emits"].get("routing", [])),
         runner=runner,
         needs_forcing=tuple(raw.get("needs_forcing", [])),
         needs_static=tuple(raw.get("needs_static", [])),

@@ -15,7 +15,7 @@ import re
 import pytest
 import yaml
 
-from hydroturing.spec import DIAG_VARS, FLUX_VARS, REPO_ROOT, STATE_VARS, load_model, load_probe
+from hydroturing.spec import DIAG_VARS, FLUX_VARS, REPO_ROOT, ROUTING_VARS, STATE_VARS, load_model, load_probe
 
 PROBES = {p.id: p for p in (load_probe(x) for x in REPO_ROOT.glob("probes/*/*/probe.yaml"))}
 PROBE_IDS = sorted(PROBES)
@@ -229,7 +229,7 @@ def test_site_charts_are_drawn_from_the_archive():
         assert (passed, scored) == expected, f"{model}: chart says {passed} of {scored}, archive {expected}"
 
 
-@pytest.mark.parametrize("variable", FLUX_VARS + STATE_VARS + DIAG_VARS)
+@pytest.mark.parametrize("variable", FLUX_VARS + STATE_VARS + DIAG_VARS + ROUTING_VARS)
 def test_agents_doc_defines_every_variable(variable):
     assert f"| `{variable}` |" in read("AGENTS.md"), (
         f"{variable} is accepted by spec.py but the table in AGENTS.md does not define it"
