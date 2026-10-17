@@ -435,6 +435,36 @@ energy probe.
 
 ## The energy probes: SUMMA's net radiation is not the probe's
 
+The following measurements were made before `surface-energy-closure`
+version 2 required prescribed-`rn` support. SUMMA is now N/A (INCOMPATIBLE)
+on that probe: the mock reads `rn` to construct incoming radiation, while
+SUMMA computes its own net radiation. These diagnostics explain the
+applicability correction in [#142](https://github.com/Flood-Lab/HydroTuring/issues/142);
+they are retained as historical measurements, not a current FAIL or PASS on
+the hourly probe.
+
+The two daily probes, latent-heat-et-consistency and evaporative-partition,
+do not list `rn` under `requires.forcing`, so they still score SUMMA and
+their archived rows are unchanged. Their `rn`-driven results, the
+`energy_closure` passes and the `partition_shift` failure, are scores against
+a net radiation SUMMA does not take as its own; whether they apply to this
+adapter is not yet settled (tracked in
+[#160](https://github.com/Flood-Lab/HydroTuring/issues/160)).
+Averaging over a day and the 5% tolerance do not remove that mismatch.
+`flux_identity` does not read `rn`, and its failures below still describe the
+current adapter.
+
+Two ways to settle it have been discussed:
+
+- Requiring `rn` for the whole of each daily probe would make both N/A for
+  SUMMA, giving 9 of 21, and would drop its scored `flux_identity` failures.
+- A per-criterion input prerequisite would set aside only the `rn`-driven
+  criteria and keep those failures, but needs a separate harness design.
+
+[#160](https://github.com/Flood-Lab/HydroTuring/issues/160) proposes the first, and Changming Li,
+who authored both daily probes, supports it. Until it lands, the archived
+rows stand as described above.
+
 Every gate seed was rerun with SUMMA's own series kept (`SUMMA_HT_DIAG=1`).
 Each energy criterion is then given twice: as scored, against the probe's
 `rn`, and against the net radiation SUMMA computed from the mocked forcing.
@@ -446,9 +476,11 @@ Each energy criterion is then given twice: as scored, against the probe's
 | surface-energy-closure (5) | 77.2 to 81.3 | 83.9 to 89.0 | 7.0 to 8.2 | `energy_closure_by_phase`: 17 to 22 of 28 blocks fail | 0 of 28 blocks fail on every seed; the worst block's residual is 0.7 to 1.6 W/m2 against a 2 W/m2 allowance |
 
 The daily closure passes against `rn` by 0.39 to 0.77 percentage points. That
-margin depends on the mock (see the sensitivity table).
+margin depends on the mock (see the sensitivity table), and the pass is an
+archived score rather than evidence that SUMMA closes against `rn`; against
+its own net radiation it closes to 0.04 to 0.13 percent.
 
-The hourly phase test fails on the gap alone, at the 10 m measurement height
+The version-1 hourly phase test failed on the gap alone, at the 10 m measurement height
 SUMMA applies over bare soil. It failed 16 to 22 blocks in the first version,
 when SUMMA applied 17 m. The probe is warm, so the threshold translation does
 not touch it.
@@ -468,7 +500,8 @@ is not. In the drought run the drying surface is 0.2 to 0.45 K warmer over
 the four months and emits more longwave. Its net radiation falls by what the
 three fluxes fail to cancel, to within the precipitation heat term. The
 energy is conserved; it is the probe's premise, a net radiation independent
-of the surface, that SUMMA does not share.
+of the surface, that SUMMA does not share. The archived `partition_shift`
+failure is therefore not counted here as a physical failure of SUMMA.
 
 `flux_identity` fails on the model's own constants. SUMMA converts evaporated
 water at `LH_vap` = 2.501e6 J/kg, the latent heat of vaporisation at 0 C,
@@ -504,15 +537,17 @@ through the split instead; its numbers are under What changed.
 ```
 ### HydroTuring `summa` v4.0.0-f787fa5.4
 
-FAIL (VIOLATION) · 9/24 probes passed · suite 0.1.0
+FAIL (VIOLATION) · 9/23 probes passed · suite 0.1.0
 ```
 
-It passes eight probes:
+It passes nine probes:
 - `pet-consistency`, with wet-soil evaporation 0.93 to 0.99 of demand against
   0.7;
 - `area-invariance`, `causality`, `extreme-rain` and `response-nonnegativity`;
 - `time-origin-invariance`, bit for bit;
-- `warming-response` and `routing-conservation`.
+- `warming-response` and `routing-conservation`;
+- `spinup-cycle-invariance`, with a worst short/long soil-water
+  difference of 0.01% against its 5% allowance.
 
 Against `4.0.0-f787fa5.3` no verdict changed. The fourth version's changes
 leave SUMMA's output the same bit for bit, and `flux_identity` still fails
@@ -523,7 +558,7 @@ probe on the canopy's `state_bounds` alone, holding up to 25 mm of ice against
 a 2 mm capacity on 68 steps, while every wet event's water budget closes to
 within 3e-4 of its allowance.
 `energy/radiation-consistency`, merged since, is N/A (INCOMPLETE): the adapter
-reports no `rlus` or `ts`. `energy/soil-heat-storage-consistency` is also N/A (INCOMPLETE), lacking its required layer diagnostics. `mass/ungauged-basin-closure` adds one scored FAIL, bringing the current count to 8 of 22. `mass/multi-decadal-drift` adds another, bringing it to 8 of 23.
+reports no `rlus` or `ts`. `energy/soil-heat-storage-consistency` is also N/A (INCOMPLETE), lacking its required layer diagnostics. `mass/ungauged-basin-closure` added one scored FAIL, bringing the count to 8 of 22. `mass/multi-decadal-drift` added another, bringing it to 8 of 23. Version 2 of `energy/surface-energy-closure` now requires prescribed-`rn` support, which this adapter does not declare. Its new N/A (INCOMPATIBLE) result removes that probe from the scored denominator, reducing that total to 8 of 22. The subsequent `mass/spinup-cycle-invariance` evaluation adds one PASS, giving the current 9 of 23. This is a probe applicability change; the SUMMA adapter, model version and native fluxes are unchanged. The earlier FAIL row is retained in the archive alongside the new result.
 
 In `4.0.0-f787fa5.3` the threshold translation flipped no probe verdict
 against `4.0.0-f787fa5.2`. It moved one failure inside a probe and changed the
@@ -542,8 +577,7 @@ packaging had to make.
 | `mass/ungauged-basin-closure` | `state_bounds`: canopy excess up to 0.032 mm (11/12 seeds); `et_plausible`: ET/PET up to 1.506 (7/12); `non_degenerate`: runoff ratio about 0.001–0.004 (4/12). Closure passes on all 12 | All rain is intercepted; liquid above `scalarCanopyLiqMax` drains at 0.005 s-1. All 54 excess-storage steps contain liquid, in June–August with 12–33 mm/day rain; storage matches `Lmax + (R - E_canopy)/k` within 0.0021 mm. Interception evaporation takes 61–87% of rainfall. On the worst ET seed it alone reaches 1.23 PET, drawing about 17 W m-2 of sensible heat from the air. ET/PET fails in all sampled cases with P/PET ≥1.24; low-runoff cases lose 99–100% of rainfall to ET ([native diagnosis, #81](https://github.com/Flood-Lab/HydroTuring/issues/81#issuecomment-5667013442)) | Model drainage and interception under the shipped decisions at the daily step. The humidity mock affects the excess: RH 90% reduces the worst ET/PET to 0.86, but canopy bounds still fail. No adapter correction or verdict change is indicated |
 | `mass/multi-decadal-drift` | `et_plausible`: ET goes negative, worst step -0.0149 to -0.0178 mm/day (5 of 5 seeds); `non_degenerate`: runoff ratio 0.0000 and runoff-rain r -0.015 (5 of 5). `closure`, `state_bounds` and `total_storage_drift` pass, the last at -0.449 mm of final-block storage change against a 0.658 mm allowance | The probe repeats warm weather: 657 mm/yr of rain in 5.4 mm doses every third day against 365 mm/yr of PET. On seed 1349990263 SUMMA evaporates 1.001 of the rain, 1.80 of that PET, running a mean latent heat of 50.7 W m-2 against the mock's 33.0 W m-2 of net radiation and drawing the rest as sensible heat from the air, the mechanism of [#81](https://github.com/Flood-Lab/HydroTuring/issues/81#issuecomment-5667013442). The soil column stays between 62 and 80 mm of its 320 mm capacity, so fifty years leave 0.13 mm of runoff. On the second to fourth day after each rain, with the canopy below 0.01 mm, the vapour flux reverses into small net condensation: 2,642 of 20,075 steps at -0.14 to -4.25 W m-2, -10.8 mm in all | Packaging: the humidity mock sets which criteria fail, not whether the probe fails. At RH 90% the negative steps disappear and runoff reaches 0.22 of the rain, but the canopy then holds 2.01 mm against its 2 mm capacity on 29 steps and ET/PET is 1.39. At RH 50% the evaluated failures return, at 3,130 steps and -0.0199 mm/day |
 | `energy/latent-heat-et-consistency` | `flux_identity` (5 of 5 seeds); `state_bounds` canopy 12.3 to 25.0 mm above the 2 mm capacity (5 of 5) | a latent heat of vaporisation held at its 0 C value, and on 2 to 9 days a seed canopy ice sublimating at `LH_sub` with no snow on the ground (above). The canopy: rain frozen on it near 0 C, up to 27.0 mm of ice (section on the freezing canopy); a few warm days also end a few hundredths of a mm above capacity as liquid drains at 0.005 s-1 | model (constants; drainage law). The canopy ice is SUMMA with the shipped setup's decisions and default parameters (all rain intercepted, `snowUnloadingCoeff` 0), reached through the translated threshold |
-| `energy/evaporative-partition` | `partition_shift` (3 of 3); `flux_identity` (3 of 3); `state_bounds` canopy 4.1 and 16.9 mm (2 of 3) | SUMMA's net radiation responds to the drought through its surface temperature; constant latent heat; canopy ice | model; the size of the shift residual depends on the wind mock. The canopy ice is attributed as for latent-heat |
-| `energy/surface-energy-closure` | `energy_closure_by_phase`, 20 of 28 blocks (17 to 22 across seeds) | the gap between SUMMA's net radiation and `rn`: albedo by day, surface temperature by day and night; SUMMA's own budget passes every block | the mock cannot deliver `rn`, meeting the model's own surface temperature |
+| `energy/evaporative-partition` | `partition_shift` (3 of 3); `flux_identity` (3 of 3); `state_bounds` canopy 4.1 and 16.9 mm (2 of 3) | `partition_shift`: SUMMA's net radiation responds to the drought through its surface temperature, not held at the probe's `rn`; constant latent heat; canopy ice | `flux_identity`: model (constants). `partition_shift`: an archived score whose applicability is not yet settled (energy probes, above); its residual's size depends on the wind mock. The canopy ice is attributed as for latent-heat |
 | `mass/catchment-closure` | `state_bounds` canopy 11.4 to 18.3 mm above capacity (5 of 5) | rain frozen on a sub-zero canopy: peaks of 13.4 to 20.3 mm on days of 31 to 45 mm at 0.1 to 0.5 C, on 30 to 42 days a seed | SUMMA with the shipped setup's decisions and default parameters, reached through the translated threshold; 0.02 mm under the direct mapping |
 | `mass/precipitation-counterfactual` | `state_bounds` canopy 15.7 to 16.7 mm above capacity (3 of 3 seeds; up to 21 mm across the variants) | canopy ice as above, more in the wetter variants. The partition the probe is about passes: on the worst seed evaporation takes 0.24 to 0.30 of the added or removed rain, runoff 0.67 to 0.73 and storage 0.03, summing to 1.000 in each variant; on every seed runoff rises along the ladder, returning 0.70 to 0.73 of the rain added at the top | SUMMA with the shipped setup's decisions and default parameters, reached through the translated threshold; the bare surface passes |
 | `mass/human-abstraction` | `human_abstraction`: all 380 mm of the prescribed withdrawal are missing from the budget difference, 100 % against a 5 % limit (3 of 3 seeds); `state_bounds` canopy 11.6 to 18.1 mm above capacity (3 of 3) | SUMMA has no abstraction or water-use process, so nothing reads the `abstr` column. The natural and irrigated runs are identical, and evaporation, runoff and storage each change by 0.0 mm. The canopy ice is the same in both runs, as on the other probes that score canopy bounds | model: SUMMA has no human water use, and the adapter does not invent one, so this is not a packaging gap. The canopy ice is attributed as for catchment-closure |
@@ -604,8 +638,11 @@ moist air leaves more rain to run off.
 What the table says:
 
 - **Model findings.** `flux_identity` fails in every column, on 853 to 1175
-  days wherever shortwave reaches SUMMA and 387 under the midnight stamp. The
-  hourly phase test fails in every column too. Both are the model.
+  days wherever shortwave reaches SUMMA and 387 under the midnight stamp.
+- **Radiation mapping.** The historical version-1 hourly phase test fails
+  in every column against the prescribed `rn`. That comparison does not
+  establish an error in SUMMA's native energy budget; version 2 now records
+  this input mismatch as N/A (INCOMPATIBLE).
 - **The threshold mapping.** It moves the canopy excess by three orders of
   magnitude on the closure probes, from 0.02 to 0.07 mm to 16 to 17 mm. It
   decides phase-counterfactual on the first seed: 5.2 percent evaluated

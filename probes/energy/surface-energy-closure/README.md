@@ -40,6 +40,35 @@ uses the 2 W m-2 floor; the daily seeded cooling varies between nights.
 
 ### The budget boundary
 
+The probe prescribes `rn` as the net radiative energy entering the tested
+surface, averaged over each forcing interval. Its input requirement matches
+either `needs_forcing: [rn]` or `uses_forcing: [rn]`. That declaration means
+the supplied value drives this surface budget; it is not a claim that the
+model already conserves energy. A model accepting this driver but reporting
+inconsistent heat fluxes must still fail the closure criterion.
+
+Reading `rn` only to construct incoming shortwave and longwave for a reference
+surface does not establish this boundary. A land model can then compute a
+different net radiation from its own albedo and surface temperature. Such an
+adapter should document that mapping without declaring prescribed-`rn`
+support. When it reports the required heat fluxes, it is
+`N/A (INCOMPATIBLE)` here; missing declared heat-flux capability remains
+`N/A (INCOMPLETE)`. The harness checks the declaration, while adapter review
+must establish that it describes the actual input mapping.
+
+The scorer continues to use the case's `rn`. It does not replace it with
+`H + LE + G`, or use a large closure residual to decide that a run is
+incompatible. A probe driven by incoming shortwave and longwave and scored
+against native net radiation would define a different experiment.
+
+Version 2 adds this input requirement, following
+[#142](https://github.com/Flood-Lab/HydroTuring/issues/142). Version 1 did not
+check declared `rn` support, so SUMMA was scored against a radiative boundary
+its mocked sky did not impose. It is now N/A (INCOMPATIBLE), not a model
+that passed this test. Earlier archive rows remain as historical results;
+new rows record the corrected applicability. The generator, criterion and
+tolerances are unchanged.
+
 The case is a homogeneous, snow-free bare surface with a **zero-capacity
 skin**. It has no canopy, snow/ice melting or freezing, unreported phase-change
 storage, or lateral energy transport. Evaporation or condensation is carried
