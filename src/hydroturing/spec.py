@@ -204,6 +204,10 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_fixed_celerity",
     "reference_wrong_roughness",
     "reference_wrong_slope",
+    "reference_interception_blind",
+    "reference_interception_wetter",
+    "reference_interception_drier",
+    "reference_interception_leaky",
 }
 
 
