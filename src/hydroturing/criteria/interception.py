@@ -137,50 +137,64 @@ def interception_response(
     else:
         d_storage = 0.0
 
-    residual = d_evspsbl + d_mrro + d_gwex + d_storage
-    limit = max(tolerance, floor_mm / dcap)
+    residual = d_evspsbl + d_mrro - d_gwex + d_storage
+    residual_limit = max(tolerance, floor_mm / dcap)
 
     runoff_rise = max(0.0, d_mrro) / dcap
     evap_fall = max(0.0, -d_evspsbl) / dcap
     residual_share = abs(residual) / dcap
     evap_response = d_evspsbl / dcap
 
-    failures = []
-    if runoff_rise > limit:
-        failures.append(
+    # Each failure carries its own normalized exceedance, so the worst seed is
+    # the worst check and the reported value is the quantity that failed.
+    ranked: list[tuple[str, float, str]] = []
+    if runoff_rise > tolerance:
+        ranked.append((
+            "runoff_rise", runoff_rise / tolerance - 1,
             f"runoff rose with the larger canopy ({d_mrro:+.2f} mm, "
-            f"{runoff_rise:.1%} of the capacity change, limit {limit:.1%})"
-        )
-    if evap_fall > limit:
-        failures.append(
+            f"{runoff_rise:.1%} of the capacity change, limit {tolerance:.1%})",
+        ))
+    if evap_fall > tolerance:
+        ranked.append((
+            "evap_fall", evap_fall / tolerance - 1,
             f"evaporation fell with the larger canopy ({d_evspsbl:+.2f} mm, "
-            f"{evap_fall:.1%}, limit {limit:.1%})"
-        )
-    if residual_share > limit:
-        failures.append(
+            f"{evap_fall:.1%}, limit {tolerance:.1%})",
+        ))
+    if residual_share > residual_limit:
+        ranked.append((
+            "residual", residual_share / residual_limit - 1,
             f"the paired budget does not account for the difference "
-            f"({residual:+.2f} mm, {residual_share:.1%}, limit {limit:.1%})"
-        )
+            f"({residual:+.2f} mm, {residual_share:.1%}, limit {residual_limit:.1%})",
+        ))
     if evap_response < response_floor:
-        failures.append(
+        ranked.append((
+            "evaporation_response", 1 - evap_response / response_floor,
             f"the evaporation response is too small or absent "
             f"({d_evspsbl:+.2f} mm, {evap_response:.1%} of the capacity change, "
-            f"floor {response_floor:.0%})"
-        )
+            f"floor {response_floor:.0%})",
+        ))
 
-    ok = not failures
+    ok = not ranked
+    if ok:
+        value, threshold = residual_share, residual_limit
+        failing_check = None
+    else:
+        failing_check, value, _ = max(ranked, key=lambda item: item[1])
+        threshold = 0.0
     message = (
         f"capacity {cap_low:g} -> {cap_high:g} mm: evaporation {d_evspsbl:+.2f} mm, "
         f"runoff {d_mrro:+.2f} mm, storage {d_storage:+.2f} mm, "
         f"residual {residual:.2f} mm of {dcap:g} mm ({residual_share:.1%})"
         if ok
-        else f"capacity {cap_low:g} -> {cap_high:g} mm: " + "; ".join(failures)
+        else f"capacity {cap_low:g} -> {cap_high:g} mm: " + "; ".join(
+            message for _, _, message in ranked
+        )
     )
     return CriterionResult(
         name="interception_response",
         status=PASS if ok else FAIL,
-        value=residual_share,
-        threshold=limit,
+        value=value,
+        threshold=threshold,
         message=message,
         diagnostics={
             "cap_low_mm": cap_low,
@@ -198,6 +212,7 @@ def interception_response(
             "tolerance": tolerance,
             "response_floor": response_floor,
             "floor_mm": floor_mm,
-            "effective_limit": limit,
+            "residual_limit": residual_limit,
+            "failing_check": failing_check,
         },
     )

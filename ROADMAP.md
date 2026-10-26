@@ -133,7 +133,10 @@ block total-storage drift exposes it. Checks all reported stores without
 inventing a finite groundwater capacity.
 Contributed by Bing Li (@hiter-joe).
 
-### `mass/routing-network-closure` &middot; standard &middot; **unclaimed**
+### `mass/routing-network-closure` &middot; standard &middot; **in progress**
+Claimed by Jiao Wang in [#108](https://github.com/Flood-Lab/HydroTuring/issues/108),
+with a draft implementation in [#118](https://github.com/Flood-Lab/HydroTuring/pull/118).
+
 A branching network. Mass must close reach by reach, not only basin-wide.
 *Discriminates:* models that conserve globally while moving water between
 reaches non-physically.
@@ -251,11 +254,16 @@ Heating and recovery are scored separately, so a closed surface budget
 cannot hide a frozen or half-amplitude soil temperature.
 Contributed by Han Wang ([@cehw](https://github.com/cehw)).
 
-### `energy/snowpack-cold-content` &middot; hard &middot; **unclaimed**
-The full snowpack energy budget including cold content and phase change. Melt
-must not occur while the pack is below freezing.
-*Discriminates:* models that melt snow on a warm day regardless of whether
-the pack has the energy to melt.
+### `energy/snowpack-ripening` &middot; hard &middot; **in progress**
+Claimed by Siddik Barbhuiya in
+[#147](https://github.com/Flood-Lab/HydroTuring/issues/147), with implementation in
+[#150](https://github.com/Flood-Lab/HydroTuring/pull/150). This refines the original
+`energy/snowpack-cold-content` direction: it tests meltwater leaving a cold pack
+rather than forbidding internal melt in a layered pack.
+
+Meltwater must not leave the snowpack while its cold content remains unpaid.
+*Discriminates:* models that release meltwater without accounting for the
+pack's cold content.
 
 ### `energy/radiation-consistency` &middot; **merged**
 The surface temperature a model reports and the upward longwave it reports
@@ -360,4 +368,3 @@ speed is inconsistent with the reach geometry.
 Contributed by Jingzhi Chen (Department of Computer Science and Engineering,
 State University of New York at Buffalo, Buffalo, NY, USA; GitHub:
 mimosapudical).
-

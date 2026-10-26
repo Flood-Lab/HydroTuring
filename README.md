@@ -86,8 +86,10 @@ the three geometry inputs `area_km2`, `main_channel_length_km` and
 enters directly at the routing control volume through prescribed `q_in` and
 uses only outlet `dis` to identify the local transient propagation speed from
 a paired reach-length counterfactual. `ht list` prints the probes;
-[ROADMAP.md](ROADMAP.md#probes-we-want) has the three more we want, all
-unclaimed.
+[ROADMAP.md](ROADMAP.md#probes-we-want) has three further directions and
+records their claim status.
+[New probe proposals](https://github.com/Flood-Lab/HydroTuring/issues/new?template=probe_proposal.yml)
+are welcome too.
 
 | Probe | Law | What it asks | The broken model it catches |
 | --- | --- | --- | --- |
@@ -426,7 +428,7 @@ Suite `0.1.0`, pre-release. Thirty-eight probes, twenty-five mass, seven energy,
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes; spatial and temporal closure, counterfactual response
 and invariance are represented in the suite. The roadmap lists the remaining
-unclaimed directions. Scores are only comparable within a suite version.
+directions and their claim status. Scores are only comparable within a suite version.
 
 ## Layout
 

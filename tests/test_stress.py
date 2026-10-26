@@ -160,6 +160,66 @@ def test_steady_state_catches_runoff_above_the_rain():
     assert not result.passed and "runs off" in result.message
 
 
+def _steady_with_store(store_of_day):
+    """The exact bucket's settled run with a groundwater store added on the
+    constant stretch, its intake taken out of the runoff so that the budget
+    still closes over it."""
+    probe = registry.find_probe("mass/steady-state")
+    runs = _runs(probe, "reference_bucket", gate_seeds(probe.id, 1)[0])
+    run = runs["_"]
+    table = run.table.copy()
+    days = np.clip(np.arange(len(table)) - run.case.spinup_steps, 0, None).astype(float)
+    gw = store_of_day(days)
+    table["gw"] = gw
+    table["mrro"] = table["mrro"] - np.diff(np.r_[gw[0], gw])  # a depth per day is the rate at PT1D
+    return get("steady_state")(RunResult(run.case, table, {}, 0.0), probe, _params(probe, "steady_state"))
+
+
+def test_steady_state_excuses_a_store_still_approaching_its_level():
+    """A slow aquifer filling with a 400-day e-folding time is still 10 percent
+    short of its level in the judged year, and so is the runoff it is taking
+    water from. Both move 40 percent as far in that year as in the one before,
+    which is settling, not drift."""
+    result = _steady_with_store(lambda d: 40.0 * (1.0 - np.exp(-d / 400.0)))
+    assert result.passed, result.message
+    assert result.diagnostics["relative_ranges"]["gw"] > 0.05
+    assert result.diagnostics["approach_ratios"]["gw"] == pytest.approx(np.exp(-365 / 400), rel=0.01)
+    assert abs(result.diagnostics["budget_residual"]) < 1e-9
+    assert "still approaching a fixed level" in result.message
+
+
+def test_steady_state_fails_a_store_drifting_at_a_constant_rate():
+    """The same store filling at a constant 0.02 mm/day, its budget still
+    closed, never settles: each year it moves as far as the year before."""
+    result = _steady_with_store(lambda d: 0.02 * d)
+    assert not result.passed
+    assert "gw still varies" in result.message and "is not settling" in result.message
+
+
+def test_steady_state_lets_a_draining_store_run_off_above_the_rain():
+    """A deep store still settling from far above its level, with an 800-day
+    e-folding time, releases 3 to 5 mm/day in the judged year, so runoff
+    exceeds the rain while the budget closes over the release."""
+    result = _steady_with_store(lambda d: 10000.0 * np.exp(-d / 800.0))
+    assert result.passed, result.message
+    assert result.diagnostics["means"]["mrro"] > 2.5 * 1.01
+    assert result.diagnostics["storage_change"] < -2.0
+    assert abs(result.diagnostics["budget_residual"]) < 1e-9
+
+
+def test_steady_state_lets_declared_inflow_run_off():
+    """Water a model declares as entering from outside can run off too, so
+    runoff above the rain is not a fault while the budget closes over it."""
+    probe = registry.find_probe("mass/steady-state")
+    runs = _runs(probe, "reference_bucket", gate_seeds(probe.id, 1)[0])
+    table = runs["_"].table.copy()
+    table["gwex"] = 3.0
+    table["mrro"] = table["mrro"] + 3.0  # 3.5 mm/day off 2.5 of rain and 3.0 of inflow
+    result = get("steady_state")(RunResult(runs["_"].case, table, {}, 0.0), probe, _params(probe, "steady_state"))
+    assert result.passed, result.message
+    assert result.diagnostics["means"]["mrro"] > 2.5
+
+
 # --- extreme rain ----------------------------------------------------------------
 
 

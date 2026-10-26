@@ -19,9 +19,12 @@ import numpy as np
 from hydroturing.criteria.base import FAIL, PASS, CriterionResult, criterion, make_window
 from hydroturing.criteria.response import pick
 from hydroturing.protocol import RunResult
+from hydroturing.spec import STATE_VARS as STEADY_STORES
 from hydroturing.spec import ProbeSpec
 
 STATE_VARS = ("mrso", "snw", "canopy")
+# steady_state looks wider, at STEADY_STORES, every store a model may report:
+# a slow groundwater zone is the store most likely to still be moving.
 
 
 def _capacity(run: RunResult, keys: list[str]) -> float:
@@ -220,22 +223,52 @@ def dry_down(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     )
 
 
+def _decay_ratio(series: np.ndarray) -> float:
+    """How far the second half of a series travels, as a share of how far
+    its first half did, counting every step up or down.
+
+    A store still approaching the level it will settle at travels less and
+    less: a geometric approach with e-folding time tau over halves of length
+    h gives exp(-h / tau), and so does the sum of several stores settling at
+    different rates, which may rise past its level once and come back. A
+    constant drift gives 1, and so do a recession on its own clock and
+    noise, because the distance travelled is a sum over every step rather
+    than the luck of one year's extremes; a drift that speeds up gives more.
+    """
+    half = len(series) // 2
+    early = float(np.abs(np.diff(series[: half + 1])).sum())
+    late = float(np.abs(np.diff(series[half:])).sum())
+    return late / early if early > 0 else float("inf")
+
+
 @criterion("steady_state")
 def steady_state(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     """Under constant weather the catchment settles, and the budget balances.
 
     Hold rain, temperature and demand constant long enough and every store
     reaches the level at which what comes in equals what goes out. From
-    then on nothing reported may vary, runoff cannot exceed the rain, and
-    where evaporation is reported the two together must equal the rain,
-    because storage is no longer changing. A recurrent state that drifts,
-    oscillates or keys on the calendar shows here and nowhere else.
+    then on nothing reported may vary, runoff cannot exceed what enters
+    and what the stores release, and where evaporation is reported, rain plus any declared exchange
+    equals runoff, evaporation and the change in storage. A recurrent state
+    that drifts, oscillates or keys on the calendar shows here and nowhere
+    else.
+
+    How long settling takes is the model's own business: a store filled at
+    the net input rate, or drained with a slow recession, can still be
+    approaching its level when the judged year begins. A variable that has
+    not stopped is therefore excused when, over the last `settling_days`,
+    its second half travels at most `settling_ratio` as far as its first.
+    That admits geometric settling with an e-folding time up to
+    h / ln(1 / ratio) for halves of length h, and nothing that drifts at a
+    constant rate or keeps a clock of its own.
     """
     driver = str(params.get("driver", "pr"))
     last_days = int(params.get("last_days", 365))
     tolerance = float(params.get("tolerance", 0.01))
     floor = float(params.get("floor", 0.05))
     state_floor = float(params.get("state_floor", 1.0))
+    settling_days = int(params.get("settling_days", 0))
+    settling_ratio = float(params.get("settling_ratio", 0.0))
 
     w = make_window(run, probe)
     for column in (driver, "tas", "pet"):
@@ -245,58 +278,104 @@ def steady_state(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRes
     rows = max(1, int(round(last_days / w.dt_days)))
     if rows >= len(w.table):
         raise ValueError("the scored record is not longer than the stretch judged as settled")
+    settle_rows = int(round(settling_days / w.dt_days))
+    if settle_rows and (settle_rows < rows or settle_rows > len(w.table)):
+        raise ValueError(
+            "settling_days must cover the judged stretch and fit inside the scored record"
+        )
 
     ranges: dict[str, float] = {}
     means: dict[str, float] = {}
+    approaching: dict[str, float] = {}
     failures = []
-    for var in ("mrro", "evspsbl", *STATE_VARS):
+    for var in ("mrro", "evspsbl", *STEADY_STORES):
         if var not in w.table.columns:
             continue
-        tail = w.table[var].to_numpy(dtype=float)[-rows:]
-        scale = max(float(np.abs(tail).mean()), state_floor if var in STATE_VARS else floor)
+        series = w.table[var].to_numpy(dtype=float)
+        tail = series[-rows:]
+        scale = max(float(np.abs(tail).mean()), state_floor if var in STEADY_STORES else floor)
         rel = float((tail.max() - tail.min()) / scale)
         ranges[var], means[var] = rel, float(tail.mean())
-        if rel > tolerance:
-            failures.append(
-                f"{var} still varies by {rel:.1%} of its level in the last {last_days} "
-                "days of constant weather"
+        if rel <= tolerance:
+            continue
+        ratio = _decay_ratio(series[-settle_rows:]) if settle_rows else None
+        if ratio is not None and ratio <= settling_ratio:
+            approaching[var] = ratio
+            continue
+        failures.append(
+            f"{var} still varies by {rel:.1%} of its level in the last {last_days} "
+            "days of constant weather"
+            + (
+                f" and is not settling: its last {settling_days // 2} days moved "
+                f"{ratio:.0%} as far as the {settling_days // 2} before"
+                if ratio is not None
+                else ""
             )
+        )
     if "mrro" not in means:
         raise ValueError("steady_state needs 'mrro' in the model result")
-    if means["mrro"] > rain * (1.0 + tolerance):
+
+    declared = 0.0
+    if "gwex" in w.table.columns:
+        declared = float(w.table["gwex"].to_numpy(dtype=float)[-rows:].mean())
+    storage_change = 0.0
+    for var in STEADY_STORES:
+        if var in w.table.columns:
+            store = w.table[var].to_numpy(dtype=float)
+            storage_change += float(store[-1] - store[-rows - 1]) / (rows * w.dt_days)
+    # Water declared as entering from outside can run off too, and so can
+    # water a store still settling releases; water leaving is the budget's
+    # business, not this bound's.
+    release = max(-storage_change, 0.0)
+    available = rain + max(declared, 0.0) + release
+    if means["mrro"] > available + tolerance * rain:
         failures.append(
-            f"runs off {means['mrro']:.3f} mm/day under {rain:.3f} mm/day of rain at steady state"
+            f"runs off {means['mrro']:.3f} mm/day under {rain:.3f} mm/day of rain"
+            + (f" and {declared:.3f} mm/day of declared inflow" if declared > 0 else "")
+            + (f" and {release:.3f} mm/day released from storage" if release > 0 else "")
+            + " at steady state"
         )
+
     residual = None
     if "evspsbl" in means:
-        declared = 0.0
-        if "gwex" in w.table.columns:
-            declared = float(w.table["gwex"].to_numpy(dtype=float)[-rows:].mean())
-        residual = rain + declared - means["mrro"] - means["evspsbl"]
+        residual = rain + declared - means["mrro"] - means["evspsbl"] - storage_change
         if abs(residual) > tolerance * rain:
             failures.append(
-                f"runoff and evaporation leave {residual:+.3f} mm/day of the "
-                f"{rain:.3f} mm/day rain unaccounted for at steady state"
+                f"runoff, evaporation and the change in storage leave {residual:+.3f} mm/day "
+                f"of the {rain:.3f} mm/day rain unaccounted for at steady state"
             )
 
     worst_var, worst = max(ranges.items(), key=lambda kv: kv[1])
     ok = not failures
+    if ok and approaching:
+        slowest = max(approaching, key=approaching.get)
+        message = (
+            f"settles: runoff {means['mrro']:.3f} mm/day under {rain:.3f} mm/day of rain; "
+            f"{', '.join(sorted(approaching))} still approaching a fixed level, "
+            f"{slowest} moving {approaching[slowest]:.0%} as far in its last "
+            f"{settling_days // 2} days as in the {settling_days // 2} before"
+        )
+    elif ok:
+        message = (
+            f"settles: runoff {means['mrro']:.3f} mm/day under {rain:.3f} mm/day of rain, "
+            f"nothing varies by more than {worst:.2%} ({worst_var}) in the last {last_days} days"
+        )
+    else:
+        message = "; ".join(failures)
     return CriterionResult(
         name="steady_state",
         status=PASS if ok else FAIL,
         value=worst,
         threshold=tolerance,
-        message=(
-            f"settles: runoff {means['mrro']:.3f} mm/day under {rain:.3f} mm/day of rain, "
-            f"nothing varies by more than {worst:.2%} ({worst_var}) in the last {last_days} days"
-            if ok
-            else "; ".join(failures)
-        ),
+        message=message,
         diagnostics={
             "rain_mm_per_day": rain,
             "last_days": last_days,
             "means": means,
             "relative_ranges": ranges,
+            "approach_ratios": approaching,
+            "declared_exchange": declared,
+            "storage_change": storage_change,
             "budget_residual": residual,
         },
     )

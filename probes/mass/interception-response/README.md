@@ -11,24 +11,26 @@ Write `Delta X = X(capacity_high) - X(capacity_low)` over the scored window,
 with fluxes integrated to depths in mm:
 
 ```
-R = Delta evspsbl + Delta mrro + Delta gwex
+R = Delta evspsbl + Delta mrro - Delta gwex
     + Delta (mrso + snw + canopy + gw + channel)        [mm]
 ```
 
-A model that conserves water has `R = 0`. The capacity change is
-`Delta cap = 8 mm`, and the four checks are:
+`gwex` is positive into the catchment, so it is a source in the paired
+budget, not a loss. A model that conserves water has `R = 0`. The capacity
+change is `Delta cap = 8 mm`, and the four checks are:
 
 1. `max(0, Delta mrro) / Delta cap <= 0.05` — a larger canopy may not raise
    runoff;
 2. `max(0, -Delta evspsbl) / Delta cap <= 0.05` — it may not lower
    evaporation;
-3. `abs(R) / Delta cap <= 0.05` — the paired budget must account for the
-   difference, using every store the model reports;
+3. `abs(R) / Delta cap <= residual_limit` — the paired budget must account
+   for the difference, using every store the model reports;
 4. `Delta evspsbl / Delta cap >= 0.5` — the response must exist and must be an
    evaporation response.
 
-The absolute residual floor is 1 mm, so the effective limit is
-`max(0.05, 1 mm / Delta cap) = 12.5%` at `Delta cap = 8 mm`. The floor is
+The absolute residual floor is 1 mm, so `residual_limit` is
+`max(0.05, 1 mm / Delta cap) = 12.5%` at `Delta cap = 8 mm`. The floor applies
+to the paired residual only; the two direction checks keep the 5% rule. It is
 there so a numerical residual on a multi-year record does not bind; the
 measured exact bucket closes to better than 0.01 mm.
 
@@ -66,22 +68,25 @@ seed.
 
 ## Baselines
 
-`must_pass`: `reference_bucket`, `flex_lumped`, `flex_topo`.
+`must_pass`: `reference_bucket`, `flex_lumped`, `flex_topo` — the subprocess
+references, so the gate stays fast and does not depend on a container build.
 
-`must_fail`, one control per criterion:
+`must_fail`: four synthetic controls:
 
 | control | fault | caught by |
 | --- | --- | --- |
 | `reference_interception_blind` | declares the capacity and ignores it | criterion 4 (zero response) |
 | `reference_interception_wetter` | larger capacity raises runoff | criterion 1 |
-| `reference_interception_drier` | larger capacity lowers evaporation | criterion 2 |
+| `reference_interception_drier` | larger capacity lowers evaporation | criteria 2 and 4 (a fall also fails the response floor) |
 | `reference_interception_leaky` | returns part of the difference as evaporation and drops the rest | criterion 3 |
 
-Each is listed under `baselines.must_fail_only`, so the gate requires it to
-trip `interception_response` alone rather than a contract accident.
+`tests/test_interception.py` pins which check each control trips from the
+criterion's diagnostics, because the probe has a single criterion and
+`must_fail_only` could not distinguish them.
 
-`cwatm` and `summa` also declare `canopy_capacity_mm` and report `canopy`;
-they are candidates for `must_pass` once their Docker rows pass the gate.
+The Docker models are archived as evidence, not gated on: `lisflood` and
+`summa` pass this probe, while `cwatm` fails the paired residual (1.54 mm,
+19.2% of 8 mm) and `wflow_sbm` fails the evaporation response (0.07 mm, 0.8%).
 `sacsma_snow17` and `dhbv2` report `canopy` as an identically zero state but
 do not declare the static, so they are `N/A (INCOMPATIBLE)` and their
 standing does not move.

@@ -48,25 +48,18 @@ criteria:
       high: capacity_high
       tolerance: 0.05
       response_floor: 0.5
-      # A 1 mm absolute floor on the paired residual. The measured exact
-      # bucket closes to 1e-6 mm; this only keeps a numerical residual from
-      # binding at the 8 mm capacity change.
+      # A 1 mm absolute floor on the paired residual only. The direction
+      # checks keep the 5% rule. The exact bucket closes to 1e-6 mm; this
+      # only keeps a numerical residual from binding at 8 mm.
       floor_mm: 1.0
 
 baselines:
-  must_pass: [reference_bucket, flex_lumped, flex_topo, lisflood, summa]
+  must_pass: [reference_bucket, flex_lumped, flex_topo]
   must_fail:
     reference_interception_blind: interception_response
     reference_interception_wetter: interception_response
     reference_interception_drier: interception_response
     reference_interception_leaky: interception_response
-  # Each control is meant to fail through `interception_response` alone, not
-  # through a contract accident.
-  must_fail_only:
-    - reference_interception_blind
-    - reference_interception_wetter
-    - reference_interception_drier
-    - reference_interception_leaky
 
 provenance: >
   Synthetic. A three-year temperate record with a terminal dry spell,

@@ -2,7 +2,7 @@ id: mass/steady-state
 title: Under constant weather the catchment settles and the budget balances
 law: mass
 track: synthetic
-version: 1
+version: 2
 
 authors:
   - name: Zhi Li
@@ -17,7 +17,9 @@ description: >
   exceed the rain, and where evaporation is reported the two together must
   equal the rain, because storage is no longer changing. A recurrent state
   that drifts, oscillates or keeps its own clock shows here and nowhere
-  else. Scored on runoff alone.
+  else. A store still slowly approaching its level when the last year
+  begins is not one of those, and is excused while it moves less each
+  year. Scored on runoff alone.
 
 requires:
   fluxes: [mrro]
@@ -39,6 +41,15 @@ criteria:
       last_days: 365
       tolerance: 0.01
       floor: 0.05
+      # A variable that has not stopped within 1% is excused only while it
+      # is still approaching a level: its last year travels, counting every
+      # step up or down, at most 70% as far as the year before. Geometric
+      # settling passes up to an e-folding time of 365 / ln(1 / 0.7) =
+      # 1023 days, and so does a sum of stores that rises past its level
+      # once on the way; a constant drift, a recession on its own clock and
+      # noise all score about 1.0.
+      settling_days: 730
+      settling_ratio: 0.7
 
 baselines:
   # The exact bucket and the two hand-written physical models from
