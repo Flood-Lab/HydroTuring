@@ -36,6 +36,7 @@ HEADLINES = {
     "energy/pet-consistency": ("demand_consistency",),
     "energy/radiation-consistency": ("radiative_identity",),
     "energy/snowmelt-energy-water": ("melt_energy",),
+    "energy/snowpack-ripening": ("snowpack_ripening",),
     "energy/soil-heat-storage-consistency": ("soil_heat_storage",),
     "energy/surface-energy-closure": ("energy_closure_by_phase",),
     "mass/antecedent-monotonicity": ("antecedent_monotonicity",),
