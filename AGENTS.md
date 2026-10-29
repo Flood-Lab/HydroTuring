@@ -336,12 +336,34 @@ is worse and is also dishonest.
 without; a missing input makes the case `N/A (INCOMPATIBLE)`.
 `uses_forcing` and `uses_static` declare optional inputs: the adapter must
 consume them whenever supplied, but can run without them using a documented
-fallback. The one carve-out is `gwh`, the prescribed external head, where the
-declaration is a semantic opt-in rather than a promise about the column: a
+fallback. Some declarations also carry a physical input contract. For
+`gwh`, the prescribed external head, the declaration is a semantic opt-in
+rather than a promise about the column: a
 model may read a head for another purpose, so declaring `gwh` asserts that the
 model's own `gwex` responds monotonically to that head, and
-`mass/exchange-response` holds it to the assertion rather than to the reading. A probe's `requires.forcing` and `requires.static` accept either
-declaration. For example, `energy/radiation-consistency` requires consumption
+`mass/exchange-response` holds it to the assertion rather than to the reading.
+
+A probe that lists `rn` under `requires.forcing`, including the hourly
+`energy/surface-energy-closure`, holds the adapter to a prescribed-`rn`
+contract. Declaring `rn` means accepting the supplied net radiation as the
+external energy input to the reported surface budget. It does not assert that
+the resulting budget closes; that is what the energy criterion tests. An
+adapter that only uses `rn` to construct a reference sky, then lets its model
+compute a different net radiation, must document that mapping without
+declaring prescribed-`rn` support. On such a probe, an adapter with the heat
+outputs but without that declaration is `N/A (INCOMPATIBLE)`. Do not infer
+compatibility from a small residual or turn a large residual into N/A.
+
+The daily `energy/latent-heat-et-consistency` and `energy/evaporative-partition`
+also drive `energy_closure`, and on the partition probe `partition_shift`,
+with `rn`, but do not list it under `requires.forcing`, so they still score an
+adapter that computes its own sky. Daily averaging and the 5% tolerance do
+not remove the input mismatch, so for such an adapter treat those results as
+archived scores whose applicability is not established;
+[#160](https://github.com/Flood-Lab/HydroTuring/issues/160) tracks the fix.
+
+A probe's `requires.forcing` and `requires.static` accept either `needs_*`
+or `uses_*`. For example, `energy/radiation-consistency` requires consumption
 of `rlds` and `eps`; a model that does not declare it consumes both is
 `N/A (INCOMPATIBLE)` because it may be computing its own sky or emissivity.
 

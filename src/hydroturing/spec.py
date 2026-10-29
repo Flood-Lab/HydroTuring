@@ -208,6 +208,7 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_interception_wetter",
     "reference_interception_drier",
     "reference_interception_leaky",
+    "reference_interception_no_canopy",
 }
 
 

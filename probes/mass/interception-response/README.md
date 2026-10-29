@@ -23,15 +23,17 @@ change is `Delta cap = 8 mm`, and the four checks are:
    runoff;
 2. `max(0, -Delta evspsbl) / Delta cap <= 0.05` — it may not lower
    evaporation;
-3. `abs(R) / Delta cap <= residual_limit` — the paired budget must account
-   for the difference, using every store the model reports;
+3. `abs(R) <= max(0.05 * max(abs(Delta evspsbl), abs(Delta mrro)), 1 mm)` —
+   the paired budget must account for the difference, using every store the
+   model reports;
 4. `Delta evspsbl / Delta cap >= 0.5` — the response must exist and must be an
    evaporation response.
 
-The absolute residual floor is 1 mm, so `residual_limit` is
-`max(0.05, 1 mm / Delta cap) = 12.5%` at `Delta cap = 8 mm`. The floor applies
-to the paired residual only; the two direction checks keep the 5% rule. It is
-there so a numerical residual on a multi-year record does not bind; the
+The residual is a three-year cumulative difference, so its scale is the water
+the capacity change actually moved, not the one-event capacity. A model that
+moves 150 mm is allowed 7.5 mm of paired residual; a model that moves 5 mm is
+held to the 1 mm floor. The two direction checks keep the 5% rule. The floor
+is there so a numerical residual on a multi-year record does not bind; the
 measured exact bucket closes to better than 0.01 mm.
 
 Criterion 4 is what makes this more than a closure check. A model that
@@ -39,7 +41,11 @@ declares `canopy_capacity_mm` and ignores it produces two identical runs:
 criteria 1-3 pass trivially and 4 fails. The floor is on evaporation rather
 than on the canopy-store peak because a model that routes interception loss
 directly to evaporation is physically sound and should not be failed for not
-exposing a separate store.
+exposing a separate store; `requires.states` asks only for `mrso`, and
+`reported_states` counts `canopy` whenever a model does report it. Criterion 2
+is diagnostic: a negative evaporation change also fails criterion 4, so it
+mainly names the failure. `reference_interception_no_canopy` exercises the
+no-store representation and must pass.
 
 ## Why 2 -> 10 mm
 
@@ -68,8 +74,11 @@ seed.
 
 ## Baselines
 
-`must_pass`: `reference_bucket`, `flex_lumped`, `flex_topo` — the subprocess
-references, so the gate stays fast and does not depend on a container build.
+`must_pass`: `reference_bucket`, `flex_lumped`, `flex_topo`, and
+`reference_interception_no_canopy` — subprocess references, so the gate stays
+fast and does not depend on a container build. The last one carries no canopy
+store: it evaporates intercepted water in the same step and reports only
+`mrso`, which exercises the representation the residual section allows.
 
 `must_fail`: four synthetic controls:
 
@@ -84,12 +93,15 @@ references, so the gate stays fast and does not depend on a container build.
 criterion's diagnostics, because the probe has a single criterion and
 `must_fail_only` could not distinguish them.
 
-The Docker models are archived as evidence, not gated on: `lisflood` and
-`summa` pass this probe, while `cwatm` fails the paired residual (1.54 mm,
-19.2% of 8 mm) and `wflow_sbm` fails the evaporation response (0.07 mm, 0.8%).
-`sacsma_snow17` and `dhbv2` report `canopy` as an identically zero state but
-do not declare the static, so they are `N/A (INCOMPATIBLE)` and their
-standing does not move.
+The Docker models are archived as evidence, not gated on: `lisflood`, `summa`
+and `cwatm` pass this probe. CWatM's 1.54 mm residual is 36 percent of its
+4.26 mm allowance. `wflow_sbm` fails the response floor: its run records read
+`max_canopy_storage_mm` 2.0 and 10.0, so the parameter reaches Wflow, but the
+net evaporation response is -0.06 mm because its daily Gash scheme
+reallocates the interception within the step. That is a model result, not an
+adapter miss. `sacsma_snow17` and `dhbv2` report `canopy` as an identically
+zero state but do not declare the static, so they are `N/A (INCOMPATIBLE)` and
+their standing does not move.
 
 ## What this probe does not catch
 

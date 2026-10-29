@@ -23,7 +23,10 @@ description: >
 
 requires:
   fluxes: [pr, evspsbl, mrro]
-  states: [mrso, canopy]
+  # canopy is optional: a model may route interception loss straight to
+  # evaporation and report no canopy store. When it does report one,
+  # `reported_states` counts it automatically.
+  states: [mrso]
   static: [canopy_capacity_mm]
 
 case:
@@ -54,7 +57,7 @@ criteria:
       floor_mm: 1.0
 
 baselines:
-  must_pass: [reference_bucket, flex_lumped, flex_topo]
+  must_pass: [reference_bucket, flex_lumped, flex_topo, reference_interception_no_canopy]
   must_fail:
     reference_interception_blind: interception_response
     reference_interception_wetter: interception_response

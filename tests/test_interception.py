@@ -10,7 +10,12 @@ from hydroturing.protocol import Case, RunResult
 from hydroturing.seeds import gate_seeds
 
 PROBE = "mass/interception-response"
-POSITIVE = ("reference_bucket", "flex_lumped", "flex_topo")
+POSITIVE = (
+    "reference_bucket",
+    "flex_lumped",
+    "flex_topo",
+    "reference_interception_no_canopy",
+)
 NEGATIVE = (
     "reference_interception_blind",
     "reference_interception_wetter",
@@ -94,9 +99,20 @@ def test_a_declared_gwex_is_a_source_in_the_paired_budget():
 
 
 def test_runoff_rising_is_caught_by_the_direction_check():
-    result = _score(_run(2.0), _run(10.0, mrro=5.0))
+    # 0.5 mm rise is 6.25% of the capacity change, over the 5% rule, while the
+    # paired residual stays inside its 1 mm allowance (R = 1.0 mm).
+    result = _score(_run(2.0), _run(10.0, et=4.0, mrro=0.5, storage=-3.5))
     assert not result.passed
     assert result.diagnostics["failing_check"] == "runoff_rise"
+
+
+def test_the_residual_floor_is_on_the_paired_residual_only():
+    # R = 0.6 mm is 7.5% of the capacity change, over the 5% rule, but inside
+    # the 1 mm residual floor. The direction checks still use 5%.
+    result = _score(_run(2.0), _run(10.0, et=4.0, mrro=-3.4))
+    assert result.passed, result.message
+    assert result.diagnostics["residual_mm"] == pytest.approx(0.6)
+    assert result.diagnostics["residual_allowance_mm"] == pytest.approx(1.0)
 
 
 def test_evaporation_falling_is_caught_by_the_direction_check():
@@ -106,9 +122,9 @@ def test_evaporation_falling_is_caught_by_the_direction_check():
 
 
 def test_a_partial_allocation_is_caught_by_the_residual():
-    # 4 mm returned as evaporation, 1 mm less runoff, 1 mm leaked: R = 2 mm,
-    # 25% of the 8 mm capacity change, over the 12.5% residual limit. The
-    # evaporation response itself is present, so criterion 4 passes.
+    # 4 mm returned as evaporation, 1 mm less runoff, 1 mm leaked: R = 2 mm
+    # against a max(0.2, 1) = 1 mm allowance. The evaporation response itself
+    # is present, so criterion 4 passes.
     result = _score(_run(2.0), _run(10.0, et=4.0, mrro=-1.0, storage=-1.0))
     assert not result.passed
     assert result.diagnostics["failing_check"] == "residual"
@@ -156,3 +172,21 @@ def test_divergent_weather_is_rejected():
 def test_the_capacity_has_to_change():
     with pytest.raises(ValueError, match="must exceed"):
         _score(_run(10.0), _run(10.0))
+
+
+def test_the_probe_declares_the_pair_and_the_optional_store():
+    probe = _probe()
+    assert probe.variants == ("capacity_low", "capacity_high")
+    assert probe.requires_static == ("canopy_capacity_mm",)
+    # canopy is optional: a model without a canopy store is scored rather
+    # than rejected as INCOMPLETE.
+    assert probe.requires_states == ("mrso",)
+    assert [c.name for c in probe.criteria] == ["interception_response"]
+
+
+def test_a_no_canopy_model_is_scored_not_incomplete():
+    outcome = run_probe(
+        registry.find_model("reference_interception_no_canopy"),
+        _probe(), [_seed()],
+    )
+    assert outcome.verdict == "PASS", outcome.failing
