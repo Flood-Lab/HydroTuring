@@ -1,0 +1,19 @@
+name: reference_interception_leaky
+version: "1.0.0"
+description: >
+  Synthetic negative control for mass/interception-response (leaky).
+  It is not physical and exists only to pin the criterion it is declared
+  against.
+authors: ["Yuanhang Liu"]
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, canopy, gw]
+needs_forcing: [pr, pet]
+needs_static: [canopy_capacity_mm]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

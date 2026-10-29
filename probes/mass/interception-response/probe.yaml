@@ -1,0 +1,70 @@
+id: mass/interception-response
+
+title: A larger canopy must intercept more water and give it back as evaporation
+
+law: mass
+track: synthetic
+version: 1
+
+authors:
+  - name: Yuanhang Liu
+    affiliation: Independent Researcher
+    github: kawh1111
+    orcid: 0009-0005-9633-6004
+
+description: >
+  The same three-year weather twice, differing only in the declared canopy
+  capacity (2 mm against 10 mm). A larger canopy intercepts more water, so
+  runoff may not rise, evaporation may not fall, and the paired budget must
+  account for the difference: the extra water has to leave as evaporation or
+  remain in a reported store. A model that declares the capacity and ignores
+  it produces two identical runs and fails the response floor, which is what
+  makes this more than a closure check.
+
+requires:
+  fluxes: [pr, evspsbl, mrro]
+  # canopy is optional: a model may route interception loss straight to
+  # evaporation and report no canopy store. When it does report one,
+  # `reported_states` counts it automatically.
+  states: [mrso]
+  static: [canopy_capacity_mm]
+
+case:
+  generator: generate.py
+  n_seeds: 3
+  timestep: PT1D
+  period_years: 3
+  spinup_days: 365
+  max_output_mb: 2.0
+  max_runtime_s: 120
+  # The budget is taken over the whole scored record, including the terminal
+  # dry spell that drains both canopies.
+  min_window_days: 1095
+  # The first name is the control. Both variants see identical weather and
+  # differ only in `static.canopy_capacity_mm`.
+  variants: [capacity_low, capacity_high]
+
+criteria:
+  - interception_response:
+      parameter: canopy_capacity_mm
+      low: capacity_low
+      high: capacity_high
+      tolerance: 0.05
+      response_floor: 0.5
+      # A 1 mm absolute floor on the paired residual only. The direction
+      # checks keep the 5% rule. The exact bucket closes to 1e-6 mm; this
+      # only keeps a numerical residual from binding at 8 mm.
+      floor_mm: 1.0
+
+baselines:
+  must_pass: [reference_bucket, flex_lumped, flex_topo, reference_interception_no_canopy]
+  must_fail:
+    reference_interception_blind: interception_response
+    reference_interception_wetter: interception_response
+    reference_interception_drier: interception_response
+    reference_interception_leaky: interception_response
+
+provenance: >
+  Synthetic. A three-year temperate record with a terminal dry spell,
+  generated at run time. The two variants share the weather and differ only
+  in the declared canopy capacity.
