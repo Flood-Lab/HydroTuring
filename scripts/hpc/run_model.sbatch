@@ -27,6 +27,9 @@ out="$HT_RUNS/$model"; mkdir -p "$out/probes"
 if [ "$#" -gt 0 ]; then
   probes=("$@")
 else
+  # A full run replaces the last one, so a run that stops early cannot leave older
+  # rows to be gathered as if they were new.
+  rm -f "$out"/probes/* "$out/result.csv"
   mapfile -t probes < <(find probes -mindepth 3 -maxdepth 3 -name probe.yaml | sed -e 's#^probes/##' -e 's#/probe.yaml$##' | sort)
 fi
 # Build first and once, then copy: the probes would otherwise queue on the lock.
