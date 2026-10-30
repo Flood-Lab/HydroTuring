@@ -1,0 +1,36 @@
+name: mcp1
+version: "5944b5f-epoch27.1"
+description: >
+  MCPModel1, the single-node Mass-Conserving Perceptron MC{O_sigma L_sigma^con}
+  of Wang and Gupta (2024): one store, an output gate that reads the store, a
+  loss gate that reads potential evaporation and is capped at it, trained on
+  the Leaf River. Packaged from YuanHWang/5MCPmodelnet_HydroTuring at 5944b5f
+  with the published checkpoint model_epoch27.pt. The store update conserves
+  mass by construction. It has no snow, canopy, groundwater or routing store,
+  which are left out rather than filled, so the probes that need them are
+  N/A (INCOMPLETE); README.md says why and what that does to its standing.
+authors:
+  - "Yuan-Heng Wang (University of Arizona)"
+  - "Hoshin V. Gupta (University of Arizona)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1029/2023WR036461"
+license: "Apache-2.0 (code and weights)"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+
+# Everything the model carries: one store and two outflows. The store is the
+# proposer's mrso and sits at the end of the row, so that the harness can
+# difference it against the row's fluxes.
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso]
+
+needs_forcing: [pr, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 2, gpu: false}
+
+# A Python loop over a scalar store: a whole record takes seconds.
+window_days: full
