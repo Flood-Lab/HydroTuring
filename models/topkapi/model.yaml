@@ -1,0 +1,35 @@
+name: topkapi
+version: "0.4.0-f7b953e.1"
+description: >
+  TOPKAPI (Liu and Todini, 2002), the physically based distributed model that
+  integrates the kinematic wave over each cell into three non-linear
+  reservoirs, soil, overland and channel, in the PyTOPKAPI implementation at
+  tag v0.4.0. Run on the four cells of upstream's own continuity test with the
+  parameters of that test, because no calibration exists for a synthetic
+  catchment; the catchment's soil capacity sets the soil depth and its stated
+  area enters only the discharge. The model has no snow, interception or
+  groundwater store, so it is N/A (INCOMPLETE) on every probe that requires
+  them. README.md lists every parameter and choice.
+authors:
+  - "Theo Vischel, Scott Sinclair (PyTOPKAPI, github.com/sahg/PyTOPKAPI)"
+  - "Zhiyu Liu, Ezio Todini (model, 2002)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.5194/hess-6-859-2002"
+license: BSD-3-Clause
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# Upstream's step is a free parameter in seconds and enters the ODE solver
+# directly; its smallest fixture is hourly. Daily is what most probes ask for.
+timestep: [PT1H, PT1D]
+
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  states: [mrso, channel]
+
+needs_forcing: [pr, pet]
+needs_static: [area_km2]
+uses_static: [soil_capacity_mm]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
