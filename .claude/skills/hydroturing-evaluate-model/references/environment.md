@@ -33,7 +33,9 @@ translates the model's Dockerfile; see `docs/running-on-a-cluster.md` and
 3.6, too old for the harness. Builds and evaluations both go to `acpu`
 (`--qos=cpu-normal`), whose nodes reach the network; `acompile` caps a user at 8 CPUs
 and 4 jobs, which is only useful for a quick `srun`. `srun` here needs `/bin/bash`
-spelled out; a bare `bash` fails with "No such file or directory".
+spelled out; a bare `bash` fails with "No such file or directory". Give a job
+`--nodes=1`: `--ntasks` alone can spread it across nodes, and a batch script then gets
+only the first node's share, which reads as model timeouts and out-of-memory kills.
 `find_model` loads every manifest, so one half-written `model.yaml` breaks `ht` for
 anyone sharing the tree: concurrent packaging needs a worktree each.
 
