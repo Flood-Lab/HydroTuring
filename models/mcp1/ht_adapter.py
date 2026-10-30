@@ -69,8 +69,8 @@ sys.path.insert(0, str(UPSTREAM))
 
 from MCPBRNN_lib_tools.MCNZoo import MCPBRNN_Generic_PETconstraint_Scaling  # noqa: E402
 
-MODEL = {"name": "mcp1", "version": "5944b5f-epoch27.1"}
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso"]
+MODEL = {"name": "mcp1", "version": "5944b5f-epoch27.2"}
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso", "snw", "canopy"]
 CHECKPOINT = UPSTREAM / "MCPmodel1" / "model_epoch27.pt"
 
 # Defaults of evaluate_model1_single_node.py at the pinned commit.
@@ -84,9 +84,14 @@ SPINUP_REPEATS = int(os.environ.get("MCP_SPINUP_REPEATS", "3"))  # upstream's re
 SPINUP_DAYS = 365
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0, "PT15M": 1.0 / 96.0, "PT5M": 1.0 / 288.0, "PT1M": 1.0 / 1440.0}
 
-NOT_REPORTED = {
+# Stores this model does not have. They hold no water, so they are reported as
+# identically zero rather than left out, and the budget probes can ask the question.
+ZERO_STORES = {
     "snw": "no snow store: rain and snow are one input, temperature is never read",
     "canopy": "no interception store",
+}
+
+NOT_REPORTED = {
     "gw": "no groundwater store: one undifferentiated store, reported as mrso",
     "channel": "no routing store: the output leaves the store directly",
     "dis": "no river: the model knows no catchment area",
@@ -207,6 +212,8 @@ def simulate(forcing: list[dict], timestep: str) -> tuple[list[dict], dict]:
             "evspsbl": float(et[i] / dt),
             "mrro": float(q[i] / dt),
             "mrso": float(store_end[i]),
+            "snw": 0.0,
+            "canopy": 0.0,
         }
         for i, step in enumerate(forcing)
     ]
@@ -221,6 +228,7 @@ def simulate(forcing: list[dict], timestep: str) -> tuple[list[dict], dict]:
         "constants": {"c_mean": C_MEAN, "c_std": C_STD},
         "spinup": f"first {SPINUP_DAYS} days of the rows, {SPINUP_REPEATS} times, from an empty store",
         "states": {"mrso": "the single store C at the end of the row (upstream c_n[t+1])"},
+        "zero_stores": ZERO_STORES,
         "not_reported": NOT_REPORTED,
     }
     return rows, notes

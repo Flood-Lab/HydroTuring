@@ -27,8 +27,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-MODEL = {"name": "simhyd", "version": "2.1.2-ht.1"}
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso", "canopy", "gw"]
+MODEL = {"name": "simhyd", "version": "2.1.2-ht.2"}
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso", "snw", "canopy", "gw"]
 STEP_DAYS = {
     "PT1D": 1.0,
     "PT1H": 1.0 / 24.0,
@@ -166,6 +166,7 @@ def main() -> int:
                 f"{row[index['Ea']] / dt_days:.15g}",
                 f"{row[index['Q']] / dt_days:.15g}",
                 f"{row[index['S2']]:.15g}",
+                0.0,
                 f"{row[index['S1']]:.15g}",
                 f"{row[index['S3']]:.15g}",
             ])
@@ -184,8 +185,10 @@ def main() -> int:
             "mrso": "S2",
             "gw": "S3",
         },
-        "not_reported": {
+        "zero_stores": {
             "snw": "the model has no snow store; all precipitation enters as rain",
+        },
+        "not_reported": {
             "channel": "the model has no routing; Qt leaves in the step it is generated",
             "dis": "the model produces a depth of runoff, not a routed discharge",
         },

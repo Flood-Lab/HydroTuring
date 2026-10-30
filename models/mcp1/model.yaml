@@ -1,5 +1,5 @@
 name: mcp1
-version: "5944b5f-epoch27.1"
+version: "5944b5f-epoch27.2"
 description: >
   MCPModel1, the single-node Mass-Conserving Perceptron MC{O_sigma L_sigma^con}
   of Wang and Gupta (2024): one store, an output gate that reads the store, a
@@ -25,7 +25,7 @@ timestep: PT1D
 # difference it against the row's fluxes.
 emits:
   fluxes: [pr, evspsbl, mrro]
-  states: [mrso]
+  states: [mrso, snw, canopy]
 
 needs_forcing: [pr, pet]
 supports:

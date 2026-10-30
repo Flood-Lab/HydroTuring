@@ -1,5 +1,5 @@
 name: mcp3
-version: "5944b5f-epoch619.1"
+version: "5944b5f-epoch619.2"
 description: >
   MCPModel3, the MA_5 architecture of Wang and Gupta (2024): three MCP nodes, a
   primary store with surface, recharge and evaporation outflows, and a surface
@@ -26,7 +26,7 @@ timestep: PT1D
 # water generated as runoff and not yet released, under channel.
 emits:
   fluxes: [pr, evspsbl, mrro]
-  states: [mrso, gw, channel]
+  states: [mrso, snw, canopy, gw, channel]
 
 needs_forcing: [pr, pet]
 supports:

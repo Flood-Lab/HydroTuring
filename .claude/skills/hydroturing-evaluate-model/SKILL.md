@@ -75,12 +75,14 @@ places where following it took judgement.
   over every known state column present (`mrso`, `snw`, `canopy`, `gw`,
   `channel`), the probe's required ones first. A groundwater box under
   `gw`, water inside a unit hydrograph under `channel` (cumulative unrouted
-  minus routed flow). A store the model structurally lacks is not
-  emitted: leave the column out and say so under `not_reported` in
-  `run.json` and in the README, as `AGENTS.md` asks (`models/wflow_sbm` does
-  this for `gw`). A column of zeros would be a fabricated value. A flux the model does
-  not compute is never fabricated; the probes that need it are N/A
-  (INCOMPLETE) instead.
+  minus routed flow). A model with stores but no `snw` or `canopy`
+  compartment reports it as zero under `zero_stores` in `run.json` (decided by the
+  maintainer on 2026-10-30, after the docs had forbidden what `flex_lumped`,
+  `sacsma_snow17` and `dhbv2` were already doing, and a snowless model could never be
+  scored on closure). Any other absent store is left out and listed under
+  `not_reported` (`models/wflow_sbm` for `gw`), and a discharge-only network has no
+  stores to zero. A flux the model does not compute is never fabricated; the probes
+  that need it are N/A (INCOMPLETE) instead.
 - **Read structure from the checkpoint when the config disagrees.** δHBV's
   shipped `config.yaml` (4 components, no routing) did not fit its weights
   (3 components, unit hydrograph). Infer from tensor shapes, record both in

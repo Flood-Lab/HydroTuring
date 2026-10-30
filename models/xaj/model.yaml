@@ -1,5 +1,5 @@
 name: xaj
-version: "0.4.0-89d7a8e.1"
+version: "0.4.0-89d7a8e.2"
 description: >
   The Xin'anjiang model (Zhao 1992), the conceptual rainfall-runoff model used
   for flood forecasting in China since the 1980s: three-layer evaporation,
@@ -29,7 +29,7 @@ timestep: PT1D
 # says so under `notes.not_reported`.
 emits:
   fluxes: [pr, evspsbl, mrro, dis]
-  states: [mrso, gw, channel]
+  states: [mrso, snw, canopy, gw, channel]
 
 # Temperature is not listed: XAJ never reads it.
 needs_forcing: [pr, pet]

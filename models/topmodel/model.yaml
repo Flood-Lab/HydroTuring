@@ -1,5 +1,5 @@
 name: topmodel
-version: "0.7.5-f60752c.1"
+version: "0.7.5-f60752c.2"
 description: >
   TOPMODEL (Beven and Kirkby 1979), the topographic-index model of variable
   contributing areas, in Wouter Buytaert's R package at V0.7.5, itself the
@@ -27,7 +27,7 @@ timestep: [PT1D, PT1H]
 # says why, and what the datum does.
 emits:
   fluxes: [pr, evspsbl, mrro, dis]
-  states: [mrso, gw, channel]
+  states: [mrso, snw, canopy, gw, channel]
 
 needs_forcing: [pr, pet]
 uses_static: [area_km2, soil_capacity_mm, main_channel_length_km, centroid_channel_length_km]

@@ -8,7 +8,7 @@
 
 suppressPackageStartupMessages(library(jsonlite))
 
-MODEL <- list(name = "topmodel", version = "0.7.5-f60752c.1")
+MODEL <- list(name = "topmodel", version = "0.7.5-f60752c.2")
 
 # Length of one row, in days and in the hours the core takes it in.
 STEPS <- list(PT1D = list(days = 1, hours = 24), PT1H = list(days = 1 / 24, hours = 1))
@@ -151,6 +151,8 @@ main <- function() {
     # mm/day over the catchment to m3/s.
     dis = fmt(rows$mrro * as.numeric(static$area_km2) / 86.4),
     mrso = fmt(rows$mrso),
+    snw = 0,
+    canopy = 0,
     gw = fmt(rows$gw),
     channel = fmt(rows$channel)
   )
@@ -165,9 +167,11 @@ main <- function() {
         gw = "unsaturated store Suz plus the saturated zone, datum - S_mean",
         channel = "water inside the delay function"
       ),
-      not_reported = list(
+      zero_stores = list(
         snw = "TOPMODEL has no snow module: all precipitation is treated as liquid",
-        canopy = "TOPMODEL has no interception store: rain goes directly to the root zone",
+        canopy = "TOPMODEL has no interception store: rain goes directly to the root zone"
+      ),
+      not_reported = list(
         snm = "TOPMODEL has no snow module, so nothing crosses a snow-module boundary",
         gwex = "TOPMODEL has no exchange across the catchment boundary: its saturated zone drains only to qs",
         energy_fluxes = "TOPMODEL has no energy balance: hfls, hfss, hfg and the radiation terms do not exist in it",

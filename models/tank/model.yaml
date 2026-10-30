@@ -1,5 +1,5 @@
 name: tank
-version: "3.0.0b3-aea105c.1"
+version: "3.0.0b3-aea105c.2"
 description: >
   The Tank Hydrologic Model of Sugawara and Funiyuki (1956), in Nazmul Ahasan's
   Python implementation at tag 3.0.0b3: four tanks in series, side outlets to
@@ -27,7 +27,7 @@ timestep: [PT1D, PT1H]
 # are absent from the model, so they are absent here rather than zero.
 emits:
   fluxes: [pr, evspsbl, mrro, dis]
-  states: [mrso, gw]
+  states: [mrso, snw, canopy, gw]
 
 needs_forcing: [pr, pet]
 needs_static: [area_km2]

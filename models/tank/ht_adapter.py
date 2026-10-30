@@ -43,8 +43,8 @@ import numpy as np
 import pandas as pd
 from tank_core import computation_helpers as ch
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "gw"]
-MODEL = {"name": "tank", "version": "3.0.0b3-aea105c.1", "revision": "aea105ca32d0957fee76fbcfe3a5b8993938c9a1"}
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "snw", "canopy", "gw"]
+MODEL = {"name": "tank", "version": "3.0.0b3-aea105c.2", "revision": "aea105ca32d0957fee76fbcfe3a5b8993938c9a1"}
 
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0}
 SUBBASIN = "catchment"
@@ -132,6 +132,8 @@ def simulate(forcing: list[dict], area_km2: float, dt_days: float) -> tuple[list
             "mrro": runoff_mm[i] / dt_days,
             "dis": float(discharge[SUBBASIN].iloc[i]),
             "mrso": end[i, 0] + end[i, 1],
+            "snw": 0.0,
+            "canopy": 0.0,
             "gw": end[i, 2] + end[i, 3],
         }
         for i in range(len(forcing))
@@ -194,9 +196,11 @@ def main() -> int:
         "status": "ok",
         "model": MODEL,
         "n_steps": len(rows),
-        "not_reported": {
+        "zero_stores": {
             "snw": "the model has no snow store; all precipitation enters the top tank as liquid",
             "canopy": "the model has no interception store",
+        },
+        "not_reported": {
             "channel": "one Subbasin has no reach; upstream's optional Muskingum routing is not configured (README.md)",
             "hfls, hfss, hfg and other energy terms": "the model has no energy balance",
         },

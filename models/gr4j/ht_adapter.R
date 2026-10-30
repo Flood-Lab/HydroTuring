@@ -11,7 +11,7 @@ suppressPackageStartupMessages({
   library(jsonlite)
 })
 
-MODEL <- list(name = "gr4j", version = "1.7.9-4bb401c.1", airGR = as.character(packageVersion("airGR")))
+MODEL <- list(name = "gr4j", version = "1.7.9-4bb401c.2", airGR = as.character(packageVersion("airGR")))
 
 # Length of one row in days, and the kernel that row runs. PT1D is GR4J and PT1H is GR4H.
 STEPS <- list(PT1D = 1, PT1H = 1 / 24)
@@ -150,6 +150,8 @@ main <- function() {
     dis = fmt(rows$mrro * area / 86.4),
     gwex = fmt(rows$gwex),
     mrso = fmt(rows$mrso),
+    snw = 0,
+    canopy = 0,
     gw = fmt(rows$gw),
     channel = fmt(rows$channel)
   )
@@ -164,9 +166,11 @@ main <- function() {
         gw = "routing store (Rout)",
         channel = "water inside the two unit hydrographs (cumulative PR - Q9 - Q1)"
       ),
-      not_reported = list(
+      zero_stores = list(
         snw = "GR4J has no snow module: all precipitation is treated as liquid",
-        canopy = "GR4J has no interception store: the P/E neutralisation holds no water between steps",
+        canopy = "GR4J has no interception store: the P/E neutralisation holds no water between steps"
+      ),
+      not_reported = list(
         snm = "GR4J has no snow module, so nothing crosses a snow-module boundary",
         energy_fluxes = "GR4J has no energy balance: hfls, hfss, hfg and the radiation terms do not exist in it",
         stage = "GR4J has no channel geometry, so no water-surface elevation"

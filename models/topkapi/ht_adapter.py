@@ -40,8 +40,8 @@ import h5py
 import numpy as np
 import pytopkapi
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "channel"]
-MODEL = {"name": "topkapi", "version": "0.4.0-f7b953e.1", "revision": "f7b953eebcb201403f80970846b429bb1081739c"}
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "snw", "canopy", "channel"]
+MODEL = {"name": "topkapi", "version": "0.4.0-f7b953e.2", "revision": "f7b953eebcb201403f80970846b429bb1081739c"}
 
 SECONDS = {"PT1D": 86400.0, "PT1H": 3600.0, "PT15M": 900.0, "PT5M": 300.0, "PT1M": 60.0}
 GROUP = "ht"
@@ -165,6 +165,8 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             # The stated area enters here and nowhere else.
             "dis": out[i] / days * area_km2 / 86.4,
             "mrso": soil[i + 1],
+            "snw": 0.0,
+            "canopy": 0.0,
             "channel": transit[i + 1],
         }
         for i in range(len(forcing))
@@ -220,9 +222,11 @@ def main() -> int:
         "status": "ok",
         "model": MODEL,
         "n_steps": len(rows),
-        "not_reported": {
+        "zero_stores": {
             "snw": "the model has no snow store; all precipitation is rain",
             "canopy": "the model has no interception store",
+        },
+        "not_reported": {
             "gw": "the model has no store below its soil store",
             "stage": "the channel depth belongs to the 4 km2 grid, not to the stated area that `dis` is scaled to",
             "hfls, hfss, hfg and other energy terms": "the model has no energy balance",

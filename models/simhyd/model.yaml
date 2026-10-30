@@ -1,5 +1,5 @@
 name: simhyd
-version: "2.1.2-ht.1"
+version: "2.1.2-ht.2"
 description: >
   SIMHYD in the form the MARRMoT toolbox gives it, m_18_simhyd_7p_3s from v2.1.2:
   an interception store, a soil store with infiltration excess, interflow and
@@ -27,7 +27,7 @@ timestep: PT1D
 
 emits:
   fluxes: [pr, evspsbl, mrro]
-  states: [mrso, canopy, gw]
+  states: [mrso, snw, canopy, gw]
 
 needs_forcing: [pr, pet]
 uses_static: [soil_capacity_mm, canopy_capacity_mm]

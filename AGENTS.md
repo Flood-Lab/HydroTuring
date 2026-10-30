@@ -267,9 +267,19 @@ actually has, including ones the probe did not name: a groundwater zone
 under `gw`, water in transit through a unit hydrograph or a channel under
 `channel`. The budget is closed over all of them. Leaving one out opens the
 budget by exactly the water it holds, and a model with a groundwater store
-that reports only soil water will be measured as leaking. A store the model
-does not have at all is not fabricated to fill a column; say so in the
-adapter's README and in `run.json`.
+that reports only soil water will be measured as leaking.
+
+A model with explicit water stores but no snow module, or no interception store,
+reports that store as identically zero and names it under `zero_stores` in
+`run.json` and in its README. That is a statement about the model's structure,
+and it can only cost the model: the budget probes require `snw` and `canopy`, and
+water the model really holds there opens the budget by exactly that amount. It
+applies to `snw` and `canopy` alone. A zero `gw` or `channel` would pass a probe
+about a store the model does not have, so leave those out and list them under
+`not_reported`. It does not apply to a model with no stores at all, such as a
+discharge-only network, whose storage is unknown rather than absent; it declares
+`states: []` and is `N/A (INCOMPLETE)` on the budget probes. A flux the model does
+not compute is never filled in.
 
 A model with an explicit exchange with the outside, a regional groundwater
 term or an inter-basin transfer, reports it as the flux `gwex`, positive

@@ -35,9 +35,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-MODEL = {"name": "cfe", "version": "f9182df-ht.1"}
+MODEL = {"name": "cfe", "version": "f9182df-ht.2"}
 DRIVER = os.environ.get("CFE_DRIVER", "/model/ht_cfe_driver")
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "gw", "channel"]
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "snw", "canopy", "gw", "channel"]
 SECONDS_PER_DAY = 86400.0
 STEP_SECONDS = {"PT1D": 86400, "PT1H": 3600, "PT15M": 900, "PT5M": 300, "PT1M": 60}
 
@@ -229,6 +229,8 @@ def main() -> int:
                 f"{mrro:.15g}",
                 f"{mrro * 1.0e-3 * area_km2 * 1.0e6 / SECONDS_PER_DAY:.15g}",
                 f"{row[index['soil']] * 1000.0:.15g}",
+                0.0,
+                0.0,
                 f"{row[index['gw']] * 1000.0:.15g}",
                 f"{(row[index['nash_surface']] + row[index['nash_subsurface']]) * 1000.0:.15g}",
             ])
@@ -240,9 +242,11 @@ def main() -> int:
         "step_seconds": step_seconds,
         "config": config,
         "changed_from_upstream_config": changed,
-        "not_reported": {
+        "zero_stores": {
             "snw": "CFE has no snow module; all precipitation enters as rain",
             "canopy": "CFE has no interception store; et_from_rainfall takes PET from the row's rain",
+        },
+        "not_reported": {
         },
         "mapping": {
             "mrro": "Q_OUT",

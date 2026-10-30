@@ -1,5 +1,5 @@
 name: mcp5
-version: "5944b5f-epoch2999.1"
+version: "5944b5f-epoch2999.2"
 description: >
   MCPModel5, the three-node distributed-input MCP network MN_SALO^DI(3) of Wang
   and Gupta (2025): three stores that each take a learned share of the rain, with
@@ -25,7 +25,7 @@ timestep: PT1D
 # difference them against the row's fluxes.
 emits:
   fluxes: [pr, evspsbl, mrro]
-  states: [mrso]
+  states: [mrso, snw, canopy]
 
 needs_forcing: [pr, pet]
 supports:

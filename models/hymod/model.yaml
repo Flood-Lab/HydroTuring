@@ -1,5 +1,5 @@
 name: hymod
-version: "0.4.0-89d7a8e.1"
+version: "0.4.0-89d7a8e.2"
 description: >
   HYMOD, the five-parameter conceptual rainfall-runoff model: a
   probability-distributed soil store (Moore 1985) feeding three quick-flow
@@ -27,7 +27,7 @@ timestep: PT1D
 # such stores; run.json says so under `notes.not_reported`.
 emits:
   fluxes: [pr, evspsbl, mrro, dis]
-  states: [mrso, gw, channel]
+  states: [mrso, snw, canopy, gw, channel]
 
 # Temperature is not listed: HYMOD never reads it.
 needs_forcing: [pr, pet]

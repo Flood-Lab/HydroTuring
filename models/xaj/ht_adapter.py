@@ -36,10 +36,10 @@ from pathlib import Path
 import numpy as np
 from hydromodel.models.xaj import generation, linear_reservoir, sources, xaj
 
-COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "gw", "channel"]
+COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "snw", "canopy", "gw", "channel"]
 MODEL = {
     "name": "xaj",
-    "version": "0.4.0-89d7a8e.1",
+    "version": "0.4.0-89d7a8e.2",
     "source": "OuyangWenyu/hydromodel@89d7a8ed1d72ce4fffbbd9897490b089382ecbac",
 }
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0}
@@ -54,9 +54,14 @@ PUBLISHED = {
 # Upstream's order for the parameter vector.
 ORDER = ["K", "B", "IM", "UM", "LM", "DM", "C", "SM", "EX", "KI", "KG", "CS", "L", "CI", "CG"]
 
-NOT_REPORTED = {
+# Stores this model does not have. They hold no water, so they are reported as
+# identically zero rather than left out, and the budget probes can ask the question.
+ZERO_STORES = {
     "snw": "XAJ has no snow module: all precipitation is treated as liquid, whatever the temperature",
     "canopy": "XAJ has no interception store",
+}
+
+NOT_REPORTED = {
     "gwex": "XAJ has no declared exchange with the outside",
     "stage": "XAJ has no channel geometry or hydraulics, so a stage would be invented by the adapter",
 }
@@ -191,6 +196,8 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             "mrro": mrro,
             "dis": mrro * 1e-3 * area_km2 * 1e6 / SECONDS_PER_DAY,
             "mrso": float(soil[t]),
+            "snw": 0.0,
+            "canopy": 0.0,
             "gw": float(ground[t]),
             "channel": float(channel[t]),
         })
@@ -200,6 +207,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         "capacity_source": "soil_capacity_mm sets UM+LM+DM" if "soil_capacity_mm" in static else "published",
         "options": {"name": "xaj", "source_type": "sources", "source_book": "HF"},
         "agreement_with_xaj_mm": gap,
+        "zero_stores": ZERO_STORES,
         "not_reported": NOT_REPORTED,
     }
     return rows, notes
