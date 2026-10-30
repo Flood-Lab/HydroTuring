@@ -41,7 +41,8 @@ to change for elsewhere. `env.sh` keeps everything that grows on scratch; it exp
 a virtual environment with the harness's dependencies at `$HT_VENV`.
 
 ```bash
-# Build the image and check the adapter. The compile partition has network access.
+# Build the image and check the adapter. A build needs network access; Alpine's CPU
+# nodes have it, but check that yours do.
 sbatch --chdir="$PWD" scripts/hpc/build_model.sbatch cwatm
 
 # Evaluate on every probe, side by side, one task per probe.

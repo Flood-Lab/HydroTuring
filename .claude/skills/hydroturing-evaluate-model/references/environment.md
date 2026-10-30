@@ -30,8 +30,10 @@ related runs on the login node, and neither does any model. `--runner apptainer`
 translates the model's Dockerfile; see `docs/running-on-a-cluster.md` and
 `scripts/hpc/`. Harness venv, images and caches live under
 `/scratch/alpine/$USER/hydroturing/` (`$HOME` is 2 GB). The login node's `python3` is
-3.6, too old for the harness. Builds go to `acompile` (`--qos=compile`: 8 CPUs and 4
-jobs per user, so builds take turns); evaluations go to `acpu` (`--qos=cpu-normal`).
+3.6, too old for the harness. Builds and evaluations both go to `acpu`
+(`--qos=cpu-normal`), whose nodes reach the network; `acompile` caps a user at 8 CPUs
+and 4 jobs, which is only useful for a quick `srun`. `srun` here needs `/bin/bash`
+spelled out; a bare `bash` fails with "No such file or directory".
 `find_model` loads every manifest, so one half-written `model.yaml` breaks `ht` for
 anyone sharing the tree: concurrent packaging needs a worktree each.
 

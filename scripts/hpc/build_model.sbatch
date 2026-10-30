@@ -3,12 +3,12 @@
 #
 #   sbatch --chdir=<repo> scripts/hpc/build_model.sbatch <model> [probe]
 #
-# On the compile partition: its nodes reach the network, which a build needs and
-# an evaluation does not.
+# Alpine's CPU nodes reach the network, which a build needs. Its compile partition
+# would too, but caps a user at 8 CPUs and 4 jobs, too few for several models at once.
 #SBATCH --job-name=ht-build
-#SBATCH --partition=acompile
-#SBATCH --qos=compile
-#SBATCH --ntasks=2
+#SBATCH --partition=acpu
+#SBATCH --qos=cpu-normal
+#SBATCH --ntasks=4
 #SBATCH --time=06:00:00
 #SBATCH --output=%x-%j.out
 set -u
