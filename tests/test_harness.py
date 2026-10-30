@@ -674,7 +674,7 @@ def test_every_packaged_dockerfile_translates_to_apptainer(tmp_path):
 
 def test_apptainer_translation_keeps_dockerfile_meaning():
     from hydroturing.runner.apptainer_runner import (
-        env_pairs, final_workdir, logical_lines, parse_dockerfile,
+        env_pairs, final_workdir, flattened, logical_lines, parse_dockerfile,
     )
 
     text = """
@@ -700,6 +700,10 @@ def test_apptainer_translation_keeps_dockerfile_meaning():
     assert " ".join(stages[0].instructions[1].value.split()) == "echo one && echo two"
     # The later stage names no directory of its own, so it starts in env's.
     assert final_workdir(stages) == "/first"
+    # It carries on from env in one recipe rather than unpacking env's image.
+    whole = flattened(stages[1], stages)
+    assert whole.base == "debian:13@sha256:abc"
+    assert [i.keyword for i in whole.instructions] == ["ENV", "RUN", "WORKDIR"]
     assert "ENTRYPOINT []" in logical_lines(text)
 
 

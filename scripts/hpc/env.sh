@@ -1,6 +1,7 @@
 # Sourced by the batch scripts here. Everything that grows lives on scratch:
 # a cluster's home is small, and an image cache is large and can be rebuilt.
 # Override any of these before submitting.
+: "${USER:=$(id -un)}"; export USER
 export HT_SCRATCH="${HT_SCRATCH:-/scratch/alpine/$USER/hydroturing}"
 export HT_VENV="${HT_VENV:-$HT_SCRATCH/venv}"
 export HT_RUNS="${HT_RUNS:-$HT_SCRATCH/runs}"

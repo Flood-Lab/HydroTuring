@@ -196,12 +196,29 @@ def lineage(stage: Stage, stages: list[Stage]) -> list[Stage]:
     return chain
 
 
+def flattened(stage: Stage, stages: list[Stage]) -> Stage:
+    """A stage as one recipe: its ancestors' instructions, then its own.
+
+    `FROM env` means carrying on from env, which one definition file says
+    directly. Bootstrapping from env's finished image instead has Apptainer
+    unpack it again, and that fails on a conda tree of tens of thousands of
+    hard links.
+    """
+    chain = lineage(stage, stages)
+    return Stage(
+        base=chain[0].base,
+        name=stage.name,
+        instructions=[i for link in chain for i in link.instructions],
+        args=chain[0].args,
+    )
+
+
 def stage_workdir(stage: Stage, stages: list[Stage]) -> str:
-    """The directory a stage ends in, which one built on it starts from."""
-    for ancestor in reversed(lineage(stage, stages)):
-        for instruction in reversed(ancestor.instructions):
-            if instruction.keyword == "WORKDIR":
-                return _expand(instruction.value, ancestor)
+    """The directory a stage ends in."""
+    whole = flattened(stage, stages)
+    for instruction in reversed(whole.instructions):
+        if instruction.keyword == "WORKDIR":
+            return _expand(instruction.value, whole)
     return "/"
 
 
@@ -238,15 +255,13 @@ class ImageBuilder:
         self.images: dict[str, Path] = {}
 
     def needed(self) -> list[Stage]:
-        """The final stage and whatever it reads from, in build order."""
+        """The final stage and the ones it copies from, in build order."""
         by_name = {s.name: s for s in self.stages if s.name}
         wanted = {id(self.stages[-1])}
         for stage in reversed(self.stages):
             if id(stage) not in wanted:
                 continue
-            if stage.base in by_name:
-                wanted.add(id(by_name[stage.base]))
-            for instruction in stage.instructions:
+            for instruction in flattened(stage, self.stages).instructions:
                 if instruction.keyword == "COPY":
                     source = split_copy(instruction.value)[0].get("from")
                     if source in by_name:
@@ -257,7 +272,7 @@ class ImageBuilder:
         stages = self.needed()
         for index, stage in enumerate(stages):
             target = destination if stage is stages[-1] else self.build_dir / f"stage{index}.sif"
-            self.build_stage(stage, index, target)
+            self.build_stage(flattened(stage, self.stages), index, target)
             if stage.name:
                 self.images[stage.name] = target
 
@@ -279,15 +294,7 @@ class ImageBuilder:
             '[ -f "$f" ] && . "$f"; done; true',
         ]
         environment: list[str] = []
-        # A stage built on an earlier one inherits its ENV and directory. The
-        # image's own environment file may not carry them through a second
-        # definition's %environment, so they are written out again.
-        ancestors = lineage(stage, self.stages)[:-1]
-        workdir = stage_workdir(ancestors[-1], self.stages) if ancestors else "/"
-        for ancestor in ancestors:
-            for instruction in ancestor.instructions:
-                if instruction.keyword == "ENV":
-                    environment += [f"export {k}={v}" for k, v in env_pairs(instruction.value)]
+        workdir = "/"
         count = 0
         for instruction in stage.instructions:
             keyword, value = instruction.keyword, instruction.value
@@ -312,12 +319,9 @@ class ImageBuilder:
                 count = self.stage_copy(value, stage, index, count, workdir, files, post)
         post.append(f"rm -rf {CONTEXT_MOUNT}")
         lines: list[str] = []
-        if stage.base in self.images:
-            lines += ["Bootstrap: localimage", f"From: {self.images[stage.base]}"]
-        else:
-            if stage.base.lower() == "scratch":
-                raise RunnerError("Dockerfile: FROM scratch has no Apptainer translation")
-            lines += ["Bootstrap: docker", f"From: {stage.base}"]
+        if stage.base.lower() == "scratch":
+            raise RunnerError("Dockerfile: FROM scratch has no Apptainer translation")
+        lines += ["Bootstrap: docker", f"From: {stage.base}"]
         lines.append("")
         if files:
             lines += ["%files", *files, ""]
