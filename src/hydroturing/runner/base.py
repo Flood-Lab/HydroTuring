@@ -1,6 +1,7 @@
 """Runner interface.
 
-Two implementations, chosen by the model manifest.
+Three implementations: the first two chosen by the model manifest, the third by
+`--runner apptainer` on a host that has no Docker daemon.
 
 `subprocess` is reserved for the reference models that ship in this repo.
 They are trusted, they are pure Python, and running them without Docker keeps
@@ -9,6 +10,9 @@ the probe acceptance gate fast enough to sit on every pull request.
 `docker` is what every submitted model uses. The container never sees the
 probe code, the criteria, or the tolerances. It sees /io/input and nothing
 else, so a model cannot read the threshold it is being judged against.
+
+`apptainer` builds the same Dockerfile and applies the same isolation on a shared
+cluster, where a user has neither root nor a daemon.
 """
 
 from __future__ import annotations
@@ -42,9 +46,12 @@ class Runner(ABC):
 
 
 def get_runner(model: ModelManifest) -> Runner:
+    from hydroturing.runner.apptainer_runner import ApptainerRunner
     from hydroturing.runner.docker_runner import DockerRunner
     from hydroturing.runner.subprocess_runner import SubprocessRunner
 
     if model.runner == "subprocess":
         return SubprocessRunner()
+    if model.runner == "apptainer":
+        return ApptainerRunner()
     return DockerRunner()
