@@ -1,0 +1,36 @@
+name: simhyd
+version: "2.1.2-ht.1"
+description: >
+  SIMHYD in the form the MARRMoT toolbox gives it, m_18_simhyd_7p_3s from v2.1.2:
+  an interception store, a soil store with infiltration excess, interflow and
+  recharge, and a linear groundwater store, solved with implicit Euler. MARRMoT's
+  own MATLAB, unmodified, under GNU Octave 6.4.0. MARRMoT's authors distinguish
+  their formulations from the original models; this is not Chiew et al.'s code,
+  and it is not the differentiable SIMHYD inside PD-HTHM (issue #120). No calibration
+  exists for the synthetic catchment: the parameters are the midpoints of MARRMoT's
+  documented ranges with the two capacities from the case, the initial stores are
+  zero, and README.md gives the provenance and the sensitivity. The model has no snow
+  store, so the column is left out rather than reported as zero, and every probe that
+  requires it is N/A (INCOMPLETE).
+authors:
+  - "Francis Chiew, Murray Peel, Andrew Western (SIMHYD, 2002)"
+  - "Wouter Knoben, Luca Trotter, and the MARRMoT contributors (toolbox and this formulation)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.5194/gmd-15-6359-2022"
+license: "GPL-3.0 (MARRMoT); adapter under this repository's licence"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# Every process is a rate against delta_t in days, so finer steps are formally handled
+# and the resolution probe measures them, but the proposal claims the daily step only.
+timestep: PT1D
+
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, canopy, gw]
+
+needs_forcing: [pr, pet]
+uses_static: [soil_capacity_mm, canopy_capacity_mm]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 2, gpu: false}

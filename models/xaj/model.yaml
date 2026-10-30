@@ -1,0 +1,43 @@
+name: xaj
+version: "0.4.0-89d7a8e.1"
+description: >
+  The Xin'anjiang model (Zhao 1992), the conceptual rainfall-runoff model used
+  for flood forecasting in China since the 1980s: three-layer evaporation,
+  saturation-excess runoff over a distributed tension-water capacity, free
+  water separating surface, interflow and groundwater runoff, and lag-recession
+  channel routing. Packaged from OuyangWenyu/hydromodel v0.4.0 at commit
+  89d7a8e, running upstream's own xaj.py unmodified. Reports its stores, so the
+  budget can be measured; it has no snow or interception store and reports
+  neither, which is what leaves it N/A on the probes that require them.
+  README.md gives every parameter and where it came from.
+authors:
+  - "R.-J. Zhao (Xin'anjiang model, 1992)"
+  - "Wenyu Ouyang (hydromodel)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1016/0022-1694(92)90096-E"
+license: "GPL-3.0"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# The step in the submission. The adapter rescales its rate constants and lag
+# for the next finer step, which the resolution probe asks of every model.
+timestep: PT1D
+
+# `mrso` is the three tension layers and the free water, `gw` the interflow and
+# groundwater reservoirs, `channel` the lag and recession of the channel routing.
+# `snw` and `canopy` are absent because the model has no such stores; run.json
+# says so under `notes.not_reported`.
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  states: [mrso, gw, channel]
+
+# Temperature is not listed: XAJ never reads it.
+needs_forcing: [pr, pet]
+needs_static: [area_km2]
+uses_static: [soil_capacity_mm]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
+
+# A ten-year record runs in about two seconds, so nothing is gained by cutting it.
+window_days: full

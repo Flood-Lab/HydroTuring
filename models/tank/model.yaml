@@ -1,0 +1,39 @@
+name: tank
+version: "3.0.0b3-aea105c.1"
+description: >
+  The Tank Hydrologic Model of Sugawara and Funiyuki (1956), in Nazmul Ahasan's
+  Python implementation at tag 3.0.0b3: four tanks in series, side outlets to
+  runoff and bottom outlets to the tank below, with precipitation and
+  evaporation acting on the top tank alone. Run lumped, as one Subbasin, on the
+  midpoints of Sugawara's published parameter ranges, because no calibration
+  exists for a synthetic catchment. The model has no snow store, no
+  interception store and, without a configured reach, no channel, so it is
+  N/A (INCOMPLETE) on every probe that requires them. README.md lists every
+  parameter and choice.
+authors:
+  - "Nazmul Ahasan (implementation, github.com/nzahasan/tank-model)"
+  - "M. Sugawara and Y. Funiyuki (model, 1956)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1002/hyp.5984"
+license: MIT
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# Upstream's step is a free parameter (`interval`, hours). PT1D is what the
+# published coefficients are per; PT1H is reached by rescaling them to the step.
+timestep: [PT1D, PT1H]
+
+# Every store the model has is under mrso or gw. Snow, interception and channel
+# are absent from the model, so they are absent here rather than zero.
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  states: [mrso, gw]
+
+needs_forcing: [pr, pet]
+needs_static: [area_km2]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
+
+# A lumped catchment runs the longest record in well under a second.
+window_days: full

@@ -1,0 +1,39 @@
+name: mcp2
+version: "5944b5f-epoch3.1"
+description: >
+  MCPModel2, the single-node Mass-Conserving Perceptron with state-dependent
+  mass relaxation MC{O_sigma L_sigma^con M_sigma_r^R} of Wang and Gupta (2024):
+  MCPModel1's store and gates plus a learned term that adds water below a
+  learned storage level and removes it above, trained on the Leaf River.
+  Packaged from YuanHWang/5MCPmodelnet_HydroTuring at 5944b5f with the published
+  checkpoint model_epoch3.pt. The relaxation is reported as gwex, the exchange
+  with the outside it is. No snow, canopy, groundwater or routing store, which
+  are left out rather than filled, so the probes that need them are
+  N/A (INCOMPLETE); README.md says why and what that does to its standing.
+authors:
+  - "Yuan-Heng Wang (University of Arizona)"
+  - "Hoshin V. Gupta (University of Arizona)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1029/2023WR036461"
+license: "Apache-2.0 (code and weights)"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+
+# One store and two outflows, like MCPModel1, plus the relaxation, which moves
+# water across the model's boundary and is therefore declared as gwex rather
+# than left as the residual of a budget that would otherwise not close. The
+# store sits at the end of the row, so that the harness can difference it
+# against the row's fluxes.
+emits:
+  fluxes: [pr, evspsbl, mrro, gwex]
+  states: [mrso]
+
+needs_forcing: [pr, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 2, gpu: false}
+
+# A Python loop over a scalar store: a whole record takes seconds.
+window_days: full
