@@ -84,6 +84,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `mcp3` | Yuan-Heng Wang (University of Arizona), [#91](../../issues/91) | HydroTuring maintainers |
 | `mcp4` | Yuan-Heng Wang (University of Arizona), [#92](../../issues/92) | HydroTuring maintainers |
 | `mcp5` | Yuan-Heng Wang (University of Arizona), [#93](../../issues/93) | HydroTuring maintainers |
+| `raven` | Yan Chen (Colorado State University), [#116](../../issues/116) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:
