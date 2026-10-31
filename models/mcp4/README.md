@@ -100,17 +100,18 @@ Named under `not_reported`. The model has none of these, and none is filled in.
 ## Choices, and how much each moves the results
 
 **Spin-up.** Upstream repeats the first water year three times in front of the record, from empty
-stores. The adapter does the same with the first 365 days of the rows it is given, or all of them
-when the record is shorter. Those rows run before row 0 and are never reported. On daily probes
+stores. The adapter does the same with the first 365 days of the rows it is given, and none when the record is shorter than a year: it has no year to repeat, and all of it may be scored, so replaying it would set row 0's store from weather that comes later. Those rows run before row 0 and are never reported. On daily probes
 that is three times the case's own 365-day spin-up, nothing later than it, so it is causal. The table is the adapter run directly under the same harness and gate seeds, on every probe that scores this model, after the zero-store rule; at three repeats that run reproduces every archived verdict.
 
 | Repeats | Result |
 | --- | --- |
-| 0 | `resolution-invariance` PASS (`mrso_end` 0.5% of rain); no other verdict changes |
+| 0 (this probe) | `resolution-invariance` PASS (`mrso_end` 0.5% of rain); no other verdict changes |
 | 1 | `resolution-invariance` PASS (`mrro` 2.9%); no other verdict changes |
-| 3 (used) | `resolution-invariance` **FAIL** (`mrso_end` 15.5%) |
+| 3 (other probes) | `resolution-invariance` **FAIL** (`mrso_end` 15.5%) |
 
-So this model's `resolution-invariance` FAIL depends on the spin-up; see the failure below.
+The `resolution-invariance` row above is from before a short record stopped being replayed. That probe's record is
+40 days, all of it weather the model is later scored on, so replaying it set row 0's store from what comes later. It
+now runs as the 0 row. Every other probe has a full first year and still runs as the 3 row.
 
 A first version cycled a short record until it filled three years. On the resolution probe that
 fed the model a 40-day stretch of 7-8 mm/day for three years, about 2.6 m/yr, and `mrso_end` then
@@ -136,12 +137,9 @@ resolution numbers by at most 0.03% of rain, so the form of the rule is not what
 
 ## Verdict
 
-Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch2707.3`: **FAIL (VIOLATION), 7 of 20 scored**, 17 N/A
+Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch2707.4`: **FAIL (VIOLATION), 8 of 20 scored**, 17 N/A
 (16 INCOMPLETE, 1 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not
 read). The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `gwex`, `channel`, `stage` and `dis`.
-
-**`resolution-invariance` is not robust.** Its FAIL holds at three spin-up repeats and is a PASS at zero and at one
-(table above). Read that row as undecided.
 
 `closure` passes on all eight probes that score it, worst residual 4.5e-7 of the rain, which is single-precision
 round-off in updates that conserve mass by construction. Trivial passes for this model: `area-invariance` (reads no
@@ -164,7 +162,7 @@ Five of the 13 FAILs are `state_bounds` and nothing else.
 | mass/multi-decadal-drift | **FAIL** | `state_bounds`: `mrso` 645-695 mm against 320; `et_plausible`: 1 + 4.2e-8 of demand, round-off; no drift |
 | mass/phase-counterfactual | PASS | trivially: the model reads no temperature |
 | mass/precipitation-counterfactual | **FAIL** | `state_bounds`: `mrso` 433-821 mm against 320; the partition passes |
-| mass/resolution-invariance | **FAIL** | `mrso_end` 15.5% of rain; **depends on the spin-up** |
+| mass/resolution-invariance | PASS | `mrso_end` 0.5% of rain |
 | mass/response-nonnegativity | **FAIL** | `mrro` 0.614 mm/day below control after added rain |
 | mass/runoff-bounds | PASS | runoff 0.37 of rain |
 | mass/spinup-cycle-invariance | **FAIL** | `state_bounds`: `mrso` 429-743 mm against 320; the invariance passes |
@@ -241,12 +239,6 @@ far as the one before (111% on the worst seed) and the criterion's slow-settling
 does not apply. Continuing the run past the probe, each year's range in Q is 5.3%, 2.4%, 1.0%, 0.4%, 0.2% of its
 level, and zero to four digits within about twelve more years. The verdict is correct on its terms; the model takes
 about a decade to stop moving.
-
-**resolution-invariance: the two steps enter the scored month in different states.** Volumes over the month
-agree (`mrro` within 5.2% of rain, `evspsbl` within 0.13%). What exceeds the limit is `mrso_end`, an absolute
-state: 738 against 760 mm entering the month and 752 against 785 mm leaving it, on the first seed. Starting
-both steps from one shared state, the month itself differs by 1.1-3.3% of rain. So the difference accumulates
-over the spin-up, and with no spin-up in front the verdict is PASS (table above).
 
 ## Packaging
 

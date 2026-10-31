@@ -1,5 +1,5 @@
 name: rvic
-version: "1.1.1-ht.2"
+version: "1.1.1-ht.3"
 description: >
   RVIC 1.1.1, the source-to-outlet routing model of Lohmann et al.: a linearised
   Saint-Venant impulse response built once before the run and convolved with the

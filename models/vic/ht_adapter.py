@@ -57,7 +57,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
-MODEL = {"name": "vic", "version": "5.1.0-14a371a.3"}
+MODEL = {"name": "vic", "version": "5.1.0-14a371a.4"}
 FULL_ENERGY = os.environ.get("VIC_HT_FULL_ENERGY", "1") == "1"
 COLUMNS = ["time", "pr", "evspsbl", "mrro"] + (["hfls", "hfss", "hfg", "rlus", "ts"] if FULL_ENERGY else []) + \
           ["mrso", "snw", "canopy"]
@@ -267,7 +267,7 @@ def write_global(path: Path, start: datetime, n: int, model_steps: int, snow_ste
         "CONSTANTS %s/constants.txt" % WORK,
         "RESULT_DIR %s/out" % WORK,
         "OUTFILE ht",
-        "AGGFREQ %s" % ("NDAYS 1" if daily_output else "NSTEPS 1"),
+        "AGGFREQ NSTEPS %d" % (model_steps if daily_output else 1),
         "COMPRESS FALSE",
         "OUT_FORMAT ASCII",
         "OUTVAR OUT_SOIL_MOIST %.10g * *",
@@ -275,7 +275,7 @@ def write_global(path: Path, start: datetime, n: int, model_steps: int, snow_ste
     path.write_text("\n".join(lines) + "\n")
 
 
-def read_output(path: Path, expected: int) -> dict[str, list[float]]:
+def read_output(path: Path, at_least: int, at_most: int) -> dict[str, list[float]]:
     names = [f"OUT_SOIL_MOIST_{k}" for k in range(NLAYER)] + OUTPUT_VARS
     columns = {name: [] for name in names}
     for line in path.read_text().splitlines():
@@ -286,8 +286,8 @@ def read_output(path: Path, expected: int) -> dict[str, list[float]]:
             continue
         for name, value in zip(names, parts[-len(names):]):
             columns[name].append(float(value))
-    if len(columns["OUT_EVAP"]) != expected:
-        raise RuntimeError(f"VIC wrote {len(columns['OUT_EVAP'])} rows for {expected}")
+    if not at_least <= len(columns["OUT_EVAP"]) <= at_most:
+        raise RuntimeError(f"VIC wrote {len(columns['OUT_EVAP'])} rows for {at_least} to {at_most}")
     return columns
 
 
@@ -338,14 +338,16 @@ def simulate(rows: list[dict], static: dict, timestep: str, substep: str | None 
     # gets rainless copies of its last row after the end, and they are dropped from the
     # output, so they can reach no row that is reported.
     start_seconds = start.hour * 3600 + start.minute * 60 + start.second
-    padding = 0
-    if timestep != "PT1D":
-        leftover = (start_seconds + n * (86400 // steps_per_day)) % 86400
-        padding = (86400 - leftover) // (86400 // steps_per_day) if leftover else 0
-    write_forcing(WORK / f"forcing_{tag}", pr + [0.0] * padding, tas + [tas[-1]] * padding,
-                  pet + [pet[-1]] * padding, rlds + [rlds[-1]] * padding if rlds else None,
-                  dt_days, per_row, pressure_pa, pt_factor)
-    nrecs = n * (model_steps if timestep == "PT1D" else 1) + padding
+    # In records, so a daily row that does not start at midnight is padded in hours.
+    record_s = 86400 // model_steps
+    leftover = (start_seconds + n * per_row * record_s) % 86400
+    padding = (86400 - leftover) // record_s if leftover else 0
+    write_forcing(WORK / f"forcing_{tag}", pr, tas, pet, rlds, dt_days, per_row, pressure_pa, pt_factor)
+    if padding:
+        with open(WORK / f"forcing_{tag}", "a") as fh:
+            sw, lw, vp = mock_atmosphere(tas[-1], pet[-1], rlds[-1] if rlds else None, pt_factor, pressure_pa)
+            fh.write("0 %.9g %.9g %.9g %.9g %.9g %.9g\n" % (tas[-1], sw, lw, pressure_pa / 1000.0, vp, WIND_M_S) * padding)
+    nrecs = n * per_row + padding
     write_global(WORK / "global.txt", start, nrecs, model_steps, snow_steps, runoff_steps, atmos_steps,
                  daily_output=timestep == "PT1D" and model_steps > 1)
     staged = time.monotonic()
@@ -358,7 +360,9 @@ def simulate(rows: list[dict], static: dict, timestep: str, substep: str | None 
         tail = "\n".join(log.strip().splitlines()[-25:])
         raise RuntimeError(f"VIC failed (exit {proc.returncode}):\n{tail}")
     ran = time.monotonic()
-    out = read_output(outputs[0], n + padding)
+    # The padding is dropped: at a record per row it is its own rows, and on a held row a
+    # part-filled row VIC may or may not write.
+    out = read_output(outputs[0], n, n + (padding if per_row == 1 else padding // per_row + 1))
     out = {name: values[:n] for name, values in out.items()}
 
     per_day = float(steps_per_day)

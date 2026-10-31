@@ -164,7 +164,7 @@ Nothing else in the adapter moved a verdict. It stays at upstream's tolerances a
 
 ## Evaluation
 
-Gate seeds, all 37 probes, Apptainer: **3 PASS, 19 FAIL, 15 N/A** (11 INCOMPLETE, 4 INCOMPATIBLE) at version `1.1.1-ht.2`, tag
+Gate seeds, all 37 probes, Apptainer: **3 PASS, 19 FAIL, 15 N/A** (11 INCOMPLETE, 4 INCOMPATIBLE) at version `1.1.1-ht.3`, tag
 `cpu-accel-v1.1.1`. About 1 s per simulated year.
 
 Four mechanisms, used in the table:
@@ -197,7 +197,7 @@ Four mechanisms, used in the table:
 | `mass/multi-decadal-drift` | **FAIL** | residual 59.5%; pond below zero on all 18250 rows; runoff ratio 0 | leak, verified: under this drizzle it takes everything ET leaves. Pond: solver, verified | FAIL | FAIL |
 | `mass/phase-counterfactual` | **FAIL** | −8.3% of rain | leak, verified: snow bypasses the canopy, rain does not, so changing phase changes the loss | PASS | PASS 2.9% |
 | `mass/precipitation-counterfactual` | **FAIL** | residual 32.3%; responses account for 0.78 of added rain | leak, verified | PASS | PASS |
-| `mass/resolution-invariance` | **FAIL** | runoff differs 40.9% of rain between hour and day | leak, verified: hourly rain falls in fewer solver steps, so less is lost (seed 746687816: `mrro` 73.7 mm daily, 160.7 mm hourly, of 212.5 mm). What remains is the split below ground: at `VEGFRAC` 1, `mrso_end` 24.9 and 48.4 mm, `gw_end` 78.3 and 58.8 mm, and runoff within 8.9 mm | FAIL 10.5% | FAIL 14.7% |
+| `mass/resolution-invariance` | **FAIL** | runoff differs 33.0% of rain between hour and day; it was 40.9% before hourly weather stopped arriving up to one 10-minute step late | leak, verified: hourly rain falls in fewer solver steps, so less is lost (seed 746687816, on that earlier image: `mrro` 73.7 mm daily, 160.7 mm hourly, of 212.5 mm). What remains is the split below ground: at `VEGFRAC` 1, `mrso_end` 24.9 and 48.4 mm, `gw_end` 78.3 and 58.8 mm, and runoff within 8.9 mm | FAIL 10.5% | FAIL 14.7% |
 | `mass/response-nonnegativity` | **FAIL** | never falls below control; runoff ratio 0.015 | leak, verified. Without the leak the wet-soil mechanism appears: runoff 1 to 4 mm/day below control a month after the pulse, also at `TOL` 1e-6 | FAIL | FAIL |
 | `mass/spinup-cycle-invariance` | **FAIL** | residual 41.2%; pond negative; ratio 0.009; runoff differs 294% of the 0.05 mm/day floor | leak and solver, verified. The 294% is 0.147 mm/day on one storm day of the same date, with 0.14 to 0.39 mm differences in the stores. With the fix it is larger, and at `TOL` 1e-6 it remains: the runs do not reach one periodic solution in 6 to 10 cycles. Not traced, a finding as it stands | FAIL | FAIL |
 | `mass/steady-state` | **FAIL** | pond varies 6.4% and does not settle; 0.554 of 2.5 mm/day unaccounted for; runoff zero | leak, verified; pond noise: solver, verified: the pond is constant at `TOL` 1e-6. On master the store trend remains, inferred from the ET double count, because `VEGFRAC` 1 settles | FAIL | PASS |

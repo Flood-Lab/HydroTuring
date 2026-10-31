@@ -81,13 +81,13 @@ The first adapter applied the day-based indices to rows, so at PT1H the same wea
 different catchment: `low_prec_freq` 339 against 201 days per year, `high_prec_dur` 0.09 against
 1.0 days (seed 746687816). The CAMELS indices are defined over days, so they are now computed
 over whole days at any step. This is the only place rows are grouped, and no input the network
-reads per row comes from it. It moved `mass/resolution-invariance` from 70.1% to 60.5% and
+reads per row comes from it. It moved `mass/resolution-invariance` from 70.1% to 60.5%, before the attributes stopped being read from a 40-day record, and
 changed no verdict. Daily probes are unaffected, to the digit.
 
 ## Results
 
-From `ht run` on the gate seeds, under Apptainer, image `ealstm_0.1.2-d118158-seed111_d48f2acbf59b`,
-every row at version `0.1.2-d118158-seed111`. **5 PASS, 6 FAIL, 26 N/A** (24 INCOMPLETE, 2 INCOMPATIBLE),
+From `ht run` on the gate seeds, under Apptainer, image `ealstm_0.1.3-d118158-seed111_d48f2acbf59b`,
+every row at version `0.1.3-d118158-seed111`. **5 PASS, 6 FAIL, 26 N/A** (24 INCOMPLETE, 2 INCOMPATIBLE),
 no ERROR. The full evaluation took 7 minutes including the 3-minute image build.
 
 | Probe | Verdict | Number | Mechanism | Status |
@@ -95,7 +95,7 @@ no ERROR. The full evaluation took 7 minutes including the 3-minute image build.
 | `mass/antecedent-monotonicity` | FAIL | +0.8 mm of a 60 mm storm on the wetter catchment (+1.3, +6.5 on the others); 1.2 mm required | Low-runoff regime, below | verified |
 | `mass/causality` | FAIL | Causality itself passes, nothing moves before the storm. `non_degenerate`: runoff ratio 0.0169 (0.0387, 0.0281); 0.02 required | Low-runoff regime, below | verified |
 | `mass/dry-down` | FAIL | Weekly runoff rises by 19.0% of its first block | Seasonal response to temperature and demand, below | verified |
-| `mass/resolution-invariance` | FAIL | 60.5% of rain (32.3, 37.4); limit 10% | No step in the network's arithmetic, plus attributes from a 40-day record, below | verified |
+| `mass/resolution-invariance` | FAIL | 10.7% of rain (5.1, 6.1); limit 10% | No step in the network's arithmetic, below | verified |
 | `mass/runoff-bounds` | FAIL | 972 mm ran off where at least 1134 mm had to; 1 seed of 5 | Low-runoff regime, below | verified |
 | `mass/warming-response` | FAIL | Runoff falls by 0.069 and 0.051 per unit of demand on 2 of 5 seeds; 0.10 required. The sign is right on every seed | Low-runoff regime, below | verified |
 | `mass/area-invariance` | PASS | 0 departure | Trivial, below | |
@@ -160,11 +160,12 @@ The network has no step in its arithmetic. At PT1H the window covers 11 days ins
 each hourly rate is read as a daily one, and removing the structure inside the day moves the
 hourly volume by 41 to 142 mm, which is the model's own dependence on the step.
 
-Most of the size comes from the configuration. This probe's record is 40 days, shorter than a
-year, so the attributes describe one wet month (`p_mean` 7 to 9 mm/day, `aridity` 0.22 to 0.25),
-and on seed 1253639930 no day reaches the high-precipitation threshold at all, which gives
-`high_prec_freq` and `high_prec_dur` of zero, outside the training range. At the training mean
-the difference is 5 to 11%, still over the limit on one seed.
+The last column is what is evaluated. This probe's record is 40 days, shorter than a year and all
+of it weather the model is scored on, so it gives no climatology and the attributes stay at the
+training mean. The other columns are from an earlier version that derived them from those 40 days,
+which let later weather set them: they then described one wet month (`p_mean` 7 to 9 mm/day,
+`aridity` 0.22 to 0.25), outside the training range on seed 1253639930, and the difference reached
+60.5%. At the training mean it is 5 to 11%, still over the limit on one seed.
 
 The 10-day spinup also leaves most of the 270-row window empty: repeating the record in front
 moves the daily month from 295, 253 and 310 mm to 196, 299 and 275 mm.
@@ -196,7 +197,7 @@ the report's number, which for a PASS may be one seed's rather than the worst.
 | dry-down, rise | FAIL 19.0% | FAIL 5.5% | FAIL 16.4% | FAIL 14.1% | FAIL 10.3% |
 | extreme-rain, returned at the top | PASS 0.31 | PASS 0.31 | PASS 0.30 | PASS 0.31 | PASS 0.32 |
 | phase-counterfactual | PASS 3.8% | PASS 2.8% | PASS 1.9% | PASS 3.8% | PASS 2.7% |
-| resolution-invariance | FAIL 60.5% | FAIL 16.0% | FAIL 61.7% | FAIL 49.2% | FAIL 10.7% |
+| resolution-invariance | FAIL 10.7% (from 60.5% with the record's own attributes, as these other columns were run) | FAIL 16.0% | FAIL 61.7% | FAIL 49.2% | FAIL 10.7% |
 | response-nonnegativity | PASS | PASS | PASS | PASS | **FAIL** 0.457 mm/day dip |
 | runoff-bounds | FAIL 972 mm | PASS | PASS | FAIL 1079 mm | PASS |
 | steady-state, mm/day | PASS 0.259 | PASS 0.609 | PASS 0.300 | PASS 0.277 | PASS 0.764 |
@@ -241,7 +242,7 @@ re-run.
 | dry-down | FAIL (near-constant floor, cv 0.02) | FAIL (seasonal rises) |
 | extreme-rain | FAIL (flattens, 0.07 returned) | PASS (0.31) |
 | phase-counterfactual | FAIL (8.4%) | PASS (3.8%) |
-| resolution-invariance | FAIL (65.9%) | FAIL (60.5%) |
+| resolution-invariance | FAIL (65.9%) | FAIL (10.7%) |
 | response-nonnegativity | FAIL (0.176 mm/day dip) | PASS |
 | runoff-bounds | PASS | FAIL (1 seed of 5) |
 | steady-state | PASS | PASS |
