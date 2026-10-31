@@ -284,3 +284,9 @@ crosswalk:
     canopy: "0"
     gw: "gw_c[t+1]"
     channel: "sw_c[t+1]"
+  mcp4:
+    evspsbl: "lc_n @ w"
+    mrro: "hnout"
+    mrso: "c_n[t+1] @ w"
+    snw: "0"
+    canopy: "0"
