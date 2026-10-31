@@ -71,7 +71,7 @@ still has to read something, and upstream's own pipeline gives it the daily mean
 (`BaseDataset`, `resample(freq).mean()`). The adapter does the same, for that branch alone and only
 for whole days before the hourly window; no row is reported from it. This is flagged for the
 maintainer to judge. `MTSLSTM_DAILY_BRANCH=none` skips it and transfers a zero state instead: the
-worst seed goes from 49.7% to 62.2% on `resolution-invariance`, and the verdict does not move.
+worst seed went from 49.7% to 62.2% on `resolution-invariance`, with the attributes then read from the 40-day record, and the verdict did not move.
 
 ## What is reported
 
@@ -107,20 +107,20 @@ The first adapter applied the day-based indices to rows, so at PT1H the same wea
 different catchment: `low_prec_freq` 339 against 201 days per year, `high_prec_dur` 0.09 against 1.0
 days (seed 746687816). The CAMELS indices are defined over days, so they are now computed over whole
 days at any step, and no input the network reads per row comes from that. It was the largest single
-number in the first report: `mass/resolution-invariance` went from 197.6% to 49.7%, the hourly month on
+number in the first report: `mass/resolution-invariance` went from 197.6% to 49.7%, on the attributes of that version, the hourly month on
 the worst seed from 54 mm to 456 mm. The verdict did not change, and daily probes are unaffected, to
 the digit.
 
 ## Results
 
-From `ht run` on the gate seeds, under Apptainer, image `mtslstm_0.1.2-9626578-seed333_73d5ebca9a05`,
-every row at version `0.1.2-9626578-seed333`. **8 PASS, 3 FAIL, 26 N/A** (24 INCOMPLETE, 2 INCOMPATIBLE),
+From `ht run` on the gate seeds, under Apptainer, image `mtslstm_0.1.3-9626578-seed333_73d5ebca9a05`,
+every row at version `0.1.3-9626578-seed333`. **8 PASS, 3 FAIL, 26 N/A** (24 INCOMPLETE, 2 INCOMPATIBLE),
 no ERROR. The full evaluation took 17 minutes, of which the image build was 12.
 
 | Probe | Verdict | Number | Mechanism | Status |
 | --- | --- | --- | --- | --- |
 | `mass/dry-down` | FAIL | Weekly runoff rises by 5.9% of its first block | Seasonal response to temperature and demand, below | verified |
-| `mass/resolution-invariance` | FAIL | 49.7% of rain (27.6, 21.0); limit 10% | The two branches diverge mainly on attributes from a 40-day record, below | verified |
+| `mass/resolution-invariance` | FAIL | 15.2% of rain (2.1, 8.4); limit 10% | The two branches diverge on one seed of three, below | verified |
 | `mass/warming-response` | FAIL | Runoff falls by 0.084 per unit of demand on 1 of 5 seeds; 0.10 required. The sign is right on every seed | Attributes follow the warmed spinup and push the other way, below | verified |
 | `mass/antecedent-monotonicity` | PASS | +1.8, +2.1 and +6.1 mm of the 60 mm storm; 1.2 mm required | The smallest margins are thin | |
 | `mass/area-invariance` | PASS | 0 departure | Trivial, below | |
@@ -148,11 +148,12 @@ This is the question the proposal asks.
 
 On real basins with real inputs, the published simulations of the two branches agree well (last
 column of the first table: within 0.09 mm/day on the wetter basins). Here they do not, and most of
-the difference is the configuration. This probe's record is 40 days, shorter than a year, so the
-attributes describe one wet month (`p_mean` 7 to 9 mm/day, `aridity` 0.22 to 0.25). On seed
-1253639930 no day reaches the high-precipitation threshold, which gives `high_prec_freq` and
-`high_prec_dur` of zero, outside the training range, and both branches then return about twice the
-rain that fell or more.
+the difference was the configuration. The last column is what is evaluated: this probe's record is
+40 days, shorter than a year and all of it weather the model is scored on, so it gives no climatology
+and the attributes stay at the training mean. The other columns are from an earlier version that
+derived them from those 40 days, which let later weather set them: they then described one wet month
+(`p_mean` 7 to 9 mm/day, `aridity` 0.22 to 0.25), outside the training range on seed 1253639930,
+where both branches returned about twice the rain that fell or more.
 
 At the training mean the difference falls to 2 to 15%, still over the limit on one seed. Within-day
 structure moves the hourly volume by 30 to 43 mm. The 10-day spinup also fills little of the
@@ -220,7 +221,7 @@ number, which for a PASS may be one seed's rather than the worst.
 | dry-down, rise | FAIL 5.9% | FAIL 4.4%, also near-constant | FAIL 3.4%, also near-constant | FAIL 12.6% | FAIL 2.6%, also near-constant |
 | extreme-rain, returned at the top | PASS 0.24 | **FAIL** 0.10 | PASS 0.24 | **FAIL** 0.09 | PASS 0.26 |
 | phase-counterfactual | PASS 4.7% | PASS 5.0% | PASS 4.4% | PASS 1.2% | PASS 0.5% |
-| resolution-invariance | FAIL 49.7% | FAIL 19.2% | FAIL 35.9% | FAIL 37.6% | FAIL 15.2% |
+| resolution-invariance | FAIL 15.2% (from 49.7% with the record's own attributes, as these other columns were run) | FAIL 19.2% | FAIL 35.9% | FAIL 37.6% | FAIL 15.2% |
 | response-nonnegativity | PASS | PASS | PASS | PASS | PASS |
 | runoff-bounds, runoff ratio | PASS 0.18 | PASS 0.40 | PASS 0.22 | PASS 0.19 | PASS 0.38 |
 | steady-state, mm/day | PASS 0.397 | PASS 0.447 | PASS 0.434 | PASS 0.230 | PASS 0.528 |
@@ -264,7 +265,7 @@ and were not re-run.
 | dry-down | FAIL (near-constant floor) | FAIL (seasonal rises) | FAIL (seasonal rises on a recession) |
 | extreme-rain | FAIL (0.07 returned) | PASS (0.31) | PASS (0.24) |
 | phase-counterfactual | FAIL (8.4%) | PASS (3.8%) | PASS (4.7%) |
-| resolution-invariance | FAIL (65.9%) | FAIL (60.5%) | FAIL (49.7%) |
+| resolution-invariance | FAIL (65.9%) | FAIL (10.7%) | FAIL (15.2%) |
 | response-nonnegativity | FAIL (0.176 mm/day dip) | PASS | PASS |
 | runoff-bounds | PASS | FAIL (1 seed of 5) | PASS |
 | steady-state | PASS | PASS | PASS |

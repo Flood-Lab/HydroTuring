@@ -1,5 +1,5 @@
 name: noahmp
-version: "5.2.1-17751dc.4"
+version: "5.2.1-17751dc.5"
 description: >
   Noah-MP (Niu et al. 2011), the land scheme of the National Water Model, WRF and
   NASA LIS: a canopy, a layered snowpack and a layered soil column with a coupled
@@ -35,10 +35,11 @@ emits:
   states: [mrso, snw, canopy]
   diagnostics: [ts, tsoil_layer]
 
-needs_forcing: [pr, tas]
+# pet builds the sky wherever a case supplies neither rn nor both rsds and rlds.
+needs_forcing: [pr, tas, pet]
 # Consumed whenever the case supplies them. `rn` is deliberately absent: it only
 # builds a sky, and Noah-MP computes its own net radiation.
-uses_forcing: [pet, rsds, rlds, sfcWind, huss, ps]
+uses_forcing: [rsds, rlds, sfcWind, huss, ps]
 uses_static:
   - soil_capacity_mm
   - canopy_capacity_mm

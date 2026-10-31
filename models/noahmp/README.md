@@ -7,7 +7,7 @@ Valmik Nahata as [Flood-Lab/HydroTuring#59](https://github.com/Flood-Lab/HydroTu
 UCAR open-source licence, for Noah-MP and for HRLDAS; the image carries both at
 `/model/LICENSE.noahmp.txt` and `/model/LICENSE.hrldas.txt`, and is never pushed to a registry.
 
-**Result, version `5.2.1-17751dc.4`: FAIL (VIOLATION), 16 PASS, 9 FAIL, 12 N/A.** Its water budget
+**Result, version `5.2.1-17751dc.5`: FAIL (VIOLATION), 16 PASS, 9 FAIL, 12 N/A.** Its water budget
 closes on every record. Noah-MP cannot take one step per daily row, so under the `substep` rule in
 AGENTS.md a daily row is held flat for 24 hourly Noah-MP steps, and every daily verdict here describes
 that. See [the verdicts](#verdicts) for what each failure is and is not.
@@ -187,8 +187,8 @@ Built from each row alone, with no calendar, and labelled in `run.json` under `m
 A row labelled t forces the step ending at t + dt, as HRLDAS's forcing stamps do. The clock reaches
 Noah-MP only through the phenology's monthly LAI and SAI.
 
-`pet` is declared under `uses_forcing`, but it is only read when a case supplies neither `rn` nor
-both `rsds` and `rlds`, and then only to build a sky. Noah-MP computes its own demand from that sky,
+`pet` is declared under `needs_forcing`, because a sky has to come from somewhere, but it is only read when a
+case supplies neither `rn` nor both `rsds` and `rlds`, and then only to build a sky. Noah-MP computes its own demand from that sky,
 humidity and wind, so its ET is not bounded by the row's `pet`.
 
 ### Prescribed `rn`, and the maintainer's question on #59
@@ -224,8 +224,8 @@ above a temperature-dependent latent heat at these temperatures.
 ## Verdicts
 
 Run through the harness on the gate seeds, with `window_days: full`, under Apptainer, on image digest
-`cfa8964c98bb`. Numbers quoted without a probe's own report are direct runs of that image's predecessor,
-which differs only in the 1 part per million above.
+`5cb456a07b77`. Numbers quoted without a probe's own report are direct runs of an earlier image, which differs in
+the 1 part per million above and in `hfg_bottom` under snow, which no daily probe reads.
 
 | Probe | Verdict | Number | Mechanism |
 | --- | --- | --- | --- |

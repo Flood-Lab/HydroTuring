@@ -24,7 +24,7 @@ timestep: PT1D
 
 # `mrso` is the soil store, `gw` the slow reservoir, `channel` the three
 # quick-flow reservoirs. `snw` and `canopy` are zero because the model has no
-# such stores; run.json says so under `notes.zero_stores`.
+# such stores; run.json says so under `zero_stores`.
 emits:
   fluxes: [pr, evspsbl, mrro, dis]
   states: [mrso, snw, canopy, gw, channel]

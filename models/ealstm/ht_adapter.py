@@ -72,7 +72,7 @@ from main import Model  # noqa: E402  upstream's network wrapper
 from papercode.datautils import SCALER, load_attributes, normalize_features, rescale_features  # noqa: E402
 from papercode.utils import get_basin_list  # noqa: E402
 
-MODEL = {"name": "ealstm", "version": "0.1.2-d118158-seed111"}
+MODEL = {"name": "ealstm", "version": "0.1.3-d118158-seed111"}
 COLUMNS = ["time", "mrro", "dis"]
 WEIGHTS = "model_epoch30.pt"
 THREADS = int(os.environ.get("EALSTM_THREADS", "4"))
@@ -241,8 +241,10 @@ def simulate(forcing: list[dict], static: dict, seed: int, timestep: str) -> tup
     attributes = load_attributes(str(RUN_DIR / "attributes.db"), get_basin_list(), drop_lat_lon=True)
     means, stds = attributes.mean(), attributes.std()
 
-    n_clim = min(len(pr), int(round(CLIMATOLOGY_DAYS / dt_days)))
-    derived = climate_attributes(pr[:n_clim], tas[:n_clim], pet[:n_clim], dt_days)
+    # A record shorter than a year has no climatology to give, and all of it may be
+    # scored, so the attributes stay at the training means rather than look ahead.
+    n_clim = int(round(CLIMATOLOGY_DAYS / dt_days))
+    derived = climate_attributes(pr[:n_clim], tas[:n_clim], pet[:n_clim], dt_days) if len(pr) >= n_clim else {}
     hold = {g for g in os.environ.get("EALSTM_HOLD", "").split(",") if g}
     if "all" in hold:
         derived = {}

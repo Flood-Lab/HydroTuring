@@ -11,13 +11,14 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import os
 import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-MODEL = {"name": "lisflood_fp", "version": "8.1-ht.3"}
+MODEL = {"name": "lisflood_fp", "version": "8.1-ht.4"}
 EXECUTABLE = Path("/model/lisflood")
 WORK = Path("/tmp/lfp")
 
@@ -92,21 +93,32 @@ def write_inputs(forcing: list, static: dict, dt: float) -> dict:
 
 
 def read_mass(path: Path, n_rows: int, dt: float) -> tuple:
-    """Per row: the mean of the outflow samples, and the last sampled volume."""
-    totals, counts, volumes = [0.0] * n_rows, [0] * n_rows, [0.0] * n_rows
+    """Per row: the mean outflow over its interval, and the volume at its end.
+
+    A sample at t closes the interval ending at t, so one exactly on a row's end belongs
+    to that row. Outflow between samples is taken as a straight line, as a mean of the
+    samples alone would miss half of each interval's change.
+    """
+    integrals, seconds, volumes = [0.0] * n_rows, [0.0] * n_rows, [0.0] * n_rows
+    seen = [False] * n_rows
+    previous = None
     with open(path) as fh:
         next(fh)
         for line in fh:
             parts = line.split()
             t, volume, qout = float(parts[0]), float(parts[5]), float(parts[8])
-            row = min(n_rows - 1, int(t / dt))
-            totals[row] += qout
-            counts[row] += 1
+            row = 0 if t <= 0.0 else min(n_rows - 1, math.ceil(t / dt) - 1)
+            if previous is not None:
+                integrals[row] += 0.5 * (previous[1] + qout) * (t - previous[0])
+                seconds[row] += t - previous[0]
+            seen[row] = True
             volumes[row] = volume
-    empty = [i for i, c in enumerate(counts) if not c]
+            previous = (t, qout)
+    empty = [i for i, c in enumerate(seen) if not c]
     if empty:
         raise RuntimeError(f"no mass samples in rows {empty[:5]}")
-    return [a / c for a, c in zip(totals, counts)], volumes
+    means = [a / s if s > 0.0 else previous[1] for a, s in zip(integrals, seconds)]
+    return means, volumes
 
 
 def main() -> int:
