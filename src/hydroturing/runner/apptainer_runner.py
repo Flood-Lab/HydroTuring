@@ -8,9 +8,9 @@ twice and the two runtimes cannot drift apart in what they install.
 
 What the translation holds to Docker's meaning is what a Dockerfile in this
 repository uses: multi-stage builds, a stage built on an earlier stage,
-`COPY --from`, ARG, ENV and WORKDIR. Anything else raises rather than building
-an image that quietly differs. USER is ignored, because the container runs as
-the invoking user on either runtime.
+`COPY --from`, ARG, ENV and WORKDIR. Anything else, ADD and any other COPY flag
+among it, raises rather than building an image that quietly differs. USER is
+ignored, because the container runs as the invoking user on either runtime.
 
 What the runtime cannot enforce is said here rather than implied. Apptainer
 needs cgroup delegation to cap memory and CPU, which a batch node does not
@@ -21,17 +21,18 @@ is asserted by the test suite.
 
 from __future__ import annotations
 
-import fcntl
 import glob
 import hashlib
 import json
 import os
+import posixpath
 import re
 import shlex
 import shutil
 import signal
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -134,7 +135,7 @@ def parse_dockerfile(text: str) -> list[Stage]:
             global_args[key.strip()] = default.strip().strip('"')
         elif keyword in IGNORED:
             continue
-        elif keyword in {"RUN", "ENV", "ARG", "WORKDIR", "COPY", "ADD"}:
+        elif keyword in {"RUN", "ENV", "ARG", "WORKDIR", "COPY"}:
             stages[-1].instructions.append(Instruction(keyword, value))
         else:
             raise RunnerError(f"Dockerfile: {keyword} has no Apptainer translation")
@@ -159,6 +160,8 @@ def split_copy(value: str) -> tuple[dict[str, str], list[str], str]:
     words = value.split()
     while words and words[0].startswith("--"):
         key, _, val = words.pop(0)[2:].partition("=")
+        if key != "from":
+            raise RunnerError(f"Dockerfile: COPY --{key} has no Apptainer translation")
         flags[key] = val
     rest = " ".join(words)
     parts = json.loads(rest) if rest.startswith("[") else shlex.split(rest)
@@ -216,10 +219,13 @@ def flattened(stage: Stage, stages: list[Stage]) -> Stage:
 def stage_workdir(stage: Stage, stages: list[Stage]) -> str:
     """The directory a stage ends in."""
     whole = flattened(stage, stages)
-    for instruction in reversed(whole.instructions):
+    known = dict(whole.args)
+    workdir = "/"
+    for instruction in whole.instructions:
+        _declare(instruction, known)
         if instruction.keyword == "WORKDIR":
-            return _expand(instruction.value, whole)
-    return "/"
+            workdir = _next_workdir(workdir, instruction.value, known)
+    return workdir
 
 
 def final_workdir(stages: list[Stage]) -> str:
@@ -231,16 +237,47 @@ def final_workdir(stages: list[Stage]) -> str:
     return stage_workdir(stages[-1], stages)
 
 
-def _expand(value: str, stage: Stage) -> str:
-    """Substitute the ARG and ENV values a stage has set, before a shell does."""
-    known = dict(stage.args)
-    for instruction in stage.instructions:
-        if instruction.keyword == "ARG":
-            key, _, default = instruction.value.partition("=")
-            known[key.strip()] = default.strip().strip('"')
-        elif instruction.keyword == "ENV":
-            known.update(env_pairs(instruction.value))
+def _expand(value: str, known: dict[str, str]) -> str:
+    """Substitute ARG and ENV values set so far. What is not set is left for a shell."""
     return _ARG_REF.sub(lambda m: known.get(m.group(1) or m.group(2), m.group(0)), value)
+
+
+def _arg_value(value: str, known: dict[str, str]) -> tuple[str, str]:
+    """An ARG's name and value. With no default it keeps a value declared before FROM."""
+    key, has_default, default = value.partition("=")
+    key = key.strip()
+    if not has_default:
+        return key, known.get(key, "")
+    return key, _expand(default.strip().strip('"'), known)
+
+
+def _env_value(raw: str, known: dict[str, str]) -> str:
+    """An ENV value as the image stores it, still written for a shell to read.
+
+    An ARG is gone once the build ends, so what it held is written in here. Only a
+    name nothing has set, usually the base image's PATH, is left for the shell.
+    """
+    if raw.startswith("'"):
+        return raw
+    expanded = _expand(raw, known)
+    if expanded != raw and not raw.startswith('"') and re.search(r"\s", expanded):
+        return f'"{expanded}"'
+    return expanded
+
+
+def _declare(instruction: Instruction, known: dict[str, str]) -> None:
+    """Carry an ARG or ENV forward, so an instruction sees only what precedes it."""
+    if instruction.keyword == "ARG":
+        key, value = _arg_value(instruction.value, known)
+        known[key] = value
+    elif instruction.keyword == "ENV":
+        for key, raw in env_pairs(instruction.value):
+            known[key] = _env_value(raw, known).strip("\"'")
+
+
+def _next_workdir(current: str, value: str, known: dict[str, str]) -> str:
+    """Where a WORKDIR leads: a relative one is relative to the last, as in Docker."""
+    return posixpath.normpath(posixpath.join(current, _expand(value, known)))
 
 
 class ImageBuilder:
@@ -253,6 +290,7 @@ class ImageBuilder:
         self.log = log
         self.stages = parse_dockerfile((Path(model.path) / "Dockerfile").read_text())
         self.images: dict[str, Path] = {}
+        self.deadline = time.monotonic() + BUILD_TIMEOUT_S
 
     def needed(self) -> list[Stage]:
         """The final stage and the ones it copies from, in build order."""
@@ -296,17 +334,19 @@ class ImageBuilder:
         environment: list[str] = []
         workdir = "/"
         count = 0
+        known = dict(stage.args)
         for instruction in stage.instructions:
             keyword, value = instruction.keyword, instruction.value
             if keyword == "ARG":
-                key, _, default = value.partition("=")
-                post.append(f"export {key.strip()}={shlex.quote(default.strip().strip(chr(34)))}")
+                key, resolved = _arg_value(value, known)
+                post.append(f"export {key}={shlex.quote(resolved)}")
             elif keyword == "ENV":
-                for key, val in env_pairs(value):
-                    post.append(f"export {key}={val}")
-                    environment.append(f"export {key}={val}")
+                for key, raw in env_pairs(value):
+                    resolved = _env_value(raw, known)
+                    post.append(f"export {key}={resolved}")
+                    environment.append(f"export {key}={resolved}")
             elif keyword == "WORKDIR":
-                workdir = _expand(value, stage)
+                workdir = _next_workdir(workdir, value, known)
                 post.append(f"mkdir -p {shlex.quote(workdir)}")
             elif keyword == "RUN":
                 command = value
@@ -315,8 +355,9 @@ class ImageBuilder:
                 # Each RUN in its own subshell, starting where WORKDIR says,
                 # because a `cd` in one RUN does not reach the next in Docker.
                 post.append(f"cd {shlex.quote(workdir)}\n( {command}\n)")
-            elif keyword in {"COPY", "ADD"}:
-                count = self.stage_copy(value, stage, index, count, workdir, files, post)
+            elif keyword == "COPY":
+                count = self.stage_copy(value, known, index, count, workdir, files, post)
+            _declare(instruction, known)
         post.append(f"rm -rf {CONTEXT_MOUNT}")
         lines: list[str] = []
         if stage.base.lower() == "scratch":
@@ -331,16 +372,16 @@ class ImageBuilder:
         return "\n".join(lines)
 
     def stage_copy(
-        self, value: str, stage: Stage, index: int, count: int, workdir: str,
+        self, value: str, known: dict[str, str], index: int, count: int, workdir: str,
         files: list[str], post: list[str],
     ) -> int:
         flags, sources, dest = split_copy(value)
-        dest = _expand(dest, stage)
+        dest = _expand(dest, known)
         if not dest.startswith("/"):
             dest = os.path.join(workdir, dest) + ("/" if dest.endswith("/") else "")
         into_dir = dest.endswith("/") or len(sources) > 1
         for source in sources:
-            source = _expand(source, stage)
+            source = _expand(source, known)
             if flags.get("from"):
                 archives = self.export_from_stage(flags["from"], source, index, count)
             else:
@@ -363,13 +404,18 @@ class ImageBuilder:
         return count
 
     def pack_from_context(self, source: str, index: int, count: int) -> list[tuple[Path, bool, str]]:
-        root = Path(self.model.path)
+        root = Path(self.model.path).resolve()
         matches = sorted(glob.glob(str(root / source)))
         if not matches:
             raise RunnerError(f"{self.model.name}: COPY source {source} is not in the build context")
         archives = []
         for offset, match in enumerate(matches):
             path = Path(match)
+            # The context is the model's directory. Anything beyond it, the host's
+            # scoring code among it, would be baked into an image that is meant
+            # never to see it.
+            if os.path.isabs(source) or not path.resolve().is_relative_to(root):
+                raise RunnerError(f"{self.model.name}: COPY source {source} is outside the build context")
             archive = self.build_dir / f"context{index}_{count}_{offset}.tar"
             if path.is_dir():
                 argv = ["tar", "-C", str(path), "-cf", str(archive), "."]
@@ -409,8 +455,20 @@ class ImageBuilder:
         if env.get("APPTAINER_CACHEDIR"):
             env["APPTAINER_CACHEDIR"] = os.path.join(env["APPTAINER_CACHEDIR"], self.model.name)
             os.makedirs(env["APPTAINER_CACHEDIR"], exist_ok=True)
-        proc = subprocess.run(argv, stdout=subprocess.PIPE, stderr=self.log, text=True, env=env)
-        self.log.write(proc.stdout or "")
+        proc = subprocess.Popen(
+            argv, stdout=subprocess.PIPE, stderr=self.log, text=True, env=env, start_new_session=True,
+        )
+        try:
+            stdout, _ = proc.communicate(timeout=max(0.0, self.deadline - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            _kill_group(proc)
+            raise RunnerError(
+                f"{self.model.name}: {what} exceeded the {BUILD_TIMEOUT_S} s build limit"
+            ) from None
+        except BaseException:
+            _kill_group(proc)
+            raise
+        self.log.write(stdout or "")
         if proc.returncode != 0:
             self.log.flush()
             self.log.seek(0)
@@ -419,7 +477,7 @@ class ImageBuilder:
                 f"{self.model.name}: {what} failed (exit {proc.returncode})\n"
                 + "\n".join("    " + line for line in tail)
             )
-        return proc.stdout or ""
+        return stdout or ""
 
 
 def build(model: ModelManifest, apptainer: str | None = None) -> Path:
@@ -428,6 +486,10 @@ def build(model: ModelManifest, apptainer: str | None = None) -> Path:
     A lock keeps two jobs on one filesystem from building the same image, and
     the rename at the end means a finished file is always a whole image.
     """
+    # Here rather than at the top, because get_runner imports this module on a
+    # Windows host too, where Docker and the reference models run and fcntl does not exist.
+    import fcntl
+
     apptainer = apptainer or require_apptainer()
     dockerfile = Path(model.path) / "Dockerfile"
     if not dockerfile.exists():
