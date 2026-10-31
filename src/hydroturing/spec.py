@@ -339,9 +339,9 @@ class ModelManifest:
     uses_forcing: tuple[str, ...] = ()
     uses_static: tuple[str, ...] = ()
     # For a row step the solver cannot take, the shorter step it runs at inside
-    # that row with the row's values held flat. Never the native step, so a
-    # resolution probe, which compares the native step with the next finer one,
-    # always sees one model step per row.
+    # that row with the row's values held flat. Never the native step, and the
+    # harness passes it only on a single-step probe, so a resolution probe always
+    # sees one model step per row.
     substeps: dict[str, str] = field(default_factory=dict)
 
     @property
