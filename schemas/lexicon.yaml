@@ -249,3 +249,12 @@ crosswalk:
     snw: "0"
     canopy: "0"
     channel: "V_o + V_c"
+  cfe:
+    evspsbl: "ACTUAL_ET"
+    mrro: "Q_OUT"
+    dis: "Q_OUT * area_km2"
+    mrso: "SOIL_STORAGE"
+    snw: "0"
+    canopy: "0"
+    gw: "GW_STORAGE"
+    channel: "nash_surface_params.nash_storage + nash_storage_subsurface"
