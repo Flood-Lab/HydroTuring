@@ -8,7 +8,7 @@
 
 suppressPackageStartupMessages(library(jsonlite))
 
-MODEL <- list(name = "topmodel", version = "0.7.5-f60752c.2")
+MODEL <- list(name = "topmodel", version = "0.7.5-f60752c.3")
 
 # Length of one row, in days and in the hours the core takes it in.
 STEPS <- list(PT1D = list(days = 1, hours = 24), PT1H = list(days = 1 / 24, hours = 1))
