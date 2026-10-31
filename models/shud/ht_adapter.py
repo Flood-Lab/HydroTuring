@@ -39,7 +39,7 @@ from pathlib import Path
 import numpy as np
 
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "snw", "canopy", "gw", "channel", "stage"]
-MODEL = {"name": "shud", "version": "1.1.1-ht.2", "revision": "c7404df0ebaffd67ea267bce32fff36ba36f6cfe"}
+MODEL = {"name": "shud", "version": "1.1.1-ht.3", "revision": "c7404df0ebaffd67ea267bce32fff36ba36f6cfe"}
 
 MINUTES = {"PT1D": 1440, "PT1H": 60}
 UPSTREAM = Path(os.environ.get("HT_SHUD_UPSTREAM", "/model/upstream/ccw"))
@@ -235,7 +235,7 @@ def write_inputs(root: Path, forcing: list[dict], step_min: int, aquifer_m: floa
     para = {
         "VERBOSE": 0, "INIT_MODE": 2, "ASCII_OUTPUT": 0, "BINARY_OUTPUT": 1, "SPINUPDAY": 0, "NUM_OPENMP": 1,
         "SCR_INTV": 10 ** 9, "ABSTOL": ABSTOL, "RELTOL": RELTOL, "INIT_SOLVER_STEP": 1,
-        "MAX_SOLVER_STEP": SOLVER_STEP_MIN, "LSM_STEP": 60, "START": 0, "END": f"{n_days:g}", **outputs,
+        "MAX_SOLVER_STEP": SOLVER_STEP_MIN, "LSM_STEP": 60, "START": 0, "END": repr(days_not_before(n * step_min)), **outputs,
     }
     (folder / f"{PROJECT}.cfg.para").write_text("\n".join(f"{k} {v}" for k, v in para.items()) + "\n")
 
@@ -248,18 +248,36 @@ def write_inputs(root: Path, forcing: list[dict], step_min: int, aquifer_m: floa
     with open(folder / "forcing.csv", "w") as fh:
         fh.write(f"{n}\t6\t20000101\t20000102\nTime_Day\tAPCP\tTMP\tRH\tWIND\tRN\n")
         for i, row in enumerate(forcing):
-            fh.write(f"{i * step_min / 1440.0:.10f}\t{float(row['pr']):.8f}\t{tas[i]:.6f}\t{rh[i]:.6f}\t{WIND_MS}\t{rn[i]:.6f}\n")
+            fh.write(f"{days_not_after(i * step_min)!r}\t{float(row['pr']):.8f}\t{tas[i]:.6f}\t{rh[i]:.6f}\t{WIND_MS}\t{rn[i]:.6f}\n")
     return {"mesh_area_m2": mesh_area, "river_depth_m": depth, "mesh_bed_m": (zc[0] + zc[3]) / 2.0 - depth, "mock_rn_max_w_m2": float(rn.max()), "mock_rn_mean_w_m2": float(rn.mean()), "mock_rh_mean": float(rh.mean()), "mock_rh_min": float(rh.min()), "element_z": zc}
+
+
+def days_not_after(minutes: float) -> float:
+    """Days as a double whose minutes do not pass `minutes`, so a row's weather starts on time.
+
+    SHUD compares its clock with the file's time in minutes, exactly, so a boundary written
+    even a little late holds the last row's weather for another solver step.
+    """
+    days = minutes / 1440.0
+    return float(np.nextafter(days, 0.0)) if days * 1440.0 > minutes else days
+
+
+def days_not_before(minutes: float) -> float:
+    """Days as a double whose minutes reach `minutes`, as SHUD truncates END to whole minutes."""
+    days = minutes / 1440.0
+    return float(np.nextafter(days, np.inf)) if days * 1440.0 < minutes else days
 
 
 class PipeReader(threading.Thread):
     """Reduces one of upstream's binary outputs to one array per row as it is written."""
 
-    def __init__(self, path: Path, samples_per_row: int, n_rows: int, reduce: str) -> None:
+    def __init__(self, path: Path, samples_per_row: int, n_rows: int, reduce: str, keep_mean: bool = False) -> None:
         super().__init__(daemon=True)
         os.mkfifo(path)
         self.path, self.samples, self.n_rows, self.reduce = path, samples_per_row, n_rows, reduce
+        self.keep_mean = keep_mean
         self.result: np.ndarray | None = None
+        self.means: np.ndarray | None = None
         self.error: BaseException | None = None
 
     def run(self) -> None:
@@ -270,6 +288,8 @@ class PipeReader(threading.Thread):
                 fh.read(8 * n_var)
                 width = n_var + 1
                 result = np.full((self.n_rows, n_var), np.nan)
+                # `last` keeps the store at the row's end; a stage also wants the row's mean.
+                means = np.full((self.n_rows, n_var), np.nan) if self.keep_mean else None
                 for row in range(self.n_rows):
                     raw = fh.read(8 * width * self.samples)
                     block = np.frombuffer(raw, dtype=np.float64)
@@ -277,9 +297,11 @@ class PipeReader(threading.Thread):
                         break
                     block = block.reshape(self.samples, width)[:, 1:]
                     result[row] = block.mean(axis=0) if self.reduce == "mean" else block[-1]
+                    if means is not None:
+                        means[row] = block.mean(axis=0)
                 while fh.read(1 << 20):
                     pass
-            self.result = result
+            self.result, self.means = result, means
         except BaseException as exc:  # reported by the caller once the model has exited
             self.error = exc
 
@@ -309,7 +331,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         out = root / "output" / f"{PROJECT}.out"
         out.mkdir()
         readers = {
-            name: PipeReader(out / f"{PROJECT}.{name}.dat", samples, n, reduce)
+            name: PipeReader(out / f"{PROJECT}.{name}.dat", samples, n, reduce, keep_mean=name == "rivystage")
             for name, reduce in (
                 ("eleysnow", "last"), ("eleyic", "last"), ("eleysurf", "last"), ("eleyunsat", "last"), ("eleygw", "last"),
                 ("rivystage", "last"), ("eleveta", "mean"), ("elevetp", "mean"), ("elevetic", "mean"), ("elevettr", "mean"),
@@ -341,6 +363,8 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             if np.isnan(reader.result).any():
                 raise SystemExit(f"{name} ended early\n{tail}")
             data[name] = reader.result
+            if reader.means is not None:
+                stage_mean = reader.means
 
     if DIAG:
         print(json.dumps({k: [round(float(x), 2) for x in v.sum(axis=0) * days * (1000.0 if not k.startswith(("riv", "eleq")) else 1000.0 / info["mesh_area_m2"])]
@@ -375,7 +399,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             "canopy": canopy[i],
             "gw": ground[i],
             "channel": pond[i] + river_mm[i],
-            "stage": bed + data["rivystage"][i, 0],
+            "stage": bed + stage_mean[i, 0],
         }
         for i in range(n)
     ]

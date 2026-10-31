@@ -1,5 +1,5 @@
 name: lisflood_fp
-version: "8.1-ht.3"
+version: "8.1-ht.4"
 description: >
   LISFLOOD-FP v8.1 with its CPU FV1 solver: the full two-dimensional shallow water
   equations by first-order finite volumes. Not the JRC LISFLOOD rainfall-runoff

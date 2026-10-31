@@ -212,14 +212,17 @@ numerical limit, and it comes with conditions:
 
 - The README shows the unmodified model failing at one step per row, in its own
   checks or with its own errors. A step the model merely prefers is not enough.
-- It is not allowed on the native step, so a resolution probe, which compares the
-  native step with the next finer one, always sees one model step per row.
+- It is not allowed on the native step, and the harness passes it only on a
+  single-step probe, so a resolution probe always sees one model step per row.
 - The row's values are held flat for its solver steps, precipitation split evenly.
   Nothing is read from a later row, and no sub-row weather is invented: no diurnal
   cycle, no interpolation between rows.
 - One row still comes back. A flux is the mean over the row, a store is the value
   at its end, and an instantaneous value such as `ts` or `rlus` is the last solver
   step's. `over_the_row` in `schemas/lexicon.yaml` says which is which.
+
+A model whose own code turns a daily row into hours, as mHM does with its day/night
+factors, needs no `substep`: that is the model, not the adapter, and its README says so.
 
 ## Nothing from the future
 
