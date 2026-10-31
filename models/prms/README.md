@@ -141,7 +141,7 @@ The proposal asked for a 30-day window; the manifest uses `window_days: full`, b
 
 ## Evaluation
 
-Gate seeds, all 37 probes, version `6.0.0-ht.3`: **20 PASS, 2 FAIL, 15 N/A** (12 INCOMPLETE,
+Gate seeds, all 37 probes, version `6.0.0-ht.4`: **20 PASS, 2 FAIL, 15 N/A** (12 INCOMPLETE,
 3 INCOMPATIBLE). This is the full table:
 
 | Probe | Verdict | Number |
@@ -229,7 +229,7 @@ and the probe passes. That is the sign of a rounding error, and it is not a reas
 
 ## How much each choice moves the result
 
-A full evaluation of all 37 probes on the same gate seeds for each, at version `6.0.0-ht.3`, from
+A full evaluation of all 37 probes on the same gate seeds for each, at version `6.0.0-ht.4`, from
 scratch copies of the tree that are not committed.
 
 | Setting | PASS / FAIL | Verdicts that move | Other numbers |
