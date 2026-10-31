@@ -71,6 +71,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `cwatm` | Yuanhang Liu (Independent Researcher), [#28](../../issues/28) | HydroTuring maintainers |
 | `lisflood` | Yuanhang Liu (Independent Researcher), [#20](../../issues/20) | HydroTuring maintainers |
 | `modflow6` | Yaji Wang (University of Illinois Urbana-Champaign), [#25](../../issues/25) | Yaji Wang (University of Illinois Urbana-Champaign) |
+| `hymod` | Xiaoyi Dong (China IPPR International Engineering Co., Ltd., SINOMACH), [#133](../../issues/133) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:
