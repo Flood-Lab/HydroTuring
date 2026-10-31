@@ -396,8 +396,8 @@ of their own.
 ## Result
 
 **FAIL (VIOLATION): 19 PASS, 2 FAIL, 16 N/A** (13 INCOMPLETE, 3 INCOMPATIBLE), on the gate seeds of
-`5.0.0-onecell.5`, on a native x86-64 host under Apptainer. These rows replace the emulated host's.
-The two probes that ran out of time there, `mass/precipitation-counterfactual` and
+`5.0.0-onecell.5`. Thirty-five rows are the emulated Docker host's, whose verdicts Apptainer on a native
+x86-64 host reproduced. The other two are from that native run, and supersede the two that ran out of time: `mass/precipitation-counterfactual` and
 `mass/human-abstraction`, now finish inside their budget and have real verdicts: the first passes
 and the second fails, as the runs outside the limit had predicted. "Native re-run" below, and the
 timing notes that mention ERROR rows, describe those older rows.

@@ -36,7 +36,7 @@ output:
 
   ts: {group: diagnostic, units: K, over_the_row: instant, meaning: "Radiative surface (skin) temperature"}
   tsoil_layer: {group: diagnostic, units: K, over_the_row: end, meaning: "Mean temperature of the specified soil layer"}
-  stage: {group: diagnostic, units: m, over_the_row: mean, meaning: "Water-surface elevation on the case's datum, read beside the row's discharge; depth is stage - bed_elevation_m"}
+  stage: {group: diagnostic, units: m, over_the_row: mean, meaning: "Water-surface elevation on the case's datum, read beside the row's mean discharge; depth is stage - bed_elevation_m"}
   lwsnl: {group: diagnostic, units: mm, over_the_row: end, meaning: "Every non-solid component of snw, so snw - lwsnl is the ice; part of snw, never additional"}
   csnow: {group: diagnostic, units: J m-2, over_the_row: end, meaning: "The pack's cold content: the energy still needed to bring its ice to 0 C; positive"}
 
@@ -99,7 +99,9 @@ static:
 # What each packaged model's own names become. Everything a model emits is here, except
 # pr, which is always the forcing echoed; "0" is a store named under zero_stores. A variable
 # missing from a model is under not_reported in its run.json. Reference models are written
-# in the contract's own names, so they have no entry.
+# in the contract's own names, so they have no entry. An expression says which native
+# quantities a variable is made of, for a person to read, and is never evaluated: unit
+# conversions are left out, and the area appears only where a depth meets a discharge.
 crosswalk:
   vic:
     evspsbl: "OUT_EVAP"
