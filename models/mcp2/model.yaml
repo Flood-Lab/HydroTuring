@@ -1,5 +1,5 @@
 name: mcp2
-version: "5944b5f-epoch3.3"
+version: "5944b5f-epoch3.4"
 description: >
   MCPModel2, the single-node Mass-Conserving Perceptron with state-dependent
   mass relaxation MC{O_sigma L_sigma^con M_sigma_r^R} of Wang and Gupta (2024):
