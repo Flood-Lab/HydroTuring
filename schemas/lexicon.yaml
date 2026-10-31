@@ -373,3 +373,6 @@ crosswalk:
     gw: "eleygw * sy"
     channel: "eleysurf + rivystage * width * REACH_LENGTH_M / mesh_area"
     stage: "bed_elevation_m + rivystage"
+  rvic:
+    dis: "rof[LIQ][0] * area_m2"
+    channel: "ring[LIQ][1:].sum() * DT_S"
