@@ -276,3 +276,11 @@ crosswalk:
     mrso: "c_n[t+1]"
     snw: "0"
     canopy: "0"
+  mcp3:
+    evspsbl: "lc_n"
+    mrro: "sw_q + gw_q"
+    mrso: "main_c[t+1]"
+    snw: "0"
+    canopy: "0"
+    gw: "gw_c[t+1]"
+    channel: "sw_c[t+1]"
