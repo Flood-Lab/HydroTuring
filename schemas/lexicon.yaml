@@ -212,3 +212,13 @@ crosswalk:
     canopy: "0"
     gw: "qi * ci / (1 - ci) + qg * cg / (1 - cg)"
     channel: "sum(inflow[t - lag + 1 : t + 1]) + released[t] * cs / (1 - cs)"
+  gr4j:
+    evspsbl: "AE"
+    mrro: "Qsim"
+    dis: "Qsim * area_km2"
+    gwex: "AExch"
+    mrso: "Prod"
+    snw: "0"
+    canopy: "0"
+    gw: "Rout"
+    channel: "cumsum(PR - Q9 - Q1)"
