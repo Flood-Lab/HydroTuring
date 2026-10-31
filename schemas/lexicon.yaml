@@ -290,3 +290,9 @@ crosswalk:
     mrso: "c_n[t+1] @ w"
     snw: "0"
     canopy: "0"
+  mcp5:
+    evspsbl: "sum(lc_n)"
+    mrro: "hnout"
+    mrso: "sum(c_n[t+1])"
+    snw: "0"
+    canopy: "0"
