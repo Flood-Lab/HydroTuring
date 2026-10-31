@@ -12,7 +12,7 @@ any choice made here.
 | Probe | Verdict | Mechanism |
 | --- | --- | --- |
 | `momentum/wave-celerity-bounds` | FAIL (VIOLATION) | The impulse response has one velocity for the whole record, so the wave travels at the same speed at 8, 16 and 32 m3/s: 0.734, 0.746 and 0.783 m/s across all three states on the three gate seeds, against a Manning `dQ/dA` that rises by 73%. Verified, below |
-| The other 36 probes | N/A (INCOMPLETE) | They need `mrro`, `pr`, `evspsbl`, `stage` or a land store from a model that has none of them, and most are daily. No probe was stopped by anything else |
+| The other 36 probes | N/A (INCOMPLETE) | Each needs a flux, store or diagnostic this model does not have: `mrro`, `pr`, `evspsbl`, `stage`, a soil or snow store, a heat flux. Most are also daily. No probe was stopped by anything else |
 
 These results describe one documented point in parameter space. The verdict does not
 depend on the point, which is the finding: see "Alternative parameters".
@@ -24,6 +24,13 @@ depend on the point, which is the finding: see "Alternative parameters".
 fast and is stated in its own description. It is the same construction as this probe's
 must-fail control, `reference_fixed_celerity`.
 
+Verified two ways on the kept gate-seed runs of this version. The response to the pulse,
+in units of the pulse, is the same at all three states to the last bit in all six runs: the
+largest difference is exactly 0. And the delay can be computed without running anything,
+by sampling `make_uh`'s Green's function from the velocity and diffusivity in `run.json`:
+6.057, 5.954 and 5.677 h on the three seeds, each equal to the probe's measured delay to
+three decimals.
+
 | Gate seed | `c_obs` low, medium, high (m/s) | `c_kin` low, medium, high (m/s) | residual |
 | --- | --- | --- | --- |
 | 397273707 | 0.734, 0.734, 0.734 | 0.701, 0.923, 1.214 | +4.6%, -20.5%, -39.6% |
@@ -32,12 +39,10 @@ must-fail control, `reference_fixed_celerity`.
 
 The velocity set was `dQ/dA` at the low state, so the low state should be the one that
 fits, and it nearly does. The offset that remains there is the hourly sampling of a
-narrow kernel. Sampling `make_uh`'s Green's function by hand for the first seed gives
-weights of 0.127 and 0.872 on hours 1 and 2 of the short reach, a centroid of 1.873 h
-where `L/v` is 1.585 h, and 7.930 h where `L/v` is 7.923 h on the long reach. The
-difference, 6.057 h, is exactly the measured delay. This moves the low state over the 5%
-line on the third seed; the two higher states and the ordering fail on every seed
-whatever it does.
+narrow kernel. On the first seed the Green's function puts weights of 0.127 and 0.872 on
+hours 1 and 2 of the short reach, a centroid of 1.873 h where `L/v` is 1.585 h, and 7.930 h
+where `L/v` is 7.923 h on the long reach. This moves the low state over the 5% line on the
+third seed; the two higher states and the ordering fail on every seed whatever it does.
 
 ## What the adapter does
 
@@ -84,10 +89,19 @@ step early. It is common to both reach lengths and the paired probe cancels it.
 
 ### Stores
 
-`channel` is reported. `snw` and `canopy` are absent from a router and are reported as
-zero under `zero_stores`. `mrso` and `gw` are left out and named under `not_reported`.
-None of the zeros can affect a verdict here: every probe that reads them also needs a
-flux this model does not have.
+`channel` is reported and is the only store declared. `snw`, `canopy`, `mrso` and `gw` are
+left out and named under `not_reported`.
+
+Version `1.1.1-ht.1` reported `snw` and `canopy` as zero under `zero_stores`. That was
+withdrawn. The zero-store rule in `AGENTS.md` is about a model whose control volume includes
+the land surface and which has no such compartment: rain falls into it, so a zero `snw` says
+all of that water went elsewhere, and the budget tests it. RVIC's control volume starts at
+its inflow. It never sees weather, and any snow or canopy water is upstream of its boundary,
+so its value is unknown rather than zero, which is the distinction the rule itself draws for
+a discharge-only network. A zero here would also not be able to cost the model anything,
+because no budget covers it, so it would only ever be able to help on a probe about a store
+the model does not have. No verdict moved: every probe that reads `snw` or `canopy` also
+needs a flux or store this model lacks, so all 36 were N/A (INCOMPLETE) before and after.
 
 ### Step
 

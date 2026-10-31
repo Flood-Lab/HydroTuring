@@ -24,7 +24,7 @@ from pathlib import Path
 import netCDF4
 import numpy as np
 
-MODEL = {"name": "rvic", "version": "1.1.1-ht.1"}
+MODEL = {"name": "rvic", "version": "1.1.1-ht.2"}
 WORK = Path("/tmp/rvic")
 DT_S = 3600
 
@@ -278,12 +278,12 @@ def main() -> int:
     dis = outflow * area_m2 / 1000.0
     channel = in_transit * DT_S
 
-    columns = ["time", "dis", "snw", "canopy", "channel"]
+    columns = ["time", "dis", "channel"]
     with open(str(io_dir / request["output"]["table"]), "w", newline="") as fh:
         writer = csv.writer(fh)
         writer.writerow(columns)
         for i, row in enumerate(forcing):
-            writer.writerow([row["time"], repr(float(dis[i])), "0.0", "0.0", repr(float(channel[i]))])
+            writer.writerow([row["time"], repr(float(dis[i])), repr(float(channel[i]))])
 
     (io_dir / request["output"]["run"]).write_text(json.dumps({
         "status": "ok",
@@ -296,8 +296,13 @@ def main() -> int:
             "cell_flowdays": CELL_FLOWDAYS,
             "subset_days": SUBSET_DAYS,
         },
-        "zero_stores": ["snw", "canopy"],
-        "not_reported": {"mrso": "a router has no soil", "gw": "a router has no aquifer"},
+        "not_reported": {
+            # Outside the control volume, which starts at the inflow: unknown, not zero.
+            "snw": "RVIC takes q_in and never sees weather, so snow is outside its control volume",
+            "canopy": "outside the control volume, as snw",
+            "mrso": "outside the control volume, as snw",
+            "gw": "outside the control volume, as snw",
+        },
     }))
     return 0
 

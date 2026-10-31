@@ -1,5 +1,5 @@
 name: rvic
-version: "1.1.1-ht.1"
+version: "1.1.1-ht.2"
 description: >
   RVIC 1.1.1, the source-to-outlet routing model of Lohmann et al.: a linearised
   Saint-Venant impulse response built once before the run and convolved with the
@@ -24,8 +24,9 @@ timestep: PT1H
 emits:
   fluxes: [dis]
   # channel: the convolution ring, the water that has entered and has yet to reach
-  # the outlet. snw and canopy: absent from a router, zero, named under zero_stores.
-  states: [snw, canopy, channel]
+  # the outlet. It is the only store in RVIC's control volume, which starts at its
+  # inflow: anything upstream of that, snow included, is unknown to it, not zero.
+  states: [channel]
 
 needs_forcing: [q_in]
 needs_static: [area_km2, width_m, cross_section_shape, slope, manning_n, reach_length_m]
