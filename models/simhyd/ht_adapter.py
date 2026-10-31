@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-MODEL = {"name": "simhyd", "version": "2.1.2-ht.2"}
+MODEL = {"name": "simhyd", "version": "2.1.2-ht.3"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "mrso", "snw", "canopy", "gw"]
 STEP_DAYS = {
     "PT1D": 1.0,
@@ -121,7 +121,9 @@ def water_budget(rows, forcing, dt_days, stdout):
             "store_change_mm": stored,
             "residual_mm": rain - et - q - stored,
         },
-        "marrmot_water_balance_mm": float(marrmot[0]) if marrmot else None,
+        # check_waterbalance sums the rain rates without delta_t and its fluxes with it,
+        # so the number is a balance in mm only at a daily step.
+        "marrmot_water_balance_mm": float(marrmot[0]) if marrmot and dt_days == 1.0 else None,
         "solver_steps": {
             "newton_raphson": sum(1 for s in solver if s == 1),
             "fsolve": sum(1 for s in solver if s == 2),
