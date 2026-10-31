@@ -203,3 +203,12 @@ crosswalk:
     canopy: "0"
     gw: "x_slow"
     channel: "sum(x_quick)"
+  xaj:
+    evspsbl: "evap"
+    mrro: "flow"
+    dis: "flow * area_km2"
+    mrso: "(1 - im) * (w[0] + w[1] + w[2] + s * fr)"
+    snw: "0"
+    canopy: "0"
+    gw: "qi * ci / (1 - ci) + qg * cg / (1 - cg)"
+    channel: "sum(inflow[t - lag + 1 : t + 1]) + released[t] * cs / (1 - cs)"
