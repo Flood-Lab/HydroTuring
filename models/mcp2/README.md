@@ -67,19 +67,19 @@ Named under `not_reported`. The model has none of these, and none is filled in.
 ## Choices, and how much each moves the results
 
 **Spin-up.** Upstream repeats the first water year three times in front of the record, from an
-empty store. The adapter does the same with the first 365 days of the rows it is given, or all
-of them when the record is shorter. Those rows run before row 0 and are never reported. On
+empty store. The adapter does the same with the first 365 days of the rows it is given, and none when the record is shorter than a year: it has no year to repeat, and all of it may be scored, so replaying it would set row 0's store from weather that comes later. Those rows run before row 0 and are never reported. On
 daily probes that is three times the case's own 365-day spin-up, nothing later than it, so it
 is causal. The table is the adapter run directly under the same harness and gate seeds, on every probe that scores this model, after the zero-store rule; at three repeats that run reproduces every archived verdict.
 
 | Repeats | Result |
 | --- | --- |
-| 0 | `resolution-invariance` **FAIL** (`mrso_end` 15.4% of rain); no other verdict changes |
+| 0 (this probe) | `resolution-invariance` **FAIL** (`mrso_end` 15.4% of rain); no other verdict changes |
 | 1 | `resolution-invariance` **FAIL** (`mrso_end` 21.1%); no other verdict changes |
-| 3 (used) | `resolution-invariance` PASS (`evspsbl` 5.9%) |
+| 3 (other probes) | `resolution-invariance` PASS (`evspsbl` 5.9%) |
 
-So this model's `resolution-invariance` PASS depends on the spin-up. Treat that row as not
-robust.
+The `resolution-invariance` row above is from before a short record stopped being replayed. That probe's record is
+40 days, all of it weather the model is later scored on, so replaying it set row 0's store from what comes later. It
+now runs as the 0 row. Every other probe has a full first year and still runs as the 3 row.
 
 **Step scaling.** The upstream class knows one step. The resolution probe runs it at PT1H
 regardless, so below a day the adapter runs **its own copy of the upstream loop**
@@ -98,13 +98,10 @@ declares PT1D only, the step in the proposal.
 
 ## Verdict
 
-Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch3.3`: **FAIL (VIOLATION), 10 of 20 scored**, 17 N/A
+Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch3.4`: **FAIL (VIOLATION), 9 of 20 scored**, 17 N/A
 (15 INCOMPLETE; 2 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not read, and
 `exchange-response` needs `gwh`, not declared because the relaxation reads the store rather than a head).
 The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `channel`, `stage` and `dis`.
-
-**`resolution-invariance` is not robust.** Its PASS holds at three spin-up repeats and is a FAIL at zero and at one
-(table above). Read that row as undecided.
 
 `closure` passes on all eight probes that score it, `gwex` counted as a source, worst residual 8.7e-7 of the rain,
 which is single-precision round-off. Trivial passes for this model: `area-invariance` (reads no area),
@@ -127,7 +124,7 @@ Five of the ten FAILs are `state_bounds` and nothing else.
 | mass/multi-decadal-drift | **FAIL** | `state_bounds`: `mrso` 585-627 mm against 320; no drift |
 | mass/phase-counterfactual | PASS | trivially: the model reads no temperature |
 | mass/precipitation-counterfactual | **FAIL** | responses account for 0.83-0.89 of the change in rain; `state_bounds`: `mrso` 268-709 mm against 320 |
-| mass/resolution-invariance | PASS | `evspsbl` 5.9% of rain; **depends on the spin-up** |
+| mass/resolution-invariance | **FAIL** | `mrso_end` 15.4% of rain: the stores end the month apart, from the 10-day spin-up alone |
 | mass/response-nonnegativity | PASS | no dip |
 | mass/runoff-bounds | PASS | runoff 0.37 of rain, declared exchange +0.06 of rain |
 | mass/spinup-cycle-invariance | **FAIL** | `state_bounds`: `mrso` 322-665 mm against 320; the invariance passes |

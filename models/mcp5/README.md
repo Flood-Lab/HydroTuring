@@ -90,18 +90,21 @@ Named under `not_reported`. The model has none of these, and none is filled in.
 ## Choices, and how much each moves the results
 
 **Spin-up.** Upstream repeats the first water year three times in front of the record, from empty stores.
-The adapter does the same with the first 365 days of the rows it is given, or all of them when the record
-is shorter. Those rows run before row 0 and are never reported. On daily probes that is three times the
+The adapter does the same with the first 365 days of the rows it is given, and none when the record is shorter than a year: it has no year to repeat, and all of it may be scored, so replaying it would set row 0's store from weather that comes later. Those rows run before row 0 and are never reported. On daily probes that is three times the
 case's own 365-day spin-up, nothing later than it, so it is causal. The table is the adapter run directly under the same harness and gate seeds, on every probe that scores this model, after the zero-store rule; at three repeats that run reproduces every archived verdict. This model moves more than the others.
 
 | Repeats | `dry-down` | `resolution-invariance` | `response-nonnegativity` |
 | --- | --- | --- | --- |
 | 0 | PASS | PASS (`evspsbl` 0.9% of rain) | FAIL (0.331 mm/day dip) |
 | 1 | FAIL (11.8%) | PASS (`mrro` 9.4%) | PASS (dip 7e-4 of the storm) |
-| 3 (used) | FAIL (4.8%) | **FAIL** (`mrso_end` 10.7%) | FAIL (0.143 mm/day dip) |
+| 3 (other probes) | FAIL (4.8%) | **FAIL** (`mrso_end` 10.7%) | FAIL (0.143 mm/day dip) |
 
-Those three rows depend on the spin-up, and no other verdict does. Their mechanisms below are the model's, but whether they cross a
-limit on these seeds is sensitive, so treat the verdicts as not robust. A first version cycled a short
+The `resolution-invariance` column above is from before a short record stopped being replayed. That probe's record is
+40 days, all of it weather the model is later scored on, so replaying it set row 0's store from what comes later. It
+now runs as the 0 row. Every other probe has a full first year and still runs as the 3 row.
+
+`dry-down` and `response-nonnegativity` depend on the spin-up, and no other verdict does. Their mechanisms below are the model's, but whether they cross a
+limit on these seeds is sensitive, so treat those verdicts as not robust. A first version cycled a short
 record until it filled three years, inventing about 2.6 m/yr of rain; it was dropped.
 
 **Step scaling.** The upstream class knows one step. The resolution probe runs it at PT1H regardless, so
@@ -121,11 +124,11 @@ unchanged to 0.01% of rain.
 
 ## Verdict
 
-Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch2999.3`: **FAIL (VIOLATION), 8 of 20 scored**, 17 N/A
+Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch2999.4`: **FAIL (VIOLATION), 9 of 20 scored**, 17 N/A
 (16 INCOMPLETE, 1 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not
 read). The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `gwex`, `channel`, `stage` and `dis`.
 
-**Three verdicts are not robust: `dry-down`, `resolution-invariance` and `response-nonnegativity`.** Each changes
+**Two verdicts are not robust: `dry-down` and `response-nonnegativity`.** Each changes
 with the number of spin-up repeats (table above), this model more than the others. Read those rows as undecided.
 
 `closure` passes on all eight probes that score it, worst residual 6.6e-7 of the rain, which is single-precision
@@ -149,7 +152,7 @@ Five of the 12 FAILs are `state_bounds` and nothing else.
 | mass/multi-decadal-drift | **FAIL** | `state_bounds`: `mrso` 1290-1350 mm against 320; `non_degenerate`: `evspsbl` cv 0.062 against 0.1; no drift |
 | mass/phase-counterfactual | PASS | trivially: the model reads no temperature |
 | mass/precipitation-counterfactual | **FAIL** | `state_bounds`: `mrso` 1080-1450 mm against 320; the partition passes |
-| mass/resolution-invariance | **FAIL** | `mrso_end` 10.7% of rain; **depends on the spin-up** |
+| mass/resolution-invariance | PASS | `evspsbl` 0.9% of rain |
 | mass/response-nonnegativity | **FAIL** | `mrro` 0.143 mm/day below control; **depends on the spin-up** |
 | mass/runoff-bounds | PASS | runoff 0.41 of rain |
 | mass/spinup-cycle-invariance | **FAIL** | `state_bounds`: `mrso` 1160-1380 mm against 320; the invariance passes |
@@ -215,11 +218,6 @@ from 0.0013 to 0.0009. Node 1's flow drops by 0.173 mm/day with the other two ne
 added and evaporation by 0.30, and the store at the end of the record is 0.41 of it lower. The budget holds, so the
 excess was already in the catchment; that much is measured. That it leaves through gates the storm opened is inferred
 from W_o rather than isolated.
-
-**resolution-invariance: the two steps enter the scored month in different states.** Volumes over the month agree
-(`mrro` within 2.2% of rain, `evspsbl` within 1.1%). What exceeds the limit, by 0.7 of a percent, is `mrso_end`, an
-absolute state: 737 against 720 mm entering the month and 879 against 856 mm leaving it, on the first seed. Most of
-that gap was there before the month began.
 
 ## Packaging
 
