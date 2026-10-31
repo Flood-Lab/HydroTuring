@@ -110,11 +110,11 @@ Other choices:
 
 ## Zero stores and what is not reported
 
-`snw` and `canopy` are reported as identically zero and named under `notes.zero_stores` in
+`snw` and `canopy` are reported as identically zero and named under `zero_stores` in
 `run.json`: the model has no snow module, so all precipitation is treated as liquid whatever the
 temperature, and it has no interception store. That is what lets the budget probes score it.
 
-Listed under `notes.not_reported`:
+`gwex` and `stage` are listed under `not_reported` in `run.json`. The model computes none of these:
 
 | Variable | Why |
 | --- | --- |
