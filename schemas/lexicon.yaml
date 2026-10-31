@@ -385,3 +385,6 @@ crosswalk:
   ealstm:
     mrro: "rescale_features(scaled)"
     dis: "rescale_features(scaled) * area_km2"
+  mtslstm:
+    mrro: "y_hat"
+    dis: "y_hat * area_km2"
