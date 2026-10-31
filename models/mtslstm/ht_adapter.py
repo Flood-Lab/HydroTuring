@@ -83,7 +83,7 @@ RUN_DIR = Path(os.environ.get("MTSLSTM_RUN_DIR", "/model/run"))
 THREADS = int(os.environ.get("MTSLSTM_THREADS", "4"))
 DAILY_BRANCH = os.environ.get("MTSLSTM_DAILY_BRANCH", "aggregate")
 
-MODEL = {"name": "mtslstm", "version": "0.1.2-9626578-seed333"}
+MODEL = {"name": "mtslstm", "version": "0.1.3-9626578-seed333"}
 COLUMNS = ["time", "mrro", "dis"]
 WEIGHTS = "model_epoch030.pt"
 BATCH = 512
@@ -246,7 +246,9 @@ def predict_hourly(model, x: torch.Tensor, x_s: torch.Tensor, seq_daily: int, se
     hidden = model._hidden_size["1D"]
     for day_end in range(HOURS_PER_DAY - 1, n + HOURS_PER_DAY - 1, HOURS_PER_DAY):
         end = min(day_end, n - 1)
-        first = max(0, end - seq_hourly + 1)
+        # From the nominal day's end, or a record ending mid-day would leave rows that
+        # neither branch reads, and extending the record would change earlier history.
+        first = max(0, day_end - seq_hourly + 1)
         hourly = _with_static(x[first : end + 1][:, None, :], x_s)
 
         h = c = hourly.new_zeros((1, 1, hidden))
@@ -301,8 +303,10 @@ def simulate(forcing: list[dict], static: dict, seed: int, timestep: str) -> tup
     ]
     x = torch.from_numpy(np.column_stack(columns).astype(np.float32))
 
-    n_clim = min(len(pr), int(round(CLIMATOLOGY_DAYS / dt_days)))
-    derived = climate_attributes(pr[:n_clim], tas[:n_clim], pet[:n_clim], dt_days)
+    # A record shorter than a year has no climatology to give, and all of it may be
+    # scored, so the attributes stay at the training means rather than look ahead.
+    n_clim = int(round(CLIMATOLOGY_DAYS / dt_days))
+    derived = climate_attributes(pr[:n_clim], tas[:n_clim], pet[:n_clim], dt_days) if len(pr) >= n_clim else {}
     hold = {g for g in os.environ.get("MTSLSTM_HOLD", "").split(",") if g}
     if "all" in hold:
         derived = {}
