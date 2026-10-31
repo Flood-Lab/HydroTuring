@@ -150,8 +150,6 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         "parameters_published": PUBLISHED,
         "cmax_source": "soil_capacity_mm * (bexp + 1)" if "soil_capacity_mm" in static else "published",
         "agreement_with_hymod_mm": gap,
-        "zero_stores": ZERO_STORES,
-        "not_reported": NOT_REPORTED,
     }
     return rows, notes
 
@@ -185,7 +183,17 @@ def main() -> int:
         writer.writeheader()
         writer.writerows(rows)
     (io_dir / request["output"]["run"]).write_text(
-        json.dumps({"status": "ok", "model": MODEL, "n_steps": len(rows), "notes": notes}, indent=2)
+        json.dumps(
+            {
+                "status": "ok",
+                "model": MODEL,
+                "n_steps": len(rows),
+                "zero_stores": ZERO_STORES,
+                "not_reported": NOT_REPORTED,
+                "notes": notes,
+            },
+            indent=2,
+        )
     )
     return 0
 

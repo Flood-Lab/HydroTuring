@@ -207,8 +207,6 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         "capacity_source": "soil_capacity_mm sets UM+LM+DM" if "soil_capacity_mm" in static else "published",
         "options": {"name": "xaj", "source_type": "sources", "source_book": "HF"},
         "agreement_with_xaj_mm": gap,
-        "zero_stores": ZERO_STORES,
-        "not_reported": NOT_REPORTED,
     }
     return rows, notes
 
@@ -242,7 +240,17 @@ def main() -> int:
         writer.writeheader()
         writer.writerows(rows)
     (io_dir / request["output"]["run"]).write_text(
-        json.dumps({"status": "ok", "model": MODEL, "n_steps": len(rows), "notes": notes}, indent=2)
+        json.dumps(
+            {
+                "status": "ok",
+                "model": MODEL,
+                "n_steps": len(rows),
+                "zero_stores": ZERO_STORES,
+                "not_reported": NOT_REPORTED,
+                "notes": notes,
+            },
+            indent=2,
+        )
     )
     return 0
 
