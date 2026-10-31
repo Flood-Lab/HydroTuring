@@ -6,8 +6,8 @@ description: >
   linear reservoirs in series and one slow reservoir. Packaged from
   OuyangWenyu/hydromodel v0.4.0 at commit 89d7a8e, running upstream's own
   hymod.py unmodified. Reports its soil store and both routing paths, so the
-  budget can be measured; it has no snow or interception store and reports
-  neither, which is what leaves it N/A on the probes that require them.
+  budget can be measured; it has no snow or interception store, and those are
+  reported as identically zero under `zero_stores`.
   README.md gives every parameter and where it came from.
 authors:
   - "D. P. Boyle (HYMOD, 2001); R. J. Moore (probability-distributed store, 1985)"
@@ -23,8 +23,8 @@ entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1D
 
 # `mrso` is the soil store, `gw` the slow reservoir, `channel` the three
-# quick-flow reservoirs. `snw` and `canopy` are absent because the model has no
-# such stores; run.json says so under `notes.not_reported`.
+# quick-flow reservoirs. `snw` and `canopy` are zero because the model has no
+# such stores; run.json says so under `notes.zero_stores`.
 emits:
   fluxes: [pr, evspsbl, mrro, dis]
   states: [mrso, snw, canopy, gw, channel]

@@ -7,8 +7,8 @@ description: >
   water separating surface, interflow and groundwater runoff, and lag-recession
   channel routing. Packaged from OuyangWenyu/hydromodel v0.4.0 at commit
   89d7a8e, running upstream's own xaj.py unmodified. Reports its stores, so the
-  budget can be measured; it has no snow or interception store and reports
-  neither, which is what leaves it N/A on the probes that require them.
+  budget can be measured; it has no snow or interception store, and those are
+  reported as identically zero under `zero_stores`.
   README.md gives every parameter and where it came from.
 authors:
   - "R.-J. Zhao (Xin'anjiang model, 1992)"
@@ -25,8 +25,8 @@ timestep: PT1D
 
 # `mrso` is the three tension layers and the free water, `gw` the interflow and
 # groundwater reservoirs, `channel` the lag and recession of the channel routing.
-# `snw` and `canopy` are absent because the model has no such stores; run.json
-# says so under `notes.not_reported`.
+# `snw` and `canopy` are zero because the model has no such stores; run.json
+# says so under `notes.zero_stores`.
 emits:
   fluxes: [pr, evspsbl, mrro, dis]
   states: [mrso, snw, canopy, gw, channel]

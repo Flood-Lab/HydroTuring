@@ -19,7 +19,7 @@ would not be absorbed by that number.
 
 Stores: `mrso` is the soil store (`x_loss`), `gw` the slow reservoir, `channel`
 the three quick-flow reservoirs. HYMOD has no snow or interception store, so
-`snw` and `canopy` are not reported; see `not_reported` below.
+`snw` and `canopy` are identically zero; see `zero_stores` below.
 """
 
 from __future__ import annotations

@@ -11,7 +11,8 @@ by Yuanhang Liu ([@kawh1111](https://github.com/kawh1111)).
 The adapter steps LISFLOOD's own Python framework and reads the stores and
 fluxes its water balance module sums, so what HydroTuring scores is
 LISFLOOD's own ledger. When a probe prescribes a withdrawal, LISFLOOD's own
-water-use module makes it.
+water-use module handles it, and on this one-cell domain it delivers only part of it;
+see the result below.
 
 ## Licence
 

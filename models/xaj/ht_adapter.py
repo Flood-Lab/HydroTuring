@@ -21,8 +21,8 @@ Stores, catchment-average, weighted as upstream weights the runoff they feed:
            recursion exactly.
   channel  the channel routing: runoff inside the lag plus the recession store.
 
-XAJ has no snow or interception store, so `snw` and `canopy` are not reported;
-see `not_reported` below.
+XAJ has no snow or interception store, so `snw` and `canopy` are identically
+zero; see `zero_stores` below.
 """
 
 from __future__ import annotations

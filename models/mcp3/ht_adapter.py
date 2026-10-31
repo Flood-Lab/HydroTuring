@@ -29,8 +29,8 @@ end of the record, whose own outputs are thrown away. No budget term is derived
 from a residual.
 
 The model has no snow and no canopy store and reads neither temperature nor
-anything about the catchment. Those columns are left out and named under
-`not_reported` in run.json.
+anything about the catchment. Those columns are reported as identically zero
+under `zero_stores` in run.json.
 
 Spin-up
 -------

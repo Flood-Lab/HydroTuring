@@ -278,8 +278,9 @@ applies to `snw` and `canopy` alone. A zero `gw` or `channel` would pass a probe
 about a store the model does not have, so leave those out and list them under
 `not_reported`. It does not apply to a model with no stores at all, such as a
 discharge-only network, whose storage is unknown rather than absent; it declares
-`states: []` and is `N/A (INCOMPLETE)` on the budget probes. A flux the model does
-not compute is never filled in.
+`states: []` and is `N/A (INCOMPLETE)` on the budget probes. Nor does it apply to a
+routing model, whose control volume starts at its inflow and never sees weather: it
+reports `channel` and nothing else. A flux the model does not compute is never filled in.
 
 A model with an explicit exchange with the outside, a regional groundwater
 term or an inter-basin transfer, reports it as the flux `gwex`, positive

@@ -7,9 +7,9 @@ description: >
   tag v0.4.0. Run on the four cells of upstream's own continuity test with the
   parameters of that test, because no calibration exists for a synthetic
   catchment; the catchment's soil capacity sets the soil depth and its stated
-  area enters only the discharge. The model has no snow, interception or
-  groundwater store, so it is N/A (INCOMPLETE) on every probe that requires
-  them. README.md lists every parameter and choice.
+  area enters only the discharge. The model has no snow or interception store, which are
+  reported as identically zero under `zero_stores`, and no groundwater store,
+  which is left out. README.md lists every parameter and choice.
 authors:
   - "Theo Vischel, Scott Sinclair (PyTOPKAPI, github.com/sahg/PyTOPKAPI)"
   - "Zhiyu Liu, Ezio Todini (model, 2002)"

@@ -7,8 +7,8 @@ description: >
   intercatchment groundwater exchange. Its compiled kernel runs unchanged;
   the adapter only reads what RunModel_GR4J returns. X2 is reported as the
   declared exchange `gwex`, so the budget is closed over a source the model
-  admits to. GR4J has no snow and no interception store, and neither is
-  fabricated, so the probes that require them are N/A (INCOMPLETE). A
+  admits to. GR4J has no snow and no interception store, and those are
+  reported as identically zero under `zero_stores`. A
   PT1H row runs airGR's own hourly kernel, GR4H. README.md lists every
   parameter and every choice.
 authors:

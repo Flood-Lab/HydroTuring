@@ -10,8 +10,7 @@ description: >
   exists for the synthetic catchment: the parameters are the midpoints of MARRMoT's
   documented ranges with the two capacities from the case, the initial stores are
   zero, and README.md gives the provenance and the sensitivity. The model has no snow
-  store, so the column is left out rather than reported as zero, and every probe that
-  requires it is N/A (INCOMPLETE).
+  store, which is reported as identically zero under `zero_stores`.
 authors:
   - "Francis Chiew, Murray Peel, Andrew Western (SIMHYD, 2002)"
   - "Wouter Knoben, Luca Trotter, and the MARRMoT contributors (toolbox and this formulation)"

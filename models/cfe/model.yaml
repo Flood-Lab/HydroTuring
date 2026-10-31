@@ -7,9 +7,8 @@ description: >
   surface and lateral runoff. Upstream's BMI library from NOAA-OWP/cfe at
   f9182df, unmodified, in the configuration it ships as
   configs/cfe_config_cat_87_pass.txt with the soil capacity taken from the case.
-  README.md lists every value. CFE has no snow and no interception store, so
-  those columns are left out rather than reported as zero, and every probe that
-  requires them is N/A (INCOMPLETE). The model is hourly, so a daily probe is
+  README.md lists every value. CFE has no snow and no interception store, and
+  those are reported as identically zero under `zero_stores`. The model is hourly, so a daily probe is
   N/A (INCOMPATIBLE).
 authors:
   - "Fred L. Ogden (formulation, NOAA-OWP); Jonathan Frame, Jessica Garrett (BMI); Ahmad Jan Khattak (Nash surface); NOAA-OWP contributors"
