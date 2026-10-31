@@ -92,6 +92,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `shud` | Yuanhang Liu (Independent Researcher), [#106](../../issues/106) | HydroTuring maintainers |
 | `noahmp` | Valmik Nahata (University of California San Diego), [#59](../../issues/59) | HydroTuring maintainers |
 | `rvic` | Jiao Wang (University of California Davis), [#119](../../issues/119) | HydroTuring maintainers |
+| `mizuroute` | Yuanhang Liu (Independent Researcher), [#132](../../issues/132) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:
