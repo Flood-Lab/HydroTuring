@@ -1,0 +1,39 @@
+name: topmodel
+version: "0.7.5-f60752c.2"
+description: >
+  TOPMODEL (Beven and Kirkby 1979), the topographic-index model of variable
+  contributing areas, in Wouter Buytaert's R package at V0.7.5, itself the
+  1995 Fortran version by way of GRASS r.topmodel. A root zone, an unsaturated
+  store and a catchment-mean saturation deficit, with a delay function to the
+  outlet. The package's C core runs unchanged behind a small driver that
+  copies out the stores the package does not return. The topographic-index
+  distribution and the parameters are the package's own example catchment,
+  Huagrahuma; README.md says what that does and does not mean. No snow and
+  no interception store: those are reported as identically zero under `zero_stores`.
+authors:
+  - "K. J. Beven, M. J. Kirkby (TOPMODEL)"
+  - "W. Buytaert, Imperial College London (R package)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1080/02626667909491834"
+license: "GPL (>= 2)"
+
+runner: docker
+entrypoint: ["Rscript", "--vanilla", "ht_adapter.R"]
+# The C core takes its step in hours and scales T, td and vr by it.
+timestep: [PT1D, PT1H]
+
+# `mrso` is the root zone, `gw` the unsaturated store plus the saturated zone on
+# a stated datum, `channel` the water still inside the delay function. README.md
+# says why, and what the datum does.
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  states: [mrso, snw, canopy, gw, channel]
+
+needs_forcing: [pr, pet]
+uses_static: [area_km2, soil_capacity_mm, main_channel_length_km, centroid_channel_length_km]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
+
+# A lumped catchment of sixteen classes runs ten years in well under a second.
+window_days: full
