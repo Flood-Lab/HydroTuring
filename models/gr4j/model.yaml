@@ -33,7 +33,8 @@ emits:
   states: [mrso, snw, canopy, gw, channel]
 
 needs_forcing: [pr, pet]
-uses_static: [area_km2, soil_capacity_mm]
+needs_static: [area_km2]
+uses_static: [soil_capacity_mm]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}
