@@ -101,6 +101,17 @@ static:
 # missing from a model is under not_reported in its run.json. Reference models are written
 # in the contract's own names, so they have no entry.
 crosswalk:
+  vic:
+    evspsbl: "OUT_EVAP"
+    mrro: "OUT_RUNOFF + OUT_BASEFLOW"
+    hfls: "OUT_LATENT + OUT_LATENT_SUB"
+    hfss: "OUT_SENSIBLE"
+    hfg: "OUT_GRND_FLUX + OUT_DELTAH + OUT_FUSION"
+    rlus: "OUT_LWDOWN - OUT_LWNET"
+    mrso: "OUT_SOIL_MOIST"
+    snw: "OUT_SWE"
+    canopy: "OUT_WDEW + OUT_SNOW_CANOPY"
+    ts: "OUT_RAD_TEMP"
   cwatm:
     evspsbl: "totalET"
     sbl: "snowEvap"
