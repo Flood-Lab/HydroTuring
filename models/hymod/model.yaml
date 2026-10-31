@@ -1,0 +1,41 @@
+name: hymod
+version: "0.4.0-89d7a8e.2"
+description: >
+  HYMOD, the five-parameter conceptual rainfall-runoff model: a
+  probability-distributed soil store (Moore 1985) feeding three quick-flow
+  linear reservoirs in series and one slow reservoir. Packaged from
+  OuyangWenyu/hydromodel v0.4.0 at commit 89d7a8e, running upstream's own
+  hymod.py unmodified. Reports its soil store and both routing paths, so the
+  budget can be measured; it has no snow or interception store, and those are
+  reported as identically zero under `zero_stores`.
+  README.md gives every parameter and where it came from.
+authors:
+  - "D. P. Boyle (HYMOD, 2001); R. J. Moore (probability-distributed store, 1985)"
+  - "Wenyu Ouyang (hydromodel)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.5194/piahs-368-180-2015"
+license: "GPL-3.0"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# The step in the submission. The adapter rescales its two rate constants for
+# the next finer step, which the resolution probe asks of every model.
+timestep: PT1D
+
+# `mrso` is the soil store, `gw` the slow reservoir, `channel` the three
+# quick-flow reservoirs. `snw` and `canopy` are zero because the model has no
+# such stores; run.json says so under `zero_stores`.
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  states: [mrso, snw, canopy, gw, channel]
+
+# Temperature is not listed: HYMOD never reads it.
+needs_forcing: [pr, pet]
+needs_static: [area_km2]
+uses_static: [soil_capacity_mm]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
+
+# A ten-year record runs in about two seconds, so nothing is gained by cutting it.
+window_days: full

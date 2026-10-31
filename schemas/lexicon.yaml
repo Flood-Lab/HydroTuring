@@ -196,3 +196,12 @@ crosswalk:
     snw: "snow_storage + snow_water"
     canopy: "canopy_storage"
     channel: "overland.storage + river.storage"
+  hymod:
+    evspsbl: "before_evap - x_loss"
+    mrro: "flow"
+    dis: "flow * area_km2"
+    mrso: "x_loss"
+    snw: "0"
+    canopy: "0"
+    gw: "x_slow"
+    channel: "sum(x_quick)"
