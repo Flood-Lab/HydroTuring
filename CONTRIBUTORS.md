@@ -77,6 +77,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `topmodel` | Yan Chen (Colorado State University), [#117](../../issues/117) | HydroTuring maintainers |
 | `tank` | Jiao Wang (University of California Davis), [#124](../../issues/124) | HydroTuring maintainers |
 | `topkapi` | Jiao Wang (University of California Davis), [#123](../../issues/123) | HydroTuring maintainers |
+| `cfe` | Xiaoyi Dong (China IPPR International Engineering Co., Ltd., SINOMACH), [#127](../../issues/127) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:
