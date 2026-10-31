@@ -1,5 +1,5 @@
 name: prms
-version: "6.0.0-ht.3"
+version: "6.0.0-ht.4"
 description: >
   PRMS, the USGS Precipitation-Runoff Modeling System (Markstrom et al. 2015): a
   modular HRU model with interception, an energy-balance snowpack, contributing-area

@@ -44,7 +44,7 @@ import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-MODEL = {"name": "prms", "version": "6.0.0-ht.3"}
+MODEL = {"name": "prms", "version": "6.0.0-ht.4"}
 
 NOT_REPORTED = {
     "basin_imperv_stor": "no impervious area (hru_percent_imperv = 0), so identically zero",
@@ -361,6 +361,8 @@ def simulate(rows: list[dict], fieldnames: list[str], static: dict, timestep: st
     staged = time.monotonic()
 
     def run_prms():
+        # Or a second run that stops without writing would pass as the first run's output.
+        (WORK / "output" / "statvar.dat").unlink(missing_ok=True)
         proc = subprocess.run([PRMS_EXE, "./ht.control"], cwd=WORK, capture_output=True, text=True)
         log = proc.stdout + proc.stderr
         (WORK / "prms.log").write_text(log)
