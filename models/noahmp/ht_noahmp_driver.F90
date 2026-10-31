@@ -328,7 +328,7 @@ contains
     ! returned, so the same flux its implicit equation balanced. Not a residual.
     flux_bottom = 2.d0 * dble(noahmp%energy%state%ThermConductSoilSnow(1)) * &
          (dble(noahmp%energy%state%TemperatureSoilSnow(1)) - dble(noahmp%energy%state%TemperatureSoilSnow(2))) / &
-         (-dble(noahmp%config%domain%DepthSnowSoilLayer(2)))
+         (-dble(noahmp%config%domain%DepthSoilLayer(2)))
 
     out = (/ &
          dble(noahmp%forcing%RadSwDownRefHeight), &           !  1

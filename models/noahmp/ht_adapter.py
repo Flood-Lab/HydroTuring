@@ -117,7 +117,7 @@ from pathlib import Path
 
 import numpy as np
 
-MODEL = {"name": "noahmp", "version": "5.2.1-17751dc.4"}
+MODEL = {"name": "noahmp", "version": "5.2.1-17751dc.5"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "sbl", "snm", "hfls", "hfss", "hfg", "rlus", "hfg_bottom",
            "mrso", "snw", "canopy", "ts", "tsoil_layer"]
 

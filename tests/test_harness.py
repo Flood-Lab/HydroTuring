@@ -8,6 +8,9 @@ arithmetic is not off by one, and the contract is enforced.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from dataclasses import replace
 
 import pandas as pd
@@ -24,7 +27,7 @@ from hydroturing.harness import (
 )
 from hydroturing.protocol import ProtocolError, read_result, stage
 from hydroturing.scoring import ERROR, FAIL, INCOMPATIBLE, INCOMPLETE, NOT_SCORED, OK, PASS, VIOLATION
-from hydroturing.spec import SpecError
+from hydroturing.spec import REPO_ROOT, SpecError
 from hydroturing.seeds import gate_seeds
 
 
@@ -708,11 +711,85 @@ def test_apptainer_translation_keeps_dockerfile_meaning():
 
 
 def test_apptainer_refuses_what_it_cannot_translate():
-    from hydroturing.runner.apptainer_runner import parse_dockerfile
+    from hydroturing.runner.apptainer_runner import parse_dockerfile, split_copy
     from hydroturing.runner.base import RunnerError
 
     with pytest.raises(RunnerError, match="HEALTHCHECK"):
         parse_dockerfile("FROM debian:13\nHEALTHCHECK NONE\n")
+    # ADD would unpack an archive under Docker and copy it here.
+    with pytest.raises(RunnerError, match="ADD"):
+        parse_dockerfile("FROM debian:13\nADD package.tar.gz /opt/\n")
+    with pytest.raises(RunnerError, match="chmod"):
+        split_copy("--chmod=755 adapter /model/adapter")
+    assert split_copy("--from=build /a /b") == ({"from": "build"}, ["/a"], "/b")
+
+
+def _apptainer_definition(tmp_path, dockerfile):
+    from hydroturing.runner.apptainer_runner import ImageBuilder, flattened
+
+    context = tmp_path / "context"
+    context.mkdir(exist_ok=True)
+    (context / "Dockerfile").write_text(dockerfile)
+    (context / "adapter.py").write_text("")
+    model = replace(registry.find_model("reference_bucket"), path=context)
+    with open(tmp_path / "build.log", "w+") as log:
+        builder = ImageBuilder(model, "apptainer", tmp_path, log)
+        return builder, builder.definition(flattened(builder.stages[-1], builder.stages), 0)
+
+
+def test_apptainer_expands_each_instruction_with_what_precedes_it(tmp_path):
+    from hydroturing.runner.apptainer_runner import final_workdir, parse_dockerfile
+
+    text = "FROM debian:13\nENV D=/first\nWORKDIR $D\nENV D=/second\nWORKDIR sub\nCOPY adapter.py $D/\n"
+    _, definition = _apptainer_definition(tmp_path, text)
+    assert "mkdir -p /first\n" in definition
+    # A relative WORKDIR is relative to the last one, for the build and for --pwd.
+    assert "mkdir -p /first/sub\n" in definition
+    assert final_workdir(parse_dockerfile(text)) == "/first/sub"
+    assert "mkdir -p /second/ &&" in definition
+
+
+def test_apptainer_stores_the_value_an_arg_held(tmp_path):
+    _, definition = _apptainer_definition(
+        tmp_path,
+        "FROM debian:13\nARG ROOT=/opt/model\nENV MODEL_ROOT=$ROOT PATH=/x:$PATH WORDS='$ROOT'\n",
+    )
+    environment = definition.split("%environment")[1]
+    assert "export MODEL_ROOT=/opt/model" in environment
+    # The build's ARG is gone at run time; the base image's PATH is still there.
+    assert "export PATH=/x:$PATH" in environment
+    assert "export WORDS='$ROOT'" in environment
+
+
+def test_apptainer_keeps_copy_inside_the_build_context(tmp_path):
+    from hydroturing.runner.base import RunnerError
+
+    (tmp_path / "secret.py").write_text("")
+    for source in ("../secret.py", str(tmp_path / "secret.py")):
+        with pytest.raises(RunnerError, match="outside the build context"):
+            _apptainer_definition(tmp_path, f"FROM debian:13\nCOPY {source} /model/\n")
+    (tmp_path / "context").mkdir(exist_ok=True)
+    (tmp_path / "context" / "linked").symlink_to(tmp_path)
+    with pytest.raises(RunnerError, match="outside the build context"):
+        _apptainer_definition(tmp_path, "FROM debian:13\nCOPY linked /model/\n")
+
+
+def test_apptainer_build_is_stopped_at_its_limit(tmp_path):
+    from hydroturing.runner.base import RunnerError
+
+    builder, _ = _apptainer_definition(tmp_path, "FROM debian:13\n")
+    builder.deadline = 0.0
+    with open(tmp_path / "limit.log", "w+") as builder.log:
+        with pytest.raises(RunnerError, match="build limit"):
+            builder.call(["sleep", "30"], "a stuck stage")
+
+
+def test_apptainer_runner_imports_where_fcntl_does_not_exist():
+    code = (
+        "import sys; sys.modules['fcntl'] = None; "
+        "import hydroturing.runner.apptainer_runner"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True, env={**os.environ, "PYTHONPATH": str(REPO_ROOT / "src")})
 
 
 def test_cpu_request_is_capped_at_the_host(monkeypatch, tmp_path):

@@ -39,7 +39,7 @@ Spin-up
 -------
 The model starts from an empty store. Upstream's published recipe repeats the
 first water year three times in front of the record, and it is followed here:
-the first 365 days of the rows handed over (all of them, for a shorter record)
+the first 365 days of the rows handed over (none, for a shorter record, which has no year to repeat)
 run three times through the model before row 0. That is the only use
 of later rows, and it reaches no further than the first year, as AGENTS.md
 allows a climatology to.
@@ -79,7 +79,7 @@ sys.path.insert(0, str(UPSTREAM))
 
 from MCPBRNN_lib_tools.MCNZoo import MCPBRNN_PETconstraint_MassRelax_Regular  # noqa: E402
 
-MODEL = {"name": "mcp2", "version": "5944b5f-epoch3.3"}
+MODEL = {"name": "mcp2", "version": "5944b5f-epoch3.4"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "gwex", "mrso", "snw", "canopy"]
 CHECKPOINT = UPSTREAM / "MCPmodel2" / "model_epoch3.pt"
 
@@ -200,8 +200,14 @@ def run_model(model: Model, x: torch.Tensor, dt: float) -> dict:
 
 
 def spinup_rows(pr: np.ndarray, pet: np.ndarray, dt: float) -> tuple[np.ndarray, np.ndarray]:
-    """The first year of the record, or all of it when shorter, repeated."""
-    first = min(int(round(SPINUP_DAYS / dt)), len(pr))
+    """The first year of the record, repeated.
+
+    A shorter record has no year to repeat, and all of it may be scored, so it gets no
+    extra rows: replaying it would set row 0's store from weather that comes later.
+    """
+    first = int(round(SPINUP_DAYS / dt))
+    if len(pr) < first:
+        return pr[:0], pet[:0]
     return np.tile(pr[:first], SPINUP_REPEATS), np.tile(pet[:first], SPINUP_REPEATS)
 
 

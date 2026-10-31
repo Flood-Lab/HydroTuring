@@ -160,7 +160,7 @@ VIC computes its own net radiation, so `energy/surface-energy-closure` is INCOMP
 
 ## Evaluation
 
-Gate seeds, all 37 probes, version `5.1.0-14a371a.3`, under Apptainer: **15 PASS, 8 FAIL, 14 N/A** (2 INCOMPATIBLE,
+Gate seeds, all 37 probes, version `5.1.0-14a371a.4`, under Apptainer: **15 PASS, 8 FAIL, 14 N/A** (2 INCOMPATIBLE,
 12 INCOMPLETE).
 
 | Probe | Verdict | Number | Mechanism |
