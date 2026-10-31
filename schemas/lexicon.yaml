@@ -103,6 +103,17 @@ static:
 # quantities a variable is made of, for a person to read, and is never evaluated: unit
 # conversions are left out, and the area appears only where a depth meets a discharge.
 crosswalk:
+  vic:
+    evspsbl: "OUT_EVAP"
+    mrro: "OUT_RUNOFF + OUT_BASEFLOW"
+    hfls: "OUT_LATENT + OUT_LATENT_SUB"
+    hfss: "OUT_SENSIBLE"
+    hfg: "OUT_GRND_FLUX + OUT_DELTAH + OUT_FUSION"
+    rlus: "OUT_LWDOWN - OUT_LWNET"
+    mrso: "OUT_SOIL_MOIST"
+    snw: "OUT_SWE"
+    canopy: "OUT_WDEW + OUT_SNOW_CANOPY"
+    ts: "OUT_RAD_TEMP"
   cwatm:
     evspsbl: "totalET"
     sbl: "snowEvap"
