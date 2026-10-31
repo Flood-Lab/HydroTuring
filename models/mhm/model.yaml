@@ -1,0 +1,36 @@
+name: mhm
+version: "5.13.4-ht.1"
+description: >
+  mHM, the mesoscale Hydrologic Model of the UFZ, at v5.13.4 with its routing
+  module mRM, compiled unmodified with upstream's CMake. Its defining feature,
+  multiscale parameter regionalization, runs as upstream ships it: the global
+  parameters of its test domain, on the 500 m morphological grids of a 286 km2
+  sub-basin cut from that domain at build time, upscaled to 4 km. The stated
+  capacity sets the second soil horizon's depth and the stated area enters only
+  the discharge. Forcing is uniform; pet is an input, as upstream allows. README.md
+  lists every parameter and choice.
+authors:
+  - "Luis Samaniego, Rohini Kumar, Sabine Attinger (mHM, 2010, 2013); Stephan Thober, Matthias Zink, Sebastian Mueller and the mHM developers (github.com/mhm-ufz/mHM)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1029/2008WR007327"
+license: GPL-3.0-or-later
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# mHM steps at one hour in every configuration upstream ships, and reads daily or
+# hourly forcing; it disaggregates a daily row itself. The other step its namelist
+# names, 24 hours, does not run correctly (README.md, "timestep = 24").
+timestep: [PT1D, PT1H]
+
+emits:
+  fluxes: [pr, evspsbl, mrro, dis, snm]
+  # mrso: soil horizons and sealed retention. gw: unsaturated and saturated
+  # reservoirs. channel: generated runoff not yet past the outlet.
+  states: [mrso, snw, canopy, gw, channel]
+
+needs_forcing: [pr, tas, pet]
+needs_static: [area_km2]
+uses_static: [soil_capacity_mm]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
