@@ -239,3 +239,11 @@ crosswalk:
     snw: "0"
     canopy: "0"
     gw: "end[i, 2] + end[i, 3]"
+  topkapi:
+    evspsbl: "ET_out + Ec_out"
+    mrro: "Qc_out + Q_down"
+    dis: "(Qc_out + Q_down) * area_km2"
+    mrso: "V_s"
+    snw: "0"
+    canopy: "0"
+    channel: "V_o + V_c"
