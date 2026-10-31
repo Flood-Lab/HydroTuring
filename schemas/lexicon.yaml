@@ -381,3 +381,6 @@ crosswalk:
   mizuroute:
     dis: "routedRunoff[TESTED_SEG]"
     channel: "(volume[SOURCE_SEG] + volume[TESTED_SEG]) / area_km2"
+  lisflood_fp:
+    dis: "qout * scale"
+    channel: "volume * scale / area_m2"
