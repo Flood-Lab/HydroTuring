@@ -1,5 +1,5 @@
 name: mcp1
-version: "5944b5f-epoch27.3"
+version: "5944b5f-epoch27.4"
 description: >
   MCPModel1, the single-node Mass-Conserving Perceptron MC{O_sigma L_sigma^con}
   of Wang and Gupta (2024): one store, an output gate that reads the store, a

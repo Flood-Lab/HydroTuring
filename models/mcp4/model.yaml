@@ -1,5 +1,5 @@
 name: mcp4
-version: "5944b5f-epoch2707.3"
+version: "5944b5f-epoch2707.4"
 description: >
   MCPModel4, the five-node distributed-state MCP network MN_SALO^DS(5) of Wang
   and Gupta (2025): five stores that each take the whole rain, with gates that
