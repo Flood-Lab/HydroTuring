@@ -306,3 +306,12 @@ crosswalk:
     canopy: "Canopy + Canopy Snow"
     gw: "Soil Water[1] + Soil Water[2]"
     channel: "channel_storage + reservoir_storage + rivulet_storage + Surface Water + Ponded Water"
+  hype:
+    snm: "cprf + melt"
+    evspsbl: "evap"
+    mrro: "cout / area_km2"
+    dis: "cout"
+    mrso: "soim"
+    snw: "snow"
+    canopy: "0"
+    channel: "(clrv + cmrv) / area_km2"
