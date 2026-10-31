@@ -174,6 +174,31 @@ from the kept per-setting runs, where the old criterion reproduces every
 entry; with roots through 99% of the column the second seed now clears the
 bound by a hair (0.020).
 
+## v0.1 sweep (2026-10-31)
+
+Twenty-five models packaged and archived under Apptainer on Alpine; each README holds
+its own mechanisms. What a next evaluation should know:
+
+- Apptainer reproduced every archived Docker verdict on the ten models that had one.
+  The only two differences were LISFLOOD's rows that had been ERROR from emulation.
+- Keep a job on one node. `--ntasks` alone spread it across three, the batch script got
+  three CPUs, and the resulting time-budget ERRORs read like verdicts on the models.
+- `human-abstraction` fails every model with no withdrawal term, as AGENTS.md intends,
+  and is the only failure on `hymod`, `tank` and `mhm`.
+- Not edited, and worth a maintainer's look:
+  - `routing_conservation` bounds `channel` by released `mrro`, so a lagged router fails
+    on the first storm after a dry spell (`xaj`, `gr4j`, `topkapi`, `mcp3`).
+  - `counterfactual_response` ignores a declared `gwex`; `mcp2` sums to 1.000 with it.
+  - `et_plausible`'s 1e-9 tolerance is tighter than float32 (`mcp4`).
+  - `state_bounds`' 1e-6 tolerance is tighter than a model's print quantum (`prms`).
+  - `resolution_invariance`'s `mrso_end` carries spin-up differences (`mcp4`, `mcp5`).
+  - `area-invariance` passes trivially when area enters only `dis`.
+  - The `non_degenerate` runoff-ratio floor alone decides several of `raven`'s failures.
+  - `warming-response`: a windowed model's spinup rows sit inside the warmed years, so
+    variants do not enter the window from the same state, which decides `mtslstm`.
+  - `google_flood_forecast`'s adapter computes day-based indices per row (line 210), the
+    fault fixed in `ealstm` and `mtslstm`; its archived 65.9% may be inflated.
+
 ## Known open items
 
 - The `probe` workflow's `container` job has failed on every recorded run

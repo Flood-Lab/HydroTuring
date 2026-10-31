@@ -1,6 +1,7 @@
 # Sourced by the batch scripts here. Everything that grows lives on scratch:
 # a cluster's home is small, and an image cache is large and can be rebuilt.
-# Override any of these before submitting.
+# Override any of these before submitting, with sbatch --export=ALL,HT_RUNS=...: a
+# default of --export=NONE, which some cluster profiles set, drops the environment.
 : "${USER:=$(id -un)}"; export USER
 export HT_SCRATCH="${HT_SCRATCH:-/scratch/alpine/$USER/hydroturing}"
 export HT_VENV="${HT_VENV:-$HT_SCRATCH/venv}"
