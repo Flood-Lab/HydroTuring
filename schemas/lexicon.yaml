@@ -263,3 +263,9 @@ crosswalk:
     snw: "0"
     canopy: "S1"
     gw: "S3"
+  mcp1:
+    evspsbl: "lc_n"
+    mrro: "h_n"
+    mrso: "c_n[t+1]"
+    snw: "0"
+    canopy: "0"
