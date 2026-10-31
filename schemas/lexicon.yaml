@@ -258,3 +258,10 @@ crosswalk:
     canopy: "0"
     gw: "GW_STORAGE"
     channel: "nash_surface_params.nash_storage + nash_storage_subsurface"
+  simhyd:
+    evspsbl: "Ea"
+    mrro: "Q"
+    mrso: "S2"
+    snw: "0"
+    canopy: "S1"
+    gw: "S3"
