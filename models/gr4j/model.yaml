@@ -1,0 +1,43 @@
+name: gr4j
+version: "1.7.9-4bb401c.2"
+description: >
+  GR4J, the four-parameter daily rainfall-runoff model of Perrin, Michel and
+  Andreassian (2003), run from INRAE's airGR package at version 1.7.9: a
+  production store, two unit hydrographs, a nonlinear routing store and an
+  intercatchment groundwater exchange. Its compiled kernel runs unchanged;
+  the adapter only reads what RunModel_GR4J returns. X2 is reported as the
+  declared exchange `gwex`, so the budget is closed over a source the model
+  admits to. GR4J has no snow and no interception store, and those are
+  reported as identically zero under `zero_stores`. A
+  PT1H row runs airGR's own hourly kernel, GR4H. README.md lists every
+  parameter and every choice.
+authors:
+  - "C. Perrin, C. Michel, V. Andreassian (GR4J)"
+  - "L. Coron, O. Delaigue, G. Thirel, D. Dorchies et al., INRAE (airGR)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1016/S0022-1694(03)00225-7"
+license: "GPL-2 (airGR)"
+
+runner: docker
+entrypoint: ["Rscript", "--vanilla", "ht_adapter.R"]
+# PT1D is GR4J. PT1H is airGR's GR4H, the same structure with its own constants
+# and parameters converted to the hour; nothing finer exists in the package.
+timestep: [PT1D, PT1H]
+
+# `mrso` is the production store, `gw` the routing store that carries the slow
+# flow and takes the groundwater exchange, `channel` the water inside the two
+# unit hydrographs. README.md says why the routing store is `gw`, and what the
+# other mapping would do.
+emits:
+  fluxes: [pr, evspsbl, mrro, dis, gwex]
+  states: [mrso, snw, canopy, gw, channel]
+
+needs_forcing: [pr, pet]
+needs_static: [area_km2]
+uses_static: [soil_capacity_mm]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
+
+# A lumped catchment runs ten years in well under a second.
+window_days: full
