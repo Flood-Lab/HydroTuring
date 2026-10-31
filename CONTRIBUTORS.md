@@ -95,6 +95,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `mizuroute` | Yuanhang Liu (Independent Researcher), [#132](../../issues/132) | HydroTuring maintainers |
 | `lisflood_fp` | Shunan Zhou (Dalian University of Technology), [#77](../../issues/77) | HydroTuring maintainers |
 | `ealstm` | Valmik Nahata (University of California San Diego), [#57](../../issues/57) | HydroTuring maintainers |
+| `mtslstm` | Jiao Wang (University of California Davis), [#126](../../issues/126) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:
