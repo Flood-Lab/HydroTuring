@@ -1,5 +1,5 @@
 name: xaj
-version: "0.4.0-89d7a8e.2"
+version: "0.4.0-89d7a8e.3"
 description: >
   The Xin'anjiang model (Zhao 1992), the conceptual rainfall-runoff model used
   for flood forecasting in China since the 1980s: three-layer evaporation,
@@ -26,7 +26,7 @@ timestep: PT1D
 # `mrso` is the three tension layers and the free water, `gw` the interflow and
 # groundwater reservoirs, `channel` the lag and recession of the channel routing.
 # `snw` and `canopy` are zero because the model has no such stores; run.json
-# says so under `notes.zero_stores`.
+# says so under `zero_stores`.
 emits:
   fluxes: [pr, evspsbl, mrro, dis]
   states: [mrso, snw, canopy, gw, channel]
