@@ -8,6 +8,7 @@
 #SBATCH --job-name=ht-build
 #SBATCH --partition=acpu
 #SBATCH --qos=cpu-normal
+#SBATCH --nodes=1
 #SBATCH --ntasks=4
 #SBATCH --time=06:00:00
 #SBATCH --output=%x-%j.out

@@ -45,9 +45,17 @@ a virtual environment with the harness's dependencies at `$HT_VENV`.
 # nodes have it, but check that yours do.
 sbatch --chdir="$PWD" scripts/hpc/build_model.sbatch cwatm
 
-# Evaluate on every probe, side by side, one task per probe.
+# Evaluate on every probe, as many side by side as fit what the manifest asks for.
 sbatch --chdir="$PWD" --job-name=ht-cwatm scripts/hpc/run_model.sbatch cwatm
 ```
+
+Keep a job on one node. A batch script runs on the first node of its job, so `--ntasks=16`
+spread across three nodes leaves it that node's share: about three CPUs and 11 GB in the
+first sweep here. CPU time per case stayed flat while wall time tripled, five models
+crossed their probes' 60 s budgets and one ran out of memory, and every one of those
+`ERROR`s looked like a verdict on the model. Every verdict that did finish matched the
+Docker archive. Reading the image from node-local disk, as `run_model.sbatch` also does,
+starts a model up to three times faster.
 
 The evaluation writes one report per probe under `$HT_RUNS/<model>/probes/`, and
 gathers the archive rows in probe order into `$HT_RUNS/<model>/result.csv`, for

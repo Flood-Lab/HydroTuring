@@ -3,13 +3,20 @@
 #
 #   sbatch --chdir=<repo> --job-name=ht-<model> scripts/hpc/run_model.sbatch <model> [probe ...]
 #
-# Probes run side by side, one per task, so a model's time is its slowest probe
-# rather than the sum of all of them. Each writes its own report; the rows are
-# gathered, in probe order, into $HT_RUNS/<model>/result.csv, ready to append to
-# models/result.csv once they are worth archiving.
+# Probes run side by side, as many as fit the CPUs and memory the manifest asks
+# for per case, since Apptainer cannot enforce those itself and a model that runs
+# out of either comes back as an ERROR that says nothing about it. One node, because
+# a batch script runs on the first node of its job: spread across three by --ntasks
+# alone, sixteen tasks left it about three CPUs and the memory that goes with them.
+# The image is read from node-local disk, which starts a model faster.
+#
+# Each probe writes its own report; the rows are gathered, in probe order, into
+# $HT_RUNS/<model>/result.csv, ready to append to models/result.csv once they are
+# worth archiving.
 #SBATCH --partition=acpu
 #SBATCH --qos=cpu-normal
-#SBATCH --ntasks=8
+#SBATCH --nodes=1
+#SBATCH --ntasks=16
 #SBATCH --mem-per-cpu=3700M
 #SBATCH --time=23:30:00
 #SBATCH --output=%x-%j.out
@@ -20,18 +27,36 @@ out="$HT_RUNS/$model"; mkdir -p "$out/probes"
 if [ "$#" -gt 0 ]; then
   probes=("$@")
 else
+  # A full run replaces the last one, so a run that stops early cannot leave older
+  # rows to be gathered as if they were new.
+  rm -f "$out"/probes/* "$out/result.csv"
   mapfile -t probes < <(find probes -mindepth 3 -maxdepth 3 -name probe.yaml | sed -e 's#^probes/##' -e 's#/probe.yaml$##' | sort)
 fi
-# Build first and once: the side-by-side probes would otherwise queue on the lock.
-python - "$model" <<'P'
-import sys
+# Build first and once, then copy: the probes would otherwise queue on the lock.
+read -r image parallel < <(python - "$model" <<'P'
+import os, sys
 from dataclasses import replace
 from hydroturing import registry
 from hydroturing.runner.apptainer_runner import build
 model = registry.find_model(sys.argv[1])
+image = "-"
 if model.runner != "subprocess":
-    print("image:", build(replace(model, runner="apptainer")))
+    image = build(replace(model, runner="apptainer"))
+resources = model.resources or {}
+tasks = int(os.environ.get("SLURM_NTASKS", 8))
+gigabytes = tasks * 3.6
+print(image, max(1, min(tasks // max(1, int(resources.get("cpu", 2))),
+                        int(gigabytes // max(1, resources.get("memory_gb", 4))))))
 P
+)
+if [ "$image" != "-" ] && [ -n "${SLURM_SCRATCH:-}" ]; then
+  cp "$image" "$SLURM_SCRATCH/" && export HT_APPTAINER_IMAGES="$SLURM_SCRATCH"
+fi
+if [ -z "${parallel:-}" ]; then
+  echo "error: no image for $model; see the build log beside $HT_APPTAINER_IMAGES" >&2
+  exit 2
+fi
+echo "image: $image; $parallel probes side by side"
 one() {
   local probe="$1" tag="${1//\//__}" runner=()
   [ "$(grep -E '^runner:' "models/$model/model.yaml" | awk '{print $2}')" = "subprocess" ] || runner=(--runner apptainer)
@@ -43,7 +68,7 @@ one() {
   rm -rf "$TMPDIR/$model-$SLURM_JOB_ID/$tag"
 }
 export -f one; export model out
-printf '%s\n' "${probes[@]}" | xargs -P "${SLURM_NTASKS:-8}" -I{} bash -c 'one {}'
+printf '%s\n' "${probes[@]}" | xargs -P "$parallel" -I{} bash -c 'one {}'
 python - "$out" <<'P'
 import csv, glob, os, sys
 out = sys.argv[1]

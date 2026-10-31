@@ -402,7 +402,14 @@ class ImageBuilder:
     def call(self, argv: list[str], what: str) -> str:
         self.log.write(f"\n$ {shlex.join(argv)}\n")
         self.log.flush()
-        proc = subprocess.run(argv, stdout=subprocess.PIPE, stderr=self.log, text=True)
+        # A cache per model: Apptainer's is not safe against builds of different
+        # models pulling at once, and a corrupted index fails them all with
+        # "conveyor failed to get". The build lock already serialises one model.
+        env = dict(os.environ)
+        if env.get("APPTAINER_CACHEDIR"):
+            env["APPTAINER_CACHEDIR"] = os.path.join(env["APPTAINER_CACHEDIR"], self.model.name)
+            os.makedirs(env["APPTAINER_CACHEDIR"], exist_ok=True)
+        proc = subprocess.run(argv, stdout=subprocess.PIPE, stderr=self.log, text=True, env=env)
         self.log.write(proc.stdout or "")
         if proc.returncode != 0:
             self.log.flush()
