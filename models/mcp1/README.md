@@ -59,19 +59,21 @@ Named under `not_reported`. The model has none of these, and none is filled in.
 ## Choices, and how much each moves the results
 
 **Spin-up.** Upstream repeats the first water year three times in front of the record, from an
-empty store. The adapter does the same with the first 365 days of the rows it is given, or all
-of them when the record is shorter. Those rows run before row 0 and are never reported. On
+empty store. The adapter does the same with the first 365 days of the rows it is given, and none when the record is shorter than a year: it has no year to repeat, and all of it may be scored, so replaying it would set row 0's store from weather that comes later. Those rows run before row 0 and are never reported. On
 daily probes that is three times the case's own 365-day spin-up, nothing later than it, so it
 is causal. The table is the adapter run directly under the same harness and gate seeds, on every probe that scores this model, after the zero-store rule; at three repeats that run reproduces every archived verdict.
 
 | Repeats | Result |
 | --- | --- |
-| 0 | `resolution-invariance` PASS (`mrso_end` 6.0% of rain); no other verdict changes |
+| 0 (this probe) | `resolution-invariance` PASS (`mrso_end` 6.0% of rain); no other verdict changes |
 | 1 | `resolution-invariance` **FAIL** (`mrso_end` 13.2%); no other verdict changes |
-| 3 (used) | `resolution-invariance` PASS (`mrro` 3.2%) |
+| 3 (other probes) | `resolution-invariance` PASS (`mrro` 3.2%) |
 
-So this model's `resolution-invariance` verdict depends on the spin-up. Treat that row as
-not robust. A first version cycled a short record until it filled three years, feeding the
+The `resolution-invariance` row above is from before a short record stopped being replayed. That probe's record is
+40 days, all of it weather the model is later scored on, so replaying it set row 0's store from what comes later. It
+now runs as the 0 row. Every other probe has a full first year and still runs as the 3 row.
+
+A first version cycled a short record until it filled three years, feeding the
 model about 2.6 m/yr of rain that no record carried; it was dropped for all five MCP models
 because it invented forcing (3.2% here, and see `models/mcp4`).
 
@@ -92,12 +94,9 @@ record, -0.68/-0.72 on the default window).
 
 ## Verdict
 
-Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch27.3`: **FAIL (VIOLATION), 12 of 20 scored**, 17 N/A
+Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch27.4`: **FAIL (VIOLATION), 12 of 20 scored**, 17 N/A
 (16 INCOMPLETE, 1 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not
 read). The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `gwex`, `channel`, `stage` and `dis`.
-
-**`resolution-invariance` is not robust.** Its PASS turns to FAIL at one spin-up repeat, and back at zero (table
-above). Read that row as undecided.
 
 `closure` passes on all eight probes that score it, worst residual 3.3e-7 of the rain, which is single-precision
 round-off in an update that conserves mass by construction. Trivial passes for this model: `area-invariance` (reads
@@ -120,7 +119,7 @@ Six of the eight FAILs are `state_bounds` and nothing else.
 | mass/multi-decadal-drift | **FAIL** | `state_bounds`: `mrso` 571-624 mm against 320; no drift |
 | mass/phase-counterfactual | PASS | trivially: the model reads no temperature |
 | mass/precipitation-counterfactual | **FAIL** | `state_bounds`: `mrso` 329-707 mm against 320; the partition passes |
-| mass/resolution-invariance | PASS | `mrro` 3.2% of rain; **depends on the spin-up** |
+| mass/resolution-invariance | PASS | `mrso_end` 6.0% of rain |
 | mass/response-nonnegativity | PASS | no dip |
 | mass/runoff-bounds | PASS | runoff 0.36 of rain |
 | mass/spinup-cycle-invariance | **FAIL** | `state_bounds`: `mrso` 382-662 mm against 320; the invariance passes |

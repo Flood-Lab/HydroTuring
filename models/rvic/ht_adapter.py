@@ -16,6 +16,7 @@ import glob
 import json
 import logging
 import os
+import shutil
 import sys
 import traceback
 from datetime import datetime, timedelta
@@ -24,9 +25,10 @@ from pathlib import Path
 import netCDF4
 import numpy as np
 
-MODEL = {"name": "rvic", "version": "1.1.1-ht.2"}
+MODEL = {"name": "rvic", "version": "1.1.1-ht.3"}
 WORK = Path("/tmp/rvic")
 DT_S = 3600
+MIN_REFERENCE_Q = 1.0e-3  # m3/s
 
 # Grid spacing of the two cells. RVIC reads the distance from Flow_Distance and not
 # from the coordinates, so this value only has to give two distinct cells.
@@ -265,8 +267,10 @@ def main() -> int:
         raise ValueError("forcing rows are not hourly")
     q_in = np.array([float(row["q_in"]) for row in forcing])
 
-    WORK.mkdir(parents=True, exist_ok=True)
-    params = routing_parameters(float(q_in[0]), static)
+    shutil.rmtree(WORK, ignore_errors=True)
+    WORK.mkdir(parents=True)
+    # A first row of no inflow has no normal depth, and later rows cannot stand in for it.
+    params = routing_parameters(max(float(q_in[0]), MIN_REFERENCE_Q), static)
     write_inputs(static, times, q_in, params)
     outflow, in_transit = run_rvic(times)
     if len(outflow) != len(forcing):
