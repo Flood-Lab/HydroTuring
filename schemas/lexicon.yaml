@@ -298,3 +298,13 @@ crosswalk:
     mrso: "sum(c_n[t+1])"
     snw: "0"
     canopy: "0"
+  raven:
+    snm: "BETWEEN_ATMOS_PRECIP_AND_PONDED + BETWEEN_SNOW_LIQ_AND_PONDED"
+    evspsbl: "AET"
+    mrro: "q_sim / area_km2"
+    dis: "q_sim"
+    mrso: "Soil Water[0]"
+    snw: "Snow + Snow Melt (Liquid)"
+    canopy: "Canopy + Canopy Snow"
+    gw: "Soil Water[1] + Soil Water[2]"
+    channel: "channel_storage + reservoir_storage + rivulet_storage + Surface Water + Ponded Water"

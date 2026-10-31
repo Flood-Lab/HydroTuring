@@ -1,0 +1,37 @@
+name: raven
+version: "4.12-81011f0.2"
+description: >
+  Raven 4.12 in its HBV-EC emulation: upstream's own benchmark configuration
+  (benchmarking/_InputFiles/Salmon_HBV), run by upstream's executable, unmodified, at
+  commit 81011f0. Snow, liquid snow, canopy and canopy snow compartments, a three-layer
+  HBV soil with fast and slow reservoirs, a triangular unit hydrograph. Calibrated for
+  Salmon River near Prince George, and no calibration exists for the synthetic
+  catchment, so results describe that one documented parameter set with capacities from
+  the case. Every edit to the template is listed in README.md and in run.json.
+authors:
+  - "James R. Craig, Genevieve Brown, Robert Chlumsky, R. Wayne Jenkinson, Georg Jost, Konhee Lee, Juliane Mai, Martin Serrer, Nicholas Sgro, Mahyar Shafii, Andrew P. Snowdon, Bryan A. Tolson (Raven)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1016/j.envsoft.2020.104728"
+license: "Artistic-2.0 (upstream); adapter under this repository's licence"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# Raven's rates are per day and its solver takes the step directly, so nothing is
+# rescaled for the hourly step. README.md says why finer steps are not listed.
+timestep: [PT1D, PT1H]
+
+emits:
+  # snm is liquid reaching PONDED_WATER from the precipitation partition and from
+  # SNOW_LIQ's overflow. gw is the fast and slow reservoirs, SOIL[1] and SOIL[2].
+  fluxes: [pr, snm, evspsbl, mrro, dis]
+  states: [mrso, snw, canopy, gw, channel]
+
+needs_forcing: [pr, tas, pet]
+needs_static: [area_km2]
+uses_static: [soil_capacity_mm, canopy_capacity_mm, latitude_deg]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
+
+# A ten-year record runs in under a second, so nothing is gained by cutting it.
+window_days: full
