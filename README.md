@@ -158,15 +158,15 @@ it. A probe that needs a variable the model does not report, or that the model
 cannot consume, is N/A for it and in neither number, so the totals differ
 between models.
 
-Eight of the nine evaluated models are N/A (INCOMPATIBLE) on
-`momentum/routing-lag-consistency`: `google_flood_forecast`, `dhbv2`,
-`wflow_sbm`, `summa`, `cwatm`, `lisflood`, `flex_topo` and `sacsma_snow17` do
-not currently declare consumption of either required channel-length field.
-Several adapters do read area, sometimes only to convert runoff depth to
-discharge, but area alone does not expose the geomorphic travel path this probe
-changes. `flex_lumped` consumes the complete geometry, maps it to its native
-triangular routing lag and passes. N/A is neither a pass nor a failure; it means
-the probe cannot ask the declared model interface this question.
+Most evaluated models are N/A (INCOMPATIBLE) on
+`momentum/routing-lag-consistency`, because they do not declare consumption of
+either required channel-length field. Several adapters do read area, sometimes
+only to convert runoff depth to discharge, but area alone does not expose the
+geomorphic travel path this probe changes. Three consume the complete geometry:
+`flex_lumped` maps it to its native triangular routing lag and passes, and
+`topmodel` and `hype` map it to their own routing and fail. `modflow6`, `rvic`
+and `mizuroute` do not report what it reads and are N/A (INCOMPLETE). N/A is neither a pass nor a failure; it means the probe cannot ask
+the declared model interface this question.
 
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |
