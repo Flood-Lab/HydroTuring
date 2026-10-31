@@ -629,6 +629,92 @@ def test_container_runs_with_hardened_read_only_inputs(tmp_path):
     )
 
 
+def test_apptainer_runs_with_the_same_isolation(tmp_path):
+    """The cluster runtime has to hide what Docker hides. Without --no-mount a
+    site's bind paths would put this repository's probes inside the container."""
+    from hydroturing.runner.apptainer_runner import ApptainerRunner
+
+    model = registry.find_model("reference_bucket")
+    argv = ApptainerRunner.command("apptainer", "img.sif", "/model", model, tmp_path)
+
+    assert argv[:2] == ["apptainer", "exec"]
+    assert "--containall" in argv and "--no-home" in argv
+    assert "bind-paths" in argv[argv.index("--no-mount") + 1]
+    assert "--net" in argv and argv[argv.index("--network") + 1] == "none"
+    assert argv[argv.index("env") + 1] == "HOME=/tmp"
+    assert argv[argv.index("--pwd") + 1] == "/model"
+    binds = [argv[i + 1] for i, a in enumerate(argv) if a == "--bind"]
+    assert len(binds) == 3
+    assert any(b.endswith(":/io/request.json:ro") for b in binds)
+    assert any(b.endswith(":/io/input:ro") for b in binds)
+    assert any(b.endswith(":/io/output:rw") for b in binds)
+    assert argv[-2:] == ["--request", "/io/request.json"]
+    assert not any(str(registry.PROBES_DIR) in a for a in argv)
+
+
+def test_every_packaged_dockerfile_translates_to_apptainer(tmp_path):
+    """Every recipe in the repository has to translate, or a model cannot be
+    evaluated on a cluster; a keyword the translator does not know raises."""
+    from hydroturing.runner.apptainer_runner import (
+        env_pairs, final_workdir, parse_dockerfile, split_copy,
+    )
+
+    dockerfiles = sorted(registry.MODELS_DIR.glob("*/Dockerfile"))
+    assert dockerfiles
+    for dockerfile in dockerfiles:
+        stages = parse_dockerfile(dockerfile.read_text())
+        assert final_workdir(stages).startswith("/")
+        for stage in stages:
+            for instruction in stage.instructions:
+                if instruction.keyword == "ENV":
+                    assert all(k.isidentifier() for k, _ in env_pairs(instruction.value))
+                if instruction.keyword == "COPY":
+                    split_copy(instruction.value)
+
+
+def test_apptainer_translation_keeps_dockerfile_meaning():
+    from hydroturing.runner.apptainer_runner import (
+        env_pairs, final_workdir, flattened, logical_lines, parse_dockerfile,
+    )
+
+    text = """
+    # a comment
+    ARG BASE=debian:13
+    FROM --platform=linux/amd64 ${BASE}@sha256:abc AS env
+    ENV PATH=/opt/conda/bin:$PATH \\
+        A="b c"
+    RUN echo one \\
+    # a comment inside the continuation
+     && echo two
+    WORKDIR /first
+    FROM env
+    USER root
+    ENTRYPOINT []
+    """
+    stages = parse_dockerfile(text)
+    assert [s.base for s in stages] == ["debian:13@sha256:abc", "env"]
+    assert stages[0].name == "env"
+    assert env_pairs(stages[0].instructions[0].value) == [
+        ("PATH", "/opt/conda/bin:$PATH"), ("A", '"b c"'),
+    ]
+    assert " ".join(stages[0].instructions[1].value.split()) == "echo one && echo two"
+    # The later stage names no directory of its own, so it starts in env's.
+    assert final_workdir(stages) == "/first"
+    # It carries on from env in one recipe rather than unpacking env's image.
+    whole = flattened(stages[1], stages)
+    assert whole.base == "debian:13@sha256:abc"
+    assert [i.keyword for i in whole.instructions] == ["ENV", "RUN", "WORKDIR"]
+    assert "ENTRYPOINT []" in logical_lines(text)
+
+
+def test_apptainer_refuses_what_it_cannot_translate():
+    from hydroturing.runner.apptainer_runner import parse_dockerfile
+    from hydroturing.runner.base import RunnerError
+
+    with pytest.raises(RunnerError, match="HEALTHCHECK"):
+        parse_dockerfile("FROM debian:13\nHEALTHCHECK NONE\n")
+
+
 def test_cpu_request_is_capped_at_the_host(monkeypatch, tmp_path):
     """Docker refuses a CPU quota above the host's count outright. A manifest
     asking for eight cores must still run on a four-core runner."""
