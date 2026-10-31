@@ -1,0 +1,38 @@
+name: ealstm
+version: "0.1.3-d118158-seed111"
+description: >
+  The Entity-Aware LSTM of Kratzert et al. (2019), run from the paper's own code
+  (kratzert/ealstm_regional_modeling at d118158) with its published weights
+  (HydroShare 83ea5312635e44dc824eeb99eda12f06, EA-LSTM trained with the NSE
+  loss, repetition seed 111). It predicts streamflow and nothing else, so it is
+  N/A (INCOMPLETE) on every budget probe. The radiation, temperature range and
+  humidity the probes do not generate are mocked from the forcing; README.md
+  says how every input is filled. No training was done here.
+authors:
+  - "Frederik Kratzert (Johannes Kepler University Linz)"
+  - "Daniel Klotz (Johannes Kepler University Linz)"
+  - "Guy Shalev (Google Research)"
+  - "Guenter Klambauer (Johannes Kepler University Linz)"
+  - "Sepp Hochreiter (Johannes Kepler University Linz)"
+  - "Grey Nearing (University of Alabama)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.5194/hess-23-5089-2019"
+license: "Apache-2.0 (code); CC-BY as stated in the proposal and on HydroShare (weights)"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+
+# Declared honestly: the model predicts discharge and nothing else.
+emits:
+  fluxes: [mrro, dis]
+  states: []
+
+needs_forcing: [pr, tas, pet]
+needs_static: [area_km2]
+supports:
+  perturbation: true
+resources: {cpu: 4, memory_gb: 4, gpu: false}
+
+# The proposal asked for no particular window; the default for a daily model.
+window_days: 30

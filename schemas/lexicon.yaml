@@ -384,3 +384,6 @@ crosswalk:
   lisflood_fp:
     dis: "qout * scale"
     channel: "volume * scale / area_m2"
+  ealstm:
+    mrro: "rescale_features(scaled)"
+    dis: "rescale_features(scaled) * area_km2"
