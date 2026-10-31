@@ -224,3 +224,12 @@ crosswalk:
     canopy: "0"
     gw: "Rout"
     channel: "cumsum(PR - Q9 - Q1)"
+  topmodel:
+    evspsbl: "Ea"
+    mrro: "Q"
+    dis: "Q * area_km2"
+    mrso: "weight * srmax - Srz"
+    snw: "0"
+    canopy: "0"
+    gw: "Suz + (datum - S)"
+    channel: "transit0 + cumsum(qo + qs) - cumsum(Q)"
