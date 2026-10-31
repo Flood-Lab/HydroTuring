@@ -1,0 +1,44 @@
+name: mtslstm
+version: "0.1.1-9626578-seed333"
+description: >
+  The Multi-Timescale LSTM of Gauch et al. (2021), run from neuralhydrology at
+  commit 9626578 with the published mtslstm_seed333 epoch-30 weights from
+  Zenodo; the archive holds no scaler for this run, so a sister sMTS-LSTM run's is
+  used, which reproduces this checkpoint's published simulation. One network with
+  a daily and an hourly branch: daily rows are answered by the daily branch and
+  hourly rows by the hourly branch. It predicts streamflow
+  and nothing else, so it is N/A (INCOMPLETE) on every budget probe. The radiation,
+  humidity and other NLDAS inputs the probes do not generate are mocked from the
+  forcing or held at the training mean; README.md says how every input is filled.
+  No training was done here.
+authors:
+  - "Martin Gauch (Johannes Kepler University Linz)"
+  - "Frederik Kratzert (Google Research)"
+  - "Daniel Klotz (Johannes Kepler University Linz)"
+  - "Grey Nearing (Google Research)"
+  - "Jimmy Lin (University of Waterloo)"
+  - "Sepp Hochreiter (Johannes Kepler University Linz)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.5194/hess-25-2045-2021"
+license: "BSD-3-Clause (code); CC-BY-4.0 (weights and scaler, Zenodo 10.5281/zenodo.18953458, concept 4071885)"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# The network's own two timescales. The daily branch is listed first: the paper
+# trains and reports both, it is what makes the daily probes answerable without
+# resampling anything, and it makes the resolution probe compare the two branches.
+timestep: [PT1D, PT1H]
+
+# Declared honestly: the model predicts discharge and nothing else.
+emits:
+  fluxes: [mrro, dis]
+  states: []
+
+needs_forcing: [pr, tas, pet]
+needs_static: [area_km2]
+supports:
+  perturbation: true
+resources: {cpu: 4, memory_gb: 4, gpu: false}
+
+# The proposal asked for no particular window; the default for a daily model.
+window_days: 30
