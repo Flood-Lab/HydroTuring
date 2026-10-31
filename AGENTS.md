@@ -32,7 +32,8 @@ The harness exposes a small `/io` filesystem and runs your entrypoint once:
 Paths inside `request.json` are relative to the request file's directory.
 
 ```
-/io/request.json          read-only: opaque case id, model seed, timestep, n_steps, outputs
+/io/request.json          read-only: opaque case id, model seed, timestep, n_steps, outputs,
+                          and substep where the manifest names one for this row step
 /io/input/forcing.csv     read-only: columns time, pr, tas, pet (mm/day, degC, mm/day),
                           plus any probe-declared forcing. Routing probes may prescribe
                           q_in (m3/s, positive into the routing control volume);
@@ -196,6 +197,30 @@ step is respected: a daily closure probe given an hourly-only model reports
 INCOMPATIBLE, because closure is what it measures and it cannot measure it
 on a model it cannot feed.
 
+**The one exception is a row the model's own solver cannot take.** Some models
+stop, or their upstream checks stop them, at one step per daily row. Such a
+model may name a shorter solver step for that row in its manifest:
+
+```yaml
+timestep: [PT1H, PT1D]     # native step first
+substep: {PT1D: PT1H}      # a daily row runs on hourly solver steps
+```
+
+`request.json` then carries `substep` on those rows, and the adapter takes it
+from there rather than choosing for itself. This is a statement about a
+numerical limit, and it comes with conditions:
+
+- The README shows the unmodified model failing at one step per row, in its own
+  checks or with its own errors. A step the model merely prefers is not enough.
+- It is not allowed on the native step, so a resolution probe, which compares the
+  native step with the next finer one, always sees one model step per row.
+- The row's values are held flat for its solver steps, precipitation split evenly.
+  Nothing is read from a later row, and no sub-row weather is invented: no diurnal
+  cycle, no interpolation between rows.
+- One row still comes back. A flux is the mean over the row, a store is the value
+  at its end, and an instantaneous value such as `ts` or `rlus` is the last solver
+  step's. `over_the_row` in `schemas/lexicon.yaml` says which is which.
+
 ## Nothing from the future
 
 The stress probes add one storm to a record and check that nothing the
@@ -209,6 +234,12 @@ the same `seed` in the request, so a stochastic model draws the same
 numbers in both runs; keep it that way and do not reseed from the clock.
 
 ## Variable names and units
+
+`schemas/lexicon.yaml` is the vocabulary: every output, forcing and static name with
+its units and sign, and what a variable means over a row of several solver steps.
+`spec.py` reads it, and `tests/test_lexicon.py` holds the manifests, the probes, the
+generators and the table below to it. A name that is not in it does not exist. A packaged
+model also adds its native names to the file's `crosswalk`.
 
 | Name | Meaning | Units |
 | --- | --- | --- |
@@ -267,9 +298,20 @@ actually has, including ones the probe did not name: a groundwater zone
 under `gw`, water in transit through a unit hydrograph or a channel under
 `channel`. The budget is closed over all of them. Leaving one out opens the
 budget by exactly the water it holds, and a model with a groundwater store
-that reports only soil water will be measured as leaking. A store the model
-does not have at all is not fabricated to fill a column; say so in the
-adapter's README and in `run.json`.
+that reports only soil water will be measured as leaking.
+
+A model with explicit water stores but no snow module, or no interception store,
+reports that store as identically zero and names it under `zero_stores` in
+`run.json` and in its README. That is a statement about the model's structure,
+and it can only cost the model: the budget probes require `snw` and `canopy`, and
+water the model really holds there opens the budget by exactly that amount. It
+applies to `snw` and `canopy` alone. A zero `gw` or `channel` would pass a probe
+about a store the model does not have, so leave those out and list them under
+`not_reported`. It does not apply to a model with no stores at all, such as a
+discharge-only network, whose storage is unknown rather than absent; it declares
+`states: []` and is `N/A (INCOMPLETE)` on the budget probes. Nor does it apply to a
+routing model, whose control volume starts at its inflow and never sees weather: it
+reports `channel` and nothing else. A flux the model does not compute is never filled in.
 
 A model with an explicit exchange with the outside, a regional groundwater
 term or an inter-basin transfer, reports it as the flux `gwex`, positive
@@ -460,11 +502,12 @@ For a merged probe:
    by `ht run --model <name> --probe <id> --gate-seeds --csv models/result.csv`
    rather than by hand. A probe that cannot be put to the model is archived
    as `N/A` with its reason, like any other row.
-6. This file, if the probe introduced a variable: a row in the table above.
-   `spec.py` accepts the name the moment it is in `FLUX_VARS`; nothing tells
-   an adapter author it exists except this table.
+6. `schemas/lexicon.yaml`, if the probe introduced a variable, a forcing or a
+   static name, and this file, a row in the table above for a variable. `spec.py`
+   accepts a name the moment it is in the lexicon; nothing tells an adapter author
+   it exists except these two.
 
-For a merged model: the README models table, the CONTRIBUTORS models table,
+For a merged model: its `crosswalk` entry in `schemas/lexicon.yaml`, the README models table, the CONTRIBUTORS models table,
 the site's `models.rows` in all three languages, the archive rows from
 `ht run` on every probe, and `python3 scripts/site_standings.py` after them. The pages workflow redeploys the site on any push
 that touches `site/`, `probes/` or `models/`.

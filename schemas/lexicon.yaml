@@ -1,0 +1,196 @@
+# The vocabulary of the /io contract: every name a model, a probe or an adapter may
+# use, with its units and sign, and what it means on a row of several model steps.
+# spec.py reads its names and units from here, so a variable exists once it is listed.
+# tests/test_lexicon.py holds the table in AGENTS.md, the manifests, the probes, what the
+# generators actually write and what the adapters read to the same names and units.
+#
+# over_the_row says what an output means over one row:
+#   mean     the mean over the row, a rate at every step (depth moved = rate x row length)
+#   end      the value at the end of the row
+#   instant  one instant's value, the same instant as the row's `rlds`. On a row of several
+#            model steps it is the last step's, so the instant's relations still hold.
+
+output:
+  pr: {group: flux, units: mm day-1, over_the_row: mean, meaning: "Precipitation, echoed exactly as the forcing gave it"}
+  evspsbl: {group: flux, units: mm day-1, over_the_row: mean, meaning: "Evapotranspiration, including sublimation; net of dew and frost where the model nets them"}
+  mrro: {group: flux, units: mm day-1, over_the_row: mean, meaning: "Total runoff"}
+  dis: {group: flux, units: m3 s-1, over_the_row: mean, meaning: "River discharge"}
+  gwex: {group: flux, units: mm day-1, over_the_row: mean, sign: "positive into the catchment", meaning: "Declared exchange with the outside: regional groundwater, inter-basin transfer"}
+  gw_sw_exchange: {group: flux, units: mm day-1, over_the_row: mean, sign: "positive into the aquifer", meaning: "Net river-aquifer exchange inside the control volume; never added to gwex or counted in closure"}
+  gw_to_sw: {group: flux, units: mm day-1, over_the_row: mean, sign: "never positive", meaning: "The aquifer losing to the river; a component of gw_sw_exchange"}
+  sw_to_gw: {group: flux, units: mm day-1, over_the_row: mean, sign: "never negative", meaning: "The river losing to the aquifer; a component of gw_sw_exchange"}
+  gw_boundary: {group: flux, units: mm day-1, over_the_row: mean, sign: "positive into the aquifer", meaning: "Every other flux across the aquifer's own boundary, such as a GHB or a well"}
+  sbl: {group: flux, units: mm day-1, over_the_row: mean, meaning: "The sublimating share of evspsbl; a component of it, never an addition"}
+  snm: {group: flux, units: mm day-1, over_the_row: mean, meaning: "Liquid delivered from the snow module to the ground, rain passed through included; never an outflow beside mrro"}
+  hfls: {group: flux, units: W m-2, over_the_row: mean, sign: "positive away from the surface", meaning: "Latent heat flux"}
+  hfss: {group: flux, units: W m-2, over_the_row: mean, sign: "positive away from the surface", meaning: "Sensible heat flux"}
+  hfg: {group: flux, units: W m-2, over_the_row: mean, sign: "positive into the ground", meaning: "Ground heat flux at the actual soil surface; a deeper flux is corrected for the heat stored above it"}
+  rlus: {group: flux, units: W m-2, over_the_row: instant, sign: "positive away from the surface", meaning: "Total upward longwave: emission plus reflected downward longwave"}
+  hfg_bottom: {group: flux, units: W m-2, over_the_row: mean, sign: "positive downward", meaning: "Heat flux through the bottom of the specified soil layer"}
+
+  mrso: {group: state, units: mm, over_the_row: end, meaning: "Soil water storage, liquid and ice; absolute, never a tendency"}
+  snw: {group: state, units: mm, over_the_row: end, meaning: "Snow water equivalent; identically zero and named in zero_stores for a model with no snow module"}
+  canopy: {group: state, units: mm, over_the_row: end, meaning: "Canopy interception storage; identically zero and named in zero_stores for a model with no such store"}
+  gw: {group: state, units: mm, over_the_row: end, meaning: "Groundwater storage below the soil column"}
+  channel: {group: state, units: mm, over_the_row: end, meaning: "Water generated as runoff but not yet released by the model's routing"}
+
+  ts: {group: diagnostic, units: K, over_the_row: instant, meaning: "Radiative surface (skin) temperature"}
+  tsoil_layer: {group: diagnostic, units: K, over_the_row: end, meaning: "Mean temperature of the specified soil layer"}
+  stage: {group: diagnostic, units: m, over_the_row: mean, meaning: "Water-surface elevation on the case's datum, read beside the row's discharge; depth is stage - bed_elevation_m"}
+  lwsnl: {group: diagnostic, units: mm, over_the_row: end, meaning: "Every non-solid component of snw, so snw - lwsnl is the ice; part of snw, never additional"}
+  csnow: {group: diagnostic, units: J m-2, over_the_row: end, meaning: "The pack's cold content: the energy still needed to bring its ice to 0 C; positive"}
+
+  reach_q_in: {group: routing, units: m3 s-1, over_the_row: mean, sign: "positive into the reach", meaning: "Total inflow into the identified reach; in routing.csv"}
+  q_out: {group: routing, units: m3 s-1, over_the_row: mean, sign: "positive downstream", meaning: "Flow across the reach's downstream boundary; in routing.csv"}
+  channel_storage: {group: routing, units: m3, over_the_row: end, meaning: "Absolute water volume in the reach's routed channel; in routing.csv"}
+
+forcing:
+  pr: {units: mm day-1, meaning: "Precipitation"}
+  tas: {units: degC, meaning: "Near-surface air temperature. Celsius, unlike the kelvin of ts and tsoil_layer"}
+  pet: {units: mm day-1, meaning: "Potential evapotranspiration"}
+  rn: {units: W m-2, meaning: "Prescribed net radiation; declaring it accepts it as the energy input to the reported budget"}
+  rsds: {units: W m-2, meaning: "Downward shortwave radiation"}
+  rlds: {units: W m-2, meaning: "Downward longwave radiation"}
+  huss: {units: kg kg-1, meaning: "Near-surface specific humidity"}
+  ps: {units: Pa, meaning: "Surface air pressure"}
+  sfcWind: {units: m s-1, meaning: "Near-surface wind speed"}
+  abstr: {units: mm day-1, meaning: "Prescribed human withdrawal, net of return flow"}
+  gwh: {units: m, meaning: "External hydraulic head behind the model's gwex; declaring it asserts gwex responds monotonically to it"}
+  gw_recharge: {units: mm day-1, meaning: "Direct recharge to the aquifer"}
+  sw_stage_m: {units: m, meaning: "River stage the aquifer exchanges with"}
+  q_in: {units: m3 s-1, sign: "positive into the routing control volume", meaning: "Prescribed river or upstream inflow; already a discharge, never multiplied by area or row length"}
+
+static:
+  area_km2: {units: km2, meaning: "Catchment area the fluxes are converted over"}
+  elevation_m: {units: m, meaning: "Catchment elevation"}
+  latitude_deg: {units: degrees north, meaning: "Latitude"}
+  main_channel_length_km: {units: km, meaning: "Length of the longest channel"}
+  centroid_channel_length_km: {units: km, meaning: "Channel length from the outlet to the point nearest the catchment's centroid"}
+  soil_capacity_mm: {units: mm, meaning: "Water the soil column can hold"}
+  canopy_capacity_mm: {units: mm, meaning: "Water the canopy can intercept; zero is a bare surface"}
+  degree_day_factor_mm_per_C_day: {units: mm degC-1 day-1, meaning: "Snowmelt per degree-day"}
+  baseflow_coefficient: {units: day-1, meaning: "Fraction of soil water drained to baseflow per day"}
+  snow_threshold_degC: {units: degC, meaning: "Air temperature dividing snow from rain"}
+  eps: {units: "1", meaning: "Surface emissivity"}
+  soil_layer_depth_m: {units: m, meaning: "Depth of the prescribed soil layer, from the surface"}
+  soil_heat_capacity_areal: {units: J m-2 K-1, meaning: "Effective areal heat capacity of that layer; it already includes the depth"}
+  soil_temperature_initial: {units: K, meaning: "Initial temperature of that layer"}
+  soil_solid_heat_capacity: {units: J m-3 K-1, meaning: "Volumetric heat capacity of the soil solids"}
+  soil_water_heat_capacity: {units: J m-3 K-1, meaning: "Volumetric heat capacity of soil water"}
+  soil_pore_air_heat_capacity: {units: J m-3 K-1, meaning: "Volumetric heat capacity of the air in the pores"}
+  soil_porosity: {units: "1", meaning: "Volumetric porosity"}
+  soil_water_content_initial: {units: m3 m-3, meaning: "Initial volumetric water content"}
+  aquifer_top_m: {units: m, meaning: "Elevation of the aquifer's top"}
+  aquifer_bottom_m: {units: m, meaning: "Elevation of the aquifer's bottom"}
+  aquifer_initial_head_m: {units: m, meaning: "Initial aquifer head"}
+  aquifer_specific_yield: {units: "1", meaning: "Drainable porosity above the water table"}
+  aquifer_storage_coefficient: {units: "1", meaning: "Storativity, not specific storage"}
+  river_conductance_m2_per_day: {units: m2 day-1, meaning: "Conductance between the river and the aquifer"}
+  river_bottom_offset_m: {units: m, meaning: "River stage minus riverbed elevation"}
+  routing_network: {units: "-", meaning: "Object whose `reaches` member lists the unique string ids of the reaches"}
+  reach_length_m: {units: m, meaning: "Length of the reach"}
+  width_m: {units: m, meaning: "Width of the rectangular channel bed"}
+  bankfull_depth_m: {units: m, meaning: "Depth at which the channel is full"}
+  bed_elevation_m: {units: m, meaning: "Elevation of the rigid bed on the datum stage uses"}
+  slope: {units: "1", meaning: "Bed slope"}
+  manning_n: {units: s m-1/3, meaning: "Manning's roughness"}
+  cross_section_shape: {units: "-", meaning: "Name of the cross-section's shape, such as rectangular"}
+
+# What each packaged model's own names become. Everything a model emits is here, except
+# pr, which is always the forcing echoed; "0" is a store named under zero_stores. A variable
+# missing from a model is under not_reported in its run.json. Reference models are written
+# in the contract's own names, so they have no entry.
+crosswalk:
+  cwatm:
+    evspsbl: "totalET"
+    sbl: "snowEvap"
+    mrro: "runoff"
+    dis: "runoff * area_m2"
+    gwex: "-nonFossilGroundwaterAbs"
+    mrso: "sum_soil"
+    snw: "SnowCover"
+    canopy: "sum_interceptStor"
+    gw: "storGroundwater"
+    channel: "gridcell_storage"
+  dhbv2:
+    evspsbl: "AET_hydro"
+    mrro: "streamflow"
+    dis: "streamflow * area_m2"
+    gwex: "maximum(parRT * factor(parAC, upstream_area_km2), -(slz + percolation))"
+    mrso: "sm"
+    snw: "snowpack + meltwater"
+    canopy: "0.0"
+    gw: "suz + slz"
+    channel: "cumsum(streamflow_no_rout) - cumsum(streamflow)"
+  flex_lumped:
+    evspsbl: "ei + ea"
+    mrro: "routed"
+    dis: "routed * area_km2"
+    gwex: "-removed"
+    mrso: "su"
+    snw: "0.0"
+    canopy: "si"
+    gw: "ss"
+    channel: "sf + cum_gen - cum_out"
+    stage: "bed_elevation_m + (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6"
+  flex_topo:
+    evspsbl: "sum(frac * (ei + ea))"
+    mrro: "routed"
+    dis: "routed * area_km2"
+    gwex: "-removed"
+    mrso: "sum(frac * su)"
+    snw: "0.0"
+    canopy: "sum(frac * si)"
+    gw: "ss"
+    channel: "sum(frac * sf) + cum_gen - cum_out"
+    stage: "bed_elevation_m + (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6"
+  google_flood_forecast:
+    mrro: "streamflow"
+    dis: "streamflow * area_m2"
+  lisflood:
+    evspsbl: "TaWB + TaInterceptionWB + ESActWB"
+    mrro: "ChanQAvg * DtSec"
+    dis: "ChanQAvg * area_km2 / CELL_AREA_M2"
+    gwex: "-(GwLossWB + abstraction_GW_actual_M3 + withdrawal_CH_actual_M3 + LakeAbstractionM3 + ReservoirAbstractionM3 - returnflow_GwAbs2Channel_M3_routStep * NoRoutSteps)"
+    mrso: "W1a + W1b + W2"
+    snw: "SnowCover"
+    canopy: "CumInterception + DirectRunoffFraction * CumInterSealed"
+    gw: "UZ + LZ"
+    channel: "ChanM3 * M3toMM + WaterDepth"
+  modflow6:
+    gw_sw_exchange: "RIV"
+    gw_to_sw: "min(RIV, 0)"
+    sw_to_gw: "max(RIV, 0)"
+    gw: "specific_yield * max(initial_head - botm, 0) - sum(sto_ss + sto_sy)"
+  sacsma_snow17:
+    snm: "raim"
+    evspsbl: "tet"
+    mrro: "routed"
+    dis: "routed * area_km2"
+    gwex: "-(bfncc + removed)"
+    mrso: "parea * (uztwc + uzfwc + lztwc) + adimp * adimc"
+    snw: "we + liqw + exlag + storge"
+    canopy: "0.0"
+    gw: "parea * (lzfsc + lzfpc)"
+    channel: "cum_in - cum_out"
+    stage: "bed_elevation_m + (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6"
+  summa:
+    evspsbl: "-(scalarTotalET + scalarSnowSublimation + scalarCanopySublimation)"
+    mrro: "averageRoutedRunoff"
+    hfls: "-scalarLatHeatTotal"
+    hfss: "-scalarSenHeatTotal"
+    hfg: "scalarGroundNetNrgFlux"
+    mrso: "scalarTotalSoilWat + cumsum(scalarSoilCompress)"
+    snw: "scalarSWE"
+    canopy: "scalarCanopyLiq + scalarCanopyIce"
+    gw: "scalarAquiferStorage"
+    channel: "cumsum(averageInstantRunoff - averageRoutedRunoff)"
+  wflow_sbm:
+    evspsbl: "actevap"
+    mrro: "river.q_av + overland.q_av + lateral.ssf"
+    dis: "(river.q_av + overland.q_av + lateral.ssf) * area_km2 / area"
+    gwex: "-(actleakage + act_surfacewater_abst_vol + act_groundwater_abst_vol)"
+    mrso: "ustoredepth + satwaterdepth"
+    snw: "snow_storage + snow_water"
+    canopy: "canopy_storage"
+    channel: "overland.storage + river.storage"
