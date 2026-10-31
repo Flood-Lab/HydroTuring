@@ -348,3 +348,13 @@ crosswalk:
     canopy: "L1_inter"
     gw: "(L1_unsatSTW + L1_satSTW) * fn"
     channel: "cumsum(L1_total_runoff - mRM_runoff / area_mhm_km2)"
+  shud:
+    evspsbl: "eleveta"
+    mrro: "rivqdown / mesh_area"
+    dis: "rivqdown * area_km2 / mesh_area"
+    mrso: "eleyunsat * sy"
+    snw: "eleysnow"
+    canopy: "eleyic"
+    gw: "eleygw * sy"
+    channel: "eleysurf + rivystage * width * REACH_LENGTH_M / mesh_area"
+    stage: "bed_elevation_m + rivystage"
