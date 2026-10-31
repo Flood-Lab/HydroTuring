@@ -271,3 +271,10 @@ crosswalk:
     mrso: "c_n[t+1]"
     snw: "0"
     canopy: "0"
+  mcp2:
+    evspsbl: "lc_n"
+    mrro: "h_n"
+    gwex: "-gate_ov * abs(c_n - level)"
+    mrso: "c_n[t+1]"
+    snw: "0"
+    canopy: "0"
