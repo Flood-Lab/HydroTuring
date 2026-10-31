@@ -103,6 +103,21 @@ static:
 # quantities a variable is made of, for a person to read, and is never evaluated: unit
 # conversions are left out, and the area appears only where a depth meets a discharge.
 crosswalk:
+  noahmp:
+    evspsbl: "EvapCanopyNet + Transpiration + EvapGroundNet"
+    mrro: "RunoffSurface + RunoffSubsurface"
+    sbl: "SublimSnowSfcIce + SublimCanopyIce"
+    snm: "SnowBotOutflow + RainWithoutPack + PondSfcThinSnwMelt + PondSfcThinSnwComb + PondSfcThinSnwTrans"
+    hfls: "HeatLatentCanopy + HeatLatentGrd + HeatLatentTransp"
+    hfss: "HeatSensibleSfc"
+    hfg: "HeatGroundTot"
+    rlus: "RadLwEmitSfc"
+    hfg_bottom: "HeatSoil1Bottom"
+    mrso: "SoilWater"
+    snw: "SnowWaterEquiv"
+    canopy: "CanopyLiqWater + CanopyIce"
+    ts: "TemperatureRadSfc"
+    tsoil_layer: "TemperatureSoil1"
   vic:
     evspsbl: "OUT_EVAP"
     mrro: "OUT_RUNOFF + OUT_BASEFLOW"
