@@ -141,7 +141,7 @@ On the closure case (seed 598896396, 1095 rows, the last 730 summed; every run c
 | upstream's monthly LAI table | 1594.6 | 861.8 | 706.6 | 0.443 | 2.83 |
 | `fnight_temp` = 0 | 1594.6 | 863.2 | 705.8 | 0.443 | 2.84 |
 | routing `processCase(8)` = 1 | 1594.6 | 863.0 | 705.6 | 0.442 | 1.70 |
-| middle of upstream's range for every free parameter | 1594.6 | 897.9 | 662.5 | 0.415 | 3.69 |
+| middle of upstream's range for 113 of the 120 free parameters | 1594.6 | 897.9 | 662.5 | 0.415 | 3.69 |
 
 The 4 km against 8 km row is the closest thing here to a test of what proposal #58 wanted tested: MPR moves
 the same sub-basin's runoff by 0.06% of the rain when its hydrology grid doubles. That is one case, and the
@@ -202,7 +202,7 @@ the table above is the only evidence here about MPR's flux-matching.
 
 ## An alternative parameter set
 
-Every parameter upstream marks free (flag 1) moved to the middle of upstream's stated range
+Every parameter upstream marks free (flag 1) moved to the middle of upstream's stated range, except that the script's pattern misses the seven free indexed `GeoParam(i,:)` entries, which stay at upstream's values: 113 of 120
 (`midrange_parameters.py`, in the image as `/model/sensitivity/midrange.nml`; not a calibration, not upstream's). Full
 evaluation on gate seeds: **15 PASS, 7 FAIL, 15 N/A**. `mass/human-abstraction` fails
 as before. The other six (`catchment-closure`, `extreme-event-closure`, `multi-decadal-drift`, `precipitation-counterfactual`,
