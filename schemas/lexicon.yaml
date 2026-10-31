@@ -340,3 +340,13 @@ crosswalk:
     canopy: "basin_intcp_stor"
     gw: "basin_gwstor"
     channel: "basin_segment_storage"
+  mhm:
+    evspsbl: "L1_aETSoil * fn + L1_aETCanopy + L1_aETSealed * fs"
+    mrro: "mRM_runoff / area_mhm_km2"
+    dis: "mRM_runoff * area_km2 / area_mhm_km2"
+    snm: "L1_preEffect"
+    mrso: "L1_soilMoist * fn + L1_sealSTW * fs"
+    snw: "L1_snowPack"
+    canopy: "L1_inter"
+    gw: "(L1_unsatSTW + L1_satSTW) * fn"
+    channel: "cumsum(L1_total_runoff - mRM_runoff / area_mhm_km2)"
