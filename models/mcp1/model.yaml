@@ -6,9 +6,9 @@ description: >
   loss gate that reads potential evaporation and is capped at it, trained on
   the Leaf River. Packaged from YuanHWang/5MCPmodelnet_HydroTuring at 5944b5f
   with the published checkpoint model_epoch27.pt. The store update conserves
-  mass by construction. It has no snow, canopy, groundwater or routing store,
-  which are left out rather than filled, so the probes that need them are
-  N/A (INCOMPLETE); README.md says why and what that does to its standing.
+  mass by construction. No snow or canopy store, which are
+  reported as identically zero under zero_stores, and no groundwater or routing
+  store, which are left out; README.md says what that does to its standing.
 authors:
   - "Yuan-Heng Wang (University of Arizona)"
   - "Hoshin V. Gupta (University of Arizona)"

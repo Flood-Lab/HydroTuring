@@ -36,18 +36,16 @@ commit, and asserts the interpreter version. The image is 219 MB.
 | `canopy` | `S1` | interception store, absolute mm |
 | `mrso` | `S2` | soil store, absolute mm |
 | `gw` | `S3` | groundwater store, absolute mm |
+| `snw` | none | identically zero, named under `zero_stores` in `run.json`: the model has no snow store, all precipitation enters as rain, and temperature is read by no equation |
 
 ## What is not reported
 
-- `snw`: the model has no snow store. All precipitation enters as rain and temperature is read
-  by no equation. **Every closure probe requires `snw`, so the whole closure family is N/A
-  (INCOMPLETE).** Writing a column of zeros would open them, and is what `flex_lumped` does, but
-  a store the model lacks is not fabricated here.
 - `channel`, `dis`: no routing. `Qt` leaves in the step it is generated.
 - `gwex`: `S3` is closed inside the catchment, which answers the review's second question.
   `abstr` is not read, because the model has no withdrawal process.
 
-These are named under `not_reported` in `run.json`.
+These are named under `not_reported` in `run.json`, apart from `gwex`, which is covered here. The
+zero `snw` is what lets the budget probes score the model.
 
 ## Parameters and initial stores
 
@@ -90,19 +88,43 @@ resolution probe also runs it at PT1H, and what that does is below.
 
 ## Evaluation
 
-Gate seeds, all 37 probes: **9 PASS, 3 FAIL, 25 N/A** (24 INCOMPLETE, 1 INCOMPATIBLE).
+Gate seeds, all 37 probes: **11 PASS, 9 FAIL, 17 N/A** (16 INCOMPLETE, 1 INCOMPATIBLE). The default
+window applies, so the closure probe scores a 30-day flood event and most others widen it to their
+whole record.
+
+| Probe | Result | Which criteria failed |
+| --- | --- | --- |
+| `energy/pet-consistency` | **FAIL** | `demand_consistency`: 1.59 of demand on the wettest soil |
+| `mass/catchment-closure` | **FAIL** | `state_bounds`: canopy 2.04 over 2 mm on 7 steps. `et_plausible`: 1.77 of potential. The budget itself closes |
+| `mass/extreme-event-closure` | **FAIL** | `state_bounds`: canopy 2.19 over 2 mm on 81 steps. Every event closes, to 7e-13 mm |
+| `mass/human-abstraction` | **FAIL** | `human_abstraction`: all 380 mm unaccounted for. `state_bounds`: canopy 2.15 over 2 mm on 47 steps |
+| `mass/multi-decadal-drift` | **FAIL** | `et_plausible`: 1.63 of potential |
+| `mass/precipitation-counterfactual` | **FAIL** | `state_bounds`: canopy 2.11 over 2 mm on 52 steps |
+| `mass/resolution-invariance` | **FAIL** | 20.3% of rain between PT1H and PT1D, limit 10% |
+| `mass/response-nonnegativity` | **FAIL** | 0.134 mm/day below the control |
+| `mass/ungauged-basin-closure` | **FAIL** | `state_bounds`: canopy 0.704 over 0.651 mm on 2 steps. `et_plausible`: 1.45 of potential |
 
 Passing: `antecedent-monotonicity`, `area-invariance`, `causality`, `dry-down`, `extreme-rain`,
-`phase-counterfactual`, `runoff-bounds`, `steady-state`, `warming-response`. Two of these say
-little about this model: `phase-counterfactual` is trivially satisfied by a model that does not
-distinguish snow from rain, and `area-invariance` by one with no area in it.
+`phase-counterfactual`, `runoff-bounds`, `spinup-cycle-invariance`, `steady-state`,
+`time-origin-invariance`, `warming-response`. Several say little about this model:
+`phase-counterfactual`, `time-origin-invariance` and `area-invariance` are satisfied by a model that
+reads neither temperature, date nor area. `dry-down` measures 0 mm: the soil has no outflow without
+infiltration, so after the rain only evaporation empties it, and nothing can rise. `state_bounds` on
+`snw` holds on a column of zeros.
 
-All three failures are in the model, in its equations at these parameters. None comes from the
-adapter, and all three were checked on the harness's own cases against MARRMoT's internal fluxes.
+N/A: 16 INCOMPLETE, the outputs it lacks, including `channel` for `momentum/routing-conservation` and
+`gwex` for `mass/exchange-response`. 1 INCOMPATIBLE: `momentum/routing-lag-consistency`, which
+needs channel lengths the model does not consume.
 
-### `energy/pet-consistency`: evaporation above demand
+Nine failures come down to five mechanisms, none of them the adapter's: evaporation above demand,
+canopy above capacity, no withdrawal term, step dependence, and the recharge sequence below. All
+were checked on the harness's own cases against MARRMoT's internal fluxes or its stores.
+
+### Evaporation above demand: `energy/pet-consistency`, and `et_plausible` on `catchment-closure`, `multi-decadal-drift`, `ungauged-basin-closure`
 
 ET was 1.59, 1.56 and 1.53 of demand on the wettest fifth of soil states, against a limit of 1.0.
+Cumulative ET is 1.35 to 1.77 of potential on the closure probe's five flood windows, 1.62 to 1.63 over
+fifty years, and 0.54 to 1.45 by catchment on the ungauged probe's ten-year records.
 
 ```matlab
 flux_Ei = evap_1(S1,Ep,delta_t);          % min(S1/dt, Ep)
@@ -113,7 +135,49 @@ Each is capped at `Ep` on its own, and neither is reduced by the other, so `Ea =
 reach twice the demand. On the first gate seed ET exceeds PET on 1844 of 3650 days, on all of
 them with both terms active, by up to exactly 2.0 times, and by 920 mm in total. Neither term
 alone ever exceeds PET. No parameter tried brings the wet ratio under 1.4, so this is structural
-in `m_18`. Whether Chiew et al.'s original reduces soil ET by interception was not checked.
+in `m_18`. Whether Chiew et al.'s original reduces soil ET by interception was not checked. The
+budget still closes, because the water does leave the stores: this is a demand limit broken, not a
+leak.
+
+### Canopy above capacity: `state_bounds` on five probes
+
+`S1` passes `INSC`, by up to 0.19 mm of 2 mm, through two things in the model. Neither is the
+adapter's: it passes on `S1` as MARRMoT returns it, with `INSC` as static.json gives it, and uses the
+solver settings of MARRMoT's own workflow example.
+
+```matlab
+flux_EXC = interception_1(P,S1,insc);   % P * (1 - logistic(S1, insc)), r = 0.01, e = 5
+dS1 = P - flux_Ei - flux_EXC;
+```
+
+**The smoother.** The threshold is a logistic with a width of 1% of `INSC`, and at `S1 = INSC` it
+still keeps 0.7% of the rain, so the exact solution of the implicit step lies above capacity under
+heavy rain. Verified by solving that one equation by bisection from the reported previous state: on
+the closure probe's failing seed 1612800624 the root is 2.046 mm, as reported, to 1e-6 mm.
+
+**The solver's tolerance.** `resnorm_tolerance = 0.1` accepts a Newton step well short of that root,
+and the store then carries the error. On extreme-event seed 2013358868 the reported 2.194 mm has a
+root of 2.056 mm. Rerun at `resnorm_tolerance = 1e-10` with the model otherwise unchanged, the largest
+canopy over the whole case, spin-up included, with steps counted in the scored window:
+
+| Case | Reported canopy | At 1e-10 | Capacity | Steps over, reported | Steps over, at 1e-10 |
+| --- | --- | --- | --- | --- | --- |
+| `catchment-closure`, 1612800624 | 2.046 | 2.046 | 2 | 7 | 7 |
+| `extreme-event-closure`, 2013358868 | 2.194 | 2.056 | 2 | 81 | 75 |
+| `ungauged-basin-closure`, 426016150 | 0.704 | 0.644 | 0.651 | 2 | 0 |
+
+So the bound on the small canopy of `ungauged-basin-closure` is broken by the tolerance alone, and
+the others mostly by the smoother. `human-abstraction` and `precipitation-counterfactual` were not
+rerun this way; that they are the same mix is inferred. The tolerance is left as shipped: tightening
+it to pass would be tuning, and on those probes it would not pass anyway, since the smoother or
+`et_plausible` still fails them. Every budget stays closed at both tolerances.
+
+### `mass/human-abstraction`: no withdrawal term
+
+Structural, verified. The model has no withdrawal process and the adapter never reads `abstr`, so
+the natural and irrigated runs are identical: `evspsbl`, `mrro` and storage differ by exactly 0 on all
+three seeds, and the whole 380 mm is the residual. AGENTS.md says a model that never reads the column
+fails this way, and it does.
 
 ### `mass/resolution-invariance`: runoff depends on the step
 
@@ -158,15 +222,16 @@ runs, with a worst residual norm of 7e-6.
 
 ## Water balance
 
-Closed everywhere, to rounding. On the 11-year case: residual 1.7e-12 mm, and MARRMoT's own
+Closed everywhere, to rounding, on every probe that scores it: `closure` and `event_water_closure`
+pass throughout, and the closure family's FAILs are all on other criteria. On the 11-year case: residual 1.7e-12 mm, and MARRMoT's own
 `check_waterbalance` gives −5.7e-13 mm. Written to `run.json` on every run.
 
 This holds by construction whatever the solver does: `MARRMoT_model.run` advances the stores from
 the fluxes it evaluates at the solved state, so an unconverged step gets a wrong state, not a leak.
 Over those 4015 steps Newton-Raphson solved 4003 and `fsolve` 12, `lsqnonlin` was never needed, and
-the worst residual norm was 0.018. The stores stay non-negative; `S1`
-reaches 2.09 mm over an `INSC` of 2 mm, because the interception threshold is a logistic smoother.
-That would be scored by `state_bounds` on the closure probes if those could run.
+the worst residual norm was 0.018. The stores stay non-negative, and `S1` does not stay under `INSC`:
+see "Canopy above capacity". The harness flags these rows `suspicious_exact`, as it must, and what is
+exact here is MARRMoT's construction rather than a store solved as a residual.
 
 ## How much each choice moves the result
 
@@ -206,6 +271,6 @@ digits shown, and move Q / P over the whole record from 0.377 to 0.391.
 
 - Mid-range parameters are not a calibration. They are a documented, reproducible point in the
   model's space, and `SQ = 7.5` in particular is a strong response of infiltration to soil moisture.
-  Two of the three failures move with parameters, and are reported as what this point does. The
-  third, ET above demand, does not.
+  Step dependence and the recharge dip move with parameters, and are reported as what this point
+  does. ET above demand does not move with them.
 - Wall time including Octave's start: 0.27 s for 40 rows, 1.6 s for 960, 11.4 s for 4015.

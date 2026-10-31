@@ -73,31 +73,26 @@ Upstream's `c_n[t]` is each store *before* row t. The harness differences a stat
 fluxes, so row t reports the stores after it, read from `c_n[t+1]`: the model is given one extra row of
 no weather at the end of the record and that row's outputs are thrown away.
 
-## Not reported, and why
+## Zero stores, and what is not reported
 
-Named under `not_reported` in `run.json`. The model has none of these, and none is filled in.
+`zero_stores` in `run.json`: `snw` (no snow store; temperature is never read) and `canopy` (no
+interception store). Both are reported as identically zero, so the budget probes score the model.
+
+Named under `not_reported`. The model has none of these, and none is filled in.
 
 | Output | Why not |
 | --- | --- |
-| `snw` | no snow store; temperature is never read |
-| `canopy` | no interception store |
 | `gw`, `channel` | three undifferentiated stores, reported together as `mrso`; no routing |
 | `dis` | the model knows no catchment area |
 | `gwex` | each node conserves mass; nothing crosses the boundary but Q and E |
 | energy fluxes | no energy balance |
-
-**What that does to the standing.** `mass/catchment-closure` and seven other budget probes lack only `snw`
-and `canopy` from this model, so this model is N/A (INCOMPLETE) on the probe that asks. Off the harness, the reported
-columns close: at most 9.0e-5 mm in any row and 1.2e-4 mm cumulative over 5805 mm of rain (2000 rows,
-PT1D). That number is not an archived verdict.
 
 ## Choices, and how much each moves the results
 
 **Spin-up.** Upstream repeats the first water year three times in front of the record, from empty stores.
 The adapter does the same with the first 365 days of the rows it is given, or all of them when the record
 is shorter. Those rows run before row 0 and are never reported. On daily probes that is three times the
-case's own 365-day spin-up, nothing later than it, so it is causal. The table is the prototype under the
-same harness and gate seeds. This model moves more than the others.
+case's own 365-day spin-up, nothing later than it, so it is causal. The table is the adapter run directly under the same harness and gate seeds, on every probe that scores this model, after the zero-store rule; at three repeats that run reproduces every archived verdict. This model moves more than the others.
 
 | Repeats | `dry-down` | `resolution-invariance` | `response-nonnegativity` |
 | --- | --- | --- | --- |
@@ -105,7 +100,7 @@ same harness and gate seeds. This model moves more than the others.
 | 1 | FAIL (11.8%) | PASS (`mrro` 9.4%) | PASS (dip 7e-4 of the storm) |
 | 3 (used) | FAIL (4.8%) | **FAIL** (`mrso_end` 10.7%) | FAIL (0.143 mm/day dip) |
 
-Those three rows depend on the spin-up. Their mechanisms below are the model's, but whether they cross a
+Those three rows depend on the spin-up, and no other verdict does. Their mechanisms below are the model's, but whether they cross a
 limit on these seeds is sensitive, so treat the verdicts as not robust. A first version cycled a short
 record until it filled three years, inventing about 2.6 m/yr of rain; it was dropped.
 
@@ -118,36 +113,89 @@ Every daily row goes through the upstream class. The manifest declares PT1D only
 Scaling the total outflow fraction and splitting it, instead of each gate, leaves the resolution numbers
 unchanged to 0.01% of rain.
 
-**Precision.** The model runs in float32, as upstream does; see the closure figure above.
+**Precision.** The model runs in float32, as upstream does; see the closure figure under the verdict.
 
-**Window.** `window_days: full`, since a record takes seconds. On the one probe where this differs,
-`warming-response` passes either way.
+**Window.** `window_days: full`, since a record takes seconds. `warming-response` was also checked on the default window and passes either way.
 
 **Seed.** Recorded and unused; the model is deterministic.
 
 ## Verdict
 
-Gate seeds, Apptainer, 2026-10-30: **FAIL (VIOLATION), 7 of 12 scored**, 25 N/A (24 INCOMPLETE,
-1 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not read).
+Gate seeds, Apptainer, 2026-10-30, version `5944b5f-epoch2999.2`: **FAIL (VIOLATION), 8 of 20 scored**, 17 N/A
+(16 INCOMPLETE, 1 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not
+read). The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `gwex`, `channel`, `stage` and `dis`.
+
+**Three verdicts are not robust: `dry-down`, `resolution-invariance` and `response-nonnegativity`.** Each changes
+with the number of spin-up repeats (table above), this model more than the others. Read those rows as undecided.
+
+`closure` passes on all eight probes that score it, worst residual 6.6e-7 of the rain, which is single-precision
+round-off in updates that conserve mass by construction. Trivial passes for this model: `area-invariance` (reads no
+area), `phase-counterfactual` (reads no temperature) and `time-origin-invariance` (reads no calendar), as are the
+bounds on the zero `snw` and `canopy`.
+
+Five of the 12 FAILs are `state_bounds` and nothing else.
 
 | Probe | Result | Detail |
 | --- | --- | --- |
 | energy/pet-consistency | **FAIL** | 1.14 of demand when wet |
 | mass/antecedent-monotonicity | PASS | +9.8 mm on a 60 mm storm (0.16 of it) |
 | mass/area-invariance | PASS | trivially: the model reads no area |
+| mass/catchment-closure | **FAIL** | `state_bounds`: `mrso` 1120-1470 mm against 320 |
 | mass/causality | PASS | nothing moves before the storm |
-| mass/dry-down | **FAIL** | `mrro` rises 4.8% in a week with no rain; depends on the spin-up |
+| mass/dry-down | **FAIL** | `mrro` rises 4.8% in a week with no rain; **depends on the spin-up** |
+| mass/extreme-event-closure | **FAIL** | `state_bounds`: `mrso` 1020-1500 mm against 320; event closure passes |
 | mass/extreme-rain | **FAIL** | 1.11 of the added rain comes back |
+| mass/human-abstraction | **FAIL** | 380 mm of 380 unaccounted for; `state_bounds`: `mrso` 1100-1450 mm against 320 |
+| mass/multi-decadal-drift | **FAIL** | `state_bounds`: `mrso` 1290-1350 mm against 320; `non_degenerate`: `evspsbl` cv 0.062 against 0.1; no drift |
 | mass/phase-counterfactual | PASS | trivially: the model reads no temperature |
-| mass/resolution-invariance | **FAIL** | `mrso_end` 10.7% of rain; depends on the spin-up |
-| mass/response-nonnegativity | **FAIL** | `mrro` 0.143 mm/day below control; depends on the spin-up |
+| mass/precipitation-counterfactual | **FAIL** | `state_bounds`: `mrso` 1080-1450 mm against 320; the partition passes |
+| mass/resolution-invariance | **FAIL** | `mrso_end` 10.7% of rain; **depends on the spin-up** |
+| mass/response-nonnegativity | **FAIL** | `mrro` 0.143 mm/day below control; **depends on the spin-up** |
 | mass/runoff-bounds | PASS | runoff 0.41 of rain |
+| mass/spinup-cycle-invariance | **FAIL** | `state_bounds`: `mrso` 1160-1380 mm against 320; the invariance passes |
 | mass/steady-state | PASS | settles at 1.238 mm/day |
+| mass/time-origin-invariance | PASS | trivially: the model reads no calendar |
+| mass/ungauged-basin-closure | **FAIL** | `state_bounds` on 12 of 12 seeds: `mrso` 1190-1430 mm against 124 |
 | mass/warming-response | PASS | -0.24 and -0.29 per unit of demand |
 
 ## The failures
 
-All verified with targeted runs. Three come from the negative entry of W_o: node 1 carries the flow in dry
+Verified with targeted runs unless a sentence says inferred. All are the model, not the adapter.
+
+**state_bounds, on seven probes: the stores have no capacity, and their gates open far above the bound.** The probes take
+the bound from `soil_capacity_mm` in `static.json`: 320 mm, or a draw of 124-682 mm on `ungauged-basin-closure`. Nothing
+in the model can use it. The checkpoint's tensors are gate scales, biases, weights and input shares, no store has an upper
+limit, and the adapter never opens `static.json`. The stores run wherever the learned gates let out the runoff the climate
+requires. Scaling the three stores together from their mean proportions until the reported `mrso` is 320 mm, a state the
+model does not visit, gives a release of 0.011 mm/day, and 0.52 mm/day at 1300 mm, while the probe's records need 0.74-0.92
+mm/day. So on `catchment-closure` the reported store spans 1064-1469 mm across the seeds, and on the Leaf River, where it
+was trained, 1059-1529 mm (mean 1277), above 320 mm on every day. On `ungauged-basin-closure` its peak is 1320-1431 mm
+whatever the draw, and no seed passes. The size of the number comes from the plain sum, the only combination that closes
+(above), but dividing it would not help: each node alone averages 411-426 mm on the first seed.
+
+The adapter could not honestly do otherwise. There is no capacity to hand `soil_capacity_mm` to, and writing it into
+the normalisation or the gates would make a different model from the one trained. Subtracting a datum would not fit
+either: the reported store's range on `catchment-closure` is 332-385 mm wide on each seed, wider
+than the bound. Moving the water above the bound into `gw` would invent a partition the model does not have. So this is
+a finding about the model, as with `parFC` in `models/dhbv2`, except that here not even a learned capacity exists. It
+does not depend on the spin-up: the same probe fails the same way at zero, one and three repeats.
+
+**human-abstraction: the model has no withdrawal term.** Structural, and verified from the row and the
+code: the adapter reads `pr` and `pet` and nothing else, the paired runs are identical (`evspsbl`, `mrro` and
+storage all +0.0 mm), and the whole 380 mm goes unaccounted for. AGENTS.md scores this as a failure, not as N/A.
+Subtracting the column in the adapter would add a process the published model does not have, so nothing was added.
+
+**multi-decadal-drift, `non_degenerate`: total evaporation does not follow demand in this climate.** `evspsbl` has a cv of
+0.060-0.064 on the five seeds against 0.1 required, while PET has 0.21, and evaporation's correlation with PET is 0.05. PET
+is about 1 mm/day here and no node reaches its cap on any row, so evaporation is gate times store, and the stores barely
+move (cv 0.006-0.027). On the first seed the nodes also move against each other: nodes 0 and 1 rise with PET (r = 0.53,
+0.57) and node 2 falls (r = -0.34). Node 2 follows node 1's store at r = -0.95, through W_l[1,2] = -1.99. The variance of the sum is 0.0031 against
+0.0204 for the sum of the node variances, so most of it cancels. No single term is responsible: with W_l[1,2] or v_2 zeroed
+in memory, a diagnosis and not a configuration anyone should run, the cv is only 0.073 or 0.064. On the probes with a strong
+PET season evaporation varies freely (cv 0.70-0.74 against PET's 0.77); that binding caps carry that signal is inferred. The
+row is the same at zero, one and three spin-up repeats.
+
+Three of the others come from the negative entry of W_o: node 1 carries the flow in dry
 periods, and column 1 of W_o reads node 0's store at -7.79.
 
 **pet-consistency: three caps, one atmosphere.** Each node is capped at the whole PET, and the catchment's

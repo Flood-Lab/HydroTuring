@@ -7,7 +7,8 @@ each grid cell into three non-linear reservoirs, soil, overland and channel, eac
 Scott Sinclair. Submission: issue #123.
 
 The image vendors `pytopkapi/` from that commit, unmodified, and calls `pytopkapi.run`. Nothing
-is reimplemented.
+is reimplemented. The adapter changes one thing at run time, the precision of upstream's results
+file; see "A failure that was the adapter's".
 
 ## Packaging
 
@@ -77,8 +78,9 @@ model carries no constant per day.
 
 ## Choices, and what each moves
 
-Each was rerun on the thirteen scored probes on the gate seeds, with no container. The first
-row is the verdict below.
+Each was rerun on the gate seeds, with no container, on the thirteen probes that scored the model
+before the zero-store rule, so the closure family is not part of this comparison. The first row is
+that older verdict.
 
 | Choice | Alternative | What moves |
 | --- | --- | --- |
@@ -112,42 +114,82 @@ hits it would be an ERROR at the probe's time budget.
 | `dis` | `mrro * area_km2 / 86.4` |
 | `mrso` | `/Soil/V_s` over the grid |
 | `channel` | `/Overland/V_o` plus `/Channel/V_c` over the grid: water generated as runoff and not yet out, as in `models/wflow_sbm` and `models/lisflood` |
+| `snw`, `canopy` | identically zero, named under `zero_stores` in `run.json`: no snow store, precipitation being rain whatever the temperature, and no interception store |
 
 Upstream writes the initial state to row 0 of each result and row t's outcome to row t+1, so
 result row t+1 is the end of forcing row t.
 
-Not reported, named in `run.json`, and the reason 24 probes are N/A:
+Not reported, named in `run.json`:
 
-- `snw`: no snow store; precipitation is rain whatever the temperature.
-- `canopy`: no interception store.
 - `gw`: no store below the soil store.
 - `stage`: see the grid. `q_in` is not read, though upstream's external flow could carry it.
 - `gwex` and every energy term: the model has none. Withdrawals (`abstr`) are not read.
 
-Every budget probe requires `snw` and `canopy`, so `mass/catchment-closure` and its kin are
-N/A (INCOMPLETE). Nothing here reports a column of zeros to reach them.
-
 ## Results
 
-Evaluated under Apptainer on gate seeds: 12 PASS, 1 FAIL, 24 N/A (22 INCOMPLETE, 2 INCOMPATIBLE).
+Evaluated under Apptainer on gate seeds: **19 PASS, 2 FAIL, 16 N/A** (14 INCOMPLETE, 2 INCOMPATIBLE).
+The default window applies, and a probe's `min_window_days` widens it, so the closure probe scores
+30 days.
 
 | Probe | Result | Measured |
 | --- | --- | --- |
 | `energy/pet-consistency` | PASS | 0.98 of potential when wet, 0.36 when dry, 0.59 over the record |
 | `mass/antecedent-monotonicity` | PASS | 11.0 mm more from the 60 mm storm, 0.18 of it |
 | `mass/area-invariance` | PASS | identical, by construction: see the grid |
+| `mass/catchment-closure` | PASS | 0.0000% of rain over a 30-day window; ET at most 0.985 of potential |
 | `mass/causality` | PASS | nothing moves before the storm; `mrro` returns 0.948 of the added rain |
 | `mass/dry-down` | PASS | 45 mm over 730 dry days against a 322 mm bound |
+| `mass/extreme-event-closure` | PASS | worst event 0.61 mm against 2.53 mm allowed; 0 of 1299 fail |
 | `mass/extreme-rain` | PASS | returns 1.00 of 526 mm added |
+| `mass/human-abstraction` | **FAIL** | all 380 mm unaccounted for |
+| `mass/multi-decadal-drift` | PASS | storage changes 0 mm over the final 1825 days |
 | `mass/phase-counterfactual` | PASS | 0.0%; the model never reads temperature |
+| `mass/precipitation-counterfactual` | PASS | of +1589 mm, 0.172 evaporates, 0.822 runs off, 0.006 stays |
 | `mass/resolution-invariance` | PASS | worst 0.043% of rain, `mrro`, PT1H against PT1M |
 | `mass/response-nonnegativity` | PASS | largest dip 9.2e-4 of the added 120 mm, limit 1e-3 |
 | `mass/runoff-bounds` | PASS | 0.50 of rain, inside [0.12, 1.05] |
+| `mass/spinup-cycle-invariance` | PASS | 0.00% between spin-up lengths |
 | `mass/steady-state` | PASS | 0.843 mm/day under 2.5 mm/day of rain, nothing varying |
+| `mass/time-origin-invariance` | PASS | identical; the model never reads the date |
+| `mass/ungauged-basin-closure` | PASS | 0.0074% of rain over 12 catchments; ET at most 0.893 of potential |
 | `mass/warming-response` | PASS | per unit of demand, warmer: `mrro` -0.493, `evspsbl` +0.501 |
 | `momentum/routing-conservation` | **FAIL** | 6.2 mm in `channel` against a 4.3 mm bound, one seed of three; the others at 0.93 and 0.96 of it |
 
-### The failure
+**N/A.** INCOMPLETE: the outputs it lacks, `gwex`, `snm`, `gw_sw_exchange`, `stage` and the heat
+terms. INCOMPATIBLE: `momentum/routing-lag-consistency` (no channel lengths consumed: this is a fixed
+grid) and `momentum/wave-celerity-bounds` (`q_in` and reach geometry not consumed).
+
+**Passes that say little.** `mass/area-invariance`, by construction; `mass/phase-counterfactual` and
+`mass/time-origin-invariance`, since temperature and the date are never read; `state_bounds` on `snw`
+and `canopy`, on a column of zeros. The `suspicious_exact` flags are on the windows where no outlet
+cell reached capacity, so the clip described under "The budget" never fired.
+
+### A failure that was the adapter's
+
+`.2` failed `mass/ungauged-basin-closure` on `state_bounds`, on 4 of 12 seeds and 6 steps: "mrso
+leaves [0, 238.859] (range 42.2 to 239)". The figures are rounded in the message. The excess was at
+most 2.6e-5 mm against the criterion's 1e-6, and it was not in the model.
+
+Verified. `output_soil` caps each cell's store at `Vsm` in double precision, so the model's soil can
+never pass it. Upstream then writes its results with h5py's default of single precision, and the
+adapter summed those values and scaled them, still in single precision under numpy 1.24. A catchment
+full to capacity therefore read back rounded: 5.3e-6 mm over on seed 813293073 from the rounded cells
+alone, more from the single-precision sum. It shows only when every cell is full at once, and only
+when the capacity happens to round upwards, which is why most seeds passed.
+
+`.3` keeps upstream's numbers: the adapter stores upstream's results as doubles, by replacing
+`pytopkapi.utils._create_dataset` at run time with one that names the type. No physics changes, and
+no value is clipped. On the same two seeds `mrso` now reaches the capacity to 6e-14 mm or less, and
+the probe passes. The whole suite was re-run on `.3`, and no other verdict moved.
+
+### `mass/human-abstraction`
+
+Structural, verified. TOPKAPI has no withdrawal term and the adapter never reads `abstr`, so the
+natural and irrigated runs are identical: `evspsbl`, `mrro` and storage differ by exactly 0 on all
+three seeds, and the whole 380 mm is the residual. AGENTS.md says a model that never reads the
+column fails this way, and it does.
+
+### `momentum/routing-conservation`
 
 `momentum/routing-conservation` allows `channel` at most fifteen days of the largest runoff of
 the preceding month. On seed 1431599080 a seven-day 48 mm/day storm lands on a catchment dry for
@@ -178,13 +220,15 @@ not in the soil and the other distributed models report it under `channel`.
 
 ## Findings beyond the verdict
 
-**The budget, which no scored probe tests.** Run by hand on the closure probe's five gate seeds
-at PT1D, the budget closes to -1.2e-5 to -7.2e-5 of rain: `Q/P` 0.43 to 0.49, `E/PET` 0.56 to 0.64,
-`mrso` 7.6 to 320 mm, `channel` 0 to 29 mm. At PT1H on the resolution probe's case, -8e-9. On the
-first seed three of 16060 cell-steps account for nearly all of it, the largest 0.87 mm of water
-made on a day the outlet cell's soil reached capacity. Upstream sets the soil's outflow to `Q_max` when the store
-overflows, then takes `a_o = max(0, a_s - dV/dt - Qs_out)`; where `Q_max` exceeds what is left,
-the clip makes up the difference. The row was traced; the reading of the clip is from the code.
+**The budget.** The closure family scores this model and it passes. Over a whole record the residual
+is small and is water made, not lost: run by hand on the closure probe's five gate seeds at PT1D,
+-1.1e-5 to -6.5e-5 of rain, with `Q/P` 0.40 to 0.45, `E/PET` 0.56 to 0.64, `mrso` 7.6 to 320 mm and
+`channel` 0 to 29 mm. On the first seed three of 16060 cell-steps account for nearly all of it, the
+largest 0.87 mm of water made on a day the outlet cell's soil reached capacity. Upstream sets the
+soil's outflow to `Q_max` when the store overflows, then takes `a_o = max(0, a_s - dV/dt - Qs_out)`;
+where `Q_max` exceeds what is left, the clip makes up the difference. That row was traced; the reading
+of the clip is from the code. It is what the worst event on `mass/extreme-event-closure` sees, 0.61 mm
+of water made, well inside that event's allowance.
 
 **Evaporation can pass the demand slightly.** Channel cells evaporate `ETo` from the channel on
 top of `ks * kc * ETr` from the soil, and the catchment's largest `E/PET` is 1.006. It stays inside

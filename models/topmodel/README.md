@@ -32,14 +32,17 @@ runs at image build and fails it if the driver's six outputs differ from `topmod
 | `mrso` | the root zone: `Srmax - Srz`, over the core's class weights |
 | `gw` | the unsaturated store `Suz` plus the saturated zone, `datum - S_mean` |
 | `channel` | the delay function's contents: what was on its way at the start, plus `qo + qs` so far, less `Q` so far |
+| `snw`, `canopy` | identically zero; see below |
 
 All fluxes are mm/day at every step and all stores are absolute, in mm. Every row is reported,
 spinup included.
 
-**Not reported, because the model has none of them**, and named under `not_reported` in
-`run.json`: `snw` (no snow module, so all precipitation is liquid), `canopy` (rain goes straight
-to the root zone), `gwex` (nothing crosses the boundary but `Q` and `Ea`), `snm`, every energy
-flux, `stage`. Nothing is filled with zeros, so the probes that require them are N/A (INCOMPLETE).
+**Zero stores.** `snw` and `canopy` are reported as identically zero and named under `zero_stores`
+in `run.json`: TOPMODEL has no snow module, so all precipitation is liquid, and no interception
+store, rain going straight to the root zone. That is what lets the budget probes score it.
+
+**Not reported, because the model has none of them**, and named under `not_reported` in `run.json`:
+`gwex` (nothing crosses the boundary but `Q` and `Ea`), `snm`, every energy flux, `stage`.
 
 **Why `Suz` and the saturated zone are `gw`.** `mrso` is held to `soil_capacity_mm` on the probes
 that bound it, and the root zone is the store that capacity describes. `Suz` is capped by the local
@@ -98,10 +101,12 @@ itself, so no parameter is rescaled by the adapter. Rates are turned into metres
 and no row is resampled. Only PT1D and PT1H are declared, because those are what have been run. The
 parameters came from a 15-minute model, and the arithmetic does not restrict it to these two.
 
-## Conservation, measured directly
+## Conservation
 
-No closure probe scores this model, because they all require `snw` and `canopy`. Measured off the
-harness on the first gate seed of `mass/catchment-closure`, over 11 years and 8938 mm of rain:
+The closure family scores the model and passes it: 0.06 to 0.40% of rain over a record, against 5%,
+and on `mass/extreme-event-closure` no event of about 1300 per seed misses, the worst at 0.32 of its
+allowance. The terms behind that were measured off the harness on the first gate seed of
+`mass/catchment-closure`, over 11 years and 8938 mm of rain:
 
 **The model does not close, by a small amount: P − ET − Q − ΔS = −13.64 mm, −0.15% of the rain**, so
 it reports slightly more water than it was given. Per step the residual reaches 0.28 mm on storm
@@ -117,13 +122,56 @@ days. Two terms account for it exactly, and `run.json` reports them:
   only if the first class has zero area, as `make.classes()` builds it. The shipped `huagrahuma$topidx`
   has A₀ = 0.00062, so 0.031% of each row's rain enters no class.
 
-A −0.15% residual would pass a 5% closure test comfortably. The discontinuity behind it matters more
-than its size, as the next section shows.
+The residual is far inside the closure limit. The discontinuity behind it matters more than its
+size, as the next section shows. The closure rows are not flagged `suspicious_exact`, because this
+budget does not close to rounding.
 
 ## Result on the gate seeds
 
-12 PASS, 2 FAIL, 23 N/A: 22 INCOMPLETE and 1 INCOMPATIBLE (`momentum/wave-celerity-bounds`, which
-needs `q_in` and channel geometry the model does not take).
+**19 PASS, 3 FAIL, 15 N/A**, under Apptainer, on the whole record of every probe.
+
+| Probe | Result |
+| --- | --- |
+| `energy/pet-consistency` | PASS: 1.00 of potential when wet, 0.47 when dry, 0.70 over the record |
+| `mass/antecedent-monotonicity` | **FAIL (VIOLATION)**: see below |
+| `mass/area-invariance` | PASS: exactly 0; `mrro` never reads the area |
+| `mass/catchment-closure` | PASS: 0.19% of rain; ET at most 0.739 of potential |
+| `mass/causality` | PASS: 0 before the storm, +1.004 of the added rain after |
+| `mass/dry-down` | PASS: 29 mm over 730 dry days |
+| `mass/extreme-event-closure` | PASS: worst event 0.070 mm against 0.219 mm allowed; 0 of 1299 fail |
+| `mass/extreme-rain` | PASS: returns 1.00 of the 997 mm added |
+| `mass/human-abstraction` | **FAIL (VIOLATION)**: all 380 mm unaccounted for |
+| `mass/multi-decadal-drift` | PASS: storage changes 0 mm over the final 1825 days; ET 0.995 of potential |
+| `mass/phase-counterfactual` | PASS: exactly 0; the model never reads temperature |
+| `mass/precipitation-counterfactual` | PASS: of +1737 mm, 0.151 evaporates, 0.848 runs off, 0.004 stays |
+| `mass/resolution-invariance` | PASS: 0.83% of rain, on `mrso_end` |
+| `mass/response-nonnegativity` | PASS: largest dip -1.9e-05 of the storm; see below for why this depends on the index table |
+| `mass/runoff-bounds` | PASS: 0.43 of the rain, inside [0.11, 1.07] |
+| `mass/spinup-cycle-invariance` | PASS: 0.00% between spin-up lengths |
+| `mass/steady-state` | PASS: 0.993 mm/day under 2.5 mm/day of rain, `gw` still approaching its level |
+| `mass/time-origin-invariance` | PASS: exactly 0; the model never reads the date |
+| `mass/ungauged-basin-closure` | PASS: 0.40% of rain over 12 catchments; ET at most 0.980 of potential |
+| `mass/warming-response` | PASS: mrro -0.315 and -0.379 per unit of demand |
+| `momentum/routing-conservation` | PASS, trivially: `channel` is zero at PT1D on this geometry |
+| `momentum/routing-lag-consistency` | **FAIL (VIOLATION)**: see below |
+
+Passes that say little: `area-invariance`, `phase-counterfactual`, `time-origin-invariance` and
+`routing-conservation`, for the reasons in the table, and `state_bounds` on `snw` and `canopy`, which
+holds on a column of zeros.
+
+N/A: 14 INCOMPLETE, the outputs it lacks: `exchange-response` (`gwex`), `aquifer-recharge-ordering`, `groundwater-datum-invariance`, `gw-sw-exchange-consistency`
+(`gw_sw_exchange`), `froude-regime`, `stage-discharge-monotonic`,
+`uniform-flow-friction-consistency` (`stage`), `snowpack-mass-closure` (`snm`), and the six energy
+probes that need radiative or heat outputs. 1
+INCOMPATIBLE: `momentum/wave-celerity-bounds`, which needs `q_in` and channel geometry the model does
+not take.
+
+### `mass/human-abstraction`
+
+Structural, verified. TOPMODEL has no withdrawal term and the adapter never reads `abstr`, so the
+natural and irrigated runs are identical: `evspsbl`, `mrro` and storage differ by exactly 0 on all
+three seeds, and the whole 380 mm is the residual. AGENTS.md says a model that never reads the
+column fails this way, and it does.
 
 ### `mass/antecedent-monotonicity`: FAIL on 2 of 3 seeds
 
@@ -156,7 +204,8 @@ Three separate things, all checked on the probe's cases:
 
 ## How far each choice moves the results
 
-Every scored probe was re-run on the same gate seeds.
+Each alternative was re-run on the gate seeds, on the 14 probes that scored the model before the
+zero-store rule. The closure family was not part of this comparison.
 
 | Alternative | What changes |
 | --- | --- |

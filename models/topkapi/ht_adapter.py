@@ -39,9 +39,10 @@ from pathlib import Path
 import h5py
 import numpy as np
 import pytopkapi
+import pytopkapi.utils as pytopkapi_utils
 
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "snw", "canopy", "channel"]
-MODEL = {"name": "topkapi", "version": "0.4.0-f7b953e.2", "revision": "f7b953eebcb201403f80970846b429bb1081739c"}
+MODEL = {"name": "topkapi", "version": "0.4.0-f7b953e.3", "revision": "f7b953eebcb201403f80970846b429bb1081739c"}
 
 SECONDS = {"PT1D": 86400.0, "PT1H": 3600.0, "PT15M": 900.0, "PT5M": 300.0, "PT1M": 60.0}
 GROUP = "ht"
@@ -73,6 +74,21 @@ GRID_AREA_M2 = N_CELLS * X_M ** 2
 # solution of each store's ODE, falling back to Runge-Kutta-Fehlberg where it
 # fails. README.md says why not the 4cells test's RKF everywhere (solve = 0).
 SOLVER = 1
+
+
+def _create_dataset_double(h5file, grp_name, dset_name, shape, units):
+    """Upstream's `pytopkapi.utils._create_dataset`, storing doubles.
+
+    Upstream computes in doubles and writes its results file with h5py's default
+    of single precision. A store capped at its capacity in the model then reads
+    back rounded, on either side of the cap, and sums in single precision to as
+    much as 2.6e-5 mm above it. The results are the numbers this adapter reports,
+    so it keeps what the model computed.
+    """
+    name = "{}/{}".format(grp_name, dset_name)
+    if name not in h5file:
+        dset = h5file.create_dataset(name, shape, maxshape=(None, None), compression="gzip", dtype="f8")
+        dset.attrs["units"] = units
 
 
 def grid_capacity_mm() -> float:
@@ -137,6 +153,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
         with contextlib.redirect_stdout(captured):
             # Serial, because a process pool is neither needed for four cells
             # nor allowed to depend on the host's core count.
+            pytopkapi_utils._create_dataset = _create_dataset_double
             pytopkapi.run(str(ini), quiet=True, parallel_exec=False)
         with h5py.File(results, "r") as fh:
             vs = fh["/Soil/V_s"][...]

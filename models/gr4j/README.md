@@ -25,23 +25,27 @@ Licence: GPL-2. The source the image was built from stays in the image, under `/
 | `mrso` | `Prod`, the production store |
 | `gw` | `Rout`, the routing store |
 | `channel` | the water inside the two unit hydrographs |
+| `snw`, `canopy` | identically zero; see below |
 
 All fluxes are mm/day at every step and all stores are absolute, in mm. Every row is reported,
 spinup included.
 
-**Not reported, because the model has none of them**, and named under `not_reported` in
-`run.json`: `snw` (no snow module, so all precipitation is liquid), `canopy` (no interception
-store; the P/E neutralisation holds no water between steps), `snm`, every energy flux, `stage`.
-Nothing is filled with zeros, so the probes that require them are N/A (INCOMPLETE).
+**Zero stores.** `snw` and `canopy` are reported as identically zero and named under `zero_stores`
+in `run.json`: GR4J has no snow module, so all precipitation is liquid, and no interception store,
+the P/E neutralisation holding no water between steps. That is what lets the budget probes score it.
 
-**That includes the closure family.** `mass/catchment-closure` and its relatives all require
-`snw` and `canopy`, so no closure probe scores GR4J. What those probes would have read was
-measured directly instead, off the harness. On the first gate seed of `mass/catchment-closure`,
+**Not reported, because the model has none of them**, and named under `not_reported` in `run.json`:
+`snm`, every energy flux, `stage`.
+
+**The closure family closes because of `gwex`.** On the first gate seed of `mass/catchment-closure`,
 over 11 years and 8938 mm of rain, the budget over `mrso + gw + channel` with `gwex` as a source
-closes to 1e-12 mm on every step and 5e-13 mm over the record. The hourly kernel closes as well, to
-9e-13 mm per step on the hourly case of `mass/resolution-invariance`. It closes because of `gwex`:
-the exchange is −571 mm, 6.4% of the rain, and hiding it would open the budget by exactly that.
-`run.json` carries the whole-record residual on every run.
+closes to 1e-12 mm on every step and 5e-13 mm over the record, and the exchange is −571 mm, 6.4% of
+the rain: hiding it would open the budget by exactly that. The hourly kernel closes as well, to
+9e-13 mm per step on the hourly case of `mass/resolution-invariance`. `run.json` carries the
+whole-record residual on every run. The harness flags these `suspicious_exact`, as it must for a
+budget closed to rounding. Production and routing stores are the kernel's own, and `channel` is the
+account of its fluxes, held to `StateEnd` as below, so this says the kernel's bookkeeping is
+consistent and that the exchange is reported.
 
 ### Reading the unit hydrographs
 
@@ -127,11 +131,51 @@ was found and fixed.
 
 ## Result on the gate seeds
 
-12 PASS, 1 FAIL, 24 N/A: 22 INCOMPLETE (they require a store or flux above) and 2 INCOMPATIBLE
-(`momentum/routing-lag-consistency` and `momentum/wave-celerity-bounds`, whose geometry GR4J does
-not take: X4 is a fixed parameter here, not a travel time).
+**19 PASS, 2 FAIL, 16 N/A**, under Apptainer, on the whole record of every probe.
 
-The one failure is `momentum/routing-conservation`:
+| Probe | Result |
+| --- | --- |
+| `energy/pet-consistency` | PASS: 0.96 of potential when wet, 0.36 when dry, 0.63 over the record |
+| `mass/antecedent-monotonicity` | PASS: 0.23 of the 60 mm storm |
+| `mass/area-invariance` | PASS: exactly 0; `mrro` never reads the area |
+| `mass/catchment-closure` | PASS: 0.0000% of rain, largest row 1.1e-12 mm; ET at most 0.683 of potential |
+| `mass/causality` | PASS: 0 before the storm, +0.736 of the added rain after |
+| `mass/dry-down` | PASS: 20 mm over 730 dry days |
+| `mass/extreme-event-closure` | PASS: worst event residual 8.4e-13 mm against 0.001 mm |
+| `mass/extreme-rain` | PASS: returns 0.99 of the 997 mm added |
+| `mass/human-abstraction` | **FAIL (VIOLATION)**: all 380 mm unaccounted for |
+| `mass/multi-decadal-drift` | PASS: storage changes 6e-14 mm over the final 1825 days |
+| `mass/phase-counterfactual` | PASS: exactly 0; the model never reads temperature |
+| `mass/precipitation-counterfactual` | PASS: of +1589 mm, 0.178 evaporates, 0.717 runs off, 0.016 stays, the rest leaves through `gwex` |
+| `mass/resolution-invariance` | PASS: 1.91% of rain, GR4J against GR4H |
+| `mass/response-nonnegativity` | PASS: largest dip -1.0e-05 of the storm |
+| `mass/runoff-bounds` | PASS: 0.40 of the rain, inside [0.05, 0.99], declared exchange -0.07 of rain |
+| `mass/spinup-cycle-invariance` | PASS: 0.00% between spin-up lengths |
+| `mass/steady-state` | PASS: 0.380 mm/day under 2.5 mm/day of rain |
+| `mass/time-origin-invariance` | PASS: exactly 0; the model never reads the date |
+| `mass/ungauged-basin-closure` | PASS: 0.0000% of rain over 12 catchments; ET at most 0.909 of potential |
+| `mass/warming-response` | PASS: mrro -0.226 and -0.282 per unit of demand |
+| `momentum/routing-conservation` | **FAIL (VIOLATION)**: see below |
+
+Passes that say little: `area-invariance`, `phase-counterfactual` and `time-origin-invariance`, for
+the reasons in the table, and `state_bounds` on `snw` and `canopy`, which holds on a column of zeros.
+
+N/A: 13 INCOMPLETE, the outputs it lacks: `aquifer-recharge-ordering`, `groundwater-datum-invariance`, `gw-sw-exchange-consistency`
+(`gw_sw_exchange`), `froude-regime`, `stage-discharge-monotonic`,
+`uniform-flow-friction-consistency` (`stage`), `snowpack-mass-closure` (`snm`), and the six energy
+probes that need radiative or heat outputs. 3 INCOMPATIBLE:
+`momentum/routing-lag-consistency` and `momentum/wave-celerity-bounds`, whose geometry GR4J does not
+take, X4 being a fixed parameter here and not a travel time, and `mass/exchange-response`, because
+GR4J's exchange follows its own routing store and no external head, so `gwh` is not declared.
+
+### `mass/human-abstraction`
+
+Structural, verified. GR4J has no withdrawal term and the adapter never reads `abstr`, so the
+natural and irrigated runs are identical: `evspsbl`, `mrro` and storage differ by exactly 0 on all
+three seeds, and the whole 380 mm is the residual. AGENTS.md says a model that never reads the
+column fails this way, and it does. `gwex` does not rescue it: the exchange is X2 (R/X3)^3.5 whatever the column holds.
+
+### `momentum/routing-conservation`
 
 > the channel holds 6.4 mm on 2001-09-28 while the largest runoff of the preceding 30 days is
 > 0.14 mm/day; a 15-day hydrograph cannot hold more than 2.2 mm of that
@@ -153,8 +197,9 @@ whether a rising-limb transient of this kind should count is a question for the 
 
 ## How far each choice moves the results
 
-Every scored probe was re-run under each alternative on the same gate seeds. **No parameter set
-changes a verdict**: all four give the same 12 PASS and 1 FAIL.
+Each alternative was re-run on the 13 probes that scored the model before the zero-store rule, on
+the same gate seeds. **No parameter set changes a verdict among them**: all four give the same 12
+PASS and 1 FAIL. The closure family was not part of this comparison.
 
 | | Runoff ratio | Resolution (worst, % of rain) | Routing, channel vs allowance on the worst day | Steady runoff (mm/day of 2.5) |
 | --- | --- | --- | --- | --- |

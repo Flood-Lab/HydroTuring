@@ -34,6 +34,7 @@ build time, is 45 MB, and needs no network at run time.
 | `mrso` | `SOIL_STORAGE` | absolute, mm |
 | `gw` | `GW_STORAGE` | absolute, mm |
 | `channel` | both Nash cascades | `nash_surface_params.nash_storage` + `nash_storage_subsurface`, from the struct, in mm |
+| `snw`, `canopy` | identically zero | named under `zero_stores` in `run.json`; see below |
 
 `mrro` is what leaves the routing, not the pre-routing `INFILTRATION_EXCESS`. That answers
 the first question in the proposal review: the pre-routing term exists, but the water it
@@ -41,16 +42,14 @@ carries is in `channel` until it leaves, and counting it as runoff as well would
 twice. The second question: the groundwater store and the routing stores are all real, and
 are all reported, which goes beyond the proposal's `evspsbl`, `dis`, `mrso`.
 
-## What is not reported
+## Zero stores and what is not reported
 
-- `snw`: CFE has no snow module. All precipitation enters as rain and `tas` is not read.
-- `canopy`: CFE has no interception store. `et_from_rainfall` takes PET straight from the
-  row's rain; nothing is held.
-
-Neither column is written as zero. Both are named under `not_reported` in `run.json`. Every
-probe that requires them, which includes the whole closure family, is N/A (INCOMPLETE). The
-proposal review expected `mrro` to open most of the mass suite. It does not here: the closure
-family also requires `snw` and `canopy`, and the `mrro`-only probes are daily.
+CFE has no snow module, all precipitation entering as rain and `tas` going unread, and no
+interception store, `et_from_rainfall` taking PET straight from the row's rain with nothing held. So
+`snw` and `canopy` are reported as identically zero and named under `zero_stores` in `run.json`. At
+PT1H this reaches no probe: the closure family is daily, so it is N/A (INCOMPATIBLE) on the step
+rather than on these columns. The proposal review expected `mrro` to open most of the mass suite. It
+does not, for that reason.
 
 There is no `gwex`: CFE's groundwater store exchanges nothing across the catchment boundary.
 `abstr` is not read, because CFE has no withdrawal process.
@@ -117,14 +116,16 @@ as the depth for the row, and fluxes come back as rates.
 
 ## Evaluation
 
-Gate seeds, all 37 probes: **1 PASS, 0 FAIL, 36 N/A** (22 INCOMPLETE, 14 INCOMPATIBLE).
+Gate seeds, all 37 probes: **1 PASS, 0 FAIL, 36 N/A** (14 INCOMPLETE, 22 INCOMPATIBLE). The 22 are
+the daily probes, together with the hourly probes that need inputs CFE does not consume; the 14 need
+an output it does not have.
 
 `mass/resolution-invariance` passes: `mrro` moves by 2.03% of the rain between PT1H and PT1M,
 worst of three seeds, against a 10% limit.
 
 A pass out of one scored probe says little about the model, and that is a limit of an hourly
-model on a suite whose probes are nearly all daily, not a finding about CFE. The two sections
-below are the rest of what is known.
+model on a suite whose probes are nearly all daily, not a finding about CFE. The zero-store rule
+changed no row's verdict here. The two sections below are the rest of what is known.
 
 ## CFE's mass accounting against what is reported
 
@@ -175,13 +176,15 @@ the volume trackers without moving water (groundwater peaked at 31 of 250 mm), a
 cascade's `Q_out` is left stale when a last reservoir is exactly empty (`nash_cascade.c:79`),
 which needs K/n ≥ 1.
 
-## What daily probes would say
+## What daily probes would say (not archived)
 
-This is a **diagnostic, not the manifest and not for the archive**. Declaring
-`timestep: [PT1H, PT1D]` is one line, and the maintainer may want it, since CFE's formulation
-has no structural objection to a daily row: Schaake is written for any step, and `time_step_size`
-is a real field. But then every daily verdict rests on the adapter's rescaling, on a step
-upstream does not offer, so it is left undeclared. Run from an uncommitted copy of the tree:
+This is a **diagnostic, not the manifest and not in the archive**: none of these rows are in
+`result.csv`. Declaring `timestep: [PT1H, PT1D]` is one line, and the maintainer may want it, since
+CFE's formulation has no structural objection to a daily row: Schaake is written for any step, and
+`time_step_size` is a real field. But then every daily verdict rests on the adapter's rescaling, on a
+step upstream does not offer, and the proposal claims only PT1H, so it stays undeclared. It was run
+from an uncommitted copy of the tree, on the earlier adapter, before the zero-store rule, so the
+closure family was N/A in it and its counts are not comparable with any model's current ones:
 
 **11 PASS, 2 FAIL, 24 N/A** (22 INCOMPLETE, 2 INCOMPATIBLE).
 

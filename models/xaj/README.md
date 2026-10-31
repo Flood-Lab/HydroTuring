@@ -108,41 +108,60 @@ Other choices:
   this says nothing independent of `mrro`.
 - **`window_days: full`.** A ten-year record takes about two seconds.
 
-## Not reported
+## Zero stores and what is not reported
 
-Listed in `run.json` under `notes.not_reported`.
+`snw` and `canopy` are reported as identically zero and named under `notes.zero_stores` in
+`run.json`: the model has no snow module, so all precipitation is treated as liquid whatever the
+temperature, and it has no interception store. That is what lets the budget probes score it.
+
+Listed under `notes.not_reported`:
 
 | Variable | Why |
 | --- | --- |
-| `snw` | no snow module: all precipitation is treated as liquid, whatever the temperature |
-| `canopy` | no interception store |
 | `gwex` | no declared exchange with the outside |
 | `stage` | no channel geometry or hydraulics; a stage here would be written by the adapter, not the model |
 | `hfls`, `hfss`, `hfg` and the rest of the energy terms | no energy balance |
 
 ## Result
 
-**12 PASS, 1 FAIL, 24 N/A**, on the gate seeds, under Apptainer (`--runner apptainer`).
+**18 PASS, 3 FAIL, 16 N/A**, on the gate seeds, under Apptainer (`--runner apptainer`), on the
+whole record of every probe (`window_days: full`).
 
 | Probe | Result |
 | --- | --- |
 | `energy/pet-consistency` | PASS: 0.75 of potential when wet, 0.41 when dry, 0.58 over the record |
 | `mass/antecedent-monotonicity` | PASS: 0.21 of the 60 mm storm |
 | `mass/area-invariance` | PASS: exactly 0; see below |
+| `mass/catchment-closure` | PASS: 2.51% of rain against 5%; see "The budget" |
 | `mass/causality` | PASS: 0 before the storm, +0.995 of the added rain after |
 | `mass/dry-down` | PASS: 13 mm over 730 dry days |
+| `mass/extreme-event-closure` | **FAIL (VIOLATION)**: 133 of 1316 events fail, the worst 0.249 mm on 0.008 mm of rain; see "The budget" |
 | `mass/extreme-rain` | PASS: returns 1.00 of the 997 mm added |
+| `mass/human-abstraction` | **FAIL (VIOLATION)**: all 380 mm unaccounted for; see below |
+| `mass/multi-decadal-drift` | PASS: storage changes 0 mm over the final 1825 days; closure 1.67% |
 | `mass/phase-counterfactual` | PASS: exactly 0; see below |
+| `mass/precipitation-counterfactual` | PASS: of +1589 mm, 0.122 evaporates, 0.868 runs off, 0.016 stays |
 | `mass/resolution-invariance` | PASS: 4.48% of rain against a 10% limit |
 | `mass/response-nonnegativity` | PASS: no dip |
 | `mass/runoff-bounds` | PASS: 0.55 of the rain, inside [0.12, 1.06] |
+| `mass/spinup-cycle-invariance` | PASS: 0.00% between spin-up lengths |
 | `mass/steady-state` | PASS: 1.000 mm/day under 2.5 mm/day of rain |
+| `mass/time-origin-invariance` | PASS: exactly 0; closure 3.22% |
+| `mass/ungauged-basin-closure` | PASS: 3.89% of rain against 5%, the closest this model comes; ET at most 0.750 of potential |
 | `mass/warming-response` | PASS: mrro -0.308 and -0.334 per unit of demand |
 | `momentum/routing-conservation` | **FAIL (VIOLATION)**: 56.6 mm in the channel against an allowance of 0.2 mm |
 
-Two of these say nothing about the physics. `mass/phase-counterfactual` is exactly 0
-because the model never reads temperature, so turning snow into rain cannot change
-anything. `mass/area-invariance` is exactly 0 because `mrro` never reads the area.
+Some of these say nothing about the physics. `mass/phase-counterfactual` and
+`mass/time-origin-invariance` are exactly 0 because the model never reads temperature
+or the date. `mass/area-invariance` is exactly 0 because `mrro` never reads the area.
+`state_bounds` on `snw` and `canopy` holds on a column of zeros.
+
+### The failure: `mass/human-abstraction`
+
+Structural, verified. XAJ has no withdrawal term and the adapter never reads `abstr`, so the
+natural and irrigated runs are identical: `evspsbl`, `mrro` and storage differ by exactly 0 on all
+three seeds, and the whole 380 mm is the residual. AGENTS.md says a model that never reads the
+column fails this way, and it does.
 
 ### The failure: `momentum/routing-conservation`
 
@@ -192,14 +211,12 @@ the harness named. What is left looks like timing rather than loss: with the sam
 weather spread evenly over the hours, runoff falls by 4.0 to 7.7% of rain and `gw` and
 `channel` end higher by 4.7 to 7.8%.
 
-### The budget, unscored
+### The budget, and the failure on `mass/extreme-event-closure`
 
-`mass/catchment-closure` and the other budget probes require `snw` and `canopy`, which
-this model does not have, so they are N/A (INCOMPLETE) and XAJ's closure is **not part
-of its score**. Measured directly on the five closure records with a scratch script,
-the budget misses by **-2.3 to -2.5% of rain**, about 20 mm a year, always in the same
-direction, and the terms below account for all of it. The probe's limit is 5%, but
-its other criteria were not applied, so this is a measurement and not a verdict.
+Over a whole record the budget misses by 1.67 to 3.89% of rain on the probes that score it, always
+in the same direction, which passes the 5% limit on every one of them. Event by event it fails: 107
+to 133 events on each of the five seeds of `mass/extreme-event-closure` miss their allowance of 5%
+of the event's rain, or 0.001 mm.
 
 The impervious fraction is booked inconsistently. Runoff from it is `IM * PE`, where
 `PE` is rain net of evaporation, and the tension layers take the whole of `PE - R`
@@ -211,7 +228,19 @@ with no `1 - IM` on it. No reading of the stores closes:
 | unweighted | -201.137 mm | `-IM * (PE - R)`: impervious runoff on top of the same rain infiltrating | wet |
 
 The first line predicts each residual to under 0.001 mm on all five seeds, and the
-residual scales with `IM`: at `IM = 0.01` it is -0.406%. The largest single-row
+residual scales with `IM`: at `IM = 0.01` it is -0.406%.
+
+**Mechanism on the event probe, verified on its own five cases.** Each of the 1245 to 1316 scored
+events' residual equals `-IM * (E - P)` summed over the event's rows where `E > P`, to 6e-5 mm. So a
+failing event is a rainy day too small to pay for the day's evaporation: every failing event holds
+under 2.7 mm of rain, with medians of 0.22 to 0.31 mm by seed. The worst, on seed 999454640, is
+0.008 mm of rain on 2019-08-12 under 4.16 mm of evaporation, giving 0.249 mm. A storm's own rain sets
+a far larger allowance, so no big event fails, and the largest residual of any event is 0.33 mm. This
+is the same term as the whole-record miss, but only a small part of it: about 96% of that miss, 378
+to 399 mm of 393 to 414 mm, falls on rainless rows, which belong to no event. It is XAJ's bookkeeping,
+not the adapter's: `evspsbl` is upstream's and is compared with `xaj()` on every run.
+
+ The largest single-row
 imbalance is `IM` times the largest evaporation, 0.264 mm at 4.4 mm/day. The reported
 `evspsbl` is upstream's and has not been corrected.
 
@@ -233,10 +262,7 @@ the scored window, at both steps. Its size there was not measured separately.
 
 ### N/A
 
-- INCOMPLETE, no `snw`: `catchment-closure`, `extreme-event-closure`,
-  `human-abstraction`, `multi-decadal-drift`, `precipitation-counterfactual`,
-  `spinup-cycle-invariance`, `time-origin-invariance`, `ungauged-basin-closure`.
-- INCOMPLETE, other outputs it lacks: `exchange-response` (`gwex`), `snowpack-mass-closure`
+- INCOMPLETE, outputs it lacks: `exchange-response` (`gwex`), `snowpack-mass-closure`
   (`snm`), `aquifer-recharge-ordering`, `groundwater-datum-invariance`,
   `gw-sw-exchange-consistency` (`gw_sw_exchange`), `froude-regime`,
   `stage-discharge-monotonic`, `uniform-flow-friction-consistency` (`stage`), and

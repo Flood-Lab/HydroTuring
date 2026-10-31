@@ -52,8 +52,8 @@ only the conversion to `dis`.
 
 ## Choices, and what each moves
 
-The twelve scored probes were rerun with each choice changed, on the gate seeds, with no
-container.
+The twelve probes that scored the model before the zero-store rule were rerun with each choice
+changed, on the gate seeds, with no container. The closure family was not part of this comparison.
 
 | Choice | Alternative | What moves |
 | --- | --- | --- |
@@ -87,19 +87,15 @@ storage. Row 0 is in every probe's spinup.
 | `dis` | upstream's discharge, m3/s, on `area_km2` |
 | `mrso` | top + second tank: surface and intermediate runoff stores |
 | `gw` | third + fourth tank: sub-base and base-flow stores |
+| `snw`, `canopy` | identically zero, named under `zero_stores` in `run.json`: no snow store, precipitation entering the top tank as liquid whatever the temperature, and no interception store |
 
-Not reported, named in `run.json`, and the reason 25 probes are N/A:
+Not reported, named in `run.json`:
 
-- `snw`: no snow store; precipitation enters the top tank as liquid whatever the temperature.
-- `canopy`: no interception store.
 - `channel`: one Subbasin has no reach. Upstream's Muskingum routing is optional and has no
   default `k` and `x`. It is not configured, because its `k` would have to be invented, and
   because a reach's travel time is far below a day: at PT1D `del_t/k + x > 1` trips upstream's
   own `WARNING-MUSKINGUM-01`.
 - `stage`, `gwex`, and every energy term: the model has none. Withdrawals (`abstr`) are not read.
-
-Nothing here reports a column of zeros to reach a probe. Every budget probe requires `snw` and
-`canopy`, so `mass/catchment-closure` and its kin are N/A (INCOMPLETE).
 
 ## Steps
 
@@ -109,35 +105,54 @@ PT1H is reached by the rescaling above. Rows are never resampled.
 
 ## Results
 
-Evaluated under Apptainer on gate seeds: 12 PASS, 0 FAIL, 25 N/A (23 INCOMPLETE, 2 INCOMPATIBLE).
+Evaluated under Apptainer on gate seeds, on the whole record of every probe: **19 PASS, 1 FAIL, 17
+N/A** (15 INCOMPLETE, 2 INCOMPATIBLE).
 
 | Probe | Result | Measured |
 | --- | --- | --- |
 | `energy/pet-consistency` | PASS | 1.00 of potential when wet, 0.08 when dry, 0.35 over the record |
 | `mass/antecedent-monotonicity` | PASS | 10.0 mm more from the 60 mm storm, 0.17 of it |
 | `mass/area-invariance` | PASS | identical |
+| `mass/catchment-closure` | PASS | 0.0000% of rain, largest row 1.4e-13 mm; see below |
 | `mass/causality` | PASS | nothing moves before the storm; `mrro` returns 0.829 of the added rain |
 | `mass/dry-down` | PASS | 282 mm over 730 dry days against a 625 mm bound |
+| `mass/extreme-event-closure` | PASS | worst event 7.7e-14 mm against 0.001 mm |
 | `mass/extreme-rain` | PASS | returns 0.99 of 997 mm added |
+| `mass/human-abstraction` | **FAIL** | all 380 mm unaccounted for |
+| `mass/multi-decadal-drift` | PASS | storage changes 0 mm over the final 1825 days |
 | `mass/phase-counterfactual` | PASS | 0.0%; the model never reads temperature |
+| `mass/precipitation-counterfactual` | PASS | of +1589 mm, 0.115 evaporates, 0.857 runs off, 0.028 stays |
 | `mass/resolution-invariance` | PASS | worst 3.16% of rain, `mrso_end`, PT1D against PT1H |
 | `mass/response-nonnegativity` | PASS | largest dip -2.1e-4 of the added 120 mm |
 | `mass/runoff-bounds` | PASS | 0.71 of rain, inside [0.09, 1.09] |
+| `mass/spinup-cycle-invariance` | PASS | worst 0.09%, on `gw` |
 | `mass/steady-state` | PASS | `gw` still settling, 36% as far in the last year as the one before |
+| `mass/time-origin-invariance` | PASS | identical; the model never reads the date |
+| `mass/ungauged-basin-closure` | PASS | 0.0000% of rain over 12 catchments; ET at most 0.710 of potential |
 | `mass/warming-response` | PASS | per unit of demand, warmer: `mrro` -0.219, `evspsbl` +0.229 |
 
-`momentum/routing-lag-consistency` and `momentum/wave-celerity-bounds` are INCOMPATIBLE: no
-channel lengths or `q_in` are consumed, because there is no reach.
+**`mass/human-abstraction` is structural, verified.** The model has no withdrawal term and the
+adapter never reads `abstr`, so the natural and irrigated runs are identical: `evspsbl`, `mrro` and
+storage differ by exactly 0 on all three seeds, and the whole 380 mm is the residual. AGENTS.md says
+a model that never reads the column fails this way, and it does.
 
-**What was not tested.** Twelve passes do not say the model closes its budget, because no
-scored probe differences its stores against its fluxes. Run by hand on the closure probe's five
-gate seeds, the budget closes to about 1e-16 of rain with a largest row residual of about
-1e-13 mm: `Q/P` 0.68 to 0.71, `E/PET` 0.32 to 0.37, `mrso` 0 to 113 mm, `gw` 204 to 423 mm.
-That closure is close to an identity, because `evspsbl` is computed from the same store update,
-and it would earn the closure criterion's `suspicious_exact` flag. What carries information is
-in `run.json`: the reset never exceeded the demand and never fired in a lower tank (both totals
-zero to 1e-12 mm), so the derived evaporation is never negative and no water appeared from
-nowhere.
+**N/A.** INCOMPLETE: the outputs it lacks, including `channel` for `momentum/routing-conservation`.
+INCOMPATIBLE: `momentum/routing-lag-consistency` and `momentum/wave-celerity-bounds`, because no
+channel lengths or `q_in` are consumed: there is no reach.
+
+**Passes that say little.**
+- Closure is close to an identity, which is why the harness flags `suspicious_exact` on these rows.
+  `evspsbl` is computed from the same store update, so the closure family carries little
+  information about this model. What does carry it is in `run.json`: the reset never exceeded the
+  demand and never fired in a lower tank (both totals zero to 1e-12 mm), so the derived evaporation
+  is never negative and no water appeared from nowhere. On the closure records `Q/P` is 0.68 to
+  0.71 and `E/PET` 0.32 to 0.37.
+- `state_bounds` holds on a column of zeros for `snw` and `canopy`. On `mrso` the model has no
+  capacity to respect, since it never reads `soil_capacity_mm`. On `mass/ungauged-basin-closure`,
+  whose capacities run from 124 to 682 mm, `mrso` tops out at 64 to 90 mm: the top two tanks drain
+  fast at these parameters, and that is why the bound held, on the records tried.
+- `mass/area-invariance`, `mass/phase-counterfactual` and `mass/time-origin-invariance` are
+  identical because nothing in `mrro` reads the area, the temperature or the date.
 
 ## Finding: the scheme can make water
 

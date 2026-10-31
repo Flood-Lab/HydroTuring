@@ -95,58 +95,76 @@ Other choices:
   says nothing independent of `mrro`.
 - **`window_days: full`.** A ten-year record takes about two seconds.
 
-## Not reported
+## Zero stores and what is not reported
 
-Listed in `run.json` under `notes.not_reported`.
+`snw` and `canopy` are reported as identically zero and named under `notes.zero_stores` in
+`run.json`: the model has no snow module, so all precipitation enters the soil store as liquid
+whatever the temperature, and it has no interception store. That is what lets the budget probes
+score it.
+
+Listed under `notes.not_reported`:
 
 | Variable | Why |
 | --- | --- |
-| `snw` | no snow module: all precipitation enters the soil store as liquid, whatever the temperature |
-| `canopy` | no interception store |
 | `gwex` | no exchange with the outside |
 | `stage` | no channel geometry or hydraulics; a stage here would be written by the adapter, not the model |
 | `hfls`, `hfss`, `hfg` and the rest of the energy terms | no energy balance |
 
 ## Result
 
-**13 PASS, 0 FAIL, 24 N/A**, on the gate seeds, under Apptainer (`--runner apptainer`).
+**20 PASS, 1 FAIL, 16 N/A**, on the gate seeds, under Apptainer (`--runner apptainer`), on the
+whole record of every probe (`window_days: full`).
 
 | Probe | Result |
 | --- | --- |
 | `energy/pet-consistency` | PASS: 0.97 of potential when wet, 0.37 when dry, 0.61 over the record |
 | `mass/antecedent-monotonicity` | PASS: 0.23 of the 60 mm storm |
 | `mass/area-invariance` | PASS: exactly 0; see below |
+| `mass/catchment-closure` | PASS: 0.0000% of rain, largest row 1.6e-13 mm; ET at most 0.65 of potential |
 | `mass/causality` | PASS: 0 before the storm, +0.747 of the added rain after |
 | `mass/dry-down` | PASS: 6 mm over 730 dry days |
+| `mass/extreme-event-closure` | PASS: worst event residual 9.2e-14 mm against 0.001 mm |
 | `mass/extreme-rain` | PASS: returns 1.00 of the 997 mm added |
+| `mass/human-abstraction` | **FAIL (VIOLATION)**: all 380 mm unaccounted for; see below |
+| `mass/multi-decadal-drift` | PASS: storage changes 0 mm over the final 1825 days |
 | `mass/phase-counterfactual` | PASS: exactly 0; see below |
+| `mass/precipitation-counterfactual` | PASS: of +1589 mm, 0.149 evaporates, 0.830 runs off, 0.021 stays |
 | `mass/resolution-invariance` | PASS: 2.05% of rain against a 10% limit |
 | `mass/response-nonnegativity` | PASS: largest dip -9.9e-06 of the storm |
 | `mass/runoff-bounds` | PASS: 0.49 of the rain, inside [0.12, 1.06] |
+| `mass/spinup-cycle-invariance` | PASS: 0.00% between spin-up lengths |
 | `mass/steady-state` | PASS: 0.909 mm/day under 2.5 mm/day of rain |
+| `mass/time-origin-invariance` | PASS: exactly 0; see below |
+| `mass/ungauged-basin-closure` | PASS: 0.0000% of rain over 12 catchments; ET at most 0.891 of potential |
 | `mass/warming-response` | PASS: mrro -0.203 and -0.258 per unit of demand |
 | `momentum/routing-conservation` | PASS: within 0.14 of what a 15-day hydrograph can hold |
 
-Two of these say nothing about the physics. `mass/phase-counterfactual` is exactly 0
-because the model never reads temperature, so turning snow into rain cannot change
-anything. `mass/area-invariance` is exactly 0 because `mrro` never reads the area.
+### The failure: `mass/human-abstraction`
 
-### The budget, unscored
+Structural, verified. HYMOD has no withdrawal term and the adapter never reads `abstr`, so the
+natural and irrigated runs are identical: `evspsbl`, `mrro` and storage differ by exactly 0 on all
+three seeds, and the whole 380 mm is the residual. AGENTS.md says a model that never reads the
+column fails this way, and it does.
 
-`mass/catchment-closure` and the other budget probes require `snw` and `canopy`, which
-this model does not have, so they are N/A (INCOMPLETE) and HYMOD's closure is **not
-part of its score**. Measured directly on the five closure records with a scratch
-script, the budget over `mrso + gw + channel` closes to under 0.001 mm in ten years,
-with no row beyond 1e-6 mm. Because `evspsbl` is not derived from the budget, this is
-a real result about `excess` and `linres`, not an identity. It is also not a verdict:
-the probe's other criteria were not applied.
+### Passes that say little
+
+- `mass/phase-counterfactual` and `mass/time-origin-invariance` are exactly 0 because the model
+  never reads temperature or the date. `mass/area-invariance` is exactly 0 because `mrro` never
+  reads the area.
+- `state_bounds` on `snw` and `canopy` holds on a column of zeros, and on `mrso` by construction:
+  `excess` cannot take the store past `cmax / (bexp + 1)`, which is the stated capacity.
+
+### The budget
+
+The closure family now scores the model and it closes on every probe, to about 2e-13 mm on any row.
+The harness flags this `suspicious_exact`, as it must for any budget closed to rounding. It is not a
+residual: `evspsbl` is what the evaporation line of `excess` removed, measured by a second call
+without demand, and the runoff and the stores come from the row-by-row drive that the adapter checks
+against `hymod()`. An error in the runoff accounting would not be absorbed by it.
 
 ### N/A
 
-- INCOMPLETE, no `snw`: `catchment-closure`, `extreme-event-closure`,
-  `human-abstraction`, `multi-decadal-drift`, `precipitation-counterfactual`,
-  `spinup-cycle-invariance`, `time-origin-invariance`, `ungauged-basin-closure`.
-- INCOMPLETE, other outputs it lacks: `exchange-response` (`gwex`), `snowpack-mass-closure`
+- INCOMPLETE, outputs it lacks: `exchange-response` (`gwex`), `snowpack-mass-closure`
   (`snm`), `aquifer-recharge-ordering`, `groundwater-datum-invariance`,
   `gw-sw-exchange-consistency` (`gw_sw_exchange`), `froude-regime`,
   `stage-discharge-monotonic`, `uniform-flow-friction-consistency` (`stage`), and
