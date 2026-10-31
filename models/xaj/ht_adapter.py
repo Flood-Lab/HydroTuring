@@ -39,7 +39,7 @@ from hydromodel.models.xaj import generation, linear_reservoir, sources, xaj
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "snw", "canopy", "gw", "channel"]
 MODEL = {
     "name": "xaj",
-    "version": "0.4.0-89d7a8e.2",
+    "version": "0.4.0-89d7a8e.3",
     "source": "OuyangWenyu/hydromodel@89d7a8ed1d72ce4fffbbd9897490b089382ecbac",
 }
 TIMESTEP_DAYS = {"PT1D": 1.0, "PT1H": 1.0 / 24.0}
@@ -154,6 +154,7 @@ def route(inflow: np.ndarray, cs: float, lag: int) -> tuple[np.ndarray, np.ndarr
     step up on row `lag` is that water. It falls inside the spinup.
     """
     n = len(inflow)
+    lag = min(lag, n - 1)  # as xaj() limits it
     released, store = np.zeros(n), np.zeros(n)
     recession = cs / (1.0 - cs)
     for t in range(n):
