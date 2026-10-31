@@ -80,6 +80,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `cfe` | Xiaoyi Dong (China IPPR International Engineering Co., Ltd., SINOMACH), [#127](../../issues/127) | HydroTuring maintainers |
 | `simhyd` | Haoyang Su (Fudan University and Shanghai Innovation Institute), [#164](../../issues/164) | HydroTuring maintainers |
 | `mcp1` | Yuan-Heng Wang (University of Arizona), [#89](../../issues/89) | HydroTuring maintainers |
+| `mcp2` | Yuan-Heng Wang (University of Arizona), [#90](../../issues/90) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:
