@@ -231,3 +231,11 @@ crosswalk:
     canopy: "0"
     gw: "Suz + (datum - S)"
     channel: "transit0 + cumsum(qo + qs) - cumsum(Q)"
+  tank:
+    evspsbl: "pet_mm - clamp[:, 0]"
+    mrro: "side.sum(axis=1)"
+    dis: "discharge[SUBBASIN]"
+    mrso: "end[i, 0] + end[i, 1]"
+    snw: "0"
+    canopy: "0"
+    gw: "end[i, 2] + end[i, 3]"

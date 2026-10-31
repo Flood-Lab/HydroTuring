@@ -75,6 +75,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `xaj` | Xiaoyi Dong (China IPPR International Engineering Co., Ltd., SINOMACH), [#97](../../issues/97) | HydroTuring maintainers |
 | `gr4j` | kawh1111, [#33](../../issues/33); Li Zeng (The Hong Kong University of Science and Technology), [#96](../../issues/96) | HydroTuring maintainers |
 | `topmodel` | Yan Chen (Colorado State University), [#117](../../issues/117) | HydroTuring maintainers |
+| `tank` | Jiao Wang (University of California Davis), [#124](../../issues/124) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:
