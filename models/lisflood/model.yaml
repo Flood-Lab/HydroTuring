@@ -13,9 +13,9 @@ description: >
   interception, three soil layers, the upper and lower groundwater zones,
   overland flow and channel water) and the evaporation and outflow that
   module counts, so the budget is LISFLOOD's own. When a probe prescribes a
-  net withdrawal (`abstr`), LISFLOOD's own water-use module takes it from
+  net withdrawal (`abstr`), LISFLOOD's own water-use module takes what it can from
   groundwater and the channel, and what it actually took is declared as a
-  negative `gwex`. Lakes, reservoirs, polders, transmission loss, open-water
+  negative `gwex`; on one cell that is about 17% of the demand. Lakes, reservoirs, polders, transmission loss, open-water
   evaporation and split routing are off; README.md lists every switch,
   parameter and source.
 authors:
