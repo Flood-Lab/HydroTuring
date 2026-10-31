@@ -1,0 +1,37 @@
+name: shud
+version: "1.1.1-ht.2"
+description: >
+  SHUD, the Simulator for Hydrologic Unstructured Domains: surface water, an
+  unsaturated and a saturated zone and a river, fully coupled and integrated
+  by CVODE on an unstructured mesh, at tag cpu-accel-v1.1.1, compiled
+  unmodified. Run on a minimal mesh, four triangles and one reach, sized and
+  parameterised from upstream's example catchment, because no calibration exists
+  for a synthetic catchment; the stated capacity sets the aquifer's depth and the
+  stated area enters only the discharge. SHUD computes its own potential
+  evaporation and has no PET input, so humidity and radiation are mocked from
+  each row's pet and tas to make its demand equal pet. README.md lists every
+  parameter and choice and what the minimal mesh means for the results.
+authors:
+  - "Lele Shu (SHUD, github.com/SHUD-System/SHUD), and the contributors to that repository"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://www.shud.xyz/en/"
+license: MIT
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# SHUD's output interval is a setting and its solver is adaptive under a 10 minute
+# maximum step, so a row is any multiple of that. These two are the steps this
+# package has been checked at; the probes ask for nothing else of a daily model.
+timestep: [PT1D, PT1H]
+
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  states: [mrso, snw, canopy, gw, channel]
+  diagnostics: [stage]
+
+needs_forcing: [pr, tas, pet]
+needs_static: [area_km2]
+uses_static: [soil_capacity_mm, bed_elevation_m]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

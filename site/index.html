@@ -732,6 +732,7 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (VIOLATION)  [2/6 probes p
 "prms":{"mass":[18,20],"energy":[1,1],"momentum":[1,1]},
 "raven":{"mass":[6,20],"energy":[0,1],"momentum":[1,1]},
 "sacsma_snow17":{"mass":[20,20],"energy":[1,1],"momentum":[4,4]},
+"shud":{"mass":[3,19],"energy":[0,1],"momentum":[0,2]},
 "simhyd":{"mass":[11,19],"energy":[0,1],"momentum":[0,0]},
 "summa":{"mass":[7,19],"energy":[1,3],"momentum":[1,1]},
 "tank":{"mass":[18,19],"energy":[1,1],"momentum":[0,0]},
@@ -909,6 +910,7 @@ en: {
 <tr><td class="mono">prms</td><td>submitted</td><td>PRMS 6.0.0, the USGS Precipitation-Runoff Modeling System, as one HRU draining to one segment.</td><td>20 / 22</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">vic</td><td>submitted</td><td>VIC 5.1.0's classic driver. It refuses a daily row, so a daily row is held flat over 24 hourly solver steps.</td><td>15 / 23</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">mhm</td><td>submitted</td><td>mHM v5.13.4, the mesoscale Hydrologic Model, with its routing module mRM, on one cell.</td><td>21 / 22</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
+<tr><td class="mono">shud</td><td>submitted</td><td>SHUD at its proposed tag, on a minimal mesh. An upstream bug loses 30 to 60% of the rain at that tag; upstream has since fixed it, in no tag so far.</td><td>3 / 22</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>physical</td><td>Lumped FLEX/HBV from chrimerss/HydrologicModels: interception, beta-partitioned soil, fast and slow reservoirs, a geometry-aware lag.</td><td>25 / 25</td><td><span class="tag merged">PASS</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>physical</td><td>FLEX-Topo: plateau, hillslope and wetland units on the Wark catchment's real fractions, sharing one groundwater store.</td><td>24 / 24</td><td><span class="tag merged">PASS</span></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>25 / 25</td><td><span class="tag merged">PASS</span></td></tr>
@@ -1174,6 +1176,7 @@ es: {
 <tr><td class="mono">prms</td><td>enviado</td><td>PRMS 6.0.0, el Precipitation-Runoff Modeling System del USGS, como una HRU que drena a un tramo.</td><td>20 / 22</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">vic</td><td>enviado</td><td>El controlador clásico de VIC 5.1.0. No admite una fila diaria, por lo que cada fila diaria se mantiene constante durante 24 pasos horarios del solucionador.</td><td>15 / 23</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">mhm</td><td>enviado</td><td>mHM v5.13.4, el mesoscale Hydrologic Model, con su módulo de tránsito mRM, en una celda.</td><td>21 / 22</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
+<tr><td class="mono">shud</td><td>enviado</td><td>SHUD en la etiqueta propuesta, en una malla mínima. Un error de origen pierde del 30 al 60% de la lluvia en esa etiqueta; el proyecto ya lo corrigió, aún sin etiqueta.</td><td>3 / 22</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>físico</td><td>FLEX/HBV agregado de chrimerss/HydrologicModels: intercepción, suelo con partición beta, embalses rápido y lento, un retardo basado en la geometría.</td><td>25 / 25</td><td><span class="tag merged">PASA</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>físico</td><td>FLEX-Topo: unidades de meseta, ladera y humedal con las fracciones reales de la cuenca Wark, un solo almacén subterráneo.</td><td>24 / 24</td><td><span class="tag merged">PASA</span></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>25 / 25</td><td><span class="tag merged">PASA</span></td></tr>
@@ -1439,6 +1442,7 @@ zh: {
 <tr><td class="mono">prms</td><td>提交模型</td><td>PRMS 6.0.0，美国地质调查局的降水径流模拟系统，以单个 HRU 汇入一个河段运行。</td><td>20 / 22</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">vic</td><td>提交模型</td><td>VIC 5.1.0 经典驱动。它无法接受日尺度输入行，因此每个日尺度行在 24 个小时求解步内保持不变。</td><td>15 / 23</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">mhm</td><td>提交模型</td><td>mHM v5.13.4，中尺度水文模型，带汇流模块 mRM，在单个网格上运行。</td><td>21 / 22</td><td><span class="tag violation">未通过（违反）</span></td></tr>
+<tr><td class="mono">shud</td><td>提交模型</td><td>SHUD，使用提案指定的标签和最小网格。该标签的上游缺陷损失 30% 至 60% 的降雨；上游已修复，但尚无标签收录。</td><td>3 / 22</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>物理模型</td><td>来自 chrimerss/HydrologicModels 的集总 FLEX/HBV：截留、beta 分配的土壤、快慢水库与基于几何的滞时。</td><td>25 / 25</td><td><span class="tag merged">通过</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>物理模型</td><td>FLEX-Topo：台地、坡地与湿地单元按 Wark 流域的真实面积比共享一个地下水库。</td><td>24 / 24</td><td><span class="tag merged">通过</span></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>25 / 25</td><td><span class="tag merged">通过</span></td></tr>

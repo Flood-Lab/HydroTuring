@@ -89,6 +89,7 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `prms` | Yan Chen (Colorado State University), [#109](../../issues/109) | HydroTuring maintainers |
 | `vic` | Valmik Nahata (University of California San Diego), [#60](../../issues/60) | HydroTuring maintainers |
 | `mhm` | Valmik Nahata (University of California San Diego), [#58](../../issues/58) | HydroTuring maintainers |
+| `shud` | Yuanhang Liu (Independent Researcher), [#106](../../issues/106) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:
