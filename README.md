@@ -311,6 +311,9 @@ ht run --model reference_bucket          # evaluate one model
 ht run --model my-model --json out.json  # machine-readable report
 ```
 
+A shared cluster with no Docker daemon runs the same images under Apptainer, with
+`--runner apptainer`; see [Running on a cluster](docs/running-on-a-cluster.md).
+
 Without installing, `./ht` (or `ht.cmd` in a Windows shell) runs the CLI
 straight from `src/`, as does `python -m hydroturing` with `src` on
 `PYTHONPATH`. Set `HT_ASCII=1`
@@ -322,7 +325,9 @@ automatically wherever the output stream cannot carry them.
 Your model may be written in any language. It ships as a container plus a
 thin adapter that reads `/io/request.json` and writes `/io/output/result.csv`.
 The adapter is usually thirty lines. See [docs/adapting-a-model.md](docs/adapting-a-model.md),
-and `AGENTS.md` if you are having a coding agent build the sandbox for you.
+and `AGENTS.md` if you are having a coding agent build the sandbox for you. Every model
+reports in one vocabulary: [`schemas/lexicon.yaml`](schemas/lexicon.yaml) gives each
+variable's name, units and sign, and what each packaged model's native outputs become.
 
 **We want more models, and we want the ones you think matter.** Every
 published rainfall-runoff model, every LSTM, every foundation model with a
@@ -431,5 +436,5 @@ directions and their claim status. Scores are only comparable within a suite ver
 src/hydroturing/   harness: protocol, runners, criteria, scoring
 probes/<law>/<id>/ probe.yaml, generate.py
 models/<name>/     model.yaml, Dockerfile, adapter
-schemas/           JSON schemas for both spec files
+schemas/           JSON schemas for both spec files, and lexicon.yaml, the variables
 ```

@@ -18,85 +18,27 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_DIR = REPO_ROOT / "schemas"
 
-# Canonical variable names. Water fluxes are mm per timestep-day; states are
-# mm. `dis` is m3 s-1, because that is what models report. The surface energy
-# fluxes are W m-2, positive away from the surface for the turbulent terms and
-# positive into the ground at the actual soil surface for `hfg`. Adapters
-# must correct a deeper-boundary flux for heat storage above that depth;
-# subsurface storage is not also subtracted from the surface budget.
-# `sbl` is a component of `evspsbl`, never an addition to it. `rlus` is the
-# total upward longwave radiation, surface emission plus reflected downward
-# longwave, positive away from the surface.
-FLUX_VARS = ("pr", "evspsbl", "mrro", "dis", "gwex", "gw_sw_exchange", "gw_to_sw", "sw_to_gw", "gw_boundary", "sbl", "snm", "hfls", "hfss", "hfg", "rlus", "hfg_bottom")
-STATE_VARS = ("mrso", "snw", "canopy", "gw", "channel")
-# Keep diagnostics out of STATE_VARS: closure sums every reported store,
-# and temperature must never be added to water storage.
-# `lwsnl` and `csnow` are here rather than in STATE_VARS for the same reason as
-# the line above: `lwsnl` is the liquid share *of* `snw`, not water in addition
-# to it, so adding it to a storage sum would count the same kilogram twice. It
-# is declared for the same reason `sbl` is -- a criterion cannot otherwise know
-# which part of a pack is ice, and a fall in `snw` is net water leaving the
-# pack rather than evidence of a phase change.
-DIAG_VARS = ("ts", "tsoil_layer", "stage", "lwsnl", "csnow")
+# The contract's vocabulary, its names, units and signs, is schemas/lexicon.yaml,
+# and this is the only place that reads it. Diagnostics stay out of STATE_VARS
+# because closure sums every reported store: a temperature must never be added to
+# water storage, and `lwsnl` is a share of `snw`, so counting it would count the
+# same kilogram twice. Routing variables live in output/routing.csv rather than
+# the one-row-per-timestep result table.
+LEXICON = yaml.safe_load((SCHEMA_DIR / "lexicon.yaml").read_text(encoding="utf-8"))
 
-# Reach-indexed routing variables live in output/routing.csv rather than the
-# one-row-per-timestep result table.
-ROUTING_VARS = ("reach_q_in", "q_out", "channel_storage")
+
+def _output_group(group: str) -> tuple[str, ...]:
+    return tuple(name for name, entry in LEXICON["output"].items() if entry["group"] == group)
+
+
+FLUX_VARS = _output_group("flux")
+STATE_VARS = _output_group("state")
+DIAG_VARS = _output_group("diagnostic")
+ROUTING_VARS = _output_group("routing")
 
 UNITS = {
-    "pr": "mm day-1",
-    "evspsbl": "mm day-1",
-    "mrro": "mm day-1",
-    "dis": "m3 s-1",
-    "q_in": "m3 s-1",
-    "reach_q_in": "m3 s-1",
-    "q_out": "m3 s-1",
-    "channel_storage": "m3",
-    "gwex": "mm day-1",
-    # Net river-aquifer exchange, positive into the aquifer. Unlike gwex
-    # (a source or sink crossing the catchment boundary), this moves water
-    # between two stores inside the control volume (gw and channel), so it
-    # is never added to gwex or counted as a source in closure.
-    "gw_sw_exchange": "mm day-1",
-    # Signed directional components of gw_sw_exchange, not of gwex. sw_to_gw
-    # is positive into the aquifer (river losing to the aquifer); gw_to_sw
-    # is negative, out of the aquifer (aquifer losing to the river).
-    "gw_to_sw": "mm day-1",
-    "sw_to_gw": "mm day-1",
-    # Every other flux across the aquifer's boundary (a GHB or WEL package,
-    # regional groundwater exchange), positive into the aquifer. The part that
-    # also crosses the catchment boundary is reported in gwex as well, and no
-    # budget adds the two. groundwater_balance credits this column to gw,
-    # never gwex, because gwex may leave from any reported store.
-    "gw_boundary": "mm day-1",
-    # The sublimating share of `evspsbl`, not a flux in addition to it. A model
-    # that reports it is stating which part of its evaporation left the surface
-    # as ice, which is the only way a criterion can know without guessing.
-    "sbl": "mm day-1",
-    "snm": "mm day-1",
-    "hfls": "W m-2",
-    "hfss": "W m-2",
-    "hfg": "W m-2",
-    "rlus": "W m-2",
-    # Liquid water held in the snowpack, part of `snw` and never additional to
-    # it. `snw - lwsnl` is the ice, which is what a phase change moves.
-    "lwsnl": "mm",
-    # The pack's cold content: the energy still needed to bring its ice to 0 C.
-    # Reported as the energy itself rather than as a temperature, because that
-    # is the quantity a budget spends; a temperature would have to be converted
-    # back through an assumed heat capacity, which is wrong for every model
-    # whose capacity is not the assumed one. Zero for a ripe or empty pack.
-    "csnow": "J m-2",
-    # Instantaneous skin temperature; radiation uses kelvin, unlike forcing tas.
-    "ts": "K",
-    "hfg_bottom": "W m-2",
-    "tsoil_layer": "K",
-    "stage": "m",
-    "mrso": "mm",
-    "snw": "mm",
-    "canopy": "mm",
-    "gw": "mm",
-    "channel": "mm",
+    **{name: entry["units"] for name, entry in LEXICON["output"].items()},
+    "q_in": LEXICON["forcing"]["q_in"]["units"],
 }
 
 # Supported timesteps as ISO 8601 durations, and their length in days. Fluxes
@@ -396,6 +338,11 @@ class ModelManifest:
     # Optional inputs the adapter consumes whenever the case supplies them.
     uses_forcing: tuple[str, ...] = ()
     uses_static: tuple[str, ...] = ()
+    # For a row step the solver cannot take, the shorter step it runs at inside
+    # that row with the row's values held flat. Never the native step, and the
+    # harness passes it only on a single-step probe, so a resolution probe always
+    # sees one model step per row.
+    substeps: dict[str, str] = field(default_factory=dict)
 
     @property
     def timestep(self) -> str:
@@ -638,6 +585,19 @@ def load_model(path: str | Path) -> ModelManifest:
     if len(set(timesteps)) != len(timesteps):
         raise SpecError(f"{spec_file}: timestep lists a step twice")
 
+    substeps = dict(raw.get("substep", {}))
+    for row_step, step in substeps.items():
+        if row_step not in timesteps:
+            raise SpecError(f"{spec_file}: substep names {row_step}, which timestep does not list")
+        if row_step == timesteps[0]:
+            raise SpecError(
+                f"{spec_file}: substep names the native step {row_step}; a model "
+                "runs one step per row at the step it was built at"
+            )
+        ratio = TIMESTEP_DAYS[row_step] / TIMESTEP_DAYS[step]
+        if ratio <= 1.0 or abs(ratio - round(ratio)) > 1e-9:
+            raise SpecError(f"{spec_file}: substep {step} does not divide a {row_step} row evenly")
+
     return ModelManifest(
         name=raw["name"],
         version=str(raw["version"]),
@@ -659,4 +619,5 @@ def load_model(path: str | Path) -> ModelManifest:
         description=raw.get("description", ""),
         path=directory,
         window_days=raw.get("window_days"),
+        substeps=substeps,
     )

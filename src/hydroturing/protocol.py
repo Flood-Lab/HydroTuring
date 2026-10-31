@@ -202,6 +202,12 @@ def stage(io_dir: Path, case: Case, probe: ProbeSpec, model: ModelManifest) -> P
             "groundwater, floodplain, and overland storage."
         ),
     }
+    # Only for a row the manifest says the solver cannot take in one step, so
+    # the manifest is the record of it and the adapter cannot disagree. Never on
+    # a probe that runs one weather at several steps: that dependence on the step
+    # is what it measures, and two runs on one solver step would hide it.
+    if case.timestep in model.substeps and len(probe.timesteps) == 1:
+        request["substep"] = model.substeps[case.timestep]
     request_path = io_dir / REQUEST_FILE
     with open(request_path, "w") as fh:
         json.dump(request, fh, indent=2)
