@@ -1,0 +1,35 @@
+name: rvic
+version: "1.1.1-ht.2"
+description: >
+  RVIC 1.1.1, the source-to-outlet routing model of Lohmann et al.: a linearised
+  Saint-Venant impulse response built once before the run and convolved with the
+  inflow, so its timing is fixed for the whole record. Upstream's own parameter and
+  convolution routines, unmodified, on a two-cell grid in which the source cell lies
+  the declared reach length from the outlet. Its one velocity and diffusivity are
+  taken from the declared section at the first row's q_in. It has no land phase, so
+  it takes q_in and not weather, and every probe that needs precipitation,
+  evaporation or runoff from it is N/A. README.md lists every value.
+authors:
+  - "Joe Hamman (RVIC); D. Lohmann, R. Nolte-Holube, E. Raschke, B. Nijssen, D. P. Lettenmaier (the routing model)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.3402/tellusa.v48i5.12200"
+license: "GPL-3.0 (upstream); adapter under this repository's licence"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# The issue's step. The impulse response is built at the step of the uh_box file, so
+# another step is a different parameter file and has not been checked here.
+timestep: PT1H
+
+emits:
+  fluxes: [dis]
+  # channel: the convolution ring, the water that has entered and has yet to reach
+  # the outlet. It is the only store in RVIC's control volume, which starts at its
+  # inflow: anything upstream of that, snow included, is unknown to it, not zero.
+  states: [channel]
+
+needs_forcing: [q_in]
+needs_static: [area_km2, width_m, cross_section_shape, slope, manning_n, reach_length_m]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
