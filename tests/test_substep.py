@@ -65,3 +65,16 @@ def test_a_resolution_probe_never_serves_the_substepped_row():
     )
     served = {probe.timestep_for(v) for v in harness.select_variants(model, probe)}
     assert served == {"PT1H", "PT1M"}
+
+
+@pytest.mark.parametrize("native", ["PT1M", "PT15M"])
+def test_a_resolution_probe_never_passes_a_substep(tmp_path, native):
+    # Native at or below the finest pair, so the hourly variant is served and has a substep.
+    probe = registry.find_probe("mass/resolution-invariance")
+    model = replace(
+        registry.find_model("reference_bucket"), timesteps=(native, "PT1H"), substeps={"PT1H": native},
+    )
+    for variant in harness.select_variants(model, probe):
+        io = tmp_path / str(variant)
+        path = protocol.stage(io, harness.build_case(probe, 1, variant), probe, model)
+        assert "substep" not in json.loads(path.read_text())

@@ -18,17 +18,22 @@ void ht_topmodel(double *parameters, double *topidx, double *delay, double *rain
                  double *Srz_mean, double *Suz_mean, double *ex_mean,
                  double *transit0, double *weight_sum)
 {
-    int i, j, n = *nidxclass, nt = *ntimestep;
-    double w;
+    int i, j, n = *nidxclass, nt = *ntimestep, room;
+    double w, vmin;
+
+    /* param_init writes Qt out to ndelay + nreach whatever the run's length, past a buffer of nt
+       on a run shorter than the delay function. So the buffers cover that horizon as well. */
+    vmin = parameters[6] < parameters[7] ? parameters[6] : parameters[7];
+    room = nt + (int)(delay[*nch - 1] / (vmin * parameters[10])) + 2;
 
     topidx_calc(topidx, n);
-    memory_allocation(*nch, nt, n);
-    param_init(parameters, delay, *nch, 0, n, nt);
+    memory_allocation(*nch, room, n);
+    param_init(parameters, delay, *nch, 0, n, room);
 
     /* param_init seeds Qt with the flow already on its way to the outlet when the run starts.
        That water is the delay function's initial store. */
     *transit0 = 0.0;
-    for (i = 0; i < nt; i++) *transit0 += misc.Qt[i];
+    for (i = 0; i < room; i++) *transit0 += misc.Qt[i];
 
     for (i = 0; i < nt; i++) run_topmodel(rain, ETp, n, i, nt);
 
@@ -55,5 +60,5 @@ void ht_topmodel(double *parameters, double *topidx, double *delay, double *rain
         }
     }
 
-    memory_free(*nch, nt, n);
+    memory_free(*nch, room, n);
 }
