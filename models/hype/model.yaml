@@ -1,0 +1,39 @@
+name: hype
+version: "5.36.0.1"
+description: >
+  HYPE 5.36.0, the Hydrological Predictions for the Environment model that SMHI runs
+  operationally: snow, three soil layers with macropore, tile and surface flow, a local
+  stream and a main river. Upstream's executable from the release archive, unmodified,
+  in the configuration of the release's own demo2 (par.txt, GeoClass.txt and the row of
+  its lake-free subbasin 3672), with capacity, area, channel lengths and PET from the
+  case. Calibrated nowhere near the synthetic catchment, so results describe that one
+  documented parameter set. README.md lists every value and choice.
+authors:
+  - "Goran Lindstrom, Charlotta Pers, Jorgen Rosberg, Johan Stromqvist, Berit Arheimer (HYPE, SMHI)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.2166/nh.2010.007"
+license: "LGPL-3.0 (upstream); adapter under this repository's licence"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# The step in the submission and the only one demo2's parameters describe. HYPE's rates
+# are per timestep; the adapter rescales them for the next finer step, which the
+# resolution probe asks of every model, and README.md says what that gives.
+timestep: PT1D
+
+emits:
+  fluxes: [pr, snm, evspsbl, mrro, dis]
+  # mrso is every soil layer. channel is the local stream and the main river. canopy is
+  # zero and named under zero_stores: HYPE holds no intercepted water. There is no gw:
+  # demo2 has no aquifer, so run.json lists it under not_reported.
+  states: [mrso, snw, canopy, channel]
+
+needs_forcing: [pr, tas, pet]
+needs_static: [area_km2]
+uses_static: [soil_capacity_mm, main_channel_length_km, centroid_channel_length_km]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
+
+# A ten-year record runs in about a second, so nothing is gained by cutting it.
+window_days: full
