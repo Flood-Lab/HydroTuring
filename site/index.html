@@ -723,6 +723,7 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (VIOLATION)  [2/6 probes p
 "modflow6":{"mass":[3,3],"energy":[0,0],"momentum":[0,0]},
 "sacsma_snow17":{"mass":[20,20],"energy":[1,1],"momentum":[4,4]},
 "summa":{"mass":[7,19],"energy":[1,3],"momentum":[1,1]},
+"tank":{"mass":[18,19],"energy":[1,1],"momentum":[0,0]},
 "topmodel":{"mass":[17,19],"energy":[1,1],"momentum":[1,2]},
 "wflow_sbm":{"mass":[16,19],"energy":[1,1],"momentum":[2,2]},
 "xaj":{"mass":[17,19],"energy":[1,1],"momentum":[0,1]}
@@ -881,6 +882,7 @@ en: {
 <tr><td class="mono">xaj</td><td>submitted</td><td>The Xin'anjiang model, a saturation-excess conceptual model used for flood forecasting in China, from hydromodel v0.4.0.</td><td>18 / 21</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">gr4j</td><td>submitted</td><td>GR4J, the four-parameter daily rainfall-runoff model, through INRAE's airGR 1.7.9.</td><td>19 / 21</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">topmodel</td><td>submitted</td><td>TOPMODEL, in Buytaert's R package: runoff from a topographic index and a root zone, with a delay function.</td><td>19 / 22</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
+<tr><td class="mono">tank</td><td>submitted</td><td>The four-tank conceptual model of Sugawara and Funiyuki, from nzahasan/tank-model 3.0.0b3.</td><td>19 / 20</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>physical</td><td>Lumped FLEX/HBV from chrimerss/HydrologicModels: interception, beta-partitioned soil, fast and slow reservoirs, a geometry-aware lag.</td><td>25 / 25</td><td><span class="tag merged">PASS</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>physical</td><td>FLEX-Topo: plateau, hillslope and wetland units on the Wark catchment's real fractions, sharing one groundwater store.</td><td>24 / 24</td><td><span class="tag merged">PASS</span></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>25 / 25</td><td><span class="tag merged">PASS</span></td></tr>
@@ -1132,6 +1134,7 @@ es: {
 <tr><td class="mono">xaj</td><td>enviado</td><td>El modelo Xin'anjiang, un modelo conceptual de exceso por saturación usado en el pronóstico de crecidas en China, de hydromodel v0.4.0.</td><td>18 / 21</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">gr4j</td><td>enviado</td><td>GR4J, el modelo diario de lluvia-escorrentía de cuatro parámetros, mediante airGR 1.7.9 del INRAE.</td><td>19 / 21</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">topmodel</td><td>enviado</td><td>TOPMODEL, en el paquete de R de Buytaert: escorrentía a partir de un índice topográfico y una zona radicular, con función de retardo.</td><td>19 / 22</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
+<tr><td class="mono">tank</td><td>enviado</td><td>El modelo conceptual de cuatro tanques de Sugawara y Funiyuki, de nzahasan/tank-model 3.0.0b3.</td><td>19 / 20</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>físico</td><td>FLEX/HBV agregado de chrimerss/HydrologicModels: intercepción, suelo con partición beta, embalses rápido y lento, un retardo basado en la geometría.</td><td>25 / 25</td><td><span class="tag merged">PASA</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>físico</td><td>FLEX-Topo: unidades de meseta, ladera y humedal con las fracciones reales de la cuenca Wark, un solo almacén subterráneo.</td><td>24 / 24</td><td><span class="tag merged">PASA</span></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>25 / 25</td><td><span class="tag merged">PASA</span></td></tr>
@@ -1383,6 +1386,7 @@ zh: {
 <tr><td class="mono">xaj</td><td>提交模型</td><td>新安江模型，用于中国洪水预报的蓄满产流概念模型，来自 hydromodel v0.4.0。</td><td>18 / 21</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">gr4j</td><td>提交模型</td><td>GR4J，四参数日尺度降雨径流模型，通过 INRAE 的 airGR 1.7.9 运行。</td><td>19 / 21</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">topmodel</td><td>提交模型</td><td>TOPMODEL，Buytaert 的 R 包版本：由地形指数与根区产流，并带延迟函数。</td><td>19 / 22</td><td><span class="tag violation">未通过（违反）</span></td></tr>
+<tr><td class="mono">tank</td><td>提交模型</td><td>Sugawara 与 Funiyuki 的四水箱概念模型，来自 nzahasan/tank-model 3.0.0b3。</td><td>19 / 20</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>物理模型</td><td>来自 chrimerss/HydrologicModels 的集总 FLEX/HBV：截留、beta 分配的土壤、快慢水库与基于几何的滞时。</td><td>25 / 25</td><td><span class="tag merged">通过</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>物理模型</td><td>FLEX-Topo：台地、坡地与湿地单元按 Wark 流域的真实面积比共享一个地下水库。</td><td>24 / 24</td><td><span class="tag merged">通过</span></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>25 / 25</td><td><span class="tag merged">通过</span></td></tr>
