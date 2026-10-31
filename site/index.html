@@ -722,6 +722,7 @@ google_flood_forecast v0.1.0-828dfc5  -&gt;  ❌ FAIL (VIOLATION)  [2/6 probes p
 "hymod":{"mass":[18,19],"energy":[1,1],"momentum":[1,1]},
 "hype":{"mass":[13,20],"energy":[1,1],"momentum":[1,2]},
 "lisflood":{"mass":[17,19],"energy":[1,1],"momentum":[1,1]},
+"lisflood_fp":{"mass":[0,0],"energy":[0,0],"momentum":[0,1]},
 "mcp1":{"mass":[11,19],"energy":[1,1],"momentum":[0,0]},
 "mcp2":{"mass":[10,19],"energy":[0,1],"momentum":[0,0]},
 "mcp3":{"mass":[10,19],"energy":[1,1],"momentum":[0,1]},
@@ -917,6 +918,7 @@ en: {
 <tr><td class="mono">noahmp</td><td>submitted</td><td>Noah-MP v5.2.1, the land scheme of the National Water Model and WRF. One 86400 s step stops upstream's checks, so a daily row is held flat over 24 hourly solver steps.</td><td>16 / 25</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">rvic</td><td>submitted</td><td>RVIC 1.1.1, the Lohmann routing model: a fixed impulse response convolved with the inflow.</td><td>0 / 1</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">mizuroute</td><td>submitted</td><td>mizuRoute v3.1.1, ESCOMP's stand-alone river routing model, on its diffusive-wave scheme.</td><td>1 / 1</td><td><span class="tag merged">PASS</span></td></tr>
+<tr><td class="mono">lisflood_fp</td><td>submitted</td><td>LISFLOOD-FP v8.1's FV1 shallow-water solver, one reach. The failure comes from a reach-width grid; a 25 m grid passes.</td><td>0 / 1</td><td><span class="tag violation">FAIL (VIOLATION)</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>physical</td><td>Lumped FLEX/HBV from chrimerss/HydrologicModels: interception, beta-partitioned soil, fast and slow reservoirs, a geometry-aware lag.</td><td>25 / 25</td><td><span class="tag merged">PASS</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>physical</td><td>FLEX-Topo: plateau, hillslope and wetland units on the Wark catchment's real fractions, sharing one groundwater store.</td><td>24 / 24</td><td><span class="tag merged">PASS</span></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>physical</td><td>The NWS operational SAC-SMA with Snow-17 and a gamma unit hydrograph, ported from the legacy Fortran and checked against it.</td><td>25 / 25</td><td><span class="tag merged">PASS</span></td></tr>
@@ -1186,6 +1188,7 @@ es: {
 <tr><td class="mono">noahmp</td><td>enviado</td><td>Noah-MP v5.2.1, el esquema de superficie del National Water Model y WRF. Un paso de 86400 s detiene las comprobaciones del propio modelo, por lo que cada fila diaria se mantiene constante durante 24 pasos horarios del solucionador.</td><td>16 / 25</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">rvic</td><td>enviado</td><td>RVIC 1.1.1, el modelo de tránsito de Lohmann: una respuesta impulsiva fija convolucionada con el caudal de entrada.</td><td>0 / 1</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">mizuroute</td><td>enviado</td><td>mizuRoute v3.1.1, el modelo independiente de tránsito fluvial de ESCOMP, con su esquema de onda difusiva.</td><td>1 / 1</td><td><span class="tag merged">PASA</span></td></tr>
+<tr><td class="mono">lisflood_fp</td><td>enviado</td><td>El resolvedor FV1 de aguas someras de LISFLOOD-FP v8.1, un tramo. La falla proviene de una malla del ancho del tramo; una malla de 25 m pasa.</td><td>0 / 1</td><td><span class="tag violation">FALLA (VIOLACIÓN)</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>físico</td><td>FLEX/HBV agregado de chrimerss/HydrologicModels: intercepción, suelo con partición beta, embalses rápido y lento, un retardo basado en la geometría.</td><td>25 / 25</td><td><span class="tag merged">PASA</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>físico</td><td>FLEX-Topo: unidades de meseta, ladera y humedal con las fracciones reales de la cuenca Wark, un solo almacén subterráneo.</td><td>24 / 24</td><td><span class="tag merged">PASA</span></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>físico</td><td>El SAC-SMA operativo del NWS con Snow-17 y un hidrograma unitario gamma, portado del Fortran heredado y verificado contra él.</td><td>25 / 25</td><td><span class="tag merged">PASA</span></td></tr>
@@ -1455,6 +1458,7 @@ zh: {
 <tr><td class="mono">noahmp</td><td>提交模型</td><td>Noah-MP v5.2.1，美国国家水模型与 WRF 的陆面方案。86400 秒的单步会触发模型自身的检查而中止，因此每个日尺度行在 24 个小时求解步内保持不变。</td><td>16 / 25</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">rvic</td><td>提交模型</td><td>RVIC 1.1.1，Lohmann 汇流模型：固定脉冲响应与入流卷积。</td><td>0 / 1</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">mizuroute</td><td>提交模型</td><td>mizuRoute v3.1.1，ESCOMP 的独立河道汇流模型，使用扩散波方案。</td><td>1 / 1</td><td><span class="tag merged">通过</span></td></tr>
+<tr><td class="mono">lisflood_fp</td><td>提交模型</td><td>LISFLOOD-FP v8.1 的 FV1 浅水方程求解器，单个河段。失败来自与河宽相同的网格；25 米网格可通过。</td><td>0 / 1</td><td><span class="tag violation">未通过（违反）</span></td></tr>
 <tr><td class="mono">flex_lumped</td><td>物理模型</td><td>来自 chrimerss/HydrologicModels 的集总 FLEX/HBV：截留、beta 分配的土壤、快慢水库与基于几何的滞时。</td><td>25 / 25</td><td><span class="tag merged">通过</span></td></tr>
 <tr><td class="mono">flex_topo</td><td>物理模型</td><td>FLEX-Topo：台地、坡地与湿地单元按 Wark 流域的真实面积比共享一个地下水库。</td><td>24 / 24</td><td><span class="tag merged">通过</span></td></tr>
 <tr><td class="mono">sacsma_snow17</td><td>物理模型</td><td>美国国家气象局业务用 SAC-SMA + Snow-17 + 伽马单位线，由遗留 Fortran 移植并与之比对。</td><td>25 / 25</td><td><span class="tag merged">通过</span></td></tr>

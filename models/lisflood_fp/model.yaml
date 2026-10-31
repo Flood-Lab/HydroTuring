@@ -1,0 +1,36 @@
+name: lisflood_fp
+version: "8.1-ht.3"
+description: >
+  LISFLOOD-FP v8.1 with its CPU FV1 solver: the full two-dimensional shallow water
+  equations by first-order finite volumes. Not the JRC LISFLOOD rainfall-runoff
+  model, which is models/lisflood. The declared reach is one row of cells as wide as
+  the reach, stepping down to a free outfall, with the prescribed q_in on its upstream
+  face. The verdict depends on that cell size, as README.md shows. The proposal's
+  own target, the spatial probe of #75, is not merged; this scores what is. It has
+  no land phase here, so it takes q_in and not weather, and every probe that needs
+  precipitation, evaporation or runoff from it is N/A. README.md lists every value
+  and states what the archive says about its licence.
+authors:
+  - "LISFLOOD-FP developers (Zenodo record 6912932); Mohammad Kazem Sharifian, Georges Kesserwani, Alovya Ahmed Chowdhury, Jeffrey Neal, Paul Bates (v8.1 paper)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.5194/gmd-16-2391-2023"
+license: "See README.md: the archive carries no licence file; project page GPL-3.0 for non-commercial use, Zenodo record GPL-2.0"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# The solver's step is adaptive and in seconds, and the report step is only an output
+# setting. PT1H is the one step a merged probe can feed it at.
+timestep: PT1H
+
+emits:
+  fluxes: [dis]
+  # channel: the water on the raster, from the solver's own mass file. It is the only
+  # store in this control volume, which starts at the inflow face: anything upstream
+  # of that, snow included, is unknown to it, not zero.
+  states: [channel]
+
+needs_forcing: [q_in]
+needs_static: [area_km2, width_m, cross_section_shape, slope, manning_n, reach_length_m]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
