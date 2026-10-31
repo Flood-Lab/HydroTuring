@@ -376,3 +376,6 @@ crosswalk:
   rvic:
     dis: "rof[LIQ][0] * area_m2"
     channel: "ring[LIQ][1:].sum() * DT_S"
+  mizuroute:
+    dis: "routedRunoff[TESTED_SEG]"
+    channel: "(volume[SOURCE_SEG] + volume[TESTED_SEG]) / area_km2"
