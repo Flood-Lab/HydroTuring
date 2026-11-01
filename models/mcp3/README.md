@@ -109,7 +109,7 @@ proposal.
 
 ## Verdict
 
-Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch619.4`, with the probes that bound the store re-scored on Docker the same day: **FAIL (VIOLATION), 17 of 21 scored**, 16 N/A
+Gate seeds, Docker on Apple Silicon at `3e86a79`, 2026-11-01, version `5944b5f-epoch619.4`: **FAIL (VIOLATION), 17 of 21 scored**, 16 N/A
 (15 INCOMPLETE, 1 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not
 read). The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `gwex`, `stage` and `dis`.
 
@@ -175,10 +175,14 @@ Subtracting the column in the adapter would add a process the published model do
 0.2188 * sigmoid(-11.02 + 0.3028 (S - 3.05) / 3.37), which at S = 60 mm releases 6e-4 of the store
 a day, a residence of about 1700 days, and at S = 30 mm releases 4e-5. On the three seeds S sits
 at means of 41-55 mm while median runoff is 0.02-0.04 mm/day, so it holds far more than 15 days
-of recent peak flow. The same holds on the model's own catchment: on the Leaf River S ranges over
-58-205 mm (mean 74) and exceeds 15 times the preceding 30 days' peak on 68% of rows. So this is
-what training produced, not a result of the synthetic climate. The node passes a storm through
-only once S is high, so it behaves as a threshold store rather than a 15-day hydrograph.
+of the peak flow around it. `routing_conservation` has also read the fifteen days ahead since
+`dc9836c`, so a router holding a storm before it releases it now passes, and this node still fails:
+the largest runoff from 30 days before to 15 days after is 0.11 mm/day when it holds 62.4 mm. The
+same holds on the model's own catchment: on the Leaf River S ranges over 58-205 mm (mean 74) and
+exceeds 15 times the preceding 30 days' peak on 68% of rows, measured against the earlier bound and
+not re-run. So this is what training produced, not a result of the synthetic climate. The node
+passes a storm through only once S is high, so it behaves as a threshold store rather than a 15-day
+hydrograph.
 
 **dry-down: the groundwater node keeps filling after the rain stops.** On the failing seed G
 rises from 1.27 to 1.38 mm over the first three rainless weeks while the primary store falls from

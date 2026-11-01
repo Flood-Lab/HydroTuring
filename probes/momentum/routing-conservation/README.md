@@ -91,23 +91,28 @@ otherwise be scored as a leak.
 `wflow_sbm`'s river is the case it exists for, and its need is the largest
 measured on this case: **0.0026 mm** through the droughts, against which 0.05 mm
 leaves it about nineteen times. Over the three gate seeds the models that route
-sit at **0.01 to 0.58 of the whole allowance**:
+sit at **0.00 to 0.73 of the whole allowance**:
 
 | Model | Worst ratio to the allowance |
 | --- | --- |
+| `dhbv2` | 0.00 |
 | `summa` | 0.01 |
-| `dhbv2` | 0.04 |
-| `flex_topo` | 0.11 |
-| `lisflood` | 0.12 |
-| `wflow_sbm`, `sacsma_snow17` | 0.16 |
-| `cwatm` | 0.47 |
+| `lisflood` | 0.05 |
+| `flex_topo` | 0.07 |
+| `topkapi` | 0.14 |
+| `sacsma_snow17` | 0.15 |
+| `wflow_sbm` | 0.16 |
+| `cwatm` | 0.28 |
+| `xaj` | 0.32 |
 | `flex_lumped` | 0.58 |
+| `gr4j` | 0.73 |
 
-The tightest of those leaves about 1.7x of room, and the smallest fault this
-probe exists to catch — a kernel keeping a tenth of a percent of each day's
-runoff — reaches **3.17x to 3.63x** the whole allowance on the gate seeds, and
-the gate stops catching it only once `min_allowance_mm` passes 0.574 mm. The
-value sits between them by measurement, not by taste.
+The tightest of those, `gr4j`, leaves about 1.4x of room, and the smallest fault
+this probe exists to catch — a kernel keeping a tenth of a percent of each day's
+runoff — reaches **3.17x to 3.63x** the whole allowance on the gate seeds, more
+than four times `gr4j`'s ratio, and the gate stops catching it only once
+`min_allowance_mm` passes 0.574 mm. The value sits between them by measurement,
+not by taste.
 
 ### Where the 0.0026 mm comes from
 

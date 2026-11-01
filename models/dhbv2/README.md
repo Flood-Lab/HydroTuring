@@ -68,11 +68,13 @@ three things, none of which changes anything at the daily step:
 Without the scaling the stores drained twenty-four times too fast and the
 integrated runoff moved by 216–482 % of the rain between the hourly and
 daily step; that number measured the adapter's units, not the model. With
-it, on the resolution probe's first gate seed, runoff differs by 2.2 % of
-the rain and evaporation by 8.6 %. What is left is the LSTM's own
-recurrence, whose memory was learned with one step meaning one day:
-holding the hourly physics but feeding it the daily run's parameter series
-repeated 24× brings both volumes within 1 % of the daily run, and the
+it, under `.5`, the worst volume differs by 2.9, 11.3 and 12.1 % of the rain
+on the resolution probe's three gate seeds. On the worst seed that is `mrro`,
+84 mm hourly against 54 mm daily of 248 mm of rain, with evaporation at 1.7 %
+and `mrso_end` at 0.5 %. What is left is the LSTM's own
+recurrence, whose memory was learned with one step meaning one day. Measured
+on the first gate seed before `.5` and not repeated since: holding the hourly
+physics but feeding it the daily run's parameter series repeated 24× brings both volumes within 1 % of the daily run, and the
 hourly LSTM writes a lower `parBETAET` (0.29 against 0.32 normalised) and
 a higher `parBETA` (0.38 against 0.30), which is where the extra
 evaporation comes from. That is the model's step dependence, and it is
@@ -83,7 +85,8 @@ Of the 28 attributes the parameterisation network reads:
 - **Derived from the first year of the record** (a climatology the model
   has seen, through which nothing later can reach back): `meanP`,
   `ETPOT_Hargr`, `aridity`, `meanTa`, and `snowfall_fraction` as the share
-  of precipitation falling below the snow threshold.
+  of precipitation falling below the snow threshold, a sub-daily record being
+  grouped into whole days for that one attribute, since `.5`.
 - **From `static.json`**: `uparea` is the catchment area, which also
   drives the regional groundwater term (below). `meanelevation` comes from
   `elevation_m` when present, otherwise the training mean.
@@ -182,3 +185,14 @@ archive returns. The `.4` rows were produced from a copy taken out of the local
 image, whose hashes match the pins, with the download step swapped for a `COPY`.
 If the archive returns with other files, the hash check fails the build, and
 that is a new version to evaluate.
+
+## Version `.5`
+
+`0.5.4-hbv2ep100.5` changes the adapter only. `snowfall_fraction` is defined over
+days and was computed per row, so an hourly and a daily run of the same weather
+handed the parameter network different attributes. Daily rows are unchanged. On
+`mass/resolution-invariance` the worst reading moved from `mrso_end` at 41.9 % of
+the rain to `mrro` at 12.1 %, still over the 10 % limit, so the verdict stands.
+
+Archived on the gate seeds under Docker on Apple Silicon at `3e86a79`: **FAIL
+(VIOLATION), 15 PASS, 6 FAIL, 16 N/A**.

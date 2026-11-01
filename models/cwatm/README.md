@@ -19,7 +19,8 @@ adapter can read rather than reconstruct.
 ## Verdict
 
 **FAIL (VIOLATION)**, 17 of 21 probes passed, on the gate seeds and the full
-record of every probe (`ht run --model cwatm --gate-seeds`). Four probes fail
+record of every probe (`ht run --model cwatm --gate-seeds`), under Docker on Apple Silicon at
+`3e86a79`, version `1.11-5baaadd.4`. Four probes fail
 as VIOLATION, and they are not alike.
 
 - `resolution-invariance` is the model: CWatM has no step other than a day,
@@ -71,7 +72,7 @@ as VIOLATION, and they are not alike.
 | `mass/runoff-bounds` | PASS | runoff 0.61 of the rain, inside [0.11, 1.07] |
 | `mass/antecedent-monotonicity` | PASS | the wetter catchment runs off 9.2–16.6 mm more from the same 60 mm storm (0.15–0.28 of it; at least 0.02), within the 120 mm it was given. The window now opens on the storm, after ten dry days; it used to open on the first of them, which counted 2.8–4.0 mm of recession from the antecedent rain and divided by all of the month's rain (71–116 mm) |
 | `mass/warming-response` | PASS | runoff −0.25 and −0.28, evaporation +0.27 and +0.31 per unit of demand, warmer and cooler |
-| `momentum/routing-conservation` | PASS | the runoff-concentration store stays within 0.47 of the 15-day bound |
+| `momentum/routing-conservation` | PASS | the runoff-concentration store stays within 0.28 of the 15-day bound |
 
 ### Preferential flow, runoff concentration and the dip
 

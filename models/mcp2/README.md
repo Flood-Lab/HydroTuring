@@ -98,7 +98,7 @@ declares PT1D only, the step in the proposal.
 
 ## Verdict
 
-Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch3.4`, with the probes that bound the store re-scored on Docker the same day: **FAIL (VIOLATION), 14 of 20 scored**, 17 N/A
+Gate seeds, Docker on Apple Silicon at `3e86a79`, 2026-11-01, version `5944b5f-epoch3.4`: **FAIL (VIOLATION), 15 of 20 scored**, 17 N/A
 (15 INCOMPLETE; 2 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not read, and
 `exchange-response` needs `gwh`, not declared because the relaxation reads the store rather than a head).
 The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `channel`, `stage` and `dis`.
@@ -123,7 +123,7 @@ On seven probes the store passes the case's capacity. That upper bound is N/A fo
 | mass/human-abstraction | **FAIL** | 380 mm of 380 unaccounted for |
 | mass/multi-decadal-drift | PASS | `mrso` 585-627 mm, capacity bound N/A; no drift |
 | mass/phase-counterfactual | PASS | trivially: the model reads no temperature |
-| mass/precipitation-counterfactual | **FAIL** | responses account for 0.83-0.89 of the change in rain |
+| mass/precipitation-counterfactual | PASS | partitioned once `gwex` counts as a source; returns 0.77 of the 3268 mm added at the top |
 | mass/resolution-invariance | **FAIL** | `mrso_end` 15.4% of rain: the stores end the month apart, from the 10-day spin-up alone |
 | mass/response-nonnegativity | PASS | no dip |
 | mass/runoff-bounds | PASS | runoff 0.37 of rain, declared exchange +0.06 of rain |
@@ -159,14 +159,13 @@ code: the adapter reads `pr` and `pet` and nothing else, the paired runs are ide
 storage all +0.0 mm), and the whole 380 mm goes unaccounted for. AGENTS.md scores this as a failure, not as N/A.
 Subtracting the column in the adapter would add a process the published model does not have, so nothing was added. The relaxation reads only the store, so it does not stand in for one.
 
-**precipitation-counterfactual: the share the criterion cannot see is the relaxation.** `counterfactual_response`
-fails every variant on all three seeds: evaporation, runoff and storage account for 0.83-0.89
-of the rain added or removed, against 1 within 0.10. More rain raises the store, and the store-dependent relaxation then
-adds less. The change in the declared `gwex` is -0.11 to -0.17 of the change in rain, and with it the sum is 1.000 to
-within 2e-6 on all nine pairs. `models/mcp1`, which has no relaxation, accounts for 1.000 on the same record. So no water
-is lost: it is in a column this criterion does not count, although `closure` and the runoff ratio on the same suite do.
-What stands about the model is that a learned exchange takes 11-17% of any change in rain. Relabelling it would hide the
-term, so it stays.
+**precipitation-counterfactual, a failure the criterion no longer makes.** Until `dc9836c`, `counterfactual_response`
+left a declared `gwex` out of the budget and failed every variant on all three seeds: evaporation, runoff and storage
+account for 0.83-0.89 of the rain added or removed, against 1 within 0.10. More rain raises the store, and the
+store-dependent relaxation then adds less. The change in the declared `gwex` is -0.11 to -0.17 of the change in rain, and
+with it the sum is 1.000 to within 2e-6 on all nine pairs. `models/mcp1`, which has no relaxation, accounts for 1.000 on
+the same record. The criterion now counts it as a source, as `closure` and the runoff ratio already did, and the probe
+passes. What stands about the model is that a learned exchange takes 11-17% of any change in rain.
 
 **dry-down: the relaxation makes water.** Without rain the store falls below the learned level
 of 548.7 mm, where the term is a source that grows as the store falls. At the worst block on

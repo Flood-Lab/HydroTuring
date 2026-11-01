@@ -6,8 +6,9 @@ impulse response, built once before the run and convolved with the inflow. Issue
 
 ## Verdict
 
-One probe can score this model, and it fails it, by design of the model rather than by
-any choice made here.
+Gate seeds, Docker on Apple Silicon at `3e86a79`, version `1.1.1-ht.4`: **0 of 1 scored**. One
+probe can score this model, and it fails it, by design of the model rather than by any choice
+made here.
 
 | Probe | Verdict | Mechanism |
 | --- | --- | --- |
@@ -91,6 +92,9 @@ step early. It is common to both reach lengths and the paired probe cancels it.
 
 `channel` is reported and is the only store declared. `snw`, `canopy`, `mrso` and `gw` are
 left out and named under `not_reported`.
+
+Version `1.1.1-ht.4` sets `USER` in the Dockerfile, because RVIC calls `getpass` on import and
+crashed in Docker under a uid with no passwd entry. The verdict is unchanged.
 
 Version `1.1.1-ht.1` reported `snw` and `canopy` as zero under `zero_stores`. That was
 withdrawn. The zero-store rule in `AGENTS.md` is about a model whose control volume includes

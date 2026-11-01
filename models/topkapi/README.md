@@ -80,7 +80,8 @@ model carries no constant per day.
 
 Each was rerun on the gate seeds, with no container, on the thirteen probes that scored the model
 before the zero-store rule, so the closure family is not part of this comparison. The first row is
-that older verdict.
+that older verdict, and every routing-conservation result here is under the bound as it read before
+`dc9836c` (below); none was re-run.
 
 | Choice | Alternative | What moves |
 | --- | --- | --- |
@@ -88,7 +89,7 @@ that older verdict.
 | `fac_Ks` = 1, `fac_n_c` = 1 | 60 and 1.7, the worked example's calibration for the Liebenbergsvlei | Routing-conservation PASS. `energy/pet-consistency` FAIL (0.36 of demand when wet, limit 0.7), `mass/extreme-rain` FAIL (1.27 of added rain), `mass/response-nonnegativity` FAIL (-0.279 mm/day) |
 | `4cells` soils | Liebenbergsvlei soils from `d8/` on these four cells: `Ks` 6.06e-5, `alpha_s` 2.5, gentler slopes | Routing-conservation PASS. `mass/antecedent-monotonicity` FAIL (0.0005 of the storm, limit 0.02), `mass/response-nonnegativity` FAIL (-0.474 mm/day) |
 | `fac_L` from the capacity | `fac_L` = 1, 424 mm | Routing-conservation still FAIL (9.1 mm against 6.6 mm); `mass/area-invariance` FAIL on `non_degenerate` (correlation 0.044, limit 0.05) |
-| Overland store in `channel` | In `mrso` | Routing-conservation PASS, nothing else moves. See the FAIL below |
+| Overland store in `channel` | In `mrso` | Routing-conservation PASS, nothing else moves. See `momentum/routing-conservation` below |
 | `mrro` is everything crossing the outlet | `/Channel/Qc_out` alone, which is what upstream's plotting tool reads | 11 of 13 FAIL, runoff ratio about 0.005 |
 | PT1H native | PT1D native | Resolution pairs PT1D with PT1H rather than PT1H with PT1M: worst 0.76% of rain against 0.04% |
 
@@ -127,7 +128,7 @@ Not reported, named in `run.json`:
 
 ## Results
 
-Evaluated under Apptainer on gate seeds: **19 PASS, 2 FAIL, 16 N/A** (14 INCOMPLETE, 2 INCOMPATIBLE).
+Evaluated under Docker on Apple Silicon at `3e86a79`, version `0.4.0-f7b953e.3`, on gate seeds: **20 PASS, 1 FAIL, 16 N/A** (14 INCOMPLETE, 2 INCOMPATIBLE).
 The default window applies, and a probe's `min_window_days` widens it, so the closure probe scores
 30 days.
 
@@ -153,7 +154,7 @@ The default window applies, and a probe's `min_window_days` widens it, so the cl
 | `mass/time-origin-invariance` | PASS | identical; the model never reads the date |
 | `mass/ungauged-basin-closure` | PASS | 0.0074% of rain over 12 catchments; ET at most 0.893 of potential |
 | `mass/warming-response` | PASS | per unit of demand, warmer: `mrro` -0.493, `evspsbl` +0.501 |
-| `momentum/routing-conservation` | **FAIL** | 6.2 mm in `channel` against a 4.3 mm bound, one seed of three; the others at 0.93 and 0.96 of it |
+| `momentum/routing-conservation` | PASS | within 0.14 of the bound; see below |
 
 **N/A.** INCOMPLETE: the outputs it lacks, `gwex`, `snm`, `gw_sw_exchange`, `stage` and the heat
 terms. INCOMPATIBLE: `momentum/routing-lag-consistency` (no channel lengths consumed: this is a fixed
@@ -191,9 +192,12 @@ column fails this way, and it does.
 
 ### `momentum/routing-conservation`
 
-`momentum/routing-conservation` allows `channel` at most fifteen days of the largest runoff of
-the preceding month. On seed 1431599080 a seven-day 48 mm/day storm lands on a catchment dry for
-weeks, and on 2003-02-03 `channel` holds 6.2 mm while the outlet has shown at most 0.27 mm/day.
+This failed until `routing_conservation` was corrected at `dc9836c`. It allowed `channel` at most
+fifteen days of the largest runoff of the preceding month, and on seed 1431599080 a seven-day
+48 mm/day storm lands on a catchment dry for weeks, and on 2003-02-03 `channel` holds 6.2 mm while
+the outlet has shown at most 0.27 mm/day: 6.2 mm against a 4.3 mm bound, with the other two seeds at
+0.93 and 0.96 of theirs. The bound now also reads the fifteen days ahead, and the model passes at
+0.14 of it.
 
 Verified from upstream's own results, day by day:
 
@@ -212,11 +216,10 @@ it leaves. This is not a stuck store: the overland stores turn over in under a d
 out of 4.3 mm on cell 0, 78.7 out of 14.0 on cell 1), and they hold 0.03 mm three days after the
 rain stops. The channel proper holds 0.03 mm that day and at most 0.06 mm in the record.
 
-So the violation is a real feature of the model, surface water ahead of the outlet because
-run-on infiltrates downstream, measured on a bound built for a store that the outlet's runoff
-feeds. Whether that is what the probe means to catch is for the maintainers; the probe was left
-alone. Moving the overland store into `mrso` passes it and is rejected, because that water is
-not in the soil and the other distributed models report it under `channel`.
+So the earlier excess was a real feature of the model, surface water ahead of the outlet because
+run-on infiltrates downstream, measured on a bound that had not yet seen that water leave. Moving the
+overland store into `mrso` would also have passed it and was rejected, because that water is not in
+the soil and the other distributed models report it under `channel`.
 
 ## Findings beyond the verdict
 

@@ -137,7 +137,7 @@ resolution numbers by at most 0.03% of rain, so the form of the rule is not what
 
 ## Verdict
 
-Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch2707.4`, with the probes that bound the store re-scored on Docker the same day: **FAIL (VIOLATION), 13 of 20 scored**, 17 N/A
+Gate seeds, Docker on Apple Silicon at `3e86a79`, 2026-11-01, version `5944b5f-epoch2707.4`: **FAIL (VIOLATION), 14 of 20 scored**, 17 N/A
 (16 INCOMPLETE, 1 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not
 read). The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `gwex`, `channel`, `stage` and `dis`.
 
@@ -159,7 +159,7 @@ On seven probes the store passes the case's capacity. That upper bound is N/A fo
 | mass/extreme-event-closure | PASS | `mrso` 413-936 mm, capacity bound N/A; event closure passes |
 | mass/extreme-rain | **FAIL** | 1.17 of the added rain comes back |
 | mass/human-abstraction | **FAIL** | 380 mm of 380 unaccounted for |
-| mass/multi-decadal-drift | **FAIL** | `et_plausible`: 1 + 4.2e-8 of demand, round-off; no drift |
+| mass/multi-decadal-drift | PASS | `mrso` peaks at 692 mm, capacity bound N/A; no drift |
 | mass/phase-counterfactual | PASS | trivially: the model reads no temperature |
 | mass/precipitation-counterfactual | PASS | `mrso` 433-821 mm, capacity bound N/A; the partition passes |
 | mass/resolution-invariance | PASS | `mrso_end` 0.5% of rain |
@@ -173,8 +173,8 @@ On seven probes the store passes the case's capacity. That upper bound is N/A fo
 
 ## The failures
 
-Verified with targeted runs unless a sentence says inferred. All are the model; the adapter's arithmetic contributes
-only to `et_plausible`, below, which changes no verdict.
+Verified with targeted runs unless a sentence says inferred. All are the model. The `et_plausible` paragraph records a
+failure the criterion no longer makes, and the adapter's arithmetic contributed only to that.
 
 **The capacity bound, N/A on seven probes since `state_bounds` stopped applying a capacity to a model that does not consume it: the stores have no capacity, and their gates open far above the bound.** The probes take
 the bound from `soil_capacity_mm` in `static.json`: 320 mm, or a draw of 124-682 mm on `ungauged-basin-closure`. Nothing
@@ -199,15 +199,15 @@ code: the adapter reads `pr` and `pet` and nothing else, the paired runs are ide
 storage all +0.0 mm), and the whole 380 mm goes unaccounted for. AGENTS.md scores this as a failure, not as N/A.
 Subtracting the column in the adapter would add a process the published model does not have, so nothing was added.
 
-**multi-decadal-drift, `et_plausible`: round-off at the cap, not excess evaporation.** In this probe's mild climate (PET
-about 1 mm/day, rain 1.8) all five nodes sit at their PET cap on every scored row, so evaporation equals demand, and the
-cumulative ratio is between 1 - 9.8e-9 and 1 + 4.2e-8 on the five seeds. The criterion allows 1 + 1e-9, so four fail. Two
-single-precision sources add up to that. One is the upstream `C * (ol - relu(ol - PET / C))`. The other is the adapter's,
+**multi-decadal-drift, `et_plausible`: round-off at the cap, a failure the criterion no longer makes.** In this probe's
+mild climate (PET about 1 mm/day, rain 1.8) all five nodes sit at their PET cap on every scored row, so evaporation equals
+demand, and the cumulative ratio is between 1 - 9.8e-9 and 1 + 4.2e-8 on the five seeds. Until `dc9836c` the criterion
+allowed 1 + 1e-9, so four failed; it now allows 1 + 1e-6, and the probe passes. Two single-precision sources add up to that. One is the upstream `C * (ol - relu(ol - PET / C))`. The other is the adapter's,
 which combines the nodes with upstream's float32 softmax weights, and those sum to 1 + 1.65e-8. Renormalising the weights
 in double still leaves two seeds over, at +2.6e-8 and +3.1e-9. The same equations in float64 reach 1 + 4.4e-16 with no row
-above PET. The model stays in float32, as upstream runs it, so this round-off is now the row's only failure. Do not read this row as evaporation exceeding demand.
+above PET. The model stays in float32, as upstream runs it.
 
-Four of the other six come from the negative entries of W_o. Node 2 carries
+Four of the six that remain come from the negative entries of W_o. Node 2 carries
 most of the outflow in dry periods (w = 0.21), and column 2 of W_o reads node 3 at -3.71 and node 1 at
 -1.16: when those stores rise, node 2's gate closes, and when they fall, it opens.
 

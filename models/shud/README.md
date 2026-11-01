@@ -1,23 +1,26 @@
 # SHUD under HydroTuring
 
 SHUD, the Simulator for Hydrologic Unstructured Domains, by Lele Shu and contributors, from
-[SHUD-System/SHUD](https://github.com/SHUD-System/SHUD) at tag `cpu-accel-v1.1.1`, commit
-`c7404df0ebaffd67ea267bce32fff36ba36f6cfe`, the revision named in
-[Flood-Lab/HydroTuring#106](https://github.com/Flood-Lab/HydroTuring/issues/106), proposed by
-Yuanhang Liu. MIT; the image carries the licence at `/model/LICENSE`.
+[SHUD-System/SHUD](https://github.com/SHUD-System/SHUD) at upstream's master, commit
+`851fb8c7e146a533a9545f786e8f68fd8a8d817f`. Proposed by Yuanhang Liu in
+[Flood-Lab/HydroTuring#106](https://github.com/Flood-Lab/HydroTuring/issues/106), which named tag
+`cpu-accel-v1.1.1`, commit `c7404df0ebaffd67ea267bce32fff36ba36f6cfe`. MIT; the image carries the
+licence at `/model/LICENSE`.
 
-**Read this first.** At this tag SHUD loses 30 to 60% of the rain in these cases, and that accounts for most
-of the verdict. The loss is one line of upstream's `ET()`, it appears on upstream's own example with no
-HydroTuring code involved, and **upstream has since fixed it** in commit `0958682c78da` (2026-10-13, upstream
-issue #15), which postdates the tag and every tagged release so far. See "The headline" and "The tag or the
-fix". The minimal mesh does not cause it, and neither does the adapter.
+**Read this first.** This package runs upstream's master at `851fb8c`, not the tag #106 named, at the
+maintainer's decision. The tag loses 30 to 60% of the rain in these cases to one line of upstream's `ET()`,
+which appears on upstream's own example with no HydroTuring code involved. **Upstream has fixed it** in commit
+`0958682c78da` (2026-10-13, upstream issue #15), which postdates the tag and every tagged release so far, so a
+commit is the only way to run the model with it. What remains on master is the ET double count and solver
+noise. See "The headline" for what the tag did, and "The tag or the fix". The minimal mesh did not cause the
+loss, and neither did the adapter.
 
 ## What runs
 
-Upstream's `shud` executable, compiled unmodified with upstream's Makefile against CVODE 6.0.0, the release its
+Upstream's `shud` executable at `851fb8c`, compiled unmodified with upstream's Makefile against CVODE 6.0.0, the release its
 `./configure` asks for (tarball checked by sha256), on `python:3.11-slim` pinned by digest (Debian 13). Upstream's
 Makefile compiles its optional BoomerAMG wrapper into every binary, so Hypre, MPI and OpenBLAS are installed though
-the default SPGMR path used here never calls them. The Apptainer image is 369 MB. `ht_adapter.py` writes the text
+the default SPGMR path used here never calls them. The Docker image is 1.78 GB. `ht_adapter.py` writes the text
 inputs `shud` reads and reads the binary outputs it writes.
 
 Upstream's writer averages whatever it prints, states included, over the output interval, so a store's end-of-row
@@ -38,7 +41,7 @@ store, the mean for a flux.
 | `snw` | `eleysnow` | end of row, mm |
 | `canopy` | `eleyic` | end of row, mm |
 | `channel` | `eleysurf` (pond) + `rivystage` × width × length over the mesh | end of row, mm |
-| `stage` | `bed_elevation_m`, or the mesh's own bed, + `rivystage` | diagnostic; the mesh's reach |
+| `stage` | `bed_elevation_m`, or the mesh's own bed, + `rivystage` | diagnostic; the mesh's reach, the row's mean |
 
 Every store SHUD has is reported, so `zero_stores` is empty. `not_reported` in `run.json`: `snm`, because
 `qEleNetPrep` is net of canopy capture and the snow module's own output is not printed, and the energy terms, because
@@ -103,7 +106,7 @@ Nothing is resampled. Rates go in as mm/day at every step, as SHUD reads them, a
 
 ## The headline: one line of `ET()`
 
-`src/ModelData/MD_ET.cpp` at the tag, once per solver step, so 144 times a day:
+This is the record of what the tag did; master no longer does it. `src/ModelData/MD_ET.cpp` at the tag, once per solver step, so 144 times a day:
 
 ```cpp
 double icStg = yEleIS[i];                       // read as a depth over the vegetated area
@@ -116,9 +119,9 @@ qEleE_IC[i]    = icEvap * vgFrac;
 qEleNetPrep[i] = (1. - snFrac) * prcp + snMelt - icAcc * vgFrac;
 ```
 
-The fluxes carry `vgFrac × (icAcc − icEvap)`, but the store is multiplied by `vgFrac` as a whole. Each call therefore destroys
-`(1 − vgFrac) × yEleIS` with no flux to account for it. The canopy refills from the next step's rain, so the less it rains, the larger
-the share that disappears, and **the rate depends on how often `ET()` is called**.
+The fluxes carried `vgFrac × (icAcc − icEvap)`, but the store was multiplied by `vgFrac` as a whole. Each call therefore destroyed
+`(1 − vgFrac) × yEleIS` with no flux to account for it. The canopy refilled from the next step's rain, so the less it rained, the larger
+the share that disappeared, and **the rate depended on how often `ET()` was called**.
 
 **Verified, four independent ways:**
 
@@ -133,12 +136,12 @@ the share that disappears, and **the rate depends on how often `ET()` is called*
    "Every macro step lost (1 - vgFrac) * yEleIS without booking it: 21.7 % of the land precipitation on ccw over 60 days at the default 10 min
    step, 62.3 % at 1 min, so the macro step acted as a physical parameter."
 
-The step dependence shows here too. On the same case, `MAX_SOLVER_STEP` of 2, 5, 10 and 60 minutes gives residuals of 52.0%, 45.8%, 34.3% and 8.8%,
+The step dependence showed here too. On the same case, `MAX_SOLVER_STEP` of 2, 5, 10 and 60 minutes gave residuals of 52.0%, 45.8%, 34.3% and 8.8%,
 and the example's own value is 10.
 
 ## Is it the mesh, or the adapter?
 
-Asked hard, because 3 PASS of 22 scored is far worse than any comparable physical model.
+Asked hard, of the tag, because 3 PASS of 22 scored was far worse than any comparable physical model. These measurements are at the tag.
 
 | Suspect | Test | Result |
 | --- | --- | --- |
@@ -159,20 +162,25 @@ arrives and leaves within a day. That is what the rating probes read, and "Limit
 - **`ht.1` to `ht.2`: root depth.** `mass/resolution-invariance` (capacity 120 mm, aquifer 0.30 m) and `mass/ungauged-basin-closure`
   (capacities down to 124 mm) were ERROR because the adapter passed the example's 0.4 m roots to an aquifer shallower than that, and upstream
   exits. Fixed as above. Both are now scored, and both fail for the reasons below.
+- **`ht.2` to `ht.3`: time alignment.** Hourly weather could arrive up to one 10-minute step late, which moved `mass/resolution-invariance`'s number and not its verdict.
+  `stage` became the row's mean rather than the row's end, as the lexicon defines it. At the tag that moved nothing, because the river is almost always dry. On master it moves
+  `momentum/stage-discharge-monotonic`: see that section.
 
 Nothing else in the adapter moved a verdict. It stays at upstream's tolerances and step: see the section on tolerances.
 
 ## Evaluation
 
-Gate seeds, all 37 probes, Apptainer: **3 PASS, 19 FAIL, 15 N/A** (11 INCOMPLETE, 4 INCOMPATIBLE) at version `1.1.1-ht.3`, tag
-`cpu-accel-v1.1.1`. About 1 s per simulated year.
+Gate seeds, all 37 probes, Docker on Apple Silicon at `3e86a79`: **9 PASS, 13 FAIL, 15 N/A** (11 INCOMPLETE, 4 INCOMPATIBLE) at version `2.2-851fb8c.1`, upstream's
+master `851fb8c`. About 1 s per simulated year. What remains is the ET double count and solver noise, with the wet-soil mechanism and the absent withdrawal process behind a few more failures.
+
+The tag, as history: **3 PASS, 19 FAIL, 15 N/A** at version `1.1.1-ht.3`, archived under Apptainer and again under Docker at `6016c5c`, with the same verdict and detail on all 37 probes.
 
 Four mechanisms, used in the table:
 
-- **Leak**: the canopy line above. Verified.
+- **Leak**: the canopy line above. At the tag only. Verified.
 - **ET double count**: `f_etFlux` takes transpiration as `(qPotTran − qEleE_IC) × va` and ground evaporation as `(qPotEvap − Es) × vb`, where
   `qEleE_IC` and `Es` are already element-area rates, so the demand a wet canopy and a pond have satisfied is subtracted at the wrong weight. Total ET can
-  reach `1 + 2v(1 − v)` of PET, 1.40 at this `VEGFRAC`. The line is unchanged on upstream's current master. Verified: at `VEGFRAC = 1` the formula gives 1 and
+  reach `1 + 2v(1 − v)` of PET, 1.40 at this `VEGFRAC`. The line is unchanged at `851fb8c`. Verified: at `VEGFRAC = 1` the formula gives 1 and
   `energy/pet-consistency` passes, with `et_plausible` at 1.000.
 - **Solver**: `ABSTOL` is 1e-4 m, a tenth of a millimetre, and the right-hand side is discontinuous (`Flux_Infiltration` switches on the sign of
   `Ysurf + netprcp`). `uYsf` is not constrained to be positive, so the pond sits as low as −0.17 mm, and row budgets carry tenths of a millimetre of noise. Upstream's own
@@ -182,32 +190,46 @@ Four mechanisms, used in the table:
   takes rain in faster, and runs off less. With `hAreaF` 0.01 and `macKsatV` 26 m/d, infiltration capacity is hundreds of mm/day, so storms below saturation produce almost no runoff.
   Mechanism read from the equations and inferred; the numbers below are measured, and they hold at `TOL` 1e-6.
 
-"Fixed" is the same evaluation with upstream's current master, commit `851fb8c`, and "`VEGFRAC` 1" the tag with that one parameter changed.
+"Master" is the archived evaluation above. "Tag" is the history: the same probes at `1.1.1-ht.3`, tag `cpu-accel-v1.1.1`, where the leak decided most of them. "`VEGFRAC` 1" is the tag with that one parameter changed, measured at adapter `.2` and not re-run since.
 
-| Probe | Tag | Reading at the tag | Mechanism at the tag | Fixed | `VEGFRAC` 1 |
-| --- | --- | --- | --- | --- | --- |
-| `energy/pet-consistency` | **FAIL** | wet soil evaporates 1.09 of demand | ET double count, verified | FAIL 1.12 | PASS |
-| `mass/antecedent-monotonicity` | **FAIL** | wetter catchment runs off −0.4 mm of a 60 mm storm; runoff ratio 0.015 | wet soil infiltrates faster, numbers measured (0.38 mm dry, 0 wet; 0.47 and 0 at `TOL` 1e-6 and `VEGFRAC` 1), mechanism inferred; a property of the model at these parameters. The leak adds the ratio | FAIL | FAIL |
-| `mass/area-invariance` | **FAIL** | invariance holds, trivially; runoff ratio 0.0062 | leak, verified: only `non_degenerate` fails | PASS | PASS |
-| `mass/catchment-closure` | **FAIL** | residual 52.8%; ET 1.25 of PET | leak, verified; ET double count, verified | FAIL, ET 1.27 only | FAIL, ET 1.000 only |
-| `mass/causality` | **FAIL** | nothing moves before the storm, but runoff answers +0.000 of a 40 mm storm; ratio 0.017 | leak, verified: with so much rain lost the soil is too dry for the storm to run off; both alternatives answer it | PASS | PASS |
-| `mass/extreme-event-closure` | **FAIL** | residual 30.6%; 1122 of 1316 events open | leak, verified; what remains is solver noise: 66 to 130 events open by 0.16 to 0.18 mm | FAIL, events only | FAIL, events only |
-| `mass/extreme-rain` | **FAIL** | runoff rose by 1.06 of the rain added; ratio 0.0002 | ET falls when rain is added, measured: 111 mm more rain, soil evaporation −4.2 mm, transpiration −2.2 mm, the same at `TOL` 1e-6 (1.062). Inferred: a raised water table drains the soil faster and leaves less for ET. Absent at `VEGFRAC` 1 and `TOL` 1e-6 (0.995). Ratio: leak, verified | FAIL 1.13 | FAIL 1.09 |
-| `mass/human-abstraction` | **FAIL** | all 380 mm unaccounted for; residual 31.3% | no withdrawal process, and the adapter does not read the column, verified; leak, verified | FAIL | FAIL |
-| `mass/multi-decadal-drift` | **FAIL** | residual 59.5%; pond below zero on all 18250 rows; runoff ratio 0 | leak, verified: under this drizzle it takes everything ET leaves. Pond: solver, verified | FAIL | FAIL |
-| `mass/phase-counterfactual` | **FAIL** | −8.3% of rain | leak, verified: snow bypasses the canopy, rain does not, so changing phase changes the loss | PASS | PASS 2.9% |
-| `mass/precipitation-counterfactual` | **FAIL** | residual 32.3%; responses account for 0.78 of added rain | leak, verified | PASS | PASS |
-| `mass/resolution-invariance` | **FAIL** | runoff differs 33.0% of rain between hour and day; it was 40.9% before hourly weather stopped arriving up to one 10-minute step late | leak, verified: hourly rain falls in fewer solver steps, so less is lost (seed 746687816, on that earlier image: `mrro` 73.7 mm daily, 160.7 mm hourly, of 212.5 mm). What remains is the split below ground: at `VEGFRAC` 1, `mrso_end` 24.9 and 48.4 mm, `gw_end` 78.3 and 58.8 mm, and runoff within 8.9 mm | FAIL 10.5% | FAIL 14.7% |
-| `mass/response-nonnegativity` | **FAIL** | never falls below control; runoff ratio 0.015 | leak, verified. Without the leak the wet-soil mechanism appears: runoff 1 to 4 mm/day below control a month after the pulse, also at `TOL` 1e-6 | FAIL | FAIL |
-| `mass/spinup-cycle-invariance` | **FAIL** | residual 41.2%; pond negative; ratio 0.009; runoff differs 294% of the 0.05 mm/day floor | leak and solver, verified. The 294% is 0.147 mm/day on one storm day of the same date, with 0.14 to 0.39 mm differences in the stores. With the fix it is larger, and at `TOL` 1e-6 it remains: the runs do not reach one periodic solution in 6 to 10 cycles. Not traced, a finding as it stands | FAIL | FAIL |
-| `mass/steady-state` | **FAIL** | pond varies 6.4% and does not settle; 0.554 of 2.5 mm/day unaccounted for; runoff zero | leak, verified; pond noise: solver, verified: the pond is constant at `TOL` 1e-6. On master the store trend remains, inferred from the ET double count, because `VEGFRAC` 1 settles | FAIL | PASS |
-| `mass/time-origin-invariance` | **FAIL** | invariance holds; residual 39.6%; ratio 0.011 | leak, verified | PASS | PASS |
-| `mass/ungauged-basin-closure` | **FAIL** | residual 50.9%; pond negative; ratio 0.010 | leak, verified; solver, verified | FAIL | FAIL |
-| `momentum/routing-conservation` | **FAIL** | `channel` reaches −0.106 mm | solver, verified: it is the pond. The limit is −1e-6 mm, out of reach at any tolerance tried | FAIL | FAIL |
-| `momentum/stage-discharge-monotonic` | **FAIL** | monotone holds; rising limb too short to read a loop | leak, verified: the river is almost always dry. Without it the loop reads inverted by 2 to 9 mm, because `channel` holds the pond, which leads the river; inferred | FAIL | FAIL |
-| `mass/dry-down` | PASS | 0 mm over 730 dry days | **trivial**: the reach is already dry | PASS | PASS |
-| `mass/runoff-bounds` | PASS | 0.24 of rain, inside [0.10, 1.07] | | PASS | PASS |
-| `mass/warming-response` | PASS | runoff −0.336, ET +0.381 per unit of demand | | PASS | PASS |
+| Probe | Master | Reading at master | Tag | Reading at the tag | Mechanism at the tag | `VEGFRAC` 1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `energy/pet-consistency` | **FAIL** | wet soil evaporates 1.12 of demand | FAIL | 1.09 of demand | ET double count, verified | PASS |
+| `mass/antecedent-monotonicity` | **FAIL** | wetter catchment runs off −0.5 mm of a 60 mm storm | FAIL | −0.4 mm; runoff ratio 0.015 | wet soil infiltrates faster, numbers measured (0.38 mm dry, 0 wet; 0.47 and 0 at `TOL` 1e-6 and `VEGFRAC` 1), mechanism inferred; a property of the model at these parameters. The leak adds the ratio | FAIL |
+| `mass/area-invariance` | PASS | invariance holds, trivially | FAIL | invariance holds; runoff ratio 0.0062 | leak, verified: only `non_degenerate` fails | PASS |
+| `mass/catchment-closure` | **FAIL** | ET 1.27 of PET; closure itself passes | FAIL | residual 52.8%; ET 1.25 of PET | leak, verified; ET double count, verified | FAIL, ET 1.000 only |
+| `mass/causality` | PASS | nothing moves before the storm; runoff answers +1.18 of the 40 mm | FAIL | nothing moves before the storm, but runoff answers +0.000 of it; ratio 0.017 | leak, verified: with so much rain lost the soil is too dry for the storm to run off; both alternatives answer it | PASS |
+| `mass/extreme-event-closure` | **FAIL** | 130 of 1257 events open, worst 0.163 mm | FAIL | residual 30.6%; 1122 of 1316 events open | leak, verified; what remains is solver noise: 66 to 130 events open by 0.16 to 0.18 mm | FAIL, events only |
+| `mass/extreme-rain` | **FAIL** | runoff rose by 1.13 of the 58 mm added | FAIL | runoff rose by 1.06 of the rain added; ratio 0.0002 | ET falls when rain is added, measured: 111 mm more rain, soil evaporation −4.2 mm, transpiration −2.2 mm, the same at `TOL` 1e-6 (1.062). Inferred: a raised water table drains the soil faster and leaves less for ET. Absent at `VEGFRAC` 1 and `TOL` 1e-6 (0.995). Ratio: leak, verified | FAIL 1.09 |
+| `mass/human-abstraction` | **FAIL** | all 380 mm unaccounted for | FAIL | all 380 mm unaccounted for; residual 31.3% | no withdrawal process, and the adapter does not read the column, verified; leak, verified | FAIL |
+| `mass/multi-decadal-drift` | **FAIL** | `channel` below zero on 12165 steps, which is the pond; storage drifts 2.10 mm against 0.66 allowed; ET 1.12 of PET | FAIL | residual 59.5%; pond below zero on all 18250 rows; runoff ratio 0 | leak, verified: under this drizzle it takes everything ET leaves. Pond: solver, verified | FAIL |
+| `mass/phase-counterfactual` | PASS | at most 3.2% of rain | FAIL | −8.3% of rain | leak, verified: snow bypasses the canopy, rain does not, so changing phase changes the loss | PASS 2.9% |
+| `mass/precipitation-counterfactual` | PASS | partitioned; 0.78 of the top rung returned | FAIL | residual 32.3%; responses account for 0.78 of added rain | leak, verified | PASS |
+| `mass/resolution-invariance` | **FAIL** | `mrso_end` 10.3% of rain against a 10% limit | FAIL | runoff differs 33.0% of rain between hour and day; it was 40.9% before hourly weather stopped arriving up to one 10-minute step late | leak, verified: hourly rain falls in fewer solver steps, so less is lost (seed 746687816, on that earlier image: `mrro` 73.7 mm daily, 160.7 mm hourly, of 212.5 mm). What remains is the split below ground: at `VEGFRAC` 1, `mrso_end` 24.9 and 48.4 mm, `gw_end` 78.3 and 58.8 mm, and runoff within 8.9 mm | FAIL 14.7% |
+| `mass/response-nonnegativity` | **FAIL** | `mrro` 2.39 mm/day below control after 120 mm added | FAIL | never falls below control; runoff ratio 0.015 | leak, verified. Without the leak the wet-soil mechanism appears: runoff 1 to 4 mm/day below control a month after the pulse, also at `TOL` 1e-6 | FAIL |
+| `mass/spinup-cycle-invariance` | **FAIL** | pond below zero; runoff differs by 2425% between spin-up lengths | FAIL | residual 41.2%; pond negative; ratio 0.009; runoff differs 294% of the 0.05 mm/day floor | leak and solver, verified. The 294% is 0.147 mm/day on one storm day of the same date, with 0.14 to 0.39 mm differences in the stores. At master it is larger, and at `TOL` 1e-6 it remains: the runs do not reach one periodic solution in 6 to 10 cycles. Not traced, a finding as it stands | FAIL |
+| `mass/steady-state` | **FAIL** | `evspsbl` varies 2.0% and `mrso` 5.6%, not settling; `channel` varies 10.0% | FAIL | pond varies 6.4% and does not settle; 0.554 of 2.5 mm/day unaccounted for; runoff zero | leak, verified; pond noise: solver, verified: the pond is constant at `TOL` 1e-6. On master the store trend remains, inferred from the ET double count, because `VEGFRAC` 1 settles | PASS |
+| `mass/time-origin-invariance` | PASS | invariance holds, trivially | FAIL | invariance holds; residual 39.6%; ratio 0.011 | leak, verified | PASS |
+| `mass/ungauged-basin-closure` | **FAIL** | pond below zero; ET 1.09 of PET; runoff ratio 0.019 | FAIL | residual 50.9%; pond negative; ratio 0.010 | leak, verified; solver, verified | FAIL |
+| `momentum/routing-conservation` | **FAIL** | `channel` reaches −0.089 mm | FAIL | `channel` reaches −0.106 mm | solver, verified: it is the pond. The limit is −1e-6 mm, out of reach at any tolerance tried | FAIL |
+| `momentum/stage-discharge-monotonic` | PASS, weakly; see below | monotone holds; median loop −5 to −11 mm, physical side | FAIL | monotone holds; rising limb too short to read a loop | leak, verified: the river is almost always dry | FAIL, at adapter `.2` |
+| `mass/dry-down` | PASS | 0 mm over 730 dry days, **trivial**: the reach is already dry | PASS | 0 mm over 730 dry days, the same | | PASS |
+| `mass/runoff-bounds` | PASS | 0.42 of rain, inside [0.10, 1.07] | PASS | 0.24 of rain, inside the same | | PASS |
+| `mass/warming-response` | PASS | runoff −0.513, ET +0.522 per unit of demand | PASS | runoff −0.336, ET +0.381 | | PASS |
+
+### `momentum/stage-discharge-monotonic`: why it passes, and how far to trust it
+
+An earlier version of this README recorded this probe as FAIL at this same upstream commit, 8 PASS and 14 FAIL in all, with the loop inverted by 2 to 9 mm. That was adapter `.2`, whose `stage` was the river's level at the end of the row. `.3` made it the row's mean, which is what `schemas/lexicon.yaml` says `stage` is, while `channel`, the axis the limbs are paired on, stays an end-of-row store. Neither the probe, whose criterion and generator last changed in September, nor the runner explains the move: the tag's 37 rows are identical under Apptainer and under Docker. It is that one column. On the archived image and the gate seeds, with that one line of the adapter put back:
+
+| Seed | `stage` the row's mean (archived) | `stage` the end of the row |
+| --- | --- | --- |
+| 1670932170 | −9.0 mm, 4 of 12 bins inverted | +7.0 mm, 8 inverted |
+| 30400637 | −5.1 mm, 3 inverted | −0.3 mm, 6 inverted |
+| 537352751 | −11.4 mm, 2 inverted | +5.2 mm, 8 inverted |
+
+A median above +2 mm fails, so end-of-row `stage` fails two seeds of three; the middle one sits under the floor. Inferred: a row's mean lies below the level at the row's end on a rise and above it on a fall, so reading a row-mean stage against an end-of-row store gives a half-row offset in the direction the criterion asks for, on a reach whose response is shorter than a row. The earlier note put the inverted reading down to the pond inside `channel`, which leads the river; that was inferred too, and neither was tested separately.
+
+The worst gate seed is 7.1 mm from the +2 mm line, but the median is drawn from a wide spread: single bins run from −91 to +23 mm on the gate seeds. On twelve further seeds, not archived (multiples of 101 up to 1212), eleven pass and one fails: seed 606 reads +3.3 mm, 7 of 12 inverted. Of the eleven, eight read below zero, two read under the floor (+0.9 and +1.3 mm) and one reads as single-valued. So this PASS says the rating is monotone and that the gate seeds fall on the passing side of a noisy median. It is not evidence that the reach carries a physical loop.
 
 **Other trivial passes.** `invariance` in `mass/area-invariance` and `mass/time-origin-invariance` passes by construction: area enters only `dis`, and the tables are flat.
 That answers the mesh-scale claim in the proposal only in the sense that it was not tested. SHUD's claim concerns mesh and solver flexibility, which a fixed four-element mesh does not exercise.
@@ -217,19 +239,19 @@ N/A (INCOMPLETE, 11): the six energy probes that need heat fluxes, `mass/aquifer
 
 ## The tag or the fix
 
-Evaluated at upstream's current master, `851fb8c7e146a533a9545f786e8f68fd8a8d817f` (2026-10-15), same adapter, same parameters: **8 PASS, 14 FAIL**. Closure on the closure case goes from 52.8% to 0.33%,
-and the leak's failures flip as the table says. The tag's one-line patch used for diagnosis gives the same 8 and 14, which also shows upstream's fix and that line are the same repair. The fix is not in any tag: `cpu-accel-v1.1.2` and `v2.2` predate it.
+This package first ran the tag #106 named, `cpu-accel-v1.1.1`, which lost 30 to 60% of the rain to the line above. It now runs upstream's master, `851fb8c7e146a533a9545f786e8f68fd8a8d817f` (2026-10-15), with the same parameters and an adapter that differs only in its version string, at the maintainer's decision. A commit is the only choice, because the fix is not in any tag: `cpu-accel-v1.1.2` and `v2.2` predate it.
 
-This package stays on the tag the proposal named. **Whether the archived verdict should describe the tag, or a commit carrying the fix, is the maintainer's decision.** What it reports either way: the leak was a real
-defect of the released model, upstream found it, and what remains after it, in both, is the ET double count and the solver noise.
+The archived verdict is master's: **9 PASS, 13 FAIL**, where the tag had 3 and 19. Closure on the closure case goes from 52.8% to 0.33%, and the leak's failures flip as the table says. At adapter `.2`, master and the tag's one-line patch used for diagnosis gave the same 8 and 14, which also shows upstream's fix and that line are the same repair. Those two counts differ from the 9 and 13 by `momentum/stage-discharge-monotonic` alone, for the reason given under that heading.
+
+What this reports: the leak was a real defect of the released model, upstream found it, and what remains after it is the ET double count and the solver noise.
 
 ## What the choices move
 
-Closure case, seed 598896396, 1095 rows, the last 730 summed; P = 1594.6 mm. Residual is what the budget leaves, as a share of rain.
+Measured at the tag, adapter `.2`, and not re-run. Closure case, seed 598896396, 1095 rows, the last 730 summed; P = 1594.6 mm. Residual is what the budget leaves, as a share of rain.
 
 | Variant | ET | Q | ΔS | Residual (mm) | Residual | Runoff ratio | Lowest pond (mm) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **as packaged** | 887.5 | 144.3 | 15.8 | 547.1 | 34.31% | 0.090 | −0.112 |
+| **the tag, as then packaged** | 887.5 | 144.3 | 15.8 | 547.1 | 34.31% | 0.090 | −0.112 |
 | `VEGFRAC` 0 | 828.5 | 721.5 | −10.8 | 55.4 | 3.47% | 0.452 | −0.114 |
 | `VEGFRAC` 0.5 | 902.6 | 179.8 | 8.1 | 504.1 | 31.62% | 0.113 | −0.110 |
 | `VEGFRAC` 1 | 1024.3 | 535.8 | 18.0 | 16.5 | 1.03% | 0.336 | −0.137 |
@@ -246,18 +268,18 @@ Closure case, seed 598896396, 1095 rows, the last 730 summed; P = 1594.6 mm. Res
 | upstream's mesh, parameters and 30 m aquifer, tag | 712.5 | 63.8 | 323.4 | 494.9 | 31.0% | 0.040 | |
 | upstream's mesh, parameters and 30 m aquifer, patched | 850.8 | 63.4 | 641.9 | 38.4 | 2.4% | 0.040 | |
 
-The canopy residual is 539.08 mm in all of the mesh, aquifer, river and tolerance rows. What sets the runoff at this point is the leak and the solver step.
-The geometry and the aquifer hardly move it. A third of the budget going missing makes the rest of the table small by comparison, so read `VEGFRAC` 1 before reading anything else into these runoff ratios.
+The canopy residual is 539.08 mm in all of the mesh, aquifer, river and tolerance rows. What set the runoff at the tag was the leak and the solver step.
+The geometry and the aquifer hardly moved it. A third of the budget going missing makes the rest of the table small by comparison, so read `VEGFRAC` 1 before reading anything else into these runoff ratios.
 
 ## An alternative parameter set
 
-`VEGFRAC` = 1 changes one parameter, inside what upstream's table allows, and turns the leak off without any code change: **10 PASS, 12 FAIL**. That flips `energy/pet-consistency`, `mass/area-invariance`, `causality`, `phase-counterfactual`,
-`precipitation-counterfactual`, `steady-state` and `time-origin-invariance`. The other failures, solver noise and the wet-soil mechanism, stay. It is reported to show what is left. It is not a calibration, and it is not offered as the model's configuration: choosing it because it passes would be tuning.
+At the tag, `VEGFRAC` = 1 changes one parameter, inside what upstream's table allows, and turns the leak off without any code change: **10 PASS, 12 FAIL** at adapter `.2`, not re-run. That flips `energy/pet-consistency`, `mass/area-invariance`, `causality`, `phase-counterfactual`,
+`precipitation-counterfactual`, `steady-state` and `time-origin-invariance`. The other failures, solver noise and the wet-soil mechanism, stay. It is reported to show what was left. It is not a calibration, and it is not offered as the model's configuration: choosing it because it passes would be tuning.
 
 ## Limits
 
 - One point in parameter space, one mesh, uniform forcing. Nothing here tests SHUD's unstructured-mesh coupling across scales, which is the claim the proposal makes.
-- The aquifer carries the stated capacity, so the model runs 0.3 to 1.7 m deep where its example runs 30 m. This changes `mrso` and `gw` and their state bounds, not the loss.
+- The aquifer carries the stated capacity, so the model runs 0.3 to 1.7 m deep where its example runs 30 m. This changes `mrso` and `gw` and their state bounds; it did not change the loss at the tag.
 - Upstream's `ABSTOL` of 1e-4 m is a tenth of a millimetre, and a number of criteria here are at that scale. Stating those failures as "solver" does not excuse them: it is the solver setting upstream ships. `TOL` 1e-6 costs 4 to 6× the run time and overran the time budgets of four probes in the diagnostic run.
-- `stage` is the mesh's reach and `dis` is scaled to the stated area, so a rating reads the mesh's short reach, not a 250 km2 river. The reach's response is within a day, shorter than a row.
+- `stage` is the mesh's reach and `dis` is scaled to the stated area, so a rating reads the mesh's short reach, not a 250 km2 river. The reach's response is within a day, shorter than a row, and that is why `momentum/stage-discharge-monotonic` depends on how `stage` is sampled.
 - `abstr` could be run through SHUD's prescribed groundwater boundary; that was not done, because it is not a withdrawal process upstream provides for this purpose.

@@ -9,7 +9,7 @@ sample parameters from [VIC_sample_data](https://github.com/UW-Hydro/VIC_sample_
 `3f2dcb4`, the commit the tag pins as its `samples/data` submodule, are GPL-2.0. The image carries
 both licences at `/model/`.
 
-**FAIL (VIOLATION), 15 PASS, 8 FAIL, 14 N/A. VIC 5.1.0 cannot be given a daily row,** so under the
+**FAIL (VIOLATION), 16 PASS, 7 FAIL, 14 N/A. VIC 5.1.0 cannot be given a daily row,** so under the
 `substep` rule in AGENTS.md a daily row is held flat over 24 hourly records, and every daily verdict here
 describes that. Its water budget closes. See [The step](#the-step) and [Evaluation](#evaluation).
 
@@ -160,12 +160,11 @@ VIC computes its own net radiation, so `energy/surface-energy-closure` is INCOMP
 
 ## Evaluation
 
-Gate seeds, all 37 probes, version `5.1.0-14a371a.4`, under Apptainer: **15 PASS, 8 FAIL, 14 N/A** (2 INCOMPATIBLE,
+Gate seeds, all 37 probes, version `5.1.0-14a371a.4`, under Docker on Apple Silicon at `3e86a79`: **16 PASS, 7 FAIL, 14 N/A** (2 INCOMPATIBLE,
 12 INCOMPLETE).
 
 | Probe | Verdict | Number | Mechanism |
 | --- | --- | --- | --- |
-| `mass/catchment-closure` | FAIL | ET min -0.21 mm/day | Closure itself is 0.0000%. `et_plausible`: `OUT_EVAP` is net of condensation. Inferred |
 | `mass/multi-decadal-drift` | FAIL | ET 1.47 of `pet` | Closure and drift pass. `et_plausible`: VIC does not read `pet` as demand, and humidity moves ET the most of the mocks (below) |
 | `mass/ungauged-basin-closure` | FAIL | ET 1.18 of `pet` | The same |
 | `mass/human-abstraction` | FAIL | 100% of the withdrawal | Honest: VIC has no withdrawal process and `abstr` is unread |
@@ -174,7 +173,9 @@ Gate seeds, all 37 probes, version `5.1.0-14a371a.4`, under Apptainer: **15 PASS
 | `energy/evaporative-partition` | FAIL | sum -331 against 5% of 2318 | The same caveat |
 | `energy/radiation-consistency` | FAIL | 720 of 720 steps; worst -21.4 W m-2 against 2.1 | Model property, below |
 
-Passing: `pet-consistency`, `antecedent-monotonicity`, `area-invariance` (trivial, VIC never sees area), `causality`, `dry-down`,
+`mass/catchment-closure` passes, with closure at 0.0000%. It failed until `et_plausible` was corrected at `dc9836c`: the criterion read a row's minimum, here -0.21 mm/day, which is `OUT_EVAP` net of condensation (inferred), and the lexicon allows that. It now reads cumulative ET.
+
+Also passing: `pet-consistency`, `antecedent-monotonicity`, `area-invariance` (trivial, VIC never sees area), `causality`, `dry-down`,
 `extreme-event-closure`, `extreme-rain`, `phase-counterfactual`, `precipitation-counterfactual`, `resolution-invariance`
 (`mrro` moves by 4.90%, 1.87%, 4.81% of the rain between PT1H and PT1M, limit 10%), `response-nonnegativity`, `runoff-bounds`,
 `spinup-cycle-invariance`, `time-origin-invariance`, `warming-response`.
@@ -218,9 +219,13 @@ over 24 records as evaluated.
 
 | | PASS | FAIL | N/A |
 | --- | --- | --- | --- |
-| `FULL_ENERGY TRUE` | 15 | 8 | 14 |
-| `FULL_ENERGY FALSE`, water outputs only | 15 | 5 | 17 |
-| `TRUE`, alternative soil | 14 | 9 | 14 |
+| `FULL_ENERGY TRUE`, before `dc9836c` | 15 | 8 | 14 |
+| `FULL_ENERGY FALSE`, water outputs only, before `dc9836c` | 15 | 5 | 17 |
+| `TRUE`, alternative soil, before `dc9836c` | 14 | 9 | 14 |
+
+These were run before `et_plausible` was corrected and were not re-run, so the tables below read it as
+it stood then: `mass/catchment-closure` is the row that has since moved, and `FULL_ENERGY TRUE` is now
+16, 7 and 14 in the archive.
 
 | Probe | Energy on | Water balance | Mechanism |
 | --- | --- | --- | --- |
@@ -233,12 +238,12 @@ over 24 records as evaluated.
 | `energy/evaporative-partition` | FAIL | N/A | `partition_shift` sum -331 against 5% of 2318. Same caveat |
 | `energy/radiation-consistency` | FAIL | N/A | As above |
 
-Both modes pass the other 15: `pet-consistency`, `antecedent-monotonicity`, `area-invariance` (trivial, VIC
+Both modes passed the other 15: `pet-consistency`, `antecedent-monotonicity`, `area-invariance` (trivial, VIC
 never sees area), `causality`, `dry-down`, `extreme-event-closure`, `extreme-rain`, `phase-counterfactual`,
 `precipitation-counterfactual`, `response-nonnegativity`, `runoff-bounds`, `spinup-cycle-invariance`,
 `time-origin-invariance`, `warming-response`, `resolution-invariance`.
 
-**The proposal's question.** Switching the energy balance on changes no verdict on any water probe here,
+**The proposal's question.** Switching the energy balance on changed no verdict on any water probe here,
 and very little of the water: on the closure case ET is 4763.0 and 4763.6 mm, runoff 4141.9 and 4141.2 mm,
 and `steady-state` `mrro` varies 158.3% and 158.4%. The water budget closes in both. Two caveats on the
 review's request for evidence that the flag isolates the energy solution: the configurations differ in
