@@ -63,18 +63,24 @@ offset as a confined head estimate. The supplied confined storage coefficient,
 not specific yield, sets B. River-aquifer exchange is gw_sw_exchange, an
 internal transfer, and is never added to catchment-boundary gwex.
 
-## Criterion and preliminary allowances
+## Criterion and numerical allowances
 
 aquifer_equilibrium_bounds checks both head variants at every interval.
 It also checks common-spinup inventory equality, neutral storage stationarity
 and neutral gross exchange. All groundwater balance, component and state
 checks run on every variant.
 
-The initial bound allowance is max(0.05 |B|, 0.001 mm). The denominator is the
+The bound allowance is max(0.05 |B|, 0.001 mm). The denominator is the
 prescribed storage excursion, never the model's background storage or gross
-exchange. The generator keeps |B| >= 1 mm. Initial and neutral guards initially
+exchange. The generator keeps |B| >= 1 mm. Initial and neutral guards
 allow 0.001 mm; the additional-boundary activity floor is 1e-6 mm.
-These numerical choices are pending the independent validation described below.
+These are provisional benchmark detection thresholds, not universal solver
+accuracy estimates. They were retained through validation, without fitting
+them to a model's response. The largest native discrepancy against the
+requested storage law was 3.26e-6 mm, well below the absolute floor; the
+40% fault controls exceed the bound allowance by at least a factor of 7.95.
+The 5% band deliberately permits smaller constitutive errors and requires
+maintainer judgment as a benchmark policy.
 Derived arithmetic is checked for non-finite values as well as raw output.
 
 ## References and discrimination
@@ -89,8 +95,72 @@ aquifer_equilibrium_bounds.
 The standard four catchment references do not have river-aquifer exchange;
 adding it would invent a process. This uses the process-specific exception
 in docs/writing-a-probe.md: a domain reference in the gate and separately
-archived evidence from the unchanged MODFLOW 6.7.0 adapter. Independent native
-validation and audit-seed measurements will be recorded before submission.
+archived evidence from the unchanged MODFLOW 6.7.0 adapter.
+
+## Measured validation
+
+[The machine-readable audit](../../../results/aquifer-equilibrium-bounds/validation.json)
+records all seeds, normalized criterion results, native margins and storage
+traces. MODFLOW 6.7.0 and FloPy 3.11.0 ran in the adapter's pinned amd64 image;
+its image digest is recorded in that report. The ordinary contract check and
+all five gate-seed evaluations passed.
+
+The native audit covers all three variants for five gate seeds plus independent
+seeds 7 and 42 (21 runs). Six additional runs use the first gate seed with
+IMS head tolerances tightened from 1e-8 to 1e-10 m or a 20 x 20 spatial grid
+instead of 10 x 10. All retain the adapter's daily forcing and reporting.
+
+| Native check, over all 27 runs | Measured result |
+| --- | --- |
+| Minimum cell head above aquifer top | 3.68186 m |
+| Minimum cell head above the moving riverbed | 2.64142 m |
+| Gross STO-SY release | 0 mm |
+| Maximum head-envelope excess against serialized IC/RIV inputs | 2.85e-14 m |
+| Maximum storage/head mapping error against serialized STO coefficient | 3.10e-10 mm |
+| Maximum storage/head mapping error against requested inputs | 3.26e-6 mm |
+| Maximum neutral storage change after common spinup | 1.62e-6 mm |
+| Diagnostic versus ordinary result.csv, standard profile | 21 of 21 byte-identical |
+
+FloPy serializes uniform IC/STO constants to eight decimal places and RIV
+heads to eight-place scientific notation. The observer saves those native
+inputs and verifies their expected rounding, rather than assuming lossless
+serialization. The largest river-head rounding was 4.79e-7 m. Native heads
+and the serialized confined storage coefficient independently reproduce the
+reported storage change; this does not infer head or a missing flux from the
+adapter's water-budget residual. Audit precision checks of 1e-7 m for native
+head bounds and 1e-6 mm for the native storage mapping are separate from the
+probe's provisional detection band. The native data satisfy much tighter
+errors, as the table shows.
+
+Both references pass every declared criterion on seeds 0–99 and the five
+gate seeds (105 distinct seeds). Each negative control fails only
+aquifer_equilibrium_bounds on all 105. Their smallest residual/allowance
+ratios are 7.99677 for amplified head and 7.95696 for inflated storage,
+against a failure threshold of 1. Tests also show both conservative faults
+passing the existing recharge-ordering criterion on a common confined case
+with an added recharge pulse. That is evidence of distinct logical content,
+not a claim that either fault passes every existing probe.
+
+Reproduce with a built MODFLOW image and optional host-side FloPy 3.11.0:
+
+```bash
+ht verify-adapter --model modflow6 --probe mass/aquifer-equilibrium-bounds
+ht run --model modflow6 --probe mass/aquifer-equilibrium-bounds --gate-seeds
+ht gate --probe mass/aquifer-equilibrium-bounds
+python scripts/validate_aquifer_equilibrium.py --workdir "$HOME/aquifer-equilibrium-audit"
+```
+
+Use a fresh user-owned work directory; Docker Desktop needs a shared path.
+The observer copies native files before the unchanged adapter removes its
+temporary simulation, then extracts them outside the benchmark output
+directory before normal contract validation. The raw files remain local;
+the report is committed separately from the generated forcing.
+
+The grid sensitivity confirms the bound and applicability assumptions, not
+grid convergence or identical transient hydrographs. Only seven seeds were
+audited with the distributed solver. This is an aggregate necessary bound:
+local head errors can cancel in aggregate storage, and frozen responses can
+pass. No minimum response or finite-time equilibrium claim is made.
 
 ## Relation to other probes
 
