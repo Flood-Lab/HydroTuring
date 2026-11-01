@@ -155,7 +155,7 @@ def native_metrics(forcing, table, heads, sto_sy, static, *,
         raise ValueError("native heads leave the confined regime")
     if float(clearance.min()) < 1.0:
         raise ValueError("native riverbed clearance is below 1 m")
-    # These are audit precision checks, separate from the probe's 5% bound.
+    # These are audit precision checks, separate from the probe's storage allowance.
     # 1e-7 m is ten times the standard IMS head tolerance; the 1e-6 mm
     # mapping check also covers double-precision output and reductions.
     if envelope_excess > NATIVE_HEAD_AUDIT_LIMIT_M:
