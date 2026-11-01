@@ -105,7 +105,7 @@ import numpy as np
 import torch
 import yaml
 
-MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100.5"}
+MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100.6"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 
 MODEL_DIR = Path(os.environ.get("DHBV_MODEL_DIR", "/model/dhbv_2"))
@@ -127,7 +127,6 @@ def climate_attributes(pr: np.ndarray, tas: np.ndarray, pet: np.ndarray,
     The snowfall fraction is defined over days, so a sub-daily record is grouped
     into whole days here, the one place rows are grouped.
     """
-    total_pr = float(pr.sum())
     rows_per_day = max(1, int(round(1.0 / dt_days)))
     n_days = len(pr) // rows_per_day
     if n_days == 0:
@@ -135,13 +134,14 @@ def climate_attributes(pr: np.ndarray, tas: np.ndarray, pet: np.ndarray,
     keep = n_days * rows_per_day
     daily_pr = pr[:keep].reshape(n_days, rows_per_day).mean(axis=1)
     daily_tas = tas[:keep].reshape(n_days, rows_per_day).mean(axis=1)
+    daily_total = daily_pr.sum()
     cold = daily_tas < snow_threshold
     return {
         "meanP": float(pr.mean()) * DAYS_PER_YEAR,
         "ETPOT_Hargr": float(pet.mean()) * DAYS_PER_YEAR,
         "aridity": float(pet.mean()) / max(float(pr.mean()), 1e-9),
         "meanTa": float(tas.mean()),
-        "snowfall_fraction": float(daily_pr[cold].sum() / daily_pr.sum()) if total_pr > 0 else 0.0,
+        "snowfall_fraction": float(daily_pr[cold].sum() / daily_total) if daily_total > 0 else 0.0,
     }
 
 

@@ -148,7 +148,13 @@ def counterfactual_response(
             for var in sources
         }
         accounted = float(sum(shares.values()) - sum(source_shares.values()))
-        if abs(accounted - 1.0) > sum_tolerance:
+        if not np.isfinite(accounted):
+            # Infinity in both runs differences to NaN, which no comparison above catches.
+            failures.append(
+                f"{prefix}a budget term is non-finite, so the responses cannot account "
+                f"for the {word} {driver}"
+            )
+        elif abs(accounted - 1.0) > sum_tolerance:
             failures.append(
                 f"{prefix}the responses account for {accounted:.3f} of the {word} {driver}, "
                 f"not 1.000 (tolerance {sum_tolerance:g})"
@@ -161,7 +167,10 @@ def counterfactual_response(
             "accounted": accounted,
         }
 
-    worst = max(per_variant.values(), key=lambda v: abs(v["accounted"] - 1.0))
+    worst = max(
+        per_variant.values(),
+        key=lambda v: abs(v["accounted"] - 1.0) if np.isfinite(v["accounted"]) else np.inf,
+    )
 
     def describe(v):
         return ", ".join(f"{k} {s:+.3f}" for k, s in v["shares"].items())
@@ -178,7 +187,7 @@ def counterfactual_response(
     return CriterionResult(
         name="counterfactual_response",
         status=FAIL if failures else PASS,
-        value=worst["accounted"],
+        value=worst["accounted"] if np.isfinite(worst["accounted"]) else None,
         threshold=1.0 + sum_tolerance,
         message=f"{headline} ({detail})" if not failures else "; ".join(failures),
         diagnostics=diagnostics,

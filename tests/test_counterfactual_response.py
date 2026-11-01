@@ -4,14 +4,15 @@ The probe mass/precipitation-counterfactual pairs three perturbed variants
 with one control. These tests pin the single-name behaviour, score every
 variant when a list is given, isolate a failure to the variant that caused
 it, fail a term that moves against the change without calling a share a
-hair below zero one, and refuse an empty list or a variant that changes
-nothing.
+hair below zero one, fail a budget term that is not finite, and refuse an
+empty list or a variant that changes nothing.
 """
 
 from __future__ import annotations
 
 from dataclasses import replace
 
+import numpy as np
 import pytest
 
 from hydroturing import registry
@@ -45,6 +46,16 @@ def params(probe):
 
 def score(runs, probe, params, **override):
     return get("counterfactual_response")(runs, probe, {**params, **override})
+
+
+@pytest.mark.parametrize("name", ["gwex", "mrro"])
+def test_a_non_finite_budget_term_fails(runs, probe, params, name):
+    """Infinity in both runs differences to NaN, which no tolerance comparison catches."""
+    infinite = {k: replace(v, table=v.table.assign(**{name: np.inf})) for k, v in runs.items()}
+    result = score(infinite, probe, params, perturbed="wetter20")
+    assert not result.passed
+    assert "non-finite" in result.message
+    assert result.value is None
 
 
 def test_a_single_name_keeps_the_original_shape(runs, probe, params):

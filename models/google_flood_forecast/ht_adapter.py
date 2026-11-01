@@ -74,7 +74,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-MODEL = {"name": "google_flood_forecast", "version": "0.1.0-828dfc5.1"}
+MODEL = {"name": "google_flood_forecast", "version": "0.1.0-828dfc5.2"}
 COLUMNS = ["time", "mrro", "dis"]
 
 RUN_DIR = Path(os.environ.get("GFF_RUN_DIR", "/model/run"))
@@ -198,7 +198,6 @@ def climate_attributes(pr: np.ndarray, tas: np.ndarray, pet: np.ndarray,
     eps = 1e-9
     p_mean = float(pr.mean())
     pet_mean = float(pet.mean())
-    total_pr = float(pr.sum())
 
     monthly_p = np.array([pr[months == m].mean() for m in range(1, 13) if (months == m).any()])
     monthly_e = np.array([pet[months == m].mean() for m in range(1, 13) if (months == m).any()])
@@ -215,13 +214,14 @@ def climate_attributes(pr: np.ndarray, tas: np.ndarray, pet: np.ndarray,
     keep = n_days * rows_per_day
     daily_pr = pr[:keep].reshape(n_days, rows_per_day).mean(axis=1)
     daily_tas = tas[:keep].reshape(n_days, rows_per_day).mean(axis=1)
+    daily_total = daily_pr.sum()
     high = daily_pr >= 5.0 * p_mean
     low = daily_pr < 1.0
     return {
         "p_mean": p_mean,
         "pet_mean_ERA5_LAND": pet_mean,
         "aridity_ERA5_LAND": pet_mean / max(p_mean, eps),
-        "frac_snow": float(daily_pr[daily_tas < 0.0].sum() / daily_pr.sum()) if total_pr > 0 else 0.0,
+        "frac_snow": float(daily_pr[daily_tas < 0.0].sum() / daily_total) if daily_total > 0 else 0.0,
         "moisture_index_ERA5_LAND": float(moisture.mean()),
         "seasonality_ERA5_LAND": float(moisture.max() - moisture.min()),
         "high_prec_freq": float(high.mean()),
