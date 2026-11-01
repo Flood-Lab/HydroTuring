@@ -27,11 +27,13 @@ sys.path.insert(0, str(ROOT / "src"))
 from hydroturing import registry
 from hydroturing.criteria import CRITERIA
 from hydroturing.harness import build_case
-from hydroturing.protocol import RunResult
+from hydroturing.protocol import RunResult, read_result
 from hydroturing.runner.docker_runner import DockerRunner, image_tag
 from hydroturing.seeds import gate_seeds
 
 PROBE_ID = "mass/aquifer-equilibrium-bounds"
+NATIVE_HEAD_AUDIT_LIMIT_M = 1.0e-7
+NATIVE_MAPPING_AUDIT_LIMIT_MM = 1.0e-6
 
 # This observer only copies completed native output. It neither supplies a
 # residual-derived boundary flux nor modifies the native integration.
@@ -156,11 +158,11 @@ def native_metrics(forcing, table, heads, sto_sy, static, *,
     # These are audit precision checks, separate from the probe's 5% bound.
     # 1e-7 m is ten times the standard IMS head tolerance; the 1e-6 mm
     # mapping check also covers double-precision output and reductions.
-    if envelope_excess > 1.0e-7:
+    if envelope_excess > NATIVE_HEAD_AUDIT_LIMIT_M:
         raise ValueError("native heads leave the prescribed head envelope")
     if sy_gross > 1.0e-8:
         raise ValueError("native STO-SY is active in a supposedly confined case")
-    if mapping_error > 1.0e-6:
+    if mapping_error > NATIVE_MAPPING_AUDIT_LIMIT_MM:
         raise ValueError("native head change disagrees with reported confined storage")
     return dict(zip((
         "minimum_head_m", "maximum_head_m", "minimum_head_above_top_m",
@@ -324,12 +326,115 @@ def reference_sweep(seeds):
     return results
 
 
+def precision_budget(params):
+    """Conservative paired precision budget over the generator's fixed domain.
+
+    STO constants have eight decimal places; RIV heads at these elevations
+    have at most 5e-7 m rounding per run. Two runs enter every paired bound.
+    The native audit separately enforces the head and storage-mapping limits.
+    This is conditional on that writer, domain and those audit checks.
+    """
+    sigma_min, head_change_min, bound_min, bound_max = 0.002, 0.5, 1.0, 15.0
+    relative = float(params["rel_tol"])
+    absolute = float(params["abs_tol_mm"])
+    if not np.isfinite((relative, absolute)).all() or relative < 0 or absolute <= 0:
+        raise ValueError("precision allowances must be finite and nonnegative")
+    sigma_roundoff = 5.0e-9 / sigma_min
+    input_budget = sigma_roundoff + (1 + sigma_roundoff) * 1.0e-6 / head_change_min
+    head_budget = (1 + sigma_roundoff) * 2 * NATIVE_HEAD_AUDIT_LIMIT_M / head_change_min
+    mapping_budget = 2 * NATIVE_MAPPING_AUDIT_LIMIT_MM
+    combined = input_budget + head_budget + mapping_budget / bound_min
+    minimum_fraction = max(relative, absolute / bound_max)
+    return {
+        "minimum_storativity": sigma_min, "minimum_head_change_m": head_change_min,
+        "storage_bound_range_mm": [bound_min, bound_max],
+        "per_run_stage_roundoff_m": 5.0e-7, "per_run_storativity_roundoff": 5.0e-9,
+        "per_run_head_audit_limit_m": NATIVE_HEAD_AUDIT_LIMIT_M,
+        "per_run_mapping_audit_limit_mm": NATIVE_MAPPING_AUDIT_LIMIT_MM,
+        "input_rounding_relative_budget": input_budget,
+        "head_audit_relative_budget": head_budget,
+        "paired_mapping_absolute_budget_mm": mapping_budget,
+        "combined_relative_budget": combined,
+        "minimum_allowance_to_budget_ratio": minimum_fraction / combined,
+    }
+
+
+def score_native_groups(records, workdir):
+    """Re-read actual native outputs and judge each full paired experiment."""
+    probe, model = registry.find_probe(PROBE_ID), registry.find_model("modflow6")
+    item = next(c for c in probe.criteria if c.name == "aquifer_equilibrium_bounds")
+    results = []
+    for seed, profile in sorted({(r["seed"], r["profile"]) for r in records}):
+        variants = {r["variant"] for r in records if (r["seed"], r["profile"]) == (seed, profile)}
+        if variants != set(probe.variants):
+            raise ValueError(f"native {seed}/{profile}: incomplete paired experiment")
+        runs = {
+            v: read_result(workdir / str(seed) / v / f"captured-{profile}",
+                           build_case(probe, seed, v), probe, 0.0, model=model)
+            for v in probe.variants
+        }
+        result = CRITERIA[item.name](runs, probe, item.params)
+        if not result.passed:
+            raise ValueError(f"native {seed}/{profile}: {result.message}")
+        results.append({
+            "seed": seed, "profile": profile, "passed": result.passed, "ratio": result.value,
+            "maximum_envelope_excess_mm": max(
+                d["max_excess_mm"] for d in result.diagnostics["variants"].values()),
+            "diagnostics": result.diagnostics,
+        })
+    return results
+
+
+def fault_magnitude_study(seeds, gains=(1.0, 1.00005, 1.0005, 1.001, 1.01, 1.4)):
+    """Compare policies on conservative faults, without fitting a trajectory."""
+    probe = registry.find_probe(PROBE_ID)
+    item = next(c for c in probe.criteria if c.name == "aquifer_equilibrium_bounds")
+    policies = {
+        "previous": dict(item.params, rel_tol=0.05, abs_tol_mm=0.001,
+                         initial_abs_tol_mm=0.001, neutral_abs_tol_mm=0.001),
+        "calibrated": dict(item.params),
+    }
+    path = ROOT / "models/reference_confined_aquifer/ht_adapter.py"
+    spec = importlib.util.spec_from_file_location("confined_fault_study", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    model = registry.find_model("reference_confined_aquifer")
+    controls = {kind: [dict(gain=g, ordinary_criteria_passed=0, **{
+        policy: {"passed": 0, "failed": 0, "minimum_ratio": None, "maximum_ratio": 0.0}
+        for policy in policies
+    }) for g in gains] for kind in ("head", "storage")}
+    for seed in seeds:
+        cases = {v: build_case(probe, seed, v) for v in probe.variants}
+        for kind, entries in controls.items():
+            for entry in entries:
+                runs = {v: RunResult(case, pd.DataFrame(module.simulate(
+                    case.forcing.to_dict("records"), case.static,
+                    **{f"{kind}_gain": entry["gain"]},
+                )), {}, 0.0, model=model) for v, case in cases.items()}
+                for criterion in probe.criteria:
+                    if criterion.name != item.name and not all(
+                        CRITERIA[criterion.name](run, probe, criterion.params).passed
+                        for run in runs.values()
+                    ):
+                        raise ValueError(f"fault study {seed}/{kind}: accounting or sign failure")
+                entry["ordinary_criteria_passed"] += 1
+                for policy, params in policies.items():
+                    result = CRITERIA[item.name](runs, probe, params)
+                    if result.value is None or not np.isfinite(result.value):
+                        raise ValueError("fault study produced an invalid criterion ratio")
+                    stats = entry[policy]
+                    stats["passed" if result.passed else "failed"] += 1
+                    stats["minimum_ratio"] = min(result.value, stats["minimum_ratio"]) if stats["minimum_ratio"] is not None else result.value
+                    stats["maximum_ratio"] = max(result.value, stats["maximum_ratio"])
+    return {"seeds": list(seeds), "policies": policies, "controls": controls}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workdir", type=Path, required=True)
     parser.add_argument("--standard-workdir", type=Path)
     parser.add_argument("--report", type=Path, default=ROOT / "results/aquifer-equilibrium-bounds/validation.json")
-    parser.add_argument("--audit-seeds", type=int, nargs="*", default=[7, 42])
+    parser.add_argument("--audit-seeds", type=int, nargs="*", default=[7, 42, 13, 101, 2026])
     parser.add_argument("--skip-sensitivity", action="store_true")
     args = parser.parse_args(argv)
     probe = registry.find_probe(PROBE_ID)
@@ -348,13 +453,20 @@ def main(argv=None):
                 record = native_case(seeds[0], variant, profile, args.workdir, None, runners)
                 records.append(record)
                 print(f"sensitivity {profile}/{variant}: native assumptions and budget verified", flush=True)
-    refs = reference_sweep(list(dict.fromkeys([*range(100), *gate_seeds(PROBE_ID, probe.n_seeds)])))
+    reference_seeds = list(dict.fromkeys([*range(100), *gate_seeds(PROBE_ID, probe.n_seeds)]))
+    refs = reference_sweep(reference_seeds)
+    criterion_params = next(c.params for c in probe.criteria if c.name == "aquifer_equilibrium_bounds")
+    native_results = score_native_groups(records, args.workdir)
+    study = fault_magnitude_study(reference_seeds)
     image = json.loads(subprocess.check_output(["docker", "image", "inspect", image_tag(model)], text=True))[0]
     report = {
         "probe": PROBE_ID, "model": model.name, "model_version": model.version,
         "modflow_version": "6.7.0", "flopy_version": "3.11.0",
         "docker_image_id": image["Id"], "docker_architecture": image["Architecture"],
-        "native_records": records, "reference_sweep": refs,
+        "criterion_params": criterion_params,
+        "precision_budget": precision_budget(criterion_params),
+        "native_records": records, "native_probe_results": native_results,
+        "reference_sweep": refs, "fault_magnitude_study": study,
         "audit_notes": [
             "Native heads and STO-SY independently check confinement, river connection and the storage law.",
             "The standard diagnostic observer must preserve result.csv bytes.",

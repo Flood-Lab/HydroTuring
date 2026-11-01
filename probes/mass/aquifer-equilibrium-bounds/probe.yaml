@@ -44,14 +44,14 @@ case:
   - lowered
 criteria:
 - aquifer_equilibrium_bounds:
-    # Provisional detection policy, scaled by prescribed |B| = 1000 sigma |H-h0|.
-    # Native requested-law error <= 3.26e-6 mm; neutral drift <= 1.62e-6 mm.
-    # The floor is 0.001 mm; 40% conservative faults exceed the 5% band by >7.95x.
-    # No response-time or recession-shape target is imposed. See README audit.
-    rel_tol: 0.05
-    abs_tol_mm: 0.001
-    initial_abs_tol_mm: 0.001
-    neutral_abs_tol_mm: 0.001
+    # 0.01% of prescribed |B| = 1000 sigma |H-h0|, with a 1e-4 mm floor.
+    # Paired native input rounding + head/mapping audit limits <= 6.91e-6 |B|
+    # over the generated domain: the allowance retains >14x precision margin.
+    # The recorded native evidence and fault-size study are in the README.
+    rel_tol: 0.0001
+    abs_tol_mm: 0.0001
+    initial_abs_tol_mm: 0.0001
+    neutral_abs_tol_mm: 0.0001
     boundary_abs_tol_mm: 1.0e-06
 - groundwater_balance:
     sources:

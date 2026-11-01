@@ -80,6 +80,26 @@ def test_single_factor_mutants_conserve_water_but_exceed_prescribed_capacity(kwa
     assert sum(r["gw_sw_exchange"] for r in rows) == pytest.approx(rows[-1]["gw"] - 3000.0, abs=1.0e-9)
 
 
+@pytest.mark.parametrize("kwargs", [{"head_gain": 1.001}, {"storage_gain": 1.001}])
+def test_calibrated_policy_catches_conservative_per_mille_faults_that_five_percent_misses(kwargs):
+    probe = registry.find_probe("mass/aquifer-equilibrium-bounds")
+    simulate = _adapter().simulate
+    runs = {}
+    for variant in probe.variants:
+        case = build_case(probe, 7, variant)
+        rows = simulate(case.forcing.to_dict("records"), case.static, **kwargs)
+        runs[variant] = RunResult(case, pd.DataFrame(rows), {}, 0.0)
+    envelope = next(item for item in probe.criteria if item.name == "aquifer_equilibrium_bounds")
+    result = CRITERIA[envelope.name](runs, probe, envelope.params)
+    assert not result.passed
+    assert result.value > 1.0
+    original = dict(envelope.params, rel_tol=0.05, abs_tol_mm=0.001)
+    assert CRITERIA[envelope.name](runs, probe, original).passed
+    for item in probe.criteria:
+        if item.name != envelope.name:
+            assert all(CRITERIA[item.name](run, probe, item.params).passed for run in runs.values())
+
+
 @pytest.mark.parametrize("kwargs", [{}, {"head_gain": 1.4}, {"storage_gain": 1.4}])
 def test_recharge_ordering_does_not_establish_the_equilibrium_envelope(kwargs):
     simulate = _adapter().simulate

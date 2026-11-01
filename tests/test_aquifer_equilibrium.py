@@ -83,17 +83,17 @@ def test_storage_within_both_prescribed_head_bounds_passes():
 
 
 @pytest.mark.parametrize("variant,values", [
-    ("raised", [0.2, 0.8, 1.5, 1.9, 2.0, 2.101]),
-    ("lowered", [-0.2, -0.8, -1.5, -1.9, -2.0, -2.101]),
-    ("raised", [-0.101, 0.0, 0.2, 0.5, 0.7, 1.0]),
-    ("lowered", [0.101, 0.0, -0.2, -0.5, -0.7, -1.0]),
+    ("raised", [0.2, 0.8, 1.5, 1.9, 2.0, 2.000201]),
+    ("lowered", [-0.2, -0.8, -1.5, -1.9, -2.0, -2.000201]),
+    ("raised", [-0.000201, 0.0, 0.2, 0.5, 0.7, 1.0]),
+    ("lowered", [0.000201, 0.0, -0.2, -0.5, -0.7, -1.0]),
 ])
 def test_storage_on_either_wrong_side_of_envelope_fails(variant, values):
     runs, probe = _runs(**{variant: values})
     result = _score(runs, probe)
     assert not result.passed
     assert result.value > 1.0
-    assert result.diagnostics["variants"][variant]["allowed_mm"] == pytest.approx(0.1)
+    assert result.diagnostics["variants"][variant]["allowed_mm"] == pytest.approx(0.0002)
 
 
 def test_temporary_overshoot_cannot_be_cancelled_at_endpoint():
@@ -109,17 +109,39 @@ def test_large_absolute_inventory_cannot_buy_more_tolerance(offset):
     runs, probe = _runs(raised=[0.0, 0.0, 0.0, 0.0, 0.0, 2.2], offset=offset)
     result = _score(runs, probe)
     assert not result.passed
-    assert result.diagnostics["variants"]["raised"]["allowed_mm"] == pytest.approx(0.1)
+    assert result.diagnostics["variants"]["raised"]["allowed_mm"] == pytest.approx(0.0002)
 
 
-def test_exact_boundary_of_engineering_allowance_passes():
-    runs, probe = _runs(raised=[0.0, 0.0, 0.0, 0.0, 0.0, 2.1])
-    assert _score(runs, probe).passed
+def test_exact_binary_boundary_of_configured_allowance_passes():
+    # B=2 mm, rel_tol=2^-13: the permitted excess is exactly 2^-12 mm.
+    runs, probe = _runs(raised=[0.0, 0.0, 0.0, 0.0, 0.0, 2.000244140625])
+    assert _score(runs, probe, rel_tol=0.0001220703125, abs_tol_mm=0.0001).passed
+
+
+@pytest.mark.parametrize("excess,passes", [(0.00009, True), (0.00011, False)])
+def test_absolute_precision_floor_accepts_roundoff_but_not_larger_excess(excess, passes):
+    runs, probe = _runs(raised=[0.0, 0.0, 0.0, 0.0, 0.0, 2.0 + excess])
+    assert _score(runs, probe, rel_tol=0.0).passed is passes
+
+
+@pytest.mark.parametrize("column", ["gw", "gw_sw_exchange"])
+def test_neutral_precision_guard_rejects_activity_above_a_tenth_micron(column):
+    runs, probe = _runs()
+    runs["control"].table.loc[3, column] += 0.00011
+    assert not _score(runs, probe).passed
 
 
 def test_common_spinup_inventory_mismatch_is_not_subtracted_away():
     runs, probe = _runs()
     runs["raised"].table["gw"] += 0.1
+    result = _score(runs, probe)
+    assert not result.passed
+    assert "initial" in result.message
+
+
+def test_small_spinup_inventory_mismatch_exceeds_the_precision_guard():
+    runs, probe = _runs()
+    runs["raised"].table["gw"] += 0.00011
     result = _score(runs, probe)
     assert not result.passed
     assert "initial" in result.message

@@ -92,8 +92,8 @@ def aquifer_equilibrium_bounds(
     bounds = _experiment(runs)
     tolerances = {
         key: float(params.get(key, default)) for key, default in (
-            ("rel_tol", 0.05), ("abs_tol_mm", 0.001),
-            ("initial_abs_tol_mm", 0.001), ("neutral_abs_tol_mm", 0.001),
+            ("rel_tol", 1.0e-4), ("abs_tol_mm", 1.0e-4),
+            ("initial_abs_tol_mm", 1.0e-4), ("neutral_abs_tol_mm", 1.0e-4),
             ("boundary_abs_tol_mm", 1.0e-6),
         )
     }

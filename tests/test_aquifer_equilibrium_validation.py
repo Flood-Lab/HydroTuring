@@ -181,3 +181,51 @@ def test_native_storage_mapping_uses_verified_serialized_storativity():
     )
     assert result["storage_head_mapping_max_error_mm"] < 1e-9
     assert result["requested_storage_head_mapping_max_error_mm"] == pytest.approx(3.6e-6)
+
+
+def test_precision_budget_includes_both_runs_and_keeps_fourteen_fold_margin():
+    result = _audit().precision_budget({"rel_tol": 0.0001, "abs_tol_mm": 0.0001})
+    # Eight-decimal STO: 5e-9/0.002 = 2.5 ppm. Two RIV heads:
+    # 1e-6/0.5 = 2 ppm; two 1e-7 m head audit limits add 0.4 ppm.
+    # Two 1e-6 mm mapping audit limits at B>=1 mm add 2 ppm.
+    assert result["input_rounding_relative_budget"] == pytest.approx(4.500005e-6)
+    assert result["combined_relative_budget"] == pytest.approx(6.900006e-6)
+    assert result["minimum_allowance_to_budget_ratio"] > 14.49
+
+
+def test_fault_magnitude_study_uses_real_conservative_trajectories():
+    result = _audit().fault_magnitude_study([7], gains=(1.0, 1.001, 1.4))
+    for kind in ("head", "storage"):
+        honest, small_fault, large_fault = result["controls"][kind]
+        assert honest["calibrated"]["passed"] == 1
+        assert small_fault["previous"]["passed"] == 1
+        assert small_fault["calibrated"]["failed"] == 1
+        assert large_fault["previous"]["failed"] == 1
+        assert all(item["ordinary_criteria_passed"] == 1 for item in result["controls"][kind])
+
+
+@pytest.mark.parametrize("gain", [1.0, 1.001])
+def test_native_recheck_scores_actual_three_run_outputs_with_current_policy(tmp_path, gain):
+    module = _audit()
+    probe = registry.find_probe(module.PROBE_ID)
+    source = REPO_ROOT / "models/reference_confined_aquifer/ht_adapter.py"
+    spec = importlib.util.spec_from_file_location("recheck_reference", source)
+    reference = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(reference)
+    records = []
+    for variant in probe.variants:
+        case = build_case(probe, 7, variant)
+        output = tmp_path / "7" / variant / "captured-standard/output"
+        output.mkdir(parents=True)
+        pd.DataFrame(reference.simulate(case.forcing.to_dict("records"), case.static,
+                                       head_gain=gain)).to_csv(output / "result.csv", index=False)
+        (output / "run.json").write_text('{"status": "ok"}')
+        records.append({"seed": 7, "variant": variant, "profile": "standard"})
+    if gain > 1:
+        with pytest.raises(ValueError, match="equilibrium"):
+            module.score_native_groups(records, tmp_path)
+    else:
+        result = module.score_native_groups(records, tmp_path)
+        assert len(result) == 1
+        assert result[0]["passed"]
+        assert result[0]["maximum_envelope_excess_mm"] < 1e-9
