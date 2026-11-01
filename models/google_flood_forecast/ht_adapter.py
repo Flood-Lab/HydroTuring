@@ -74,7 +74,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-MODEL = {"name": "google_flood_forecast", "version": "0.1.0-828dfc5"}
+MODEL = {"name": "google_flood_forecast", "version": "0.1.0-828dfc5.1"}
 COLUMNS = ["time", "mrro", "dis"]
 
 RUN_DIR = Path(os.environ.get("GFF_RUN_DIR", "/model/run"))
@@ -184,15 +184,16 @@ def _mean_run_length(mask: np.ndarray) -> float:
 
 
 def climate_attributes(pr: np.ndarray, tas: np.ndarray, pet: np.ndarray,
-                       months: np.ndarray) -> dict[str, float]:
+                       months: np.ndarray, dt_days: float = 1.0) -> dict[str, float]:
     """The attributes Caravan computes from a catchment's own forcing.
 
     Definitions follow Caravan (Kratzert et al. 2023), which follows CAMELS
     (Addor et al. 2017) for the precipitation indices and Knoben et al.
     (2018) for the moisture index and its seasonality. Frequencies are
-    fractions of days, durations are in days. The four HydroATLAS climate
-    fields that are plain annual totals of the same quantities are filled
-    from the forcing as well.
+    fractions of days, durations are in days, so a sub-daily record is grouped
+    into whole days here, the one place rows are grouped. The four HydroATLAS
+    climate fields that are plain annual totals of the same quantities are
+    filled from the forcing as well.
     """
     eps = 1e-9
     p_mean = float(pr.mean())
@@ -207,13 +208,20 @@ def climate_attributes(pr: np.ndarray, tas: np.ndarray, pet: np.ndarray,
         np.where(monthly_p < monthly_e, monthly_p / np.maximum(monthly_e, eps) - 1.0, 0.0),
     )
 
-    high = pr >= 5.0 * p_mean
-    low = pr < 1.0
+    rows_per_day = max(1, int(round(1.0 / dt_days)))
+    n_days = len(pr) // rows_per_day
+    if n_days == 0:
+        rows_per_day, n_days = 1, len(pr)
+    keep = n_days * rows_per_day
+    daily_pr = pr[:keep].reshape(n_days, rows_per_day).mean(axis=1)
+    daily_tas = tas[:keep].reshape(n_days, rows_per_day).mean(axis=1)
+    high = daily_pr >= 5.0 * p_mean
+    low = daily_pr < 1.0
     return {
         "p_mean": p_mean,
         "pet_mean_ERA5_LAND": pet_mean,
         "aridity_ERA5_LAND": pet_mean / max(p_mean, eps),
-        "frac_snow": float(pr[tas < 0.0].sum() / total_pr) if total_pr > 0 else 0.0,
+        "frac_snow": float(daily_pr[daily_tas < 0.0].sum() / daily_pr.sum()) if total_pr > 0 else 0.0,
         "moisture_index_ERA5_LAND": float(moisture.mean()),
         "seasonality_ERA5_LAND": float(moisture.max() - moisture.min()),
         "high_prec_freq": float(high.mean()),
@@ -369,7 +377,9 @@ def simulate(forcing: list[dict], static: dict, seed: int, timestep: str = "PT1D
     # Attributes from the first year only: a climatology the model has seen,
     # through which nothing later in the record can reach back.
     n_clim = min(len(pr), int(round(CLIMATOLOGY_DAYS / TIMESTEP_DAYS.get(timestep, 1.0))))
-    derived = climate_attributes(pr[:n_clim], tas[:n_clim], pet[:n_clim], months[:n_clim])
+    derived = climate_attributes(
+        pr[:n_clim], tas[:n_clim], pet[:n_clim], months[:n_clim], TIMESTEP_DAYS.get(timestep, 1.0)
+    )
     x_s = torch.tensor(
         [[(derived.get(a, center[a]) - center[a]) / scale[a] for a in cfg.static_attributes]],
         dtype=torch.float32,

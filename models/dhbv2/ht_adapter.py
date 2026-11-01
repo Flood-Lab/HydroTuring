@@ -105,7 +105,7 @@ import numpy as np
 import torch
 import yaml
 
-MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100.4"}
+MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100.5"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 
 MODEL_DIR = Path(os.environ.get("DHBV_MODEL_DIR", "/model/dhbv_2"))
@@ -121,16 +121,27 @@ EPS = 1e-6  # the module's own normalisation epsilon
 
 
 def climate_attributes(pr: np.ndarray, tas: np.ndarray, pet: np.ndarray,
-                       snow_threshold: float) -> dict[str, float]:
-    """The attributes a catchment's own forcing determines. Rates are mm/day."""
+                       snow_threshold: float, dt_days: float = 1.0) -> dict[str, float]:
+    """The attributes a catchment's own forcing determines. Rates are mm/day.
+
+    The snowfall fraction is defined over days, so a sub-daily record is grouped
+    into whole days here, the one place rows are grouped.
+    """
     total_pr = float(pr.sum())
-    cold = tas < snow_threshold
+    rows_per_day = max(1, int(round(1.0 / dt_days)))
+    n_days = len(pr) // rows_per_day
+    if n_days == 0:
+        rows_per_day, n_days = 1, len(pr)
+    keep = n_days * rows_per_day
+    daily_pr = pr[:keep].reshape(n_days, rows_per_day).mean(axis=1)
+    daily_tas = tas[:keep].reshape(n_days, rows_per_day).mean(axis=1)
+    cold = daily_tas < snow_threshold
     return {
         "meanP": float(pr.mean()) * DAYS_PER_YEAR,
         "ETPOT_Hargr": float(pet.mean()) * DAYS_PER_YEAR,
         "aridity": float(pet.mean()) / max(float(pr.mean()), 1e-9),
         "meanTa": float(tas.mean()),
-        "snowfall_fraction": float(pr[cold].sum() / total_pr) if total_pr > 0 else 0.0,
+        "snowfall_fraction": float(daily_pr[cold].sum() / daily_pr.sum()) if total_pr > 0 else 0.0,
     }
 
 
@@ -319,7 +330,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
     n_clim = min(n, int(round(CLIMATOLOGY_DAYS / dt)))
     derived = climate_attributes(
         pr_rate[:n_clim], tas[:n_clim], pet_rate[:n_clim],
-        float(static.get("snow_threshold_degC", 0.0)),
+        float(static.get("snow_threshold_degC", 0.0)), dt,
     )
     derived["uparea"] = float(static["area_km2"])
     derived["glaciers"] = 0.0
