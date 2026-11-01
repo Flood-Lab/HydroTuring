@@ -98,6 +98,7 @@ authors:
   - given-names: Tommaso
     family-names: Cerruti
     affiliation: Department of Computer Science, ETH Zurich, Zurich, Switzerland
+    orcid: "https://orcid.org/0009-0009-5188-7805"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

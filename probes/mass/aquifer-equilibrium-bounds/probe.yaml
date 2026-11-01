@@ -6,6 +6,7 @@ version: 1
 authors:
 - name: Tommaso Cerruti
   affiliation: Department of Computer Science, ETH Zurich, Zurich, Switzerland
+  orcid: 0009-0009-5188-7805
   github: tommasocerruti
 description: A source-free confined aquifer relaxes toward a constant prescribed river
   head without leaving the storage envelope set by that head and its supplied storativity.
