@@ -53,6 +53,9 @@ criteria:
     initial_abs_tol_mm: 0.0001
     neutral_abs_tol_mm: 0.0001
     boundary_abs_tol_mm: 1.0e-06
+    # Descriptive only: flag either arm at <=1% of its own prescribed bound.
+    # This provisional reporting threshold does not change PASS/FAIL.
+    response_fraction_threshold: 0.01
 - groundwater_balance:
     sources:
     - gw_boundary

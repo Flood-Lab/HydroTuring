@@ -26,9 +26,13 @@ The maximum positive distance outside either bound is scored; a later recovery
 cannot cancel an earlier excursion.
 
 This necessary bound does not prescribe a recession shape, a response time,
-or an exact spatial head field. A frozen aquifer can satisfy it. Such output
-is explicitly reported as "no hydraulic response exercised", rather than
-failed using an invented minimum hydraulic response.
+or an exact spatial head field. A frozen or nearly frozen aquifer can satisfy
+it. Each arm reports its peak absolute paired storage response divided by
+its own |B|. If either response is no larger than max(1e-4 mm, 0.01 |B|),
+the result names that arm as having little or no hydraulic response exercised.
+The diagnostic flag no_hydraulic_response_exercised means below this reporting
+threshold, not exactly zero. The 1% threshold is provisional and descriptive;
+it does not impose a minimum response or change PASS/FAIL.
 
 ## Case and control volume
 
@@ -74,9 +78,25 @@ The bound allowance is max(1e-4 |B|, 1e-4 mm): 0.01% of the prescribed
 storage excursion, with a 0.0001 mm floor. This is 500 times narrower than
 the proposal's initial 5% band throughout the generated range, |B| = 1–15 mm.
 The denominator never depends on background storage or gross exchange.
-Common-spinup and neutral guards also allow 1e-4 mm; the additional-boundary
-activity floor remains 1e-6 mm. Raw outputs and derived arithmetic must be
-finite.
+Common-spinup inventory equality and neutral storage drift allow 1e-4 mm.
+Neutral exchange uses the largest per-interval gross depth, with the same
+1e-4 mm floor: max(|gw_to_sw| + |sw_to_gw|, |gw_sw_exchange|) times dt_days.
+Gross exchange over the full record remains a diagnostic, so its floor does
+not shrink with record length and opposite directions cannot cancel. The
+additional-boundary activity floor remains 1e-6 mm over the full record.
+Raw outputs and derived arithmetic must be finite.
+
+Neutral storage is compared with the first reported spinup inventory, through
+spinup and the scored record. Here spinup is an equilibrium check, not a period
+for an arbitrary initial head to settle: h0, river stage and zero recharge
+already prescribe stationarity from initialization. Genuine drift is a failed
+assertion, rather than an incompatible experiment. Its allowance does not grow
+with background inventory, which is an adapter-dependent additive offset.
+An exactly constant storage and zero exchange remain constant when rounded.
+Adapters must resolve the 1e-4 mm storage/depth floors: reporting groundwater
+to five decimal places in mm and exchanges to six decimal places in mm/day
+keeps decimal-rounding errors below those floors at the prescribed daily step.
+These precision requirements do not excuse solver drift beyond the allowance.
 
 The allowance follows a paired precision budget for this experiment. The
 pinned writer rounds STO coefficients by at most 5e-9 and each RIV head by
@@ -115,9 +135,12 @@ archived evidence from the unchanged MODFLOW 6.7.0 adapter.
 
 ## Measured validation
 
-[The machine-readable audit](../../../results/aquifer-equilibrium-bounds/validation.json)
+[The machine-readable audit](../../../docs/aquifer-equilibrium-bounds-validation.json)
 records the exact criterion parameters, precision budget, fault-size study,
-all seeds, normalized criterion results, native margins and storage traces.
+all seeds, normalized criterion results, response fractions and scalar native
+margins. Per-step storage changes and full criterion diagnostics can be
+recomputed from locally captured result tables and native files rather than
+stored in the committed summary.
 MODFLOW 6.7.0 and FloPy 3.11.0 ran in the adapter's pinned amd64 image;
 its image digest is recorded in that report. The ordinary contract check and
 all five gate-seed evaluations passed.
@@ -138,7 +161,7 @@ instead of 10 x 10. All retain the adapter's daily forcing and reporting.
 | Maximum storage/head mapping error against requested inputs | 3.26e-6 mm |
 | Maximum neutral storage drift, all rows | 1.66e-6 mm |
 | Maximum neutral gross exchange | 1.73e-6 mm |
-| Maximum paired criterion residual / allowance | 0.017284 (pass threshold 1) |
+| Maximum paired criterion residual / allowance | 0.016515 (pass threshold 1) |
 | Maximum paired storage-envelope excess | 0 mm |
 | Diagnostic versus ordinary result.csv, standard profile | 30 of 30 byte-identical |
 
@@ -194,7 +217,7 @@ Use a fresh user-owned work directory; Docker Desktop needs a shared path.
 The observer copies native files before the unchanged adapter removes its
 temporary simulation, then extracts them outside the benchmark output
 directory before normal contract validation. The raw files remain local;
-the report is committed separately from the generated forcing.
+the compact report is committed under docs/ separately from the generated forcing.
 
 The grid sensitivity confirms the bound and applicability assumptions, not
 grid convergence or identical transient hydrographs. Only ten seeds were

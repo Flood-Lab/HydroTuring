@@ -266,14 +266,12 @@ def native_case(seed, variant, profile, workdir, standard_workdir, runners):
     b = 1000 * static["aquifer_storage_coefficient"]
     target = float(case.forcing["sw_stage_m"].iloc[case.spinup_steps])
     bound = b * (target - static["aquifer_initial_head_m"])
-    initial = float(run.table["gw"].iloc[case.spinup_steps - 1])
-    trace = (run.table["gw"].iloc[case.spinup_steps:].to_numpy(dtype=float) - initial).tolist()
     return {
         "seed": seed, "variant": variant, "profile": profile,
         "standard_output_byte_identical": matched if profile == "standard" else None,
         "result_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
         "wall_seconds": run.wall_seconds, "head_change_m": target - static["aquifer_initial_head_m"],
-        "signed_storage_bound_mm": bound, "storage_change_mm": trace,
+        "signed_storage_bound_mm": bound,
         **metrics,
     }
 
@@ -380,7 +378,12 @@ def score_native_groups(records, workdir):
             "seed": seed, "profile": profile, "passed": result.passed, "ratio": result.value,
             "maximum_envelope_excess_mm": max(
                 d["max_excess_mm"] for d in result.diagnostics["variants"].values()),
-            "diagnostics": result.diagnostics,
+            "control": result.diagnostics["control"],
+            "max_initial_storage_difference_mm": result.diagnostics["max_initial_storage_difference_mm"],
+            "response_fractions": {
+                v: d["response_fraction"] for v, d in result.diagnostics["variants"].items()
+            },
+            "no_hydraulic_response_exercised": result.diagnostics["no_hydraulic_response_exercised"],
         })
     return results
 
@@ -433,7 +436,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workdir", type=Path, required=True)
     parser.add_argument("--standard-workdir", type=Path)
-    parser.add_argument("--report", type=Path, default=ROOT / "results/aquifer-equilibrium-bounds/validation.json")
+    parser.add_argument("--report", type=Path, default=ROOT / "docs/aquifer-equilibrium-bounds-validation.json")
     parser.add_argument("--audit-seeds", type=int, nargs="*", default=[7, 42, 13, 101, 2026])
     parser.add_argument("--skip-sensitivity", action="store_true")
     args = parser.parse_args(argv)
@@ -474,6 +477,8 @@ def main(argv=None):
             "Sensitivity changes only IMS head tolerance or the spatial grid; daily reporting is preserved.",
             "A grid-sensitivity pass is a bounds check, not a claim of identical transient hydrographs or grid convergence.",
             "Frozen output can pass this necessary storage bound and is explicitly reported as unexercised.",
+            "Full time series remain in local captured outputs; the committed report retains scalar summaries.",
+            "Neutral exchange uses a per-interval precision floor; full-record neutral storage and initial-state guards remain unchanged. Either arm below the declared response fraction is labelled descriptively, without changing its envelope verdict.",
         ],
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)

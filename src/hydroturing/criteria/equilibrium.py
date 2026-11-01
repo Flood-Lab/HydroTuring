@@ -101,6 +101,9 @@ def aquifer_equilibrium_bounds(
             or tolerances["rel_tol"] < 0.0
             or any(value <= 0.0 for key, value in tolerances.items() if key != "rel_tol")):
         raise ValueError("equilibrium allowances must be finite and positive")
+    response_threshold = float(params.get("response_fraction_threshold", 0.01))
+    if not np.isfinite(response_threshold) or not 0.0 <= response_threshold <= 1.0:
+        raise ValueError("the response fraction threshold must be finite and between zero and one")
 
     def invalid(message: str) -> CriterionResult:
         return CriterionResult(NAME, FAIL, message, threshold=1.0)
@@ -133,27 +136,30 @@ def aquifer_equilibrium_bounds(
     inventory0 = float(full_control["gw"].iloc[0])
     with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
         drift = float(np.max(np.abs(full_control["gw"].to_numpy(dtype=float) - inventory0)))
-        gross = float(
-            np.abs(full_control[["gw_to_sw", "sw_to_gw"]].to_numpy(dtype=float)).sum()
-            * control.dt_days
-        )
-        gross = max(gross, float(np.abs(full_control["gw_sw_exchange"].to_numpy(dtype=float)).sum() * control.dt_days))
+        component_depth = np.abs(full_control[["gw_to_sw", "sw_to_gw"]].to_numpy(dtype=float)).sum(axis=1) * control.dt_days
+        net_depth = np.abs(full_control["gw_sw_exchange"].to_numpy(dtype=float)) * control.dt_days
+        gross = float(max(component_depth.sum(), net_depth.sum()))
+        # A reporting precision floor applies to each interval, not to a
+        # record sum whose effective precision shrinks with record length.
+        interval_gross = float(np.max(np.maximum(component_depth, net_depth)))
         initial = max(float(np.max(np.abs(
             runs[v].table["gw"].iloc[:start].to_numpy(dtype=float)
             - full_control["gw"].iloc[:start].to_numpy(dtype=float)
         ))) for v in ("raised", "lowered"))
-    if not np.isfinite((drift, gross, initial)).all():
+    if not np.isfinite((drift, gross, interval_gross, initial)).all():
         return invalid("non-finite neutral or initial storage difference (arithmetic overflow)")
     diagnostics = {
-        "control": {"max_storage_drift_mm": drift, "gross_exchange_mm": gross},
+        "control": {"max_storage_drift_mm": drift, "gross_exchange_mm": gross,
+                    "max_interval_gross_exchange_mm": interval_gross},
         "max_initial_storage_difference_mm": initial, "variants": {},
+        "response_fraction_threshold": response_threshold,
     }
     ratios = {
         "initial storage": initial / tolerances["initial_abs_tol_mm"],
         "control storage": drift / tolerances["neutral_abs_tol_mm"],
-        "control exchange": gross / tolerances["neutral_abs_tol_mm"],
+        "control exchange": interval_gross / tolerances["neutral_abs_tol_mm"],
     }
-    responses = []
+    unexercised_variants = []
     for variant in ("raised", "lowered"):
         other = make_window(runs[variant], probe)
         lower, upper = min(0.0, bounds[variant]), max(0.0, bounds[variant])
@@ -163,30 +169,36 @@ def aquifer_equilibrium_bounds(
             excess = np.maximum(np.maximum(lower - delta, delta - upper), 0.0)
             error = float(np.max(excess))
             ratio = error / allowed
+            response = float(np.max(np.abs(delta)))
+            response_fraction = float(np.float64(response) / abs(bounds[variant]))
         if not (np.isfinite(delta).all() and np.isfinite(excess).all()
-                and np.isfinite((allowed, ratio)).all()):
+                and np.isfinite((allowed, ratio, response_fraction)).all()):
             return invalid(f"{variant}: non-finite storage envelope arithmetic (overflow)")
+        unexercised = response <= max(tolerances["abs_tol_mm"], response_threshold * abs(bounds[variant]))
         diagnostics["variants"][variant] = {
             "lower_bound_mm": lower, "upper_bound_mm": upper,
             "allowed_mm": allowed, "max_excess_mm": error,
             "min_delta_storage_mm": float(np.min(delta)),
             "max_delta_storage_mm": float(np.max(delta)),
+            "max_abs_delta_storage_mm": response,
+            "response_fraction": response_fraction,
+            "no_hydraulic_response_exercised": unexercised,
             "worst_step": int(np.argmax(excess)),
         }
         ratios[variant] = ratio
-        responses.append(float(np.max(np.abs(delta))))
+        if unexercised:
+            unexercised_variants.append(variant)
     if not np.isfinite(list(ratios.values())).all():
         return invalid("non-finite normalized storage envelope arithmetic")
     worst = max(ratios, key=ratios.get)
     value = ratios[worst]
-    unexercised = max(responses) <= tolerances["abs_tol_mm"]
-    diagnostics["no_hydraulic_response_exercised"] = unexercised
+    diagnostics["no_hydraulic_response_exercised"] = bool(unexercised_variants)
     diagnostics["ratios"] = ratios
     passed = value <= 1.0
     message = (
         "confined storage stays inside both prescribed head envelopes"
         if passed else f"equilibrium bounds fail {worst}: residual / allowance = {value:.6g}"
     )
-    if passed and unexercised:
-        message += "; no hydraulic response exercised"
+    if passed and unexercised_variants:
+        message += "; little or no hydraulic response exercised: " + ", ".join(unexercised_variants)
     return CriterionResult(NAME, PASS if passed else FAIL, message, value, 1.0, diagnostics)

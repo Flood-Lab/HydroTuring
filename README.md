@@ -204,7 +204,7 @@ the declared model interface this question.
 | `reference_exchange_exact` | exact | a lagged-head bookkeeping reference that closes its own groundwater balance exactly and reports genuinely bidirectional exchange | must pass `mass/gw-sw-exchange-consistency`, the only probe that can ask it anything |
 | `reference_recharge_order_exact` | exact | the exact daily solution of one aquifer cell draining to a river, so added recharge is stored, then released | must pass `mass/aquifer-recharge-ordering` |
 | `reference_confined_aquifer` | exact | exact interval solution of a confined aquifer connected to a prescribed-stage river | must pass `mass/aquifer-equilibrium-bounds` |
-| `reference_confined_aquifer_implicit` | physical | the same confined aquifer integrated with backward Euler and its own interval river flux | must pass `mass/aquifer-equilibrium-bounds` |
+| `reference_confined_aquifer_implicit` | approximate | the same confined aquifer integrated with backward Euler and its own interval river flux | must pass `mass/aquifer-equilibrium-bounds` |
 | `reference_amplified_river_head` | broken | multiplies the prescribed head change by 1.4 while conserving its own water ledger | caught only by `aquifer_equilibrium_bounds` on its probe |
 | `reference_inflated_aquifer_storage` | broken | multiplies the supplied confined storativity by 1.4 while conserving its own water ledger | caught only by `aquifer_equilibrium_bounds` on its probe |
 | `reference_recharge_blind` | broken | ignores `gw_recharge`, so its own budget no longer closes | caught by `aquifer_recharge_ordering` |

@@ -171,6 +171,72 @@ def test_frozen_storage_is_reported_as_unexercised_not_failed():
     assert result.diagnostics["no_hydraulic_response_exercised"]
 
 
+@pytest.mark.parametrize("variant", ["raised", "lowered"])
+def test_near_frozen_arm_is_flagged_without_failing_a_necessary_bound(variant):
+    values = [0.002] * 6 if variant == "raised" else [-0.002] * 6
+    runs, probe = _runs(**{variant: values})
+    result = _score(runs, probe)
+    assert result.passed
+    assert result.diagnostics["no_hydraulic_response_exercised"]
+    detail = result.diagnostics["variants"][variant]
+    assert detail["response_fraction"] == pytest.approx(0.001)
+    assert detail["no_hydraulic_response_exercised"]
+    assert variant in result.message
+    other = "lowered" if variant == "raised" else "raised"
+    assert not result.diagnostics["variants"][other]["no_hydraulic_response_exercised"]
+
+
+def test_response_fraction_threshold_changes_only_the_descriptive_flag():
+    runs, probe = _runs(raised=[0.03] * 6)
+    ordinary = _score(runs, probe)
+    labelled = _score(runs, probe, response_fraction_threshold=0.02)
+    assert ordinary.passed and labelled.passed
+    assert ordinary.value == labelled.value
+    assert not ordinary.diagnostics["no_hydraulic_response_exercised"]
+    assert labelled.diagnostics["no_hydraulic_response_exercised"]
+    assert labelled.diagnostics["variants"]["raised"]["response_fraction"] == pytest.approx(0.015)
+
+
+@pytest.mark.parametrize("threshold", [-0.01, 1.01, float("nan"), float("inf")])
+def test_invalid_response_fraction_threshold_is_rejected(threshold):
+    runs, probe = _runs()
+    with pytest.raises(ValueError, match="response"):
+        _score(runs, probe, response_fraction_threshold=threshold)
+
+
+@pytest.mark.parametrize("n", [6, 90, 900])
+def test_neutral_flux_precision_floor_does_not_shrink_with_record_length(n):
+    runs, probe = _runs(raised=[0.1] * n, lowered=[-0.1] * n)
+    # Alternating signed rounding residuals remain below 1e-4 mm each day.
+    q = np.resize([1e-5, -1e-5], n + 2)
+    runs["control"].table["gw_sw_exchange"] = q
+    runs["control"].table["gw_to_sw"] = np.minimum(q, 0.0)
+    runs["control"].table["sw_to_gw"] = np.maximum(q, 0.0)
+    result = _score(runs, probe)
+    assert result.passed
+    assert result.diagnostics["control"]["max_interval_gross_exchange_mm"] == pytest.approx(1e-5)
+    assert result.diagnostics["ratios"]["control exchange"] == pytest.approx(0.1)
+
+
+def test_equilibrium_control_rounded_to_four_and_five_decimals_is_stationary():
+    runs, probe = _runs(offset=3000.1234567)
+    control = runs["control"].table
+    control["gw"] = control["gw"].round(4)
+    for column in ("gw_sw_exchange", "gw_to_sw", "sw_to_gw"):
+        control[column] = control[column].round(5)
+    assert _score(runs, probe).passed
+
+
+def test_spinup_drift_is_not_hidden_by_a_later_stationary_control():
+    runs, probe = _runs()
+    # Every arm violates the prescribed equilibrium in the same first row.
+    for run in runs.values():
+        run.table.loc[0, "gw"] += 0.01
+    result = _score(runs, probe)
+    assert not result.passed
+    assert "control storage" in result.message
+
+
 def test_active_additional_boundary_is_incompatible_even_if_net_zero():
     runs, probe = _runs()
     runs["lowered"].table["gw_boundary"] = [0.0, 0.0, 0.1, -0.1, 0.0, 0.0, 0.0, 0.0]
