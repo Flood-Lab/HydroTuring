@@ -53,7 +53,7 @@ def test_a_single_name_keeps_the_original_shape(runs, probe, params):
     spinup = runs["control"].case.spinup_steps
     scored_rain = runs["control"].case.forcing["pr"].iloc[spinup:].sum()
     assert result.diagnostics["added_mm"] == pytest.approx(0.2 * scored_rain, rel=1e-6)
-    assert set(result.diagnostics) == {"added_mm", "shares", "largest_share", "accounted"}
+    assert set(result.diagnostics) == {"added_mm", "shares", "source_shares", "largest_share", "accounted"}
     assert result.value == pytest.approx(sum(result.diagnostics["shares"].values()))
     assert "wetter20" not in result.message
 
@@ -143,3 +143,25 @@ def test_a_window_of_another_length_raises(runs, probe, params):
     short["drier20"] = RunResult(short_case, d.table.iloc[:-10].reset_index(drop=True), d.meta, 0.0)
     with pytest.raises(ValueError, match="different length"):
         score(short, probe, params)
+
+
+def test_a_declared_exchange_counts_towards_the_budget(runs, probe, params):
+    """Wetter weather that shrinks an import is accounted for, as in `closure`."""
+    control, wetter = runs["control"], runs["wetter20"]
+    spinup = control.case.spinup_steps
+    added = (wetter.case.forcing["pr"] - control.case.forcing["pr"]).iloc[spinup:].sum()
+    given_up = 0.2 * added / (len(wetter.table) - spinup)
+    run = {
+        "control": replace(control, table=control.table.assign(gwex=0.0)),
+        "wetter20": replace(
+            wetter,
+            table=wetter.table.assign(gwex=-given_up, mrro=wetter.table["mrro"] - given_up),
+        ),
+    }
+    result = score(run, probe, params, perturbed="wetter20")
+    assert result.passed, result.message
+    assert result.diagnostics["source_shares"]["gwex"] == pytest.approx(-0.2)
+    assert result.value == pytest.approx(1.0, abs=1e-6)
+
+    hidden = {k: replace(v, table=v.table.drop(columns="gwex")) for k, v in run.items()}
+    assert not score(hidden, probe, params, perturbed="wetter20").passed

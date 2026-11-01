@@ -41,6 +41,7 @@ RUNAWAY_SHARE = 0.25
 # `window_days: full`.
 RUNAWAY_MIN_DAYS = 730.0
 YEAR_DAYS = 365.25
+RATIO_TOLERANCE = 1e-6
 
 
 def _resolve(bound, static: dict) -> float:
@@ -158,10 +159,11 @@ def state_bounds(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRes
 
 @criterion("et_plausible")
 def et_plausible(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
-    """Evapotranspiration must be non-negative and bounded by potential ET.
+    """Cumulative evapotranspiration must be non-negative and bounded by potential ET.
 
     Cheap, and it catches the degenerate escape of setting ET equal to
-    precipitation so that the water balance closes with no runoff at all.
+    precipitation so that the water balance closes with no runoff at all. A row
+    may go negative: `evspsbl` is net of dew and frost where the model nets them.
     """
     max_ratio = float(params.get("max_ratio_to_pet", 1.0))
     pet_var = params.get("pet_variable", "pet")
@@ -171,21 +173,22 @@ def et_plausible(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRes
         raise ValueError("et_plausible needs 'evspsbl' in the model result")
     et = np.asarray(w.table["evspsbl"], dtype=float)
 
-    if et.min() < -EPS:
+    if et.sum() < -EPS:
         return CriterionResult(
-            name="et_plausible", status=FAIL, value=float(et.min()), threshold=0.0,
-            message=f"evapotranspiration goes negative (min {et.min():.4g} mm/day)",
+            name="et_plausible", status=FAIL, value=float(et.sum()), threshold=0.0,
+            message="cumulative evapotranspiration is negative",
         )
 
     if pet_var not in w.forcing.columns:
         return CriterionResult(
             name="et_plausible", status=PASS,
-            message="ET non-negative; no potential ET in the forcing to bound it against",
+            message="cumulative ET non-negative; no potential ET in the forcing to bound it against",
         )
 
     pet = np.asarray(w.forcing[pet_var], dtype=float)
     cum_ratio = float(et.sum() / max(pet.sum(), 1e-12))
-    ok = cum_ratio <= max_ratio + 1e-9
+    # A model capped at PET in single precision can sum to a few parts in 1e8 over it.
+    ok = cum_ratio <= max_ratio + RATIO_TOLERANCE
 
     return CriterionResult(
         name="et_plausible",

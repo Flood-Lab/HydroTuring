@@ -4,7 +4,8 @@
 or a channel store could report the water it holds in transit and close
 its budget. This probe asks whether that store behaves like one. Two
 assertions: it is never negative, and at any step it holds at most
-`max_lag_days` (15) times the largest runoff rate of the preceding month,
+`max_lag_days` (15) times the largest runoff rate from the preceding month
+through the fifteen days ahead, since water held now leaves within the lag,
 which is the most a hydrograph of that length can have accumulated from
 the flow feeding it.
 
@@ -25,9 +26,9 @@ sums to 0.9, and `reference_leaky_router`, the same kernel at 0.999. Both are
 pinned because they answer different questions. The 0.9 kernel is caught three
 orders of magnitude clear of the allowance, so it shows the criterion can catch
 a router fault while being blind to where the allowance sits — raise the
-allowance twentyfold and it still fails. The 0.999 kernel's store reaches 4.13
-to 4.40 times the whole allowance on the gate seeds, and the gate stops catching
-it once `min_allowance_mm` passes 0.651 mm, so it is the case the number was
+allowance twentyfold and it still fails. The 0.999 kernel's store reaches 3.17
+to 3.63 times the whole allowance on the gate seeds, and the gate stops catching
+it once `min_allowance_mm` passes 0.574 mm, so it is the case the number was
 actually chosen against. With it behind the gate, an allowance moved out from under the
 calibration turns the gate red rather than passing it:
 
@@ -35,21 +36,21 @@ calibration turns the gate red rather than passing it:
 | --- | --- | --- | --- |
 | 0.05 (this probe) | FAIL | FAIL | green |
 | 0.50 | FAIL | FAIL | green |
-| 0.60 | FAIL | FAIL | green |
-| 0.65 | FAIL | FAIL | green |
-| 0.66 | FAIL | pass | **red** |
+| 0.55 | FAIL | FAIL | green |
+| 0.57 | FAIL | FAIL | green |
+| 0.58 | FAIL | pass | **red** |
 | 1.00 | FAIL | pass | **red** |
 | 2.00 | FAIL | pass | **red** |
 | 5.00 | FAIL | pass | **red** |
 
-The leaky kernel escapes the three gate seeds at different allowances: 0.615,
-0.627 and **0.651 mm**. A must-fail counts as caught while any one seed still
-fails, so the gate stays green up to 0.651 mm and turns red above it. The value
-this probe ships sits **13.0x** under that point, and the 0.9 kernel is caught
-until 77.5 mm, about 1550x further out. Over two wider draws of 203 seeds — 0–202
-and 1000–1202 — the first seed to escape does so at **0.484 mm** (seed 43) and
-**0.449 mm** (seed 1106), and the median seed of a draw needs 0.647 and 0.651 mm.
-So an allowance anywhere between about 0.45 and 0.651 mm would keep the gate green
+The leaky kernel escapes the three gate seeds at different allowances: 0.529,
+0.554 and **0.574 mm**. A must-fail counts as caught while any one seed still
+fails, so the gate stays green up to 0.574 mm and turns red above it. The value
+this probe ships sits **11.5x** under that point, and the 0.9 kernel is caught
+until 77.4 mm, about 1550x further out. Over two wider draws of 203 seeds — 0–202
+and 1000–1202 — the first seed to escape does so at **0.393 mm** (seed 139) and
+**0.372 mm** (seed 1106), and the median seed of a draw needs 0.569 and 0.572 mm.
+So an allowance anywhere between about 0.37 and 0.574 mm would keep the gate green
 while letting the leak pass on some seeds. That is what the pair is for: one model says the criterion works,
 the other says the number is where the weather put it. Every figure in this
 paragraph is the smallest `min_allowance_mm` at which the 0.999 kernel passes a
@@ -60,7 +61,7 @@ router that retains water rather than a store that invents it.
 
 ## The dry spells are what make a small leak visible
 
-The allowance is a multiple of the largest runoff of the preceding month, so
+The allowance is a multiple of the largest runoff from the preceding month through the lag ahead, so
 the weather decides how strict it is — and a record that never goes dry keeps
 the ceiling at a storm-time level all year. Over a rainless spell the runoff
 falls to the baseflow and then to nothing, and thirty days later the peak has
@@ -104,8 +105,8 @@ sit at **0.01 to 0.58 of the whole allowance**:
 
 The tightest of those leaves about 1.7x of room, and the smallest fault this
 probe exists to catch — a kernel keeping a tenth of a percent of each day's
-runoff — reaches **4.13x to 4.40x** the whole allowance on the gate seeds, and
-the gate stops catching it only once `min_allowance_mm` passes 0.651 mm. The
+runoff — reaches **3.17x to 3.63x** the whole allowance on the gate seeds, and
+the gate stops catching it only once `min_allowance_mm` passes 0.574 mm. The
 value sits between them by measurement, not by taste.
 
 ### Where the 0.0026 mm comes from
@@ -121,7 +122,8 @@ PYTHONPATH=<repo>/src python -m hydroturing run \
 
 On the three gate seeds (417694852, 924646966, 1431599080) the kept tables give
 a largest channel of 16.93, 20.19 and 15.90 mm, against a hydrograph bound of
-`max_lag_days x the largest runoff of the preceding 30 days x 1.05`. The
+`max_lag_days x the largest runoff of the preceding 30 days x 1.05`, as the bound
+read before it also looked through the lag ahead, which can only lower this figure. The
 difference,
 
 ```

@@ -97,6 +97,10 @@ def counterfactual_response(
     control_driver = control.volume(control.forcing[driver]).sum()
     control_terms = {var: control.volume(control.table[var]).sum() for var in terms}
     control_storage = storage_change(control) if states else 0.0
+    # A declared exchange is a source, as it is in `closure`, so what it gives up when
+    # the driver changes is part of the budget. A term no model reports costs nothing.
+    sources = [v for v in params.get("sources", ["gwex"]) if v in control.table.columns]
+    control_sources = {var: control.volume(control.table[var]).sum() for var in sources}
 
     per_variant: dict[str, dict] = {}
     failures: list[str] = []
@@ -139,7 +143,11 @@ def counterfactual_response(
                 f"{prefix}{hog} absorbs {abs(hog_share):.3f} of the {word} {driver} "
                 f"(limit {max_share:g})"
             )
-        accounted = float(sum(shares.values()))
+        source_shares = {
+            var: float(perturbed.volume(perturbed.table[var]).sum() - control_sources[var]) / added
+            for var in sources
+        }
+        accounted = float(sum(shares.values()) - sum(source_shares.values()))
         if abs(accounted - 1.0) > sum_tolerance:
             failures.append(
                 f"{prefix}the responses account for {accounted:.3f} of the {word} {driver}, "
@@ -148,6 +156,7 @@ def counterfactual_response(
         per_variant[name] = {
             "added_mm": added,
             "shares": shares,
+            "source_shares": source_shares,
             "largest_share": hog,
             "accounted": accounted,
         }

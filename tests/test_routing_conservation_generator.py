@@ -260,8 +260,8 @@ def test_a_kernel_summing_to_0999_is_caught_on_every_gate_seed(probe, params, se
 
     # The figure the README quotes has to be the one that binds: every seed has
     # to pass, so it is the smallest ratio across them, not the largest.
-    assert min(ratios) > 4.0, f"ratios {ratios} leave less than 4x of margin"
-    assert max(ratios) < 5.0, f"ratios {ratios} are larger than the README says"
+    assert min(ratios) > 3.0, f"ratios {ratios} leave less than 3x of margin"
+    assert max(ratios) < 4.0, f"ratios {ratios} are larger than the README says"
 
 
 def test_the_residue_is_far_inside_what_a_peak_reading_bound_would_allow(probe, params, seeds):
@@ -355,3 +355,31 @@ def test_a_non_finite_or_unknown_parameter_is_rejected(probe, params, seeds):
         bound(run, probe, {**params, "max_lag_days": 0.0})
     with pytest.raises(ValueError, match="unknown"):
         bound(run, probe, {**params, "min_allowance": 0.05})
+
+
+def _lagged(generated, base_days):
+    """A triangular kernel that conserves mass, so the store is what has not left yet."""
+    weights = np.bartlett(base_days + 2)[1:-1]
+    weights = weights / weights.sum()
+    released = np.convolve(generated, weights)[: len(generated)]
+    return released, np.cumsum(generated) - np.cumsum(released)
+
+
+def test_a_lagged_router_that_loses_nothing_passes(probe, params, seeds):
+    """It holds a storm's water before releasing it, on the first storm after a dry spell too."""
+    bound = get("routing_conservation")
+    for seed in seeds:
+        run = _bucket_run(probe, seed)
+        released, store = _lagged(run.table["mrro"].to_numpy(dtype=float), 15)
+        result = bound(_altered(run, mrro=released, channel=store), probe, params)
+        assert result.status == PASS, f"seed {seed}: {result.message}"
+
+
+def test_a_storm_at_the_end_of_the_record_is_not_read_without_its_release(probe, params, seeds):
+    """The rows with no lag left to look through say nothing either way."""
+    bound = get("routing_conservation")
+    run = _bucket_run(probe, seeds[0])
+    generated = np.zeros(len(run.table))
+    generated[-3] = 200.0
+    released, store = _lagged(generated, 15)
+    assert bound(_altered(run, mrro=released, channel=store), probe, params).status == PASS

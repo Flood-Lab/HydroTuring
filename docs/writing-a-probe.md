@@ -119,7 +119,7 @@ Every one is binary.
 | `groundwater_balance` | recharge, the net river-aquifer exchange and any declared aquifer boundary term (`sources`) add up to the change in `gw`, on every step and over the record; reports the worse residual / allowance against 1 | one run |
 | `exchange_components` | the signed components `gw_to_sw <= 0` and `sw_to_gw >= 0` sum to the reported net exchange; reports the worse of residual and sign excess / tolerance against 1 | one run |
 | `exchange_directions` | the aquifer both gains from and loses to the river by at least `minimum_gross_mm` over the scored record | one run |
-| `et_plausible` | ET is non-negative and bounded by potential ET | one run |
+| `et_plausible` | cumulative ET is non-negative and bounded by potential ET; a row may be net of condensation | one run |
 | `non_degenerate` | the partition and the response are non-trivial | one run |
 | `snowpack_response` | snow storage grows to a material fraction of integrated cold-stage precipitation and is depleted during the following melt stage | complete accumulation-storage-melt cycles in one run |
 | `forcing_fidelity` | the model reports back the forcing it was given | one run |
