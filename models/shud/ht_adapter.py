@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HydroTuring adapter for SHUD (SHUD-System/SHUD, tag cpu-accel-v1.1.1).
+"""HydroTuring adapter for SHUD (SHUD-System/SHUD, commit 851fb8c).
 
 The physics is upstream's: the `shud` executable compiled unmodified, reading the
 text inputs it always reads and writing the binary outputs it always writes. This
@@ -39,7 +39,7 @@ from pathlib import Path
 import numpy as np
 
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "mrso", "snw", "canopy", "gw", "channel", "stage"]
-MODEL = {"name": "shud", "version": "1.1.1-ht.3", "revision": "c7404df0ebaffd67ea267bce32fff36ba36f6cfe"}
+MODEL = {"name": "shud", "version": "2.2-851fb8c.1", "revision": "851fb8c7e146a533a9545f786e8f68fd8a8d817f"}
 
 MINUTES = {"PT1D": 1440, "PT1H": 60}
 UPSTREAM = Path(os.environ.get("HT_SHUD_UPSTREAM", "/model/upstream/ccw"))

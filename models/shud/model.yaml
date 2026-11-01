@@ -1,9 +1,9 @@
 name: shud
-version: "1.1.1-ht.3"
+version: "2.2-851fb8c.1"
 description: >
   SHUD, the Simulator for Hydrologic Unstructured Domains: surface water, an
   unsaturated and a saturated zone and a river, fully coupled and integrated
-  by CVODE on an unstructured mesh, at tag cpu-accel-v1.1.1, compiled
+  by CVODE on an unstructured mesh, at upstream commit 851fb8c, compiled
   unmodified. Run on a minimal mesh, four triangles and one reach, sized and
   parameterised from upstream's example catchment, because no calibration exists
   for a synthetic catchment; the stated capacity sets the aquifer's depth and the
