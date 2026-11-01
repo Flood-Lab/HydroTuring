@@ -95,6 +95,9 @@ authors:
     family-names: Chen
     affiliation: Department of Computer Science and Engineering, State University of New York at Buffalo, Buffalo, NY, USA
     orcid: "https://orcid.org/0009-0001-4031-8545"
+  - given-names: Tommaso
+    family-names: Cerruti
+    affiliation: Department of Computer Science, ETH Zurich, Zurich, Switzerland
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT
