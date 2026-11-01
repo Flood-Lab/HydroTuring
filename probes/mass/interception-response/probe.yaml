@@ -53,7 +53,7 @@ criteria:
       response_floor: 0.5
       # A 1 mm absolute floor on the paired residual only. The direction
       # checks keep the 5% rule. The exact bucket closes to 1e-6 mm; this
-      # only keeps a numerical residual from binding at 8 mm.
+      # only keeps a numerical residual from binding whenever the water moved is under 20 mm.
       floor_mm: 1.0
 
 baselines:

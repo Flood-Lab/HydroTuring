@@ -15,9 +15,9 @@ allocated as physics requires:
     nothing, and a model that parks the water permanently in storage fails
     the same test.
 
-The normalized denominator is the capacity change the case itself prescribes,
-read from the two runs' `case.static` rather than from a number in the probe
-file, so the criterion cannot drift from the generator.
+The residual allowance scales with the water the capacity change actually moved; the
+direction checks use `Delta cap`, read from the two runs' `case.static` rather than
+from a number in the probe file, so the criterion cannot drift from the generator.
 """
 
 from __future__ import annotations

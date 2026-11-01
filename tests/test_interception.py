@@ -190,3 +190,19 @@ def test_a_no_canopy_model_is_scored_not_incomplete():
         _probe(), [_seed()],
     )
     assert outcome.verdict == "PASS", outcome.failing
+
+@pytest.mark.parametrize("et,mrro,allowance", [
+    (100.0, -104.0, 5.2),   # R = -4 mm; the water moved is the runoff change
+    (104.0, -100.0, 5.2),   # R = +4 mm; the water moved is the evaporation change
+])
+def test_the_residual_allowance_scales_with_the_water_moved(et, mrro, allowance):
+    result = _score(_run(2.0), _run(10.0, et=et, mrro=mrro))
+    assert result.passed, result.message
+    assert result.diagnostics["residual_allowance_mm"] == pytest.approx(allowance)
+
+
+def test_a_residual_over_five_percent_of_the_water_moved_fails():
+    result = _score(_run(2.0), _run(10.0, et=100.0, mrro=-106.0))
+    assert not result.passed
+    assert result.diagnostics["failing_check"] == "residual"
+

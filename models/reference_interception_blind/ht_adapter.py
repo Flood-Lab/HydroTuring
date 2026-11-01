@@ -1,8 +1,8 @@
 """Synthetic negative control for mass/interception-response.
 
-MODE = "blind".  The control declares `canopy_capacity_mm` and consumes it,
-but allocates the paired difference the wrong way; it is not physical, and it
-exists only to show that `interception_response` catches the named failure.
+MODE = "blind".  The control declares `canopy_capacity_mm` and never uses it, so
+the two variants are identical; it is not physical, and it exists only to show
+that `interception_response` catches the named failure.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ def simulate(forcing, static):
     # The base bucket runs at a fixed 2 mm capacity, so the declared capacity
     # produces no physical response on its own. The paired difference is then
     # exactly the synthetic allocation below, which is what the control is
-    # built to get wrong. `blind` never reads the declared value at all.
+    # built to get wrong. `blind` reads it and discards it; the other modes use it as described.
     cap = 2.0
 
     # This control is specific to mass/interception-response: its scored

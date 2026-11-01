@@ -42,7 +42,7 @@ criteria 1-3 pass trivially and 4 fails. The floor is on evaporation rather
 than on the canopy-store peak because a model that routes interception loss
 directly to evaporation is physically sound and should not be failed for not
 exposing a separate store; `requires.states` asks only for `mrso`, and
-`reported_states` counts `canopy` whenever a model does report it. Criterion 2
+`reported_states` counts `canopy` whenever a model does report it. The 0.5 floor is deliberate. The no-canopy control reaches as low as 1.7 times the capacity change, and a reference bucket with its canopy store removed reaches 1.2; a floor of 2 would fail a representation this README calls physically sound. Criterion 2
 is diagnostic: a negative evaporation change also fails criterion 4, so it
 mainly names the failure. `reference_interception_no_canopy` exercises the
 no-store representation and must pass.

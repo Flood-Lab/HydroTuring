@@ -72,6 +72,28 @@ evaluation is archived in [models/result.csv](models/result.csv).
 | `cwatm` | Yuanhang Liu (Independent Researcher), [#28](../../issues/28) | HydroTuring maintainers |
 | `lisflood` | Yuanhang Liu (Independent Researcher), [#20](../../issues/20) | HydroTuring maintainers |
 | `modflow6` | Yaji Wang (University of Illinois Urbana-Champaign), [#25](../../issues/25) | Yaji Wang (University of Illinois Urbana-Champaign) |
+| `hymod` | Xiaoyi Dong (China IPPR International Engineering Co., Ltd., SINOMACH), [#133](../../issues/133) | HydroTuring maintainers |
+| `xaj` | Xiaoyi Dong (China IPPR International Engineering Co., Ltd., SINOMACH), [#97](../../issues/97) | HydroTuring maintainers |
+| `gr4j` | kawh1111, [#33](../../issues/33); Li Zeng (The Hong Kong University of Science and Technology), [#96](../../issues/96) | HydroTuring maintainers |
+| `topmodel` | Yan Chen (Colorado State University), [#117](../../issues/117) | HydroTuring maintainers |
+| `tank` | Jiao Wang (University of California Davis), [#124](../../issues/124) | HydroTuring maintainers |
+| `topkapi` | Jiao Wang (University of California Davis), [#123](../../issues/123) | HydroTuring maintainers |
+| `cfe` | Xiaoyi Dong (China IPPR International Engineering Co., Ltd., SINOMACH), [#127](../../issues/127) | HydroTuring maintainers |
+| `simhyd` | Haoyang Su (Fudan University and Shanghai Innovation Institute), [#164](../../issues/164) | HydroTuring maintainers |
+| `mcp1` | Yuan-Heng Wang (University of Arizona), [#89](../../issues/89) | HydroTuring maintainers |
+| `mcp2` | Yuan-Heng Wang (University of Arizona), [#90](../../issues/90) | HydroTuring maintainers |
+| `mcp3` | Yuan-Heng Wang (University of Arizona), [#91](../../issues/91) | HydroTuring maintainers |
+| `mcp4` | Yuan-Heng Wang (University of Arizona), [#92](../../issues/92) | HydroTuring maintainers |
+| `mcp5` | Yuan-Heng Wang (University of Arizona), [#93](../../issues/93) | HydroTuring maintainers |
+| `raven` | Yan Chen (Colorado State University), [#116](../../issues/116) | HydroTuring maintainers |
+| `hype` | Yan Chen (Colorado State University), [#113](../../issues/113) | HydroTuring maintainers |
+| `prms` | Yan Chen (Colorado State University), [#109](../../issues/109) | HydroTuring maintainers |
+| `vic` | Valmik Nahata (University of California San Diego), [#60](../../issues/60) | HydroTuring maintainers |
+| `mhm` | Valmik Nahata (University of California San Diego), [#58](../../issues/58) | HydroTuring maintainers |
+| `shud` | Yuanhang Liu (Independent Researcher), [#106](../../issues/106) | HydroTuring maintainers |
+| `noahmp` | Valmik Nahata (University of California San Diego), [#59](../../issues/59) | HydroTuring maintainers |
+| `rvic` | Jiao Wang (University of California Davis), [#119](../../issues/119) | HydroTuring maintainers |
+| `mizuroute` | Yuanhang Liu (Independent Researcher), [#132](../../issues/132) | HydroTuring maintainers |
 
 Physical reference models, which every compatible probe must pass when their
 outputs support its criteria:

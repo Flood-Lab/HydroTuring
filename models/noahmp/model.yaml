@@ -1,0 +1,58 @@
+name: noahmp
+version: "5.2.1-17751dc.5"
+description: >
+  Noah-MP (Niu et al. 2011), the land scheme of the National Water Model, WRF and
+  NASA LIS: a canopy, a layered snowpack and a layered soil column with a coupled
+  surface energy balance. Built unmodified from NCAR/noahmp v5.2.1 (17751dc) with
+  HRLDAS's makefiles (cd96df4) and run as one column through a small driver that
+  calls upstream's routines in HRLDAS's order, with the physics options and
+  parameter table of upstream's example and its single-point land class. It
+  reports its stores and its latent, sensible and ground heat fluxes. It computes
+  its own net radiation, so it does not take the probes' prescribed rn and is
+  N/A (INCOMPATIBLE) on the probes that require one. Radiation, humidity, wind and
+  pressure a probe does not supply are mocked from each row alone; README.md says
+  how, and how much each choice moves. One 86400 s step stops upstream's own checks,
+  so a daily row is held flat for 24 hourly Noah-MP steps.
+authors:
+  - "G.-Y. Niu, Z.-L. Yang, K. E. Mitchell, F. Chen et al. (Noah-MP); C. He, P. Valayamkunnath and the NCAR Noah-MP refactor team"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1029/2010JD015139"
+license: "UCAR open-source licence (Noah-MP, HRLDAS); adapter under this repository's licence"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# The hour is native. NOAH_TIMESTEP is a real setting and upstream's example runs it at
+# 1800 s, but one step per daily row does not work. SNOW_RET_FAC x dt is 4.32 at 86400 s,
+# so the explicit snow release overdraws the bottom layer and upstream's water-budget
+# check stops the run within weeks. With that check out of the way, the top soil layer's
+# temperature oscillates to unphysical values and upstream stops on negative emitted
+# longwave. So a daily row is held for 24 hourly steps. README.md has the evidence.
+timestep: [PT1H, PT15M, PT5M, PT1M, PT1D]
+substep: {PT1D: PT1H}
+
+emits:
+  fluxes: [pr, evspsbl, mrro, sbl, snm, hfls, hfss, hfg, rlus, hfg_bottom]
+  states: [mrso, snw, canopy]
+  diagnostics: [ts, tsoil_layer]
+
+# pet builds the sky wherever a case supplies neither rn nor both rsds and rlds.
+needs_forcing: [pr, tas, pet]
+# Consumed whenever the case supplies them. `rn` is deliberately absent: it only
+# builds a sky, and Noah-MP computes its own net radiation.
+uses_forcing: [rsds, rlds, sfcWind, huss, ps]
+uses_static:
+  - soil_capacity_mm
+  - canopy_capacity_mm
+  - eps
+  - latitude_deg
+  - elevation_m
+  - soil_layer_depth_m
+  - soil_heat_capacity_areal
+  - soil_temperature_initial
+  - soil_water_content_initial
+  - soil_porosity
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 2, gpu: false}
+
+window_days: full
