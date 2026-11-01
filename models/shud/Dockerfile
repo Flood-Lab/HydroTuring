@@ -12,7 +12,11 @@
 # at build time. The image is one stage because those libraries are needed at
 # load time and the build tools are small beside them.
 
-FROM python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS build
+# Pinned to linux/amd64, as models/lisflood/Dockerfile is:
+# the hypre library path below is spelled for x86-64, and the build does not
+# compile on arm64 (hypre's headers cannot find mpi.h there).
+# Native on an x86-64 host, emulated on an arm64 one.
+FROM --platform=linux/amd64 python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS build
 # Tag cpu-accel-v1.1.1, the revision named in issue #106.
 ARG REVISION=c7404df0ebaffd67ea267bce32fff36ba36f6cfe
 ARG CVODE_SHA256=c968eb5ee891618a423fe49dc82349bfd1fee5c904cd968fff3aaf33f433c48f
