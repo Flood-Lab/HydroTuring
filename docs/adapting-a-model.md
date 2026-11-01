@@ -294,4 +294,11 @@ usually a unit conversion. Forcing is mm/day.
 
 **`state_bounds` fails but `closure` passes** — the model is computing a
 storage term as the budget residual. This is the pattern the benchmark exists
-to detect, and it is worth checking whether it is deliberate.
+to detect, and it is worth checking whether it is deliberate. An upper bound
+named after a static key, such as `soil_capacity_mm`, is N/A for a model that
+does not declare it under `needs_static` or `uses_static`, unless the store past
+that bound also runs away: the means of its first and last thirds differ by more
+than a quarter of its range. A scored record under two years cannot show that, so
+the bound stays there; a model with a learned capacity should ask for
+`window_days: full`. Declaring the key is a claim that the model obeys it, so do
+not declare one the model only passes along.

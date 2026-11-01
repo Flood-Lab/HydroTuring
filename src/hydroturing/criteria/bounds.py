@@ -23,6 +23,23 @@ from hydroturing.spec import ProbeSpec
 
 EPS = 1e-6  # mm, absorbs floating point noise without hiding a real excursion
 
+# A capacity in static.json describes the catchment to a model that reads it. A
+# model that learns its own, as a differentiable HBV does, cannot be held to a
+# number it never used, so for it that upper bound is N/A. Dropping the bound
+# outright would let invented storage through just by not declaring the input,
+# so a store past the capacity must still not run away: the means of its first
+# and last thirds may differ by at most this share of its range. dHBV2 and the
+# MCP models reach 0.134 on their gate seeds. reference_cheater has a median of
+# 0.6 and a lowest of 0.444 over 205 seeds on each of the closure and ungauged
+# probes, and is still caught on the spin-up probe's gate seeds.
+RUNAWAY_SHARE = 0.25
+# Under two years a seasonal or storm-driven rise looks like a drift, so a record
+# that short cannot show the store is stationary, and the bound stays. Otherwise
+# invented storage would escape on the default flood window, which a model gets
+# by asking for nothing. A model that wants the bound dropped asks for the record:
+# `window_days: full`.
+RUNAWAY_MIN_DAYS = 730.0
+
 
 def _resolve(bound, static: dict) -> float:
     """Bounds may be a number, null (unbounded), or a key into static.json."""
@@ -37,6 +54,28 @@ def _resolve(bound, static: dict) -> float:
     raise ValueError(f"cannot interpret state bound {bound!r}")
 
 
+def _unread_capacity(spec, run: RunResult) -> str | None:
+    """The static key behind an upper bound, if the model does not consume it.
+
+    A run with no manifest, as the tests build by hand, is held to the bound.
+    """
+    if run.model is None or not isinstance(spec, (list, tuple)):
+        return None
+    key = spec[1]
+    if isinstance(key, str) and key not in run.model.needs_static + run.model.uses_static:
+        return key
+    return None
+
+
+def _runaway_share(values: np.ndarray) -> float:
+    """How far a store's last third sits from its first, as a share of its range."""
+    third = len(values) // 3
+    span = float(values.max() - values.min())
+    if third == 0 or span <= 0.0:
+        return 0.0
+    return abs(float(values[-third:].mean() - values[:third].mean())) / span
+
+
 @criterion("state_bounds")
 def state_bounds(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     """Every reported storage must stay inside its physical range."""
@@ -45,6 +84,7 @@ def state_bounds(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRes
     w = make_window(run, probe, params.get("phase"))
     static = run.case.static
     violations = []
+    not_applied = []
     worst_excess, worst_var = 0.0, None
 
     for var, spec in params.items():
@@ -54,6 +94,27 @@ def state_bounds(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRes
         hi = _resolve(spec[1], static) if isinstance(spec, (list, tuple)) else math.inf
         values = np.asarray(w.table[var], dtype=float)
 
+        runaway = ""
+        unread = _unread_capacity(spec, run)
+        if unread and values.max() > hi + EPS:
+            share = _runaway_share(values)
+            if len(values) * w.dt_days < RUNAWAY_MIN_DAYS:
+                runaway = (
+                    f", and {len(values) * w.dt_days:g} days cannot show it does not run "
+                    f"away though the model does not consume {unread}"
+                )
+            elif share > RUNAWAY_SHARE:
+                runaway = (
+                    f", and runs away by {share:.2f} of its range "
+                    f"(limit {RUNAWAY_SHARE:g}) though it does not consume {unread}"
+                )
+            else:
+                not_applied.append(
+                    f"{var} upper bound N/A, the model does not consume {unread} "
+                    f"(peak {values.max():.3g} against {hi:g})"
+                )
+                hi = math.inf
+
         below = float(np.maximum(lo - values.min(), 0.0))
         above = float(np.maximum(values.max() - hi, 0.0)) if math.isfinite(hi) else 0.0
         excess = max(below, above)
@@ -62,7 +123,7 @@ def state_bounds(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRes
             n_bad = int(((values < lo - EPS) | (values > hi + EPS)).sum())
             violations.append(
                 f"{var} leaves [{lo:g}, {hi:g}] on {n_bad} steps "
-                f"(range {values.min():.3g} to {values.max():.3g})"
+                f"(range {values.min():.3g} to {values.max():.3g}){runaway}"
             )
             if excess > worst_excess:
                 worst_excess, worst_var = excess, var
@@ -73,8 +134,15 @@ def state_bounds(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRes
         status=PASS if ok else FAIL,
         value=worst_excess,
         threshold=EPS,
-        message="all storages stay physical" if ok else "; ".join(violations),
-        diagnostics={"worst_variable": worst_var, "n_violations": len(violations)},
+        message=(
+            "; ".join(["all storages stay physical", *not_applied])
+            if ok else "; ".join(violations)
+        ),
+        diagnostics={
+            "worst_variable": worst_var,
+            "n_violations": len(violations),
+            "bounds_not_applied": not_applied,
+        },
     )
 
 

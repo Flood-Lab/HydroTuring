@@ -112,8 +112,9 @@ Of the 28 attributes the parameterisation network reads:
 
 ## Structure read from the checkpoint
 
-The `config.yaml` shipped with the weights declares four HBV components
-and no routing. The weights disagree: the LSTM's output layer has 9 units
+The `config.yaml` first shipped with the weights declared four HBV components
+and no routing; the one republished on 2026-10-31 declares three, and still no
+routing. The weights disagree: the LSTM's output layer has 9 units
 (three dynamic parameters × three components) and the MLP's has 41
 (thirteen static parameters × three, plus two unit-hydrograph
 parameters). Loaded as configured, the checkpoint does not fit. The
@@ -141,6 +142,15 @@ area handed in and with the attributes above. The closure criterion
 measures exactly this residual. The unit hydrograph itself is normalised
 to sum to one and conserves what enters it.
 
+## The soil capacity
+
+The probes' `soil_capacity_mm` (320 mm on the closure probe) is in `static.json`
+but this model does not read it: HBV takes its capacity from the learned `parFC`.
+`mrso` runs above that number on most probes, 494-668 mm on the closure probe. The
+upper bound is N/A for this model, and no store runs away, so `state_bounds` passes
+on what it can still check. It is not a claim that `mrso` stays below `parFC`, which
+the contract has no way to report.
+
 ## Running it
 
 ```bash
@@ -152,3 +162,23 @@ The image is built from the pinned commit and the weights URL at build
 time; the container runs with no network. One lumped catchment over the
 full ten-year record takes about five seconds, most of it loading the
 400 MB of MLP weights.
+
+## The weights changed on 2026-10-31
+
+The URL carries no version. MHPI republished the archive that day with a new
+`config.yaml`. The checkpoint's file date (2026-06-30) predates this model's
+first evaluation, but no hash of the earlier files was kept, so what else
+changed cannot be said. The adapter needed
+one line, a default for the `multimodel_type` key the new config no longer
+sets. SUMMA reproduced its archived closure numbers the same day, which points
+at the files rather than the harness, and three of this model's verdicts moved
+(`mass/extreme-rain` to PASS; `mass/resolution-invariance` and
+`mass/response-nonnegativity` to FAIL). Version `0.5.4-hbv2ep100.4` is that
+state, and the Dockerfile now pins its three files by SHA-256.
+
+MHPI then removed the archive from the bucket, while its setup docs still point
+to the URL, so a build with no cached copy of the download fails until the
+archive returns. The `.4` rows were produced from a copy taken out of the local
+image, whose hashes match the pins, with the download step swapped for a `COPY`.
+If the archive returns with other files, the hash check fails the build, and
+that is a new version to evaluate.

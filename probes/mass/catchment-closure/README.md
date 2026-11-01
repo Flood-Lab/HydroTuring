@@ -55,6 +55,13 @@ invented storage is not a storage, and over ten years it drifts far outside
 what a 320 mm soil column can hold. `reference_cheater` demonstrates this and
 is required to fail here.
 
+The 320 mm describes this synthetic catchment to a model that reads it. A model
+that learns its own capacity and does not declare `soil_capacity_mm` is not held
+to it, so for that model the upper bound is N/A, unless its store past the bound
+also runs away: the means of the first and last thirds differ by more than a
+quarter of its range. A scored record under two years cannot show that, so the
+bound stays there. `reference_cheater` declares nothing and fails either way.
+
 ## Reproducing a failure
 
 Every run records its seed. To re-run one:
