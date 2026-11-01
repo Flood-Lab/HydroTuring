@@ -10,7 +10,7 @@ description: >
   probe is watching the sum, and it is why energy/evaporative-partition
   bounds the ground share as well as the sum.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D]

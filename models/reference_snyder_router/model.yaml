@@ -7,7 +7,7 @@ description: >
   unit hydrograph whose peak occurs that travel time after the excess-rainfall
   centroid.
 authors: [binbinlan]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: [python3, ht_adapter.py]
 timestep: PT1D

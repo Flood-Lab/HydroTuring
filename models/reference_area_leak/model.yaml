@@ -5,7 +5,7 @@ description: >
   area it is told: none at 25 km2, half at 2500. Depths should not depend
   on area; this model's do. It pins area invariance.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]

@@ -5,7 +5,7 @@ description: >
   snowpack and enters the soil directly. Catchment water is conserved, but
   the internal snowpack budget does not close.
 authors: ["Jinlong Hu"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]

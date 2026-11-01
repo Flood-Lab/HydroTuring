@@ -9,7 +9,7 @@ description: >
   layer has no evaporation, phase change, advection or internal heat sources.
   Synthetic positive reference for energy/soil-heat-storage-consistency.
 authors: ["Han Wang"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1H

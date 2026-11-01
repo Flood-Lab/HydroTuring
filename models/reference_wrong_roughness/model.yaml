@@ -6,7 +6,7 @@ description: >
   The rating remains smooth and monotone while its roughly 5.7% momentum
   residual sits just outside the 5% allowance.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1D

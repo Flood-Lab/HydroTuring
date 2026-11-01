@@ -7,7 +7,7 @@ description: >
   read and no loop to form. Pins the degeneracy check on the stage itself —
   a number that never moves cannot be a measurement.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]
