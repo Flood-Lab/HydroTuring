@@ -446,7 +446,7 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`, pre-release. Thirty-seven probes, twenty-four mass, seven energy, six momentum, synthetic track only. More
+Suite `0.1.0`. Thirty-seven probes, twenty-four mass, seven energy, six momentum, synthetic track only. More
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes; spatial and temporal closure, counterfactual response
 and invariance are represented in the suite. The roadmap lists the remaining
