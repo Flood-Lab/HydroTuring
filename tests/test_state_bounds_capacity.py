@@ -97,3 +97,40 @@ def test_a_record_too_short_to_show_the_store_is_stationary_keeps_the_bound(prob
     result = state_bounds(RunResult(short, table, {}, 0, model=unread()), probe)
     assert not result.passed
     assert "cannot show it does not run away" in result.message
+
+
+def over_capacity(case, rows, store):
+    """The exact bucket on `rows` rows, with its soil store replaced after the spinup."""
+    short = replace(case, forcing=case.forcing.iloc[:rows].reset_index(drop=True))
+    table = simulated("reference_bucket", short)
+    scored = rows - case.spinup_steps
+    table["mrso"] = case.static["soil_capacity_mm"] + np.r_[np.ones(case.spinup_steps), store(scored)]
+    return RunResult(short, table, {}, 0, model=unread())
+
+
+def test_a_store_that_accelerates_cannot_hide_behind_the_height_it_reached(probe, case):
+    run = over_capacity(case, len(case.forcing), lambda n: 400.0 * 1.005 ** np.arange(n))
+    result = state_bounds(run, probe)
+    assert not result.passed
+    assert "runs away" in result.message
+
+
+def test_a_store_that_turns_infinite_runs_away(probe, case):
+    def store(n):
+        values = np.ones(n)
+        values[n // 2:] = np.inf
+        return values
+
+    result = state_bounds(over_capacity(case, len(case.forcing), store), probe)
+    assert not result.passed
+    assert "runs away" in result.message
+
+
+@pytest.mark.parametrize("days", [730, 1095, 1200])
+def test_a_season_is_not_a_drift(probe, case, days):
+    def store(n):
+        return 100.0 + 100.0 * np.sin(2.0 * np.pi * np.arange(n) / 365.0)
+
+    result = state_bounds(over_capacity(case, case.spinup_steps + days, store), probe)
+    assert result.passed
+    assert "mrso upper bound N/A" in result.message

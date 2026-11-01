@@ -28,10 +28,11 @@ EPS = 1e-6  # mm, absorbs floating point noise without hiding a real excursion
 # number it never used, so for it that upper bound is N/A. Dropping the bound
 # outright would let invented storage through just by not declaring the input,
 # so a store past the capacity must still not run away: the means of its first
-# and last thirds may differ by at most this share of its range. dHBV2 and the
-# MCP models reach 0.134 on their gate seeds. reference_cheater has a median of
-# 0.6 and a lowest of 0.444 over 205 seeds on each of the closure and ungauged
-# probes, and is still caught on the spin-up probe's gate seeds.
+# and last whole years, up to a third of the record, may differ by at most this
+# share of the range it covered before those last years. dHBV2 and the MCP models
+# reach 0.162 on their gate seeds. reference_cheater has a lowest of 0.399 and
+# 0.556 over 205 seeds on the closure and ungauged probes, and is still caught on
+# the spin-up probe's gate seeds.
 RUNAWAY_SHARE = 0.25
 # Under two years a seasonal or storm-driven rise looks like a drift, so a record
 # that short cannot show the store is stationary, and the bound stays. Otherwise
@@ -39,6 +40,7 @@ RUNAWAY_SHARE = 0.25
 # by asking for nothing. A model that wants the bound dropped asks for the record:
 # `window_days: full`.
 RUNAWAY_MIN_DAYS = 730.0
+YEAR_DAYS = 365.25
 
 
 def _resolve(bound, static: dict) -> float:
@@ -67,13 +69,22 @@ def _unread_capacity(spec, run: RunResult) -> str | None:
     return None
 
 
-def _runaway_share(values: np.ndarray) -> float:
-    """How far a store's last third sits from its first, as a share of its range."""
-    third = len(values) // 3
-    span = float(values.max() - values.min())
-    if third == 0 or span <= 0.0:
+def _runaway_share(values: np.ndarray, dt_days: float) -> float:
+    """How far a store's last years sit from its first, against what it did before them.
+
+    Whole years, so a season cannot read as a drift, and the range before the last
+    block, so a store that accelerates cannot hide behind the height it reached.
+    """
+    if not np.isfinite(values).all():
+        return math.inf
+    years = max(1, int(len(values) * dt_days / 3 / YEAR_DAYS))
+    block = round(years * YEAR_DAYS / dt_days)
+    earlier = values[:-block]
+    drift = abs(float(values[-block:].mean() - values[:block].mean()))
+    span = float(earlier.max() - earlier.min())
+    if drift == 0.0:
         return 0.0
-    return abs(float(values[-third:].mean() - values[:third].mean())) / span
+    return drift / span if span > 0.0 else math.inf
 
 
 @criterion("state_bounds")
@@ -97,15 +108,14 @@ def state_bounds(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRes
         runaway = ""
         unread = _unread_capacity(spec, run)
         if unread and values.max() > hi + EPS:
-            share = _runaway_share(values)
             if len(values) * w.dt_days < RUNAWAY_MIN_DAYS:
                 runaway = (
                     f", and {len(values) * w.dt_days:g} days cannot show it does not run "
                     f"away though the model does not consume {unread}"
                 )
-            elif share > RUNAWAY_SHARE:
+            elif (share := _runaway_share(values, w.dt_days)) > RUNAWAY_SHARE:
                 runaway = (
-                    f", and runs away by {share:.2f} of its range "
+                    f", and runs away by {share:.2f} of its earlier range "
                     f"(limit {RUNAWAY_SHARE:g}) though it does not consume {unread}"
                 )
             else:
