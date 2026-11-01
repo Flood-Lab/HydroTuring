@@ -1,0 +1,42 @@
+name: reference_confined_aquifer
+version: 1.0.0
+description: Exact interval solution of a passive confined aquifer with prescribed
+  river stage.
+authors:
+- Tommaso Cerruti (ETH Zurich)
+license: PolyForm-Noncommercial-1.0.0
+runner: subprocess
+entrypoint:
+- python3
+- ht_adapter.py
+timestep:
+- PT1D
+- PT1H
+- PT15M
+- PT5M
+- PT1M
+emits:
+  fluxes:
+  - gw_sw_exchange
+  - gw_to_sw
+  - sw_to_gw
+  states:
+  - gw
+needs_forcing:
+- gw_recharge
+- sw_stage_m
+needs_static:
+- area_km2
+- aquifer_storage_coefficient
+- aquifer_specific_yield
+- aquifer_initial_head_m
+- aquifer_top_m
+- aquifer_bottom_m
+- river_conductance_m2_per_day
+- river_bottom_offset_m
+supports:
+  perturbation: true
+resources:
+  cpu: 1
+  memory_gb: 1
+  gpu: false

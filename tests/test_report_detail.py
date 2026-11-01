@@ -49,6 +49,7 @@ HEADLINES = {
     "mass/gw-sw-exchange-consistency": ("exchange_components",),
     "mass/groundwater-datum-invariance": ("datum_flux_invariance",),
     "mass/aquifer-recharge-ordering": ("aquifer_recharge_ordering",),
+    "mass/aquifer-equilibrium-bounds": ("aquifer_equilibrium_bounds",),
     "mass/human-abstraction": ("human_abstraction",),
     "mass/multi-decadal-drift": ("state_bounds", "total_storage_drift"),
     "mass/phase-counterfactual": ("phase_invariance",),

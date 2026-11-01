@@ -28,6 +28,7 @@ long.
 | `mass/runoff-bounds` | Zhi Li (CU Boulder) |
 | `mass/groundwater-datum-invariance` | Zhenjiang Wu (Xi’an Jiaotong University) |
 | `mass/aquifer-recharge-ordering` | Zhenjiang Wu (Institute of Global Environmental Change, Xi’an Jiaotong University) |
+| `mass/aquifer-equilibrium-bounds` | Tommaso Cerruti (Department of Computer Science, ETH Zurich, Zurich, Switzerland) |
 | `mass/area-invariance` | Zhi Li (CU Boulder) |
 | `mass/response-nonnegativity` | Zhi Li (CU Boulder) |
 | `mass/antecedent-monotonicity` | Zhi Li (CU Boulder) |

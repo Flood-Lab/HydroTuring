@@ -1,0 +1,86 @@
+id: mass/aquifer-equilibrium-bounds
+title: Confined aquifer storage stays inside its prescribed hydraulic envelope
+law: mass
+track: synthetic
+version: 1
+authors:
+- name: Tommaso Cerruti
+  affiliation: Department of Computer Science, ETH Zurich, Zurich, Switzerland
+  orcid: 0009-0009-5188-7805
+  github: tommasocerruti
+description: A source-free confined aquifer relaxes toward a constant prescribed river
+  head without leaving the storage envelope set by that head and its supplied storativity.
+requires:
+  fluxes:
+  - gw_sw_exchange
+  - gw_to_sw
+  - sw_to_gw
+  states:
+  - gw
+  forcing:
+  - gw_recharge
+  - sw_stage_m
+  static:
+  - area_km2
+  - aquifer_storage_coefficient
+  - aquifer_specific_yield
+  - aquifer_initial_head_m
+  - aquifer_top_m
+  - aquifer_bottom_m
+  - river_conductance_m2_per_day
+  - river_bottom_offset_m
+case:
+  generator: generate.py
+  n_seeds: 5
+  timestep: PT1D
+  period_days: 90
+  spinup_days: 2
+  min_window_days: 90
+  max_output_mb: 2.0
+  max_runtime_s: 60
+  variants:
+  - control
+  - raised
+  - lowered
+criteria:
+- aquifer_equilibrium_bounds:
+    # 0.01% of prescribed |B| = 1000 sigma |H-h0|, with a 1e-4 mm floor.
+    # Paired native input rounding + head/mapping audit limits <= 6.91e-6 |B|
+    # over the generated domain: the allowance retains >14x precision margin.
+    # The recorded native evidence and fault-size study are in the README.
+    rel_tol: 0.0001
+    abs_tol_mm: 0.0001
+    initial_abs_tol_mm: 0.0001
+    neutral_abs_tol_mm: 0.0001
+    boundary_abs_tol_mm: 1.0e-06
+    # Descriptive only: flag either arm at <=1% of its own prescribed bound.
+    # This provisional reporting threshold does not change PASS/FAIL.
+    response_fraction_threshold: 0.01
+- groundwater_balance:
+    sources:
+    - gw_boundary
+    rel_tol: 0.01
+    abs_tol_mm: 0.0002
+    all_variants: true
+- exchange_components:
+    rel_tol: 1.0e-06
+    abs_tol: 0.0001
+    all_variants: true
+- state_bounds:
+    gw:
+    - 0.0
+    - null
+    all_variants: true
+baselines:
+  must_pass:
+  - reference_confined_aquifer
+  - reference_confined_aquifer_implicit
+  must_fail:
+    reference_amplified_river_head: aquifer_equilibrium_bounds
+    reference_inflated_aquifer_storage: aquifer_equilibrium_bounds
+  must_fail_only:
+  - reference_amplified_river_head
+  - reference_inflated_aquifer_storage
+provenance: Synthetic, deterministic from a recorded seed. Accepted proposal https://github.com/Flood-Lab/HydroTuring/issues/159.
+  All variants share initialization and zero recharge; only the prescribed post-spinup
+  river head changes.
