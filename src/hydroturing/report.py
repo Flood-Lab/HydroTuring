@@ -12,6 +12,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +29,7 @@ from hydroturing.scoring import (
     ModelReport,
     ProbeOutcome,
 )
+from hydroturing.spec import REPO_ROOT
 
 PASS_MARK, FAIL_MARK, NOT_SCORED_MARK = "\u2705", "\u274c", "\u2796"
 # Same width as each other, so columns line up whichever set is in use.
@@ -246,7 +248,28 @@ CSV_COLUMNS = [
     "window",
     "seeds",
     "detail",
+    "commit",
 ]
+
+
+def source_commit() -> str:
+    """The commit the code, probes and models were read from, empty outside a checkout.
+
+    Marked `+dirty` when any of them differ from it, so a row cannot claim a commit
+    it did not run. The archive itself is left out, since appending to it is the point.
+    """
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(REPO_ROOT), *args], capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+    try:
+        head = git("rev-parse", "HEAD")
+        dirty = git("status", "--porcelain", "--", "src", "probes", "schemas", "models",
+                    ":!models/result.csv")
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+    return f"{head}+dirty" if dirty else head
 
 
 def to_csv_rows(report: ModelReport, run_date: str | None = None) -> list[dict[str, str]]:
@@ -257,6 +280,7 @@ def to_csv_rows(report: ModelReport, run_date: str | None = None) -> list[dict[s
     the suite can be seen growing around it.
     """
     run_date = run_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    commit = source_commit()
     rows = []
     for probe in report.probes:
         rows.append({
@@ -271,6 +295,7 @@ def to_csv_rows(report: ModelReport, run_date: str | None = None) -> list[dict[s
             "window": window_label(probe),
             "seeds": " ".join(str(s) for s in probe.seeds),
             "detail": _detail(probe, plain=True),
+            "commit": commit,
         })
     return rows
 
@@ -325,6 +350,7 @@ def contract_row(
         "window": window,
         "seeds": str(seed),
         "detail": detail,
+        "commit": source_commit(),
     }
 
 
@@ -333,6 +359,11 @@ def append_csv_rows(rows: list[dict[str, str]], path: str | Path) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     is_new = not path.exists() or path.stat().st_size == 0
+    if not is_new:
+        with open(path, newline="") as fh:
+            header = next(csv.reader(fh))
+        if header != CSV_COLUMNS:
+            raise ValueError(f"{path} has columns {header}, expected {CSV_COLUMNS}")
     with open(path, "a", newline="") as fh:
         # The csv module ends rows in \r\n on every platform unless told
         # otherwise, and the archive is committed as LF text.
