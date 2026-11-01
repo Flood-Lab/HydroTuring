@@ -194,5 +194,12 @@ handed the parameter network different attributes. Daily rows are unchanged. On
 `mass/resolution-invariance` the worst reading moved from `mrso_end` at 41.9 % of
 the rain to `mrro` at 12.1 %, still over the 10 % limit, so the verdict stands.
 
-Archived on the gate seeds under Docker on Apple Silicon at `3e86a79`: **FAIL
+## Version `.6`
+
+`0.5.4-hbv2ep100.6` also changes the adapter only. The zero-rain guard on
+`snowfall_fraction` checked the whole record while the fraction divided by the
+whole days within it, so rain falling only in a last partial day gave the network
+a NaN. The guard now checks those days. No row changed.
+
+Archived on the gate seeds under Docker on Apple Silicon at `66118d8`: **FAIL
 (VIOLATION), 15 PASS, 6 FAIL, 16 N/A**.

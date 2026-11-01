@@ -75,7 +75,7 @@ located by the probe's reference model, with the full spinup in front of it
 record would take several minutes per seed and does not fit the probe's time
 budget.
 
-## Results (2026-11-01, suite 0.1.0, version `0.1.0-828dfc5.1`, Docker on Apple Silicon at `3e86a79`)
+## Results (2026-11-01, suite 0.1.0, version `0.1.0-828dfc5.2`, Docker on Apple Silicon at `66118d8`)
 
 | Check | Outcome |
 | --- | --- |
@@ -178,6 +178,10 @@ Until `0.1.0-828dfc5.1` the adapter computed the attributes defined over days
 per row, so the hourly run was handed different attributes from the daily
 one, and that hid part of the difference: the archived figure was 65.9%, with
 126 mm from the hourly record. Daily rows are unchanged.
+
+`0.1.0-828dfc5.2` makes the zero-rain guard on `frac_snow` check the whole days
+the fraction divides by, not the whole record, so rain falling only in a last
+partial day no longer gives the network a NaN. No row changed.
 
 ## Reproduce
 

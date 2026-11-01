@@ -230,7 +230,7 @@ its own mechanisms. What a next evaluation should know:
   tag carries the canopy fix `0958682c78da`. It passes 9 of 22, where the tag passed 3. The README's
   earlier 8 of 22 at that commit was adapter `.2`: row-mean `stage` since `.3` moves
   `stage-discharge-monotonic` to PASS, end-of-row `stage` fails two gate seeds of three, and seed 606
-  fails even as archived. Every model was re-archived under Docker on Apple Silicon at `3e86a79`.
+  fails even as archived. Every model was re-archived under Docker on Apple Silicon at `3e86a79`; then, after guards against NaN in `counterfactual_response` and two adapters, the two adapters on every probe and every model on `mass/precipitation-counterfactual` at `66118d8`, with no verdict changed.
 
 ### Where a model's reported variable departs from the lexicon
 
