@@ -34,6 +34,10 @@ RUN pip install --no-cache-dir numpy==1.16.6 scipy==1.2.3 pandas==0.24.2 cftime=
  && python -c "import rvic.parameters, rvic.convolution, rvic_convolution" 2>&1 | tail -3 \
  && mkdir -p /model && cp /src/LICENSE.txt /model/LICENSE
 
+# RVIC asks getpass for a username on import, and a container run as a user with
+# no passwd entry has none to give it.
+ENV USER=hydroturing
+
 WORKDIR /model
 COPY ht_adapter.py /model/ht_adapter.py
 
