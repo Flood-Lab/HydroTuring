@@ -1,0 +1,19 @@
+# Applies to the root Dockerfile only. Each model builds from its own
+# directory, so nothing here reaches a model image.
+.git
+.claude
+.omc
+.pytest_cache
+.ruff_cache
+.venv
+venv
+build
+dist
+runs
+results
+CLA.md
+Claude outputs
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+**/.DS_Store

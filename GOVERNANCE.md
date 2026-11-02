@@ -61,7 +61,8 @@ Any such change bumps the suite minor version.
 
 **Cutting a suite version.** The steering committee. Scores are only
 comparable within a suite version, so this is a real decision rather than a
-release chore.
+release chore. Suite 0.1.0 was cut by the maintainer before the committee was
+formed, and so were the corrections to three criteria made in preparing it.
 
 **Removing a probe.** Only if it is shown not to discriminate, which normally
 means the acceptance gate stops separating the reference models. Recorded

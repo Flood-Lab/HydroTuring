@@ -20,7 +20,7 @@ description: >
   yet released. It can never be negative, and it can never hold more than the
   flow feeding it could have put there over the length of its hydrograph: at
   any step the channel is at most fifteen days of the largest runoff seen
-  over the preceding month. A kernel that does not sum to one leaves water in
+  from the preceding month through the fifteen days ahead. A kernel that does not sum to one leaves water in
   the channel forever, and the store grows past what any hydrograph can hold.
   The dry spells are what make the smaller leak visible: over a rainless
   spell the runoff falls to the baseflow and then to nothing, so the peak the
@@ -57,12 +57,12 @@ criteria:
       # `wflow_sbm`'s river is the case it exists for, and its need is the
       # largest measured on this case: 0.0026 mm through the droughts, against
       # which this value leaves it about 19x. On the three gate seeds the models
-      # that route sit at 0.01 to 0.58 of the whole allowance (summa 0.01, dhbv2
-      # 0.04, flex_topo 0.11, lisflood 0.12, wflow_sbm and sacsma_snow17 0.16,
-      # cwatm 0.47, flex_lumped 0.58), whose tightest leaves 1.7x of room, and
-      # the smallest leak this probe exists to catch — a kernel keeping a tenth
-      # of a percent of every day's runoff — reaches 4.13x to 4.40x the whole
-      # allowance, and the gate stops catching it only above 0.651 mm.
+      # that route sit at 0.00 to 0.73 of the whole allowance (dhbv2 0.00, summa
+      # 0.01, lisflood 0.05, flex_topo 0.07, topkapi 0.14, sacsma_snow17 0.15,
+      # wflow_sbm 0.16, cwatm 0.28, xaj 0.32, flex_lumped 0.58, gr4j 0.73), whose
+      # tightest leaves about 1.4x of room, and the smallest leak this probe exists to catch — a kernel keeping a tenth
+      # of a percent of every day's runoff — reaches 3.17x to 3.63x the whole
+      # allowance, and the gate stops catching it only above 0.574 mm.
       min_allowance_mm: 0.05
 
   - non_degenerate:
@@ -81,9 +81,9 @@ baselines:
     # never leaves the channel, and the store grows without bound.
     reference_stuck_router: routing_conservation
     # The same kernel at 0.999, which is the case this probe's allowance is
-    # calibrated against: a leak of a tenth of a percent reaches 4.1 to 4.4
+    # calibrated against: a leak of a tenth of a percent reaches 3.2 to 3.6
     # times the whole allowance, and the gate stops catching it only once
-    # `min_allowance_mm` passes 0.651 mm, where the 0.9 kernel is three orders of
+    # `min_allowance_mm` passes 0.574 mm, where the 0.9 kernel is three orders of
     # magnitude clear of it and cannot see the parameter at all. Both are
     # pinned because the gate has to hold the number the probe exists to
     # choose, not merely prove that the criterion can catch a router fault:

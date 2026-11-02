@@ -7,7 +7,7 @@ description: >
   cumulative energy budget while every phase has a large absolute error.
   This is the declared negative control for energy/surface-energy-closure.
 authors: ["Han Wang"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1H]

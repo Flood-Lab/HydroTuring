@@ -8,7 +8,11 @@
 #
 # One stage: the executable links dynamically against Debian's MPI and netCDF, and
 # keeping one stage keeps those libraries certain to be the ones it was linked with.
-FROM python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
+# Pinned to linux/amd64, as models/lisflood/Dockerfile is:
+# the NetCDF path below is spelled for x86-64, and PIO's CMake configure fails on
+# arm64 (its MPI Fortran check does not pass there).
+# Native on an x86-64 host, emulated on an arm64 one.
+FROM --platform=linux/amd64 python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
 
 ENV PYTHONUNBUFFERED=1
 ENV OMP_NUM_THREADS=1

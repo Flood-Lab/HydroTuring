@@ -97,8 +97,9 @@ authors:
     orcid: "https://orcid.org/0009-0001-4031-8545"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
-license: MIT
+license: CC-BY-NC-4.0
 version: 0.1.0
+date-released: 2026-11-01
 abstract: >-
   HydroTuring tests whether an AI-based hydrologic model conserves mass,
   energy and momentum, rather than whether it fits a hydrograph. Forcing is

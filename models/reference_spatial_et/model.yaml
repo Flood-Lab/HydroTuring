@@ -4,7 +4,7 @@ description: Causal attribute-dependent et fault. Diagnostic fixture for ungauge
   not a scientific model.
 authors:
 - Shunan Zhou
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint:
 - python3

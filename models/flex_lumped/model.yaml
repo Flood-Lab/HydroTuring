@@ -15,7 +15,7 @@ description: >
   zero.
 authors: ["Zhi Li (model, github.com/chrimerss/HydrologicModels)", "HydroTuring maintainers (adapter)"]
 reference: "https://github.com/chrimerss/HydrologicModels/tree/master/lumped_model"
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]

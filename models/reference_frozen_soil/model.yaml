@@ -5,7 +5,7 @@ description: >
   its initial value. Its native fluxes are unchanged, so surface energy still
   closes while the declared layer storage disagrees with its boundary fluxes.
 authors: ["Han Wang"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1H

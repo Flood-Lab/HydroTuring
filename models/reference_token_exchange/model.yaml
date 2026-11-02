@@ -12,7 +12,7 @@ description: >
   conductance answers with a bounded share of its own movement. Its steady
   sibling, reference_steady_sink, is the case that share cannot see.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1D

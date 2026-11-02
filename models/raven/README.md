@@ -106,7 +106,7 @@ melt see later hours of the same day (read from the source, not tested). No hour
 
 ## Evaluation
 
-Gate seeds, all 37 probes, on the merged tree: **7 PASS, 15 FAIL, 15 N/A** (13 INCOMPLETE, 2 INCOMPATIBLE).
+Gate seeds, all 37 probes, under Docker on Apple Silicon at `3e86a79`, version `4.12-81011f0.2`: **7 PASS, 15 FAIL, 15 N/A** (13 INCOMPLETE, 2 INCOMPATIBLE).
 No ERROR rows. A rerun on the merged tree reproduced every row of the previous run. The whole suite takes
 about a minute on a node. Closure holds everywhere it is measured, with a residual of 0.0000% of the rain
 and Raven's own mass-balance error at 0, at PT1D and PT1H alike. **Raven conserves water.** The FAILs say
@@ -250,7 +250,7 @@ Gate-seed worst values. Verified means a targeted run or the source; inferred is
 | `mass/snowpack-mass-closure` | PASS | 0.0000% | depends on the case's zero canopy capacity reaching the model |
 | `mass/steady-state` | PASS | runoff 0.032 mm/d under 2.5 mm/d of rain | settles, by evaporating nearly all of it |
 | `mass/time-origin-invariance` | PASS | departure 0 | |
-| `momentum/routing-conservation` | PASS | within 0.26 of what a 15-day hydrograph can hold | a 2.3-day triangular hydrograph holds little |
+| `momentum/routing-conservation` | PASS | within 0.09 of what a 15-day hydrograph can hold | a 2.3-day triangular hydrograph holds little |
 
 N/A: `routing-lag-consistency` and `wave-celerity-bounds` are INCOMPATIBLE, because this configuration has
 `ROUTE_NONE` and a `TIME_CONC` parameter, so the case's channel geometry has nothing to enter; the energy probes,

@@ -114,12 +114,12 @@ Every one is binary.
 | --- | --- | --- |
 | `closure` | the declared budget closes to within a share of the driving flux; `states` can scope the storage term, `optional_sinks` may be absent, and `segment_column` scores contiguous labelled stretches separately so opposite residuals cannot cancel | one run or contiguous labelled stretches |
 | `event_water_closure` | every complete precipitation event satisfies `abs(R) <= max(threshold * P, absolute_tolerance_mm)`; defaults 0.05 and 0.001 mm; reports the worst residual / allowance against 1, with up to 20 failed events and summary percentiles | complete post-spinup wet events in one run, using supplied rain and all reported water stores |
-| `state_bounds` | every reported storage stays physical | one run |
+| `state_bounds` | every reported storage stays physical; an upper bound named after a static key is N/A for a model that does not consume it, unless the store runs away | one run |
 | `total_storage_drift` | total reported water storage changes by no more than a precipitation-relative allowance over the final repeated block | one run |
 | `groundwater_balance` | recharge, the net river-aquifer exchange and any declared aquifer boundary term (`sources`) add up to the change in `gw`, on every step and over the record; reports the worse residual / allowance against 1 | one run |
 | `exchange_components` | the signed components `gw_to_sw <= 0` and `sw_to_gw >= 0` sum to the reported net exchange; reports the worse of residual and sign excess / tolerance against 1 | one run |
 | `exchange_directions` | the aquifer both gains from and loses to the river by at least `minimum_gross_mm` over the scored record | one run |
-| `et_plausible` | ET is non-negative and bounded by potential ET | one run |
+| `et_plausible` | cumulative ET is non-negative and bounded by potential ET; a row may be net of condensation | one run |
 | `non_degenerate` | the partition and the response are non-trivial | one run |
 | `snowpack_response` | snow storage grows to a material fraction of integrated cold-stage precipitation and is depleted during the following melt stage | complete accumulation-storage-melt cycles in one run |
 | `forcing_fidelity` | the model reports back the forcing it was given | one run |

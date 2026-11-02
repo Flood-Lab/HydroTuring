@@ -137,7 +137,7 @@ resolution numbers by at most 0.03% of rain, so the form of the rule is not what
 
 ## Verdict
 
-Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch2707.4`: **FAIL (VIOLATION), 8 of 20 scored**, 17 N/A
+Gate seeds, Docker on Apple Silicon at `3e86a79`, 2026-11-01, version `5944b5f-epoch2707.4`: **FAIL (VIOLATION), 14 of 20 scored**, 17 N/A
 (16 INCOMPLETE, 1 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not
 read). The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `gwex`, `channel`, `stage` and `dis`.
 
@@ -146,37 +146,37 @@ round-off in updates that conserve mass by construction. Trivial passes for this
 area), `phase-counterfactual` (reads no temperature) and `time-origin-invariance` (reads no calendar), as are the
 bounds on the zero `snw` and `canopy`.
 
-Five of the 13 FAILs are `state_bounds` and nothing else.
+On seven probes the store passes the case's capacity. That upper bound is N/A for this model, which does not consume `soil_capacity_mm`, and no store runs away.
 
 | Probe | Result | Detail |
 | --- | --- | --- |
 | energy/pet-consistency | PASS | 0.99 of demand when wet, 0.39 when dry |
 | mass/antecedent-monotonicity | **FAIL** | -2.3 mm: the wetter catchment runs off less |
 | mass/area-invariance | PASS | trivially: the model reads no area |
-| mass/catchment-closure | **FAIL** | `state_bounds`: `mrso` 436-840 mm against 320 |
+| mass/catchment-closure | PASS | `mrso` 436-840 mm, capacity bound N/A |
 | mass/causality | PASS | nothing moves before the storm |
 | mass/dry-down | **FAIL** | `mrro` rises 11.4% in a week with no rain |
-| mass/extreme-event-closure | **FAIL** | `state_bounds`: `mrso` 413-936 mm against 320; event closure passes |
+| mass/extreme-event-closure | PASS | `mrso` 413-936 mm, capacity bound N/A; event closure passes |
 | mass/extreme-rain | **FAIL** | 1.17 of the added rain comes back |
-| mass/human-abstraction | **FAIL** | 380 mm of 380 unaccounted for; `state_bounds`: `mrso` 424-833 mm against 320 |
-| mass/multi-decadal-drift | **FAIL** | `state_bounds`: `mrso` 645-695 mm against 320; `et_plausible`: 1 + 4.2e-8 of demand, round-off; no drift |
+| mass/human-abstraction | **FAIL** | 380 mm of 380 unaccounted for |
+| mass/multi-decadal-drift | PASS | `mrso` peaks at 692 mm, capacity bound N/A; no drift |
 | mass/phase-counterfactual | PASS | trivially: the model reads no temperature |
-| mass/precipitation-counterfactual | **FAIL** | `state_bounds`: `mrso` 433-821 mm against 320; the partition passes |
+| mass/precipitation-counterfactual | PASS | `mrso` 433-821 mm, capacity bound N/A; the partition passes |
 | mass/resolution-invariance | PASS | `mrso_end` 0.5% of rain |
 | mass/response-nonnegativity | **FAIL** | `mrro` 0.614 mm/day below control after added rain |
 | mass/runoff-bounds | PASS | runoff 0.37 of rain |
-| mass/spinup-cycle-invariance | **FAIL** | `state_bounds`: `mrso` 429-743 mm against 320; the invariance passes |
+| mass/spinup-cycle-invariance | PASS | `mrso` 429-743 mm, capacity bound N/A; the invariance passes |
 | mass/steady-state | **FAIL** | `mrro` still moving 11.7% in year 3 of constant weather |
 | mass/time-origin-invariance | PASS | trivially: the model reads no calendar |
-| mass/ungauged-basin-closure | **FAIL** | `state_bounds` on 12 of 12 seeds: `mrso` 456-762 mm against 124 |
+| mass/ungauged-basin-closure | PASS | `mrso` 456-762 mm, capacity bound N/A |
 | mass/warming-response | PASS | -0.17 and -0.21 per unit of demand |
 
 ## The failures
 
-Verified with targeted runs unless a sentence says inferred. All are the model; the adapter's arithmetic contributes
-only to `et_plausible`, below, which changes no verdict.
+Verified with targeted runs unless a sentence says inferred. All are the model. The `et_plausible` paragraph records a
+failure the criterion no longer makes, and the adapter's arithmetic contributed only to that.
 
-**state_bounds, on seven probes: the stores have no capacity, and their gates open far above the bound.** The probes take
+**The capacity bound, N/A on seven probes since `state_bounds` stopped applying a capacity to a model that does not consume it: the stores have no capacity, and their gates open far above the bound.** The probes take
 the bound from `soil_capacity_mm` in `static.json`: 320 mm, or a draw of 124-682 mm on `ungauged-basin-closure`. Nothing
 in the model can use it. The checkpoint's tensors are gate scales, biases, weights and output weights, no store has an
 upper limit, and the adapter never opens `static.json`. The stores run wherever the learned gates let out the runoff the
@@ -192,23 +192,22 @@ the normalisation or the gates would make a different model from the one trained
 either: the reported store's range on `catchment-closure` is 378-404 mm wide on each seed, wider
 than the bound. Moving the water above the bound into `gw` would invent a partition the model does not have. So this is
 a finding about the model, as with `parFC` in `models/dhbv2`, except that here not even a learned capacity exists. It
-does not depend on the spin-up: the same probe fails the same way at zero, one and three repeats.
+does not depend on the spin-up: the store passes the number the same way at zero, one and three repeats.
 
 **human-abstraction: the model has no withdrawal term.** Structural, and verified from the row and the
 code: the adapter reads `pr` and `pet` and nothing else, the paired runs are identical (`evspsbl`, `mrro` and
 storage all +0.0 mm), and the whole 380 mm goes unaccounted for. AGENTS.md scores this as a failure, not as N/A.
 Subtracting the column in the adapter would add a process the published model does not have, so nothing was added.
 
-**multi-decadal-drift, `et_plausible`: round-off at the cap, not excess evaporation.** In this probe's mild climate (PET
-about 1 mm/day, rain 1.8) all five nodes sit at their PET cap on every scored row, so evaporation equals demand, and the
-cumulative ratio is between 1 - 9.8e-9 and 1 + 4.2e-8 on the five seeds. The criterion allows 1 + 1e-9, so four fail. Two
-single-precision sources add up to that. One is the upstream `C * (ol - relu(ol - PET / C))`. The other is the adapter's,
+**multi-decadal-drift, `et_plausible`: round-off at the cap, a failure the criterion no longer makes.** In this probe's
+mild climate (PET about 1 mm/day, rain 1.8) all five nodes sit at their PET cap on every scored row, so evaporation equals
+demand, and the cumulative ratio is between 1 - 9.8e-9 and 1 + 4.2e-8 on the five seeds. Until `dc9836c` the criterion
+allowed 1 + 1e-9, so four failed; it now allows 1 + 1e-6, and the probe passes. Two single-precision sources add up to that. One is the upstream `C * (ol - relu(ol - PET / C))`. The other is the adapter's,
 which combines the nodes with upstream's float32 softmax weights, and those sum to 1 + 1.65e-8. Renormalising the weights
 in double still leaves two seeds over, at +2.6e-8 and +3.1e-9. The same equations in float64 reach 1 + 4.4e-16 with no row
-above PET. The model stays in float32, as upstream runs it, and `state_bounds` fails all five seeds of this probe
-regardless. Do not read this row as evaporation exceeding demand.
+above PET. The model stays in float32, as upstream runs it.
 
-Four of the other six come from the negative entries of W_o. Node 2 carries
+Four of the six that remain come from the negative entries of W_o. Node 2 carries
 most of the outflow in dry periods (w = 0.21), and column 2 of W_o reads node 3 at -3.71 and node 1 at
 -1.16: when those stores rise, node 2's gate closes, and when they fall, it opens.
 

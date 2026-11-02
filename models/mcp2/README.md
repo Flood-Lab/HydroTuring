@@ -98,7 +98,7 @@ declares PT1D only, the step in the proposal.
 
 ## Verdict
 
-Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch3.4`: **FAIL (VIOLATION), 9 of 20 scored**, 17 N/A
+Gate seeds, Docker on Apple Silicon at `3e86a79`, 2026-11-01, version `5944b5f-epoch3.4`: **FAIL (VIOLATION), 15 of 20 scored**, 17 N/A
 (15 INCOMPLETE; 2 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not read, and
 `exchange-response` needs `gwh`, not declared because the relaxation reads the store rather than a head).
 The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `channel`, `stage` and `dis`.
@@ -108,36 +108,36 @@ which is single-precision round-off. Trivial passes for this model: `area-invari
 `phase-counterfactual` (reads no temperature) and `time-origin-invariance` (reads no calendar), as are the bounds on
 the zero `snw` and `canopy`.
 
-Five of the ten FAILs are `state_bounds` and nothing else.
+On seven probes the store passes the case's capacity. That upper bound is N/A for this model, which does not consume `soil_capacity_mm`, and no store runs away.
 
 | Probe | Result | Detail |
 | --- | --- | --- |
 | energy/pet-consistency | **FAIL** | 0.75 of demand when dry, 0.75 when wet |
 | mass/antecedent-monotonicity | **FAIL** | +0.3 mm on a 60 mm storm; 1.2 mm expected |
 | mass/area-invariance | PASS | trivially: the model reads no area |
-| mass/catchment-closure | **FAIL** | `state_bounds`: `mrso` 297-730 mm against 320 |
+| mass/catchment-closure | PASS | `mrso` 297-730 mm, capacity bound N/A |
 | mass/causality | PASS | nothing moves before the storm |
 | mass/dry-down | **FAIL** | `mrso` rises 2.0% in a week with no rain |
-| mass/extreme-event-closure | **FAIL** | `state_bounds`: `mrso` 233-840 mm against 320; event closure passes |
+| mass/extreme-event-closure | PASS | `mrso` 233-840 mm, capacity bound N/A; event closure passes |
 | mass/extreme-rain | PASS | returns 0.94 of 526 mm |
-| mass/human-abstraction | **FAIL** | 380 mm of 380 unaccounted for; `state_bounds`: `mrso` 257-726 mm against 320 |
-| mass/multi-decadal-drift | **FAIL** | `state_bounds`: `mrso` 585-627 mm against 320; no drift |
+| mass/human-abstraction | **FAIL** | 380 mm of 380 unaccounted for |
+| mass/multi-decadal-drift | PASS | `mrso` 585-627 mm, capacity bound N/A; no drift |
 | mass/phase-counterfactual | PASS | trivially: the model reads no temperature |
-| mass/precipitation-counterfactual | **FAIL** | responses account for 0.83-0.89 of the change in rain; `state_bounds`: `mrso` 268-709 mm against 320 |
+| mass/precipitation-counterfactual | PASS | partitioned once `gwex` counts as a source; returns 0.77 of the 3268 mm added at the top |
 | mass/resolution-invariance | **FAIL** | `mrso_end` 15.4% of rain: the stores end the month apart, from the 10-day spin-up alone |
 | mass/response-nonnegativity | PASS | no dip |
 | mass/runoff-bounds | PASS | runoff 0.37 of rain, declared exchange +0.06 of rain |
-| mass/spinup-cycle-invariance | **FAIL** | `state_bounds`: `mrso` 322-665 mm against 320; the invariance passes |
+| mass/spinup-cycle-invariance | PASS | `mrso` 322-665 mm, capacity bound N/A; the invariance passes |
 | mass/steady-state | PASS | settles at 1.114 mm/day |
 | mass/time-origin-invariance | PASS | trivially: the model reads no calendar |
-| mass/ungauged-basin-closure | **FAIL** | `state_bounds` on 10 of 12 seeds: `mrso` 379-692 mm against 124 |
+| mass/ungauged-basin-closure | PASS | `mrso` 379-692 mm, capacity bound N/A |
 | mass/warming-response | PASS | -0.38 and -0.49 per unit of demand |
 
 ## The failures
 
 All verified with targeted runs. All are the model, not the adapter.
 
-**state_bounds, on seven probes: the store has no capacity, and its gate opens far above the bound.** The probes take
+**The capacity bound, N/A on seven probes since `state_bounds` stopped applying a capacity to a model that does not consume it: the store has no capacity, and its gate opens far above the bound.** The probes take
 the bound from `soil_capacity_mm` in `static.json`: 320 mm, or a draw of 124-682 mm on `ungauged-basin-closure`. Nothing
 in the model can use it. The checkpoint's ten tensors are gate scales, biases and weights and the relaxation's rate and
 level, the store has no upper limit, and the adapter never opens `static.json`. The store runs wherever the learned
@@ -145,28 +145,27 @@ output gate lets out the runoff the climate requires. At 320 mm that gate releas
 and the probe's records need 0.63-0.86 mm/day. The relaxation pulls the same way, adding water below its learned level
 of 548.7 mm. So on `catchment-closure` the store spans 232-730 mm across the seeds, and on the Leaf River, where it was
 trained, 214-808 mm (mean 543), above 320 mm on 97% of days. On `ungauged-basin-closure` its peak is 634-692 mm whatever
-the draw, and the two seeds that pass are the ones that drew 679 and 682 mm.
+the draw, and the two seeds that stayed inside it are the ones that drew 679 and 682 mm.
 
 The adapter could not honestly do otherwise. There is no capacity to hand `soil_capacity_mm` to, and writing it into
 the normalisation or the gates would make a different model from the one trained. Subtracting a datum would not fit
 either: the store's range on `catchment-closure` is 433-475 mm wide on each seed, wider than the
 bound. Moving the water above the bound into `gw` would invent a partition the model does not have. So this is
 a finding about the model, as with `parFC` in `models/dhbv2`, except that here not even a learned capacity exists. It
-does not depend on the spin-up: the same probe fails the same way at zero, one and three repeats.
+does not depend on the spin-up: the store passes the number the same way at zero, one and three repeats.
 
 **human-abstraction: the model has no withdrawal term.** Structural, and verified from the row and the
 code: the adapter reads `pr` and `pet` and nothing else, the paired runs are identical (`evspsbl`, `mrro` and
 storage all +0.0 mm), and the whole 380 mm goes unaccounted for. AGENTS.md scores this as a failure, not as N/A.
 Subtracting the column in the adapter would add a process the published model does not have, so nothing was added. The relaxation reads only the store, so it does not stand in for one.
 
-**precipitation-counterfactual: the share the criterion cannot see is the relaxation.** Beyond `state_bounds`,
-`counterfactual_response` fails every variant on all three seeds: evaporation, runoff and storage account for 0.83-0.89
-of the rain added or removed, against 1 within 0.10. More rain raises the store, and the store-dependent relaxation then
-adds less. The change in the declared `gwex` is -0.11 to -0.17 of the change in rain, and with it the sum is 1.000 to
-within 2e-6 on all nine pairs. `models/mcp1`, which has no relaxation, accounts for 1.000 on the same record. So no water
-is lost: it is in a column this criterion does not count, although `closure` and the runoff ratio on the same suite do.
-What stands about the model is that a learned exchange takes 11-17% of any change in rain. Relabelling it would hide the
-term, so it stays. `state_bounds` fails this probe either way.
+**precipitation-counterfactual, a failure the criterion no longer makes.** Until `dc9836c`, `counterfactual_response`
+left a declared `gwex` out of the budget and failed every variant on all three seeds: evaporation, runoff and storage
+account for 0.83-0.89 of the rain added or removed, against 1 within 0.10. More rain raises the store, and the
+store-dependent relaxation then adds less. The change in the declared `gwex` is -0.11 to -0.17 of the change in rain, and
+with it the sum is 1.000 to within 2e-6 on all nine pairs. `models/mcp1`, which has no relaxation, accounts for 1.000 on
+the same record. The criterion now counts it as a source, as `closure` and the runoff ratio already did, and the probe
+passes. What stands about the model is that a learned exchange takes 11-17% of any change in rain.
 
 **dry-down: the relaxation makes water.** Without rain the store falls below the learned level
 of 548.7 mm, where the term is a source that grows as the store falls. At the worst block on

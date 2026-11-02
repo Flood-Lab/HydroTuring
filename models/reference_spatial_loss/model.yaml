@@ -4,7 +4,7 @@ description: Causal attribute-dependent loss fault. Diagnostic fixture for ungau
   not a scientific model.
 authors:
 - Shunan Zhou
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint:
 - python3

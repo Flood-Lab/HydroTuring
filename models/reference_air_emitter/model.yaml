@@ -5,7 +5,7 @@ description: >
   skin temperature but emits longwave at air temperature, with reflected sky
   unchanged. Only upward longwave differs from the positive control.
 authors: ["Xin Lan"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1H]

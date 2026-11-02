@@ -5,7 +5,7 @@ description: >
   alone as total upward longwave, omitting (1 - eps) times the downward
   longwave. Only upward longwave differs from reference_radiative.
 authors: ["Xin Lan"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1H]

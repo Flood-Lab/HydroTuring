@@ -1,6 +1,6 @@
 # SHUD for HydroTuring.
 #
-# SHUD (MIT) is compiled unmodified from the pinned tag with upstream's own
+# SHUD (MIT) is compiled unmodified from the pinned commit with upstream's own
 # Makefile against CVODE 6.0.0, the release its ./configure asks for, whose
 # tarball is checked against the sha256 recorded here before ./configure finds
 # it and builds it. The network is available at build time only.
@@ -12,9 +12,14 @@
 # at build time. The image is one stage because those libraries are needed at
 # load time and the build tools are small beside them.
 
-FROM python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS build
-# Tag cpu-accel-v1.1.1, the revision named in issue #106.
-ARG REVISION=c7404df0ebaffd67ea267bce32fff36ba36f6cfe
+# Pinned to linux/amd64, as models/lisflood/Dockerfile is:
+# the hypre library path below is spelled for x86-64, and the build does not
+# compile on arm64 (hypre's headers cannot find mpi.h there).
+# Native on an x86-64 host, emulated on an arm64 one.
+FROM --platform=linux/amd64 python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS build
+# Upstream's master, past the canopy fix in 0958682c78da that no tag carries yet.
+# Issue #106 named cpu-accel-v1.1.1; the README says why this is not that tag.
+ARG REVISION=851fb8c7e146a533a9545f786e8f68fd8a8d817f
 ARG CVODE_SHA256=c968eb5ee891618a423fe49dc82349bfd1fee5c904cd968fff3aaf33f433c48f
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update \

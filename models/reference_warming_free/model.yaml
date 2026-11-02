@@ -8,7 +8,7 @@ description: >
   energy/snowmelt-energy-water has something that trips it: a probe which
   assumed a ripe pack instead of measuring one would not notice this at all.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H]

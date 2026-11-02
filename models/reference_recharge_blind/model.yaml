@@ -2,7 +2,7 @@ name: reference_recharge_blind
 version: "0.1.0"
 description: "Recharge-ordering reference that ignores gw_recharge, so its own budget no longer closes."
 authors: [HydroTuring maintainers]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: [python3, ht_adapter.py]
 timestep: PT1D
