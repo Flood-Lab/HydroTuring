@@ -85,12 +85,27 @@ class Window:
     window and the state at the last spinup step, so `state0` sits one row
     before the window starts. Getting this off by one is the classic way to
     manufacture a spurious residual, which is why it lives in one place.
+
+    A case with no spinup has no such row: its first row is already the end
+    of the first scored interval. The state before it is unknown, so reading
+    `state0` raises instead of handing back that end state, which would drop
+    the first interval's storage change from every budget built on it.
     """
 
     forcing: pd.DataFrame
     table: pd.DataFrame
-    state0: pd.Series
+    prior: pd.Series | None
     dt_days: float
+
+    @property
+    def state0(self) -> pd.Series:
+        if self.prior is None:
+            raise ValueError(
+                "no state before the first scored interval: the case has no "
+                "spinup row, and the first reported state is already the end "
+                "of that interval; the probe needs spinup_days >= 1"
+            )
+        return self.prior
 
     def storage(self, variables: tuple[str, ...]) -> np.ndarray:
         present = [v for v in variables if v in self.table.columns]
@@ -99,7 +114,10 @@ class Window:
         return self.table[present].to_numpy().sum(axis=1)
 
     def storage_initial(self, variables: tuple[str, ...]) -> float:
-        present = [v for v in variables if v in self.state0.index]
+        # The same stores `storage` sums, so a budget with none needs no state.
+        present = [v for v in variables if v in self.table.columns]
+        if not present:
+            return 0.0
         return float(sum(float(self.state0[v]) for v in present))
 
     def volume(self, series: np.ndarray | pd.Series) -> np.ndarray:
@@ -150,18 +168,17 @@ def make_window(run: RunResult, probe: ProbeSpec, phase: str | None = None) -> W
         return Window(
             forcing=case.forcing.iloc[indices].reset_index(drop=True),
             table=run.table.iloc[indices].reset_index(drop=True),
-            state0=run.table.iloc[prior],
+            prior=run.table.iloc[prior],
             dt_days=case.dt_days,
         )
     start = case.spinup_steps
     if start >= len(run.table):
         raise ValueError("spinup consumes the entire record; nothing left to score")
 
-    prior = max(start - 1, 0)
     return Window(
         forcing=case.forcing.iloc[start:].reset_index(drop=True),
         table=run.table.iloc[start:].reset_index(drop=True),
-        state0=run.table.iloc[prior],
+        prior=run.table.iloc[start - 1] if start > 0 else None,
         dt_days=case.dt_days,
     )
 

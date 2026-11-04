@@ -78,6 +78,63 @@ def test_storage_change_uses_the_step_before_the_window(probe):
     assert len(window.table) == len(run.table) - probe.spinup_days
 
 
+def _bucket_pulse(probe, spinup):
+    """The exact bucket, starting from 50 mm of soil, given 10 mm of rain on
+    the first scored day after `spinup` dry ones. It holds all of it."""
+    import tempfile
+    from pathlib import Path
+
+    from hydroturing.protocol import Case
+    from hydroturing.runner import get_runner
+
+    n = spinup + 5
+    pr = [0.0] * n
+    pr[spinup] = 10.0
+    forcing = pd.DataFrame({
+        "time": pd.date_range("2001-01-01", periods=n, freq="D").strftime("%Y-%m-%d"),
+        "pr": pr, "tas": 10.0, "pet": 0.0,
+    })
+    static = {
+        "soil_capacity_mm": 100.0, "canopy_capacity_mm": 100.0,
+        "degree_day_factor_mm_per_C_day": 3.0, "baseflow_coefficient": 0.0,
+        "snow_threshold_degC": 0.0, "area_km2": 100.0,
+    }
+    model = registry.find_model("reference_bucket")
+    case = Case(probe.id, 7, forcing, static, spinup)
+    return get_runner(model).run(model, probe, case, Path(tempfile.mkdtemp()))
+
+
+def test_zero_spinup_has_no_state_before_the_first_interval(probe):
+    """#200. With no spinup the first row is already the end of the first
+    scored interval. Taking it as the initial storage drops that interval's
+    storage change from the budget, and the exact bucket failed closure by
+    100 percent of the rain. That state is unknown, so the window refuses to
+    supply one and a budget built on it errors rather than scoring."""
+    from hydroturing.criteria import get
+    from hydroturing.criteria.base import make_window
+
+    run = _bucket_pulse(probe, spinup=0)
+    window = make_window(run, probe)
+    with pytest.raises(ValueError, match="no state before the first scored interval"):
+        window.state0
+    with pytest.raises(ValueError, match="no state before the first scored interval"):
+        get("closure")(run, probe, {})
+    # Criteria and budgets that need no storage are still scored, and a
+    # storage-free budget does not depend on whether there was a spinup.
+    assert get("forcing_fidelity")(run, probe, {}).passed
+    no_stores = get("closure")(run, probe, {"states": []})
+    with_spinup = get("closure")(_bucket_pulse(probe, spinup=1), probe, {"states": []})
+    assert no_stores.value == with_spinup.value == 1.0
+
+
+def test_one_spinup_row_supplies_the_state_before_the_first_interval(probe):
+    from hydroturing.criteria import get
+
+    result = get("closure")(_bucket_pulse(probe, spinup=1), probe, {})
+    assert result.passed and result.value == 0.0
+    assert result.diagnostics["storage_change"] == 10.0
+
+
 def test_exact_model_passes(probe):
     outcome = run_probe(registry.find_model("reference_bucket"), probe, [11, 12])
     assert outcome.verdict == PASS, outcome.failing
