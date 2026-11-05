@@ -20,6 +20,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     coherence,
     degeneracy,
     datum,
+    equilibrium,
     event_water_closure,
     exchange,
     froude,
