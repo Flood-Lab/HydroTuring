@@ -25,7 +25,7 @@ from pathlib import Path
 import netCDF4
 import numpy as np
 
-MODEL = {"name": "rvic", "version": "1.1.1-ht.3"}
+MODEL = {"name": "rvic", "version": "1.1.1-ht.4"}
 WORK = Path("/tmp/rvic")
 DT_S = 3600
 MIN_REFERENCE_Q = 1.0e-3  # m3/s

@@ -4,7 +4,7 @@ description: Exact interval solution of a passive confined aquifer with prescrib
   river stage.
 authors:
 - Tommaso Cerruti (ETH Zurich)
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint:
 - python3

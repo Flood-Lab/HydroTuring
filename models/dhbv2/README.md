@@ -68,11 +68,13 @@ three things, none of which changes anything at the daily step:
 Without the scaling the stores drained twenty-four times too fast and the
 integrated runoff moved by 216–482 % of the rain between the hourly and
 daily step; that number measured the adapter's units, not the model. With
-it, on the resolution probe's first gate seed, runoff differs by 2.2 % of
-the rain and evaporation by 8.6 %. What is left is the LSTM's own
-recurrence, whose memory was learned with one step meaning one day:
-holding the hourly physics but feeding it the daily run's parameter series
-repeated 24× brings both volumes within 1 % of the daily run, and the
+it, under `.5`, the worst volume differs by 2.9, 11.3 and 12.1 % of the rain
+on the resolution probe's three gate seeds. On the worst seed that is `mrro`,
+84 mm hourly against 54 mm daily of 248 mm of rain, with evaporation at 1.7 %
+and `mrso_end` at 0.5 %. What is left is the LSTM's own
+recurrence, whose memory was learned with one step meaning one day. Measured
+on the first gate seed before `.5` and not repeated since: holding the hourly
+physics but feeding it the daily run's parameter series repeated 24× brings both volumes within 1 % of the daily run, and the
 hourly LSTM writes a lower `parBETAET` (0.29 against 0.32 normalised) and
 a higher `parBETA` (0.38 against 0.30), which is where the extra
 evaporation comes from. That is the model's step dependence, and it is
@@ -83,7 +85,8 @@ Of the 28 attributes the parameterisation network reads:
 - **Derived from the first year of the record** (a climatology the model
   has seen, through which nothing later can reach back): `meanP`,
   `ETPOT_Hargr`, `aridity`, `meanTa`, and `snowfall_fraction` as the share
-  of precipitation falling below the snow threshold.
+  of precipitation falling below the snow threshold, a sub-daily record being
+  grouped into whole days for that one attribute, since `.5`.
 - **From `static.json`**: `uparea` is the catchment area, which also
   drives the regional groundwater term (below). `meanelevation` comes from
   `elevation_m` when present, otherwise the training mean.
@@ -112,8 +115,9 @@ Of the 28 attributes the parameterisation network reads:
 
 ## Structure read from the checkpoint
 
-The `config.yaml` shipped with the weights declares four HBV components
-and no routing. The weights disagree: the LSTM's output layer has 9 units
+The `config.yaml` first shipped with the weights declared four HBV components
+and no routing; the one republished on 2026-10-31 declares three, and still no
+routing. The weights disagree: the LSTM's output layer has 9 units
 (three dynamic parameters × three components) and the MLP's has 41
 (thirteen static parameters × three, plus two unit-hydrograph
 parameters). Loaded as configured, the checkpoint does not fit. The
@@ -141,6 +145,15 @@ area handed in and with the attributes above. The closure criterion
 measures exactly this residual. The unit hydrograph itself is normalised
 to sum to one and conserves what enters it.
 
+## The soil capacity
+
+The probes' `soil_capacity_mm` (320 mm on the closure probe) is in `static.json`
+but this model does not read it: HBV takes its capacity from the learned `parFC`.
+`mrso` runs above that number on most probes, 494-668 mm on the closure probe. The
+upper bound is N/A for this model, and no store runs away, so `state_bounds` passes
+on what it can still check. It is not a claim that `mrso` stays below `parFC`, which
+the contract has no way to report.
+
 ## Running it
 
 ```bash
@@ -152,3 +165,41 @@ The image is built from the pinned commit and the weights URL at build
 time; the container runs with no network. One lumped catchment over the
 full ten-year record takes about five seconds, most of it loading the
 400 MB of MLP weights.
+
+## The weights changed on 2026-10-31
+
+The URL carries no version. MHPI republished the archive that day with a new
+`config.yaml`. The checkpoint's file date (2026-06-30) predates this model's
+first evaluation, but no hash of the earlier files was kept, so what else
+changed cannot be said. The adapter needed
+one line, a default for the `multimodel_type` key the new config no longer
+sets. SUMMA reproduced its archived closure numbers the same day, which points
+at the files rather than the harness, and three of this model's verdicts moved
+(`mass/extreme-rain` to PASS; `mass/resolution-invariance` and
+`mass/response-nonnegativity` to FAIL). Version `0.5.4-hbv2ep100.4` is that
+state, and the Dockerfile now pins its three files by SHA-256.
+
+MHPI then removed the archive from the bucket, while its setup docs still point
+to the URL, so a build with no cached copy of the download fails until the
+archive returns. The `.4` rows were produced from a copy taken out of the local
+image, whose hashes match the pins, with the download step swapped for a `COPY`.
+If the archive returns with other files, the hash check fails the build, and
+that is a new version to evaluate.
+
+## Version `.5`
+
+`0.5.4-hbv2ep100.5` changes the adapter only. `snowfall_fraction` is defined over
+days and was computed per row, so an hourly and a daily run of the same weather
+handed the parameter network different attributes. Daily rows are unchanged. On
+`mass/resolution-invariance` the worst reading moved from `mrso_end` at 41.9 % of
+the rain to `mrro` at 12.1 %, still over the 10 % limit, so the verdict stands.
+
+## Version `.6`
+
+`0.5.4-hbv2ep100.6` also changes the adapter only. The zero-rain guard on
+`snowfall_fraction` checked the whole record while the fraction divided by the
+whole days within it, so rain falling only in a last partial day gave the network
+a NaN. The guard now checks those days. No row changed.
+
+Archived on the gate seeds under Docker on Apple Silicon at `66118d8`: **FAIL
+(VIOLATION), 15 PASS, 6 FAIL, 16 N/A**.

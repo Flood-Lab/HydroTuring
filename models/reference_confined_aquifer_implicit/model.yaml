@@ -3,7 +3,7 @@ version: 1.0.0
 description: Backward-Euler confined aquifer with the same physical storage law.
 authors:
 - Tommaso Cerruti (ETH Zurich)
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint:
 - python3

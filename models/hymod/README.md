@@ -112,8 +112,8 @@ score it.
 
 ## Result
 
-**20 PASS, 1 FAIL, 16 N/A**, on the gate seeds, under Apptainer (`--runner apptainer`), on the
-whole record of every probe (`window_days: full`).
+**20 PASS, 1 FAIL, 16 N/A**, on the gate seeds, under Docker on Apple Silicon at `3e86a79`, version
+`0.4.0-89d7a8e.2`, on the whole record of every probe (`window_days: full`).
 
 | Probe | Result |
 | --- | --- |
@@ -137,7 +137,7 @@ whole record of every probe (`window_days: full`).
 | `mass/time-origin-invariance` | PASS: exactly 0; see below |
 | `mass/ungauged-basin-closure` | PASS: 0.0000% of rain over 12 catchments; ET at most 0.891 of potential |
 | `mass/warming-response` | PASS: mrro -0.203 and -0.258 per unit of demand |
-| `momentum/routing-conservation` | PASS: within 0.14 of what a 15-day hydrograph can hold |
+| `momentum/routing-conservation` | PASS: within 0.13 of what a 15-day hydrograph can hold |
 
 ### The failure: `mass/human-abstraction`
 

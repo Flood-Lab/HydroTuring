@@ -68,10 +68,11 @@ under `channel` and "a groundwater zone" under `gw`, and `models/dhbv2` makes th
 HBV's response boxes under `gw` and its unit hydrograph under `channel`. Against that, the store's
 name in the literature is "routing store".
 
-No water budget depends on this, since closure sums every store. It moves one probe's number and
-no verdict: `momentum/routing-conservation` fails either way, at up to 2.9 times its allowance as
-mapped here, on 9 to 11 of 1095 steps, and at up to 63 times with the routing store under
-`channel`, on 925 to 1007 of 1095.
+No water budget depends on this, since closure sums every store. It moves one probe's number:
+as mapped here `momentum/routing-conservation` stays within 0.73 of its allowance. Under the bound
+as it read before `dc9836c` (below), the store reached up to 2.9 times the allowance as mapped here,
+on 9 to 11 of 1095 steps, and up to 63 times with the routing store under `channel`, on 925 to 1007
+of 1095. The second mapping was not re-run under the corrected bound.
 
 ## Parameters
 
@@ -131,7 +132,8 @@ was found and fixed.
 
 ## Result on the gate seeds
 
-**19 PASS, 2 FAIL, 16 N/A**, under Apptainer, on the whole record of every probe.
+**20 PASS, 1 FAIL, 16 N/A**, under Docker on Apple Silicon at `3e86a79`, version `1.7.9-4bb401c.2`, on the
+whole record of every probe.
 
 | Probe | Result |
 | --- | --- |
@@ -155,7 +157,7 @@ was found and fixed.
 | `mass/time-origin-invariance` | PASS: exactly 0; the model never reads the date |
 | `mass/ungauged-basin-closure` | PASS: 0.0000% of rain over 12 catchments; ET at most 0.909 of potential |
 | `mass/warming-response` | PASS: mrro -0.226 and -0.282 per unit of demand |
-| `momentum/routing-conservation` | **FAIL (VIOLATION)**: see below |
+| `momentum/routing-conservation` | PASS: within 0.73 of the allowance, the tightest of any model this probe scores; see below |
 
 Passes that say little: `area-invariance`, `phase-counterfactual` and `time-origin-invariance`, for
 the reasons in the table, and `state_bounds` on `snw` and `canopy`, which holds on a column of zeros.
@@ -177,11 +179,17 @@ column fails this way, and it does. `gwex` does not rescue it: the exchange is X
 
 ### `momentum/routing-conservation`
 
+This failed until `routing_conservation` was corrected at `dc9836c`. The allowance read only runoff
+already released:
+
 > the channel holds 6.4 mm on 2001-09-28 while the largest runoff of the preceding 30 days is
 > 0.14 mm/day; a 15-day hydrograph cannot hold more than 2.2 mm of that
 
-**The mechanism, checked against airGR's fluxes on all three seeds.** The allowance is 15 days of
-the largest `mrro` of the past month, including today. GR4J's hydrographs are upstream of a store
+It now also reads the fifteen days ahead, since water held now leaves within the lag, and the model
+passes. What follows is the measurement from the earlier bound, kept because it says how the store
+behaves.
+
+**The mechanism, checked against airGR's fluxes on all three seeds.** GR4J's hydrographs are upstream of a store
 that retains water. After a dry spell `mrro` is about 0.1 mm/day, because the routing store
 releases R⁵. The first big rain then puts most of that day's effective rainfall into the
 hydrographs (on the worst seed, 80 mm of rain gives PR 7.9 mm and 6.4 mm held) while the outlet has
@@ -192,14 +200,14 @@ So the excess is transient and the kernel does not leak. It lasts 9 to 11 steps 
 seed at 2.2 to 2.9 times the allowance, with no accumulation, and a unit pulse empties in about
 2 × X4 days apart from the percolation still feeding it. The excess appears because 90% of what
 leaves the hydrographs goes into the routing store rather than to the outlet, so `mrro` is not the
-flow feeding this channel. It is reported as the probe scores it, and the probe was not changed;
-whether a rising-limb transient of this kind should count is a question for the probe's owners.
+flow feeding this channel.
 
 ## How far each choice moves the results
 
 Each alternative was re-run on the 13 probes that scored the model before the zero-store rule, on
-the same gate seeds. **No parameter set changes a verdict among them**: all four give the same 12
-PASS and 1 FAIL. The closure family was not part of this comparison.
+the same gate seeds, under `routing_conservation` as it read before `dc9836c`, and were not re-run
+since. **No parameter set changed a verdict among them**: all four gave the same 12 PASS and 1 FAIL,
+that failure being routing. The closure family was not part of this comparison.
 
 | | Runoff ratio | Resolution (worst, % of rain) | Routing, channel vs allowance on the worst day | Steady runoff (mm/day of 2.5) |
 | --- | --- | --- | --- | --- |

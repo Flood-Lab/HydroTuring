@@ -85,9 +85,11 @@ of five seeds.
 forcing's potential, and the probe's floor is 0.7, so 0.75 passes with little margin.
 That is the value upstream ships, not one chosen for the probe.
 
-**Routing.** Upstream offers two routes, and the choice decides one verdict.
+**Routing.** Upstream offers two routes. The choice decided one verdict until
+`routing_conservation` was corrected at `dc9836c`; the last column is that older formula, and the
+alternatives were not re-run. The route used now passes (see "A failure that was the criterion's").
 
-| Option | Runoff ratio | Mean record peak, mm/day | `routing-conservation`, by the criterion's formula |
+| Option | Runoff ratio | Mean record peak, mm/day | `routing-conservation`, by the formula before `dc9836c` |
 | --- | --- | --- | --- |
 | `name="xaj"`, `sources` (**used**) | 0.513 | 24.5 | FAIL |
 | `name="xaj"`, `sources5mm` | 0.513 | 18.0 | not measured |
@@ -124,8 +126,8 @@ temperature, and it has no interception store. That is what lets the budget prob
 
 ## Result
 
-**18 PASS, 3 FAIL, 16 N/A**, on the gate seeds, under Apptainer (`--runner apptainer`), on the
-whole record of every probe (`window_days: full`).
+**19 PASS, 2 FAIL, 16 N/A**, on the gate seeds, under Docker on Apple Silicon at `3e86a79`, version
+`0.4.0-89d7a8e.3`, on the whole record of every probe (`window_days: full`).
 
 | Probe | Result |
 | --- | --- |
@@ -149,7 +151,7 @@ whole record of every probe (`window_days: full`).
 | `mass/time-origin-invariance` | PASS: exactly 0; closure 3.22% |
 | `mass/ungauged-basin-closure` | PASS: 3.89% of rain against 5%, the closest this model comes; ET at most 0.750 of potential |
 | `mass/warming-response` | PASS: mrro -0.308 and -0.334 per unit of demand |
-| `momentum/routing-conservation` | **FAIL (VIOLATION)**: 56.6 mm in the channel against an allowance of 0.2 mm |
+| `momentum/routing-conservation` | PASS: within 0.32 of the bound; see below |
 
 Some of these say nothing about the physics. `mass/phase-counterfactual` and
 `mass/time-origin-invariance` are exactly 0 because the model never reads temperature
@@ -163,9 +165,13 @@ natural and irrigated runs are identical: `evspsbl`, `mrro` and storage differ b
 three seeds, and the whole 380 mm is the residual. AGENTS.md says a model that never reads the
 column fails this way, and it does.
 
-### The failure: `momentum/routing-conservation`
+### A failure that was the criterion's: `momentum/routing-conservation`
 
-The criterion allows `channel <= 15 days * the largest mrro of the preceding 30 days`.
+Until `dc9836c` the criterion allowed `channel <= 15 days * the largest mrro of the preceding 30
+days`, and this model failed it: 56.6 mm in the channel against an allowance of 0.2 mm. The bound
+now also reads the fifteen days ahead, since water held now leaves within the lag, and the model
+passes at 0.32 of it. The figures below are from the earlier bound, and are kept because they say
+what the lag does.
 
 **Mechanism, verified.** `L` is a pure delay of 5 days: release does not begin to
 respond until 5 rows after the runoff was generated. When a storm follows a dry spell,
@@ -190,15 +196,8 @@ of what is actually flowing into it. The verdict follows the lag and nothing els
 | --- | --- | --- | --- | --- | --- |
 | seed 1431599080 | pass | FAIL, 3 rows | FAIL, 7 rows | FAIL, 11 rows | FAIL, 25 rows |
 
-`L` was not changed, because that would be tuning the model to the probe. The FAIL
-stands as the harness reported it.
-
-**For the maintainers.** The criterion reads the feed from released `mrro`, which by
-definition has not yet seen water held in a lag. On these records XAJ fails at every
-whole-row delay tried, from one row up, although its store balances in each case. By
-the same arithmetic any router with such a delay should fail when a storm follows a
-dry spell, but only XAJ was tested. Whether that is the intended meaning of the probe
-is a question for its authors; no probe was edited.
+`L` was not changed, because that would be tuning the model to the probe. The sweep
+was not re-run under the corrected bound.
 
 ### A failure that was the adapter's
 

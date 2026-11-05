@@ -1,5 +1,5 @@
 name: google_flood_forecast
-version: "0.1.0-828dfc5"
+version: "0.1.0-828dfc5.2"
 description: >
   Google's operational flood forecasting model: the mean-embedding forecast
   LSTM behind Google Flood Hub, run through the open-source OpenHydroNet
