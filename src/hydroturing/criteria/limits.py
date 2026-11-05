@@ -67,7 +67,9 @@ def runoff_bounds(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionRe
     declared = float(w.volume(w.table["gwex"]).sum()) if "gwex" in w.table.columns else 0.0
     stored = _capacity(run, keys)
     for var in ("snw", "gw", "channel"):
-        if var in w.state0.index:
+        # The window's columns, not state0: a model with none of these stores
+        # needs no prior state, so a zero-spinup case is still bounded.
+        if var in w.table.columns:
             stored += max(0.0, float(w.state0[var]))
     if rain <= 0:
         return CriterionResult(name="runoff_bounds", status=FAIL, message="no rain fell; the case is degenerate")

@@ -135,6 +135,59 @@ def test_one_spinup_row_supplies_the_state_before_the_first_interval(probe):
     assert result.diagnostics["storage_change"] == 10.0
 
 
+def _storage_free(probe_id, spinup, pr, mrro):
+    """A discharge-only result: rain in, runoff out, no store reported."""
+    from hydroturing.protocol import Case, RunResult
+
+    lead = [0.0] * spinup
+    forcing = pd.DataFrame({"pr": lead + list(pr), "pet": 0.0})
+    table = pd.DataFrame({"pr": lead + list(pr), "mrro": lead + list(mrro)})
+    static = {"soil_capacity_mm": 100.0, "canopy_capacity_mm": 100.0}
+    return RunResult(Case(probe_id, 7, forcing, static, spinup), table, {}, 0.0)
+
+
+@pytest.mark.parametrize("name, probe_id, pr, mrro", [
+    ("runoff_bounds", "mass/runoff-bounds", [10.0, 0.0, 0.0], [4.0, 3.0, 3.0]),
+    ("dry_down", "mass/dry-down", [0.0] * 28, [0.9 ** i for i in range(28)]),
+])
+def test_storage_free_bounds_need_no_state_before_the_first_interval(name, probe_id, pr, mrro):
+    """A model that reports no snow, groundwater or channel store is held to
+    the capacities alone. It needs no prior state, so at zero spinup it is
+    scored exactly as with a spinup row. One that reports such a store still
+    needs the state before the window, and errors without it."""
+    from hydroturing.criteria import get
+
+    probe = registry.find_probe(probe_id)
+    check = get(name)
+    zero = check(_storage_free(probe.id, 0, pr, mrro), probe, {})
+    one = check(_storage_free(probe.id, 1, pr, mrro), probe, {})
+    assert zero.passed and one.passed
+    assert zero.value == one.value
+    run = _storage_free(probe.id, 0, pr, mrro)
+    with pytest.raises(ValueError, match="no state before the first scored interval"):
+        check(replace(run, table=run.table.assign(gw=5.0)), probe, {})
+
+
+def test_storage_free_ladder_needs_no_state_before_the_first_interval():
+    from hydroturing.criteria import get
+
+    probe = registry.find_probe("mass/extreme-rain")
+    check = get("monotone_response")
+
+    def ladder(spinup, **stores):
+        runs = {}
+        for name, (p, q) in {"x1": (10.0, 5.0), "x2": (20.0, 12.0)}.items():
+            run = _storage_free(probe.id, spinup, [p, 0.0], [q, 0.0])
+            runs[name] = replace(run, table=run.table.assign(**stores))
+        return runs
+
+    zero, one = check(ladder(0), probe, {}), check(ladder(1), probe, {})
+    assert zero.passed and one.passed
+    assert zero.value == one.value
+    with pytest.raises(ValueError, match="no state before the first scored interval"):
+        check(ladder(0, snw=5.0), probe, {})
+
+
 def test_exact_model_passes(probe):
     outcome = run_probe(registry.find_model("reference_bucket"), probe, [11, 12])
     assert outcome.verdict == PASS, outcome.failing
