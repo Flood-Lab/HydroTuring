@@ -86,6 +86,17 @@ not shrink with record length and opposite directions cannot cancel. The
 additional-boundary activity floor remains 1e-6 mm over the full record.
 Raw outputs and derived arithmetic must be finite.
 
+Each head variant is also held to a paired ledger. Its storage change against
+the neutral run since the last spinup row must equal the cumulative paired
+exchange, the sum of (gw_sw_exchange_variant - gw_sw_exchange_control) dt,
+within max(1e-3 |B|, 1e-3 mm) at every interval. groundwater_balance alone
+cannot do this here. Its storage floor is min(1e-5 max|gw|, 0.05) mm, and the
+specific-yield offset puts that at 0.015-0.05 mm per step, 10 to 500 times
+the bound allowance. A model that clipped its reported storage at the bound
+and discarded the water that crossed the riverbed would pass that budget and
+the envelope together. In the paired difference both offsets cancel, so the
+ledger can be held tight enough to catch such a model at 0.5% amplification.
+
 Neutral storage is compared with the first reported spinup inventory, through
 spinup and the scored record. Here spinup is an equilibrium check, not a period
 for an arbitrary initial head to settle: h0, river stage and zero recharge

@@ -95,11 +95,13 @@ def aquifer_equilibrium_bounds(
             ("rel_tol", 1.0e-4), ("abs_tol_mm", 1.0e-4),
             ("initial_abs_tol_mm", 1.0e-4), ("neutral_abs_tol_mm", 1.0e-4),
             ("boundary_abs_tol_mm", 1.0e-6),
+            ("ledger_rel_tol", 1.0e-3), ("ledger_abs_tol_mm", 1.0e-3),
         )
     }
     if (not np.isfinite(list(tolerances.values())).all()
             or tolerances["rel_tol"] < 0.0
-            or any(value <= 0.0 for key, value in tolerances.items() if key != "rel_tol")):
+            or tolerances["ledger_rel_tol"] < 0.0
+            or any(value <= 0.0 for key, value in tolerances.items() if key not in ("rel_tol", "ledger_rel_tol"))):
         raise ValueError("equilibrium allowances must be finite and positive")
     response_threshold = float(params.get("response_fraction_threshold", 0.01))
     if not np.isfinite(response_threshold) or not 0.0 <= response_threshold <= 1.0:
@@ -186,6 +188,21 @@ def aquifer_equilibrium_bounds(
             "worst_step": int(np.argmax(excess)),
         }
         ratios[variant] = ratio
+        # The paired storage change must be the paired exchange that made it.
+        # Both offsets cancel, so this ledger can be held far tighter than
+        # groundwater_balance, whose floor scales with the absolute inventory.
+        with np.errstate(over="ignore", invalid="ignore"):
+            paired_exchange = np.cumsum(
+                other.table["gw_sw_exchange"].to_numpy(dtype=float)
+                - control.table["gw_sw_exchange"].to_numpy(dtype=float)
+            ) * control.dt_days
+            x0 = float(runs[variant].table["gw"].iloc[start - 1] - full_control["gw"].iloc[start - 1])
+            ledger = float(np.max(np.abs((delta - x0) - paired_exchange)))
+            ledger_allowed = max(tolerances["ledger_rel_tol"] * abs(bounds[variant]), tolerances["ledger_abs_tol_mm"])
+        if not np.isfinite(ledger):
+            return invalid(f"{variant}: non-finite paired storage ledger (overflow)")
+        diagnostics["variants"][variant]["max_paired_ledger_residual_mm"] = ledger
+        ratios[f"{variant} ledger"] = ledger / ledger_allowed
         if unexercised:
             unexercised_variants.append(variant)
     if not np.isfinite(list(ratios.values())).all():

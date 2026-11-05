@@ -331,3 +331,16 @@ def test_generator_rejects_unknown_variant():
     module = _generator()
     with pytest.raises(ValueError, match="variant"):
         module.generate(7, "unexpected")
+
+
+def test_storage_clamped_at_the_bound_cannot_hide_the_exchange_that_crossed_it():
+    runs, probe = _runs()
+    table = runs["raised"].table.copy()
+    # 0.02 mm enters on the last day and is never stored: inside
+    # groundwater_balance's 0.03 mm-per-step floor at a 3000 mm inventory.
+    table.loc[table.index[-1], ["gw_sw_exchange", "sw_to_gw"]] += 0.02
+    runs["raised"] = replace(runs["raised"], table=table)
+    assert CRITERIA["groundwater_balance"](runs["raised"], probe, {"rel_tol": 0.01, "abs_tol_mm": 2e-4}).passed
+    result = _score(runs, probe)
+    assert not result.passed
+    assert "raised ledger" in result.message
