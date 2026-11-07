@@ -97,9 +97,11 @@ The Docker models are archived as evidence, not gated on: `lisflood`, `summa`
 and `cwatm` pass this probe. CWatM's 1.54 mm residual is 36 percent of its
 4.26 mm allowance. `wflow_sbm` fails the response floor: its run records read
 `max_canopy_storage_mm` 2.0 and 10.0, so the parameter reaches Wflow, but the
-net evaporation response is -0.06 mm because its daily Gash scheme
-reallocates the interception within the step. That is a model result, not an
-adapter miss. `sacsma_snow17` and `dhbv2` report `canopy` as an identically
+net evaporation response is -0.06 mm because the daily Gash budget shares one
+`kc * PET * (1 - gap fraction)` between interception and transpiration, so
+extra interception takes the place of transpiration; on seed 1135680359
+wet-day evaporation rises by 5.3 mm and dry-day evaporation falls by 5.3 mm.
+That is a model result, not an adapter miss. `sacsma_snow17` and `dhbv2` report `canopy` as an identically
 zero state but do not declare the static, so they are `N/A (INCOMPATIBLE)` and
 their standing does not move.
 

@@ -58,7 +58,7 @@ P comes from supplied forcing; G is the signed external `gwex` if reported. ET=`
 |---|---|
 | `closure` | Full-window e≤0.05; no pooling across seeds |
 | `state_bounds` | Soil/canopy within supplied capacities; snow, groundwater and channel nonnegative where reported; native 1e-6 mm tolerance |
-| `et_plausible` | ET nonnegative; full-window ET/PET≤1 with native numerical tolerances |
+| `et_plausible` | Full-window ET nonnegative and ET/PET≤1 with native numerical tolerances |
 | `non_degenerate` | Runoff ratio against P+G in [0.02,0.98]; Q/ET CV≥0.1; seven-day rainfall/runoff correlation ≥0.05 |
 | `forcing_fidelity` | Native maximum echoed-P deviation divided by mean supplied P≤1e-6 |
 

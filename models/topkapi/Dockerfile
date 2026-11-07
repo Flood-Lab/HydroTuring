@@ -3,7 +3,11 @@
 # The network is available at build time only. The pinned source is baked in
 # here; the container runs with no network and the adapter downloads nothing.
 
-FROM python:3.8.20-slim@sha256:1d52838af602b4b5a831beb13a0e4d073280665ea7be7f69ce2382f29c5a613f AS source
+# Pinned to linux/amd64, as models/lisflood/Dockerfile is:
+# h5py 3.11.0 has no linux/arm64 wheel for Python 3.8, and building it from source
+# needs HDF5 and pkg-config, which this image does not carry.
+# Native on an x86-64 host, emulated on an arm64 one.
+FROM --platform=linux/amd64 python:3.8.20-slim@sha256:1d52838af602b4b5a831beb13a0e4d073280665ea7be7f69ce2382f29c5a613f AS source
 # Tag v0.4.0.
 ARG REVISION=f7b953eebcb201403f80970846b429bb1081739c
 RUN apt-get update \
@@ -21,7 +25,7 @@ RUN git init -q /src \
 # PyTOPKAPI's raster pre-processing (parameter_utils.create_file) is the only
 # code that needs GDAL and it is not on this path, so GDAL is not installed.
 # matplotlib is here because `import pytopkapi` imports its plotting tools.
-FROM python:3.8.20-slim@sha256:1d52838af602b4b5a831beb13a0e4d073280665ea7be7f69ce2382f29c5a613f
+FROM --platform=linux/amd64 python:3.8.20-slim@sha256:1d52838af602b4b5a831beb13a0e4d073280665ea7be7f69ce2382f29c5a613f
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN pip install numpy==1.24.4 scipy==1.10.1 h5py==3.11.0 networkx==1.11 tqdm==4.66.5 matplotlib==3.7.5 pandas==2.0.3
 

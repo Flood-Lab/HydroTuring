@@ -32,7 +32,7 @@ synthetic mass-balance test:
 | GraphCast, IMERG, CPC precipitation; GraphCast temperature | the forcing's `pr` and `tas`, standardised with each product's own training statistics |
 | HRES precipitation and temperature | the forcing's `pr` and `tas`, as above |
 | HRES net solar radiation, net thermal radiation, surface pressure | **mock inputs**, allowed for the synthetic test, derived from the forcing and nothing else: net radiation inverted from the probe's potential evaporation with Priestley-Taylor at the given temperature, net longwave from air temperature at 70 percent humidity and cloudiness on wet days, net solar as the remainder, pressure from the elevation the static attributes assume. Nothing follows the calendar, so constant weather gives constant inputs and a storm cannot reach earlier rows. `run.json` lists them under `mock_inputs`. `GFF_MOCK_HRES=0` marks the product missing instead, through the model's own NaN-aware mean over products |
-| 14 climate attributes (`p_mean`, `pet_mean`, `aridity`, `frac_snow`, `moisture_index`, `seasonality`, high/low precipitation frequency and duration, annual P, PET, aridity index, mean temperature) | derived from the first year of the forcing the model is given, using Caravan's definitions. The first year only, so that nothing later in the record reaches back through the attributes: the causality probe adds a storm in year two and requires year one to be untouched |
+| 14 climate attributes (`p_mean`, `pet_mean`, `aridity`, `frac_snow`, `moisture_index`, `seasonality`, high/low precipitation frequency and duration, annual P, PET, aridity index, mean temperature) | derived from the first year of the forcing the model is given, using Caravan's definitions, with a sub-daily record grouped into whole days for those defined over days (the precipitation frequencies and durations, `frac_snow`). The first year only, so that nothing later in the record reaches back through the attributes: the causality probe adds a storm in year two and requires year one to be untouched |
 | the other 70 attributes (land cover, terrain, soils, human footprint, ...) | the training mean, i.e. zero after standardisation: the mock catchment is an average Caravan basin at the probe's latitude |
 
 Each day is its own forecast issue with a 365-day hindcast window, run from a
@@ -75,13 +75,13 @@ located by the probe's reference model, with the full spinup in front of it
 record would take several minutes per seed and does not fit the probe's time
 budget.
 
-## Results (2026-09-03, suite 0.1.0)
+## Results (2026-11-01, suite 0.1.0, version `0.1.0-828dfc5.2`, Docker on Apple Silicon at `66118d8`)
 
 | Check | Outcome |
 | --- | --- |
-| `ht verify-adapter` on `mass/catchment-closure`, gate seed 598896396 | contract OK: 395 rows in 19 s, columns `mrro`, `dis`, no missing products |
+| `ht verify-adapter` on `mass/catchment-closure`, gate seed 598896396 | contract OK: 395 rows in 57 s, columns `mrro`, `dis`, no missing products |
 | `ht run` on `mass/catchment-closure` | N/A (INCOMPLETE): does not report `pr`, `evspsbl`, `mrso`, `snw`, `canopy` |
-| `ht run` on `mass/resolution-invariance` | FAIL (VIOLATION): runoff volume differs by 66% of precipitation between hourly and daily runs of the same month (17%, 40%, 66% on the three gate seeds) |
+| `ht run` on `mass/resolution-invariance` | FAIL (VIOLATION): runoff volume differs by 74% of precipitation between hourly and daily runs of the same month, on the worst of the three gate seeds; the archive records only the worst |
 | `ht run` on `mass/warming-response` | FAIL (VIOLATION), marginal: the sign is right both ways on every seed, but under warming runoff falls by only 0.07 to 0.15 of the added demand (0.61 on one seed), under the 0.10 the probe requires on three of five seeds |
 | `ht run` on `mass/causality` | PASS: nothing changes before the added storm, to floating point, and runoff answers it by 0.32 of the added rain |
 | `ht run` on `mass/dry-down` | FAIL (VIOLATION): 224 mm drain in two rainless years, inside the 322 mm bound and never rising, but as a near-constant 0.3 mm/day that does not decay (runoff CV 0.02); a third dry year would break the bound |
@@ -167,12 +167,21 @@ The resolution probe serves one month of the same weather at the day and
 at the hour and runs the model at both. The adapter feeds the rows as
 given, so at the hourly step the model's 365-row hindcast covers fifteen
 days and each hourly rate is read as a daily depth. Integrated over the
-month, its runoff comes to 290 mm from the daily record and 126 mm from
+month, its runoff comes to 290 mm from the daily record and 107 mm from
 the hourly one, on 248 mm of rain (seed 1760592044). That is the size of
 the model's dependence on the step it was trained at, as a number rather
 than a declaration: a model whose arithmetic assumed nothing about the
 step would return the same volume from either record, as the reference
 bucket does to within 1 percent.
+
+Until `0.1.0-828dfc5.1` the adapter computed the attributes defined over days
+per row, so the hourly run was handed different attributes from the daily
+one, and that hid part of the difference: the archived figure was 65.9%, with
+126 mm from the hourly record. Daily rows are unchanged.
+
+`0.1.0-828dfc5.2` makes the zero-rain guard on `frac_snow` check the whole days
+the fraction divides by, not the whole record, so rain falling only in a last
+partial day no longer gives the network a NaN. No row changed.
 
 ## Reproduce
 

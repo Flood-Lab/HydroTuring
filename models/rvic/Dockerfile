@@ -6,7 +6,11 @@
 # RVIC is GPL-3.0; LICENSE.txt is copied into the image, which is never pushed anywhere.
 # matplotlib is left out: RVIC imports it optionally and uses it for diagnostic plots
 # only. CDO is left out: it is needed only for REMAP=True, and the grid here is not remapped.
-FROM python:3.7-slim-bookworm@sha256:b53f496ca43e5af6994f8e316cf03af31050bf7944e0e4a308ad86c001cf028b
+# Pinned to linux/amd64, as models/lisflood/Dockerfile is:
+# the pinned NumPy-era stack (netCDF4 1.4.2 and friends) has no linux/arm64 wheels,
+# and building them from source needs HDF5 headers this image does not carry.
+# Native on an x86-64 host, emulated on an arm64 one.
+FROM --platform=linux/amd64 python:3.7-slim-bookworm@sha256:b53f496ca43e5af6994f8e316cf03af31050bf7944e0e4a308ad86c001cf028b
 
 ENV PYTHONUNBUFFERED=1
 ENV OMP_NUM_THREADS=1
@@ -29,6 +33,10 @@ RUN pip install --no-cache-dir numpy==1.16.6 scipy==1.2.3 pandas==0.24.2 cftime=
  && pip install --no-cache-dir --no-deps /src \
  && python -c "import rvic.parameters, rvic.convolution, rvic_convolution" 2>&1 | tail -3 \
  && mkdir -p /model && cp /src/LICENSE.txt /model/LICENSE
+
+# RVIC asks getpass for a username on import, and a container run as a user with
+# no passwd entry has none to give it.
+ENV USER=hydroturing
 
 WORKDIR /model
 COPY ht_adapter.py /model/ht_adapter.py

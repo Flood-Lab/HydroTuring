@@ -7,7 +7,7 @@ Valmik Nahata as [Flood-Lab/HydroTuring#59](https://github.com/Flood-Lab/HydroTu
 UCAR open-source licence, for Noah-MP and for HRLDAS; the image carries both at
 `/model/LICENSE.noahmp.txt` and `/model/LICENSE.hrldas.txt`, and is never pushed to a registry.
 
-**Result, version `5.2.1-17751dc.5`: FAIL (VIOLATION), 16 PASS, 9 FAIL, 12 N/A.** Its water budget
+**Result, version `5.2.1-17751dc.5`: FAIL (VIOLATION), 17 PASS, 8 FAIL, 12 N/A.** Its water budget
 closes on every record. Noah-MP cannot take one step per daily row, so under the `substep` rule in
 AGENTS.md a daily row is held flat for 24 hourly Noah-MP steps, and every daily verdict here describes
 that. See [the verdicts](#verdicts) for what each failure is and is not.
@@ -223,13 +223,12 @@ above a temperature-dependent latent heat at these temperatures.
 
 ## Verdicts
 
-Run through the harness on the gate seeds, with `window_days: full`, under Apptainer, on image digest
-`5cb456a07b77`. Numbers quoted without a probe's own report are direct runs of an earlier image, which differs in
+Run through the harness on the gate seeds, with `window_days: full`, under Docker on Apple Silicon at `3e86a79`, version
+`5.2.1-17751dc.5`. Numbers quoted without a probe's own report are direct runs of an earlier image, which differs in
 the 1 part per million above and in `hfg_bottom` under snow, which no daily probe reads.
 
 | Probe | Verdict | Number | Mechanism |
 | --- | --- | --- | --- |
-| `mass/catchment-closure` | FAIL | ET min -0.28 mm/day | **The budget closes:** 0.13 to 0.86 mm of 7700 to 8630 mm over ten years, and upstream's own error is at most 0.002 mm per step. `et_plausible` fails because ET is negative on 7 to 58 rows: `evspsbl` is net of dew and frost, under a mocked 70 percent humidity. Verified that it is net condensation; a humidity that never condenses was not tried |
 | `mass/multi-decadal-drift` | FAIL | ET 1.477 of `pet` | **Mock, verified.** Noah-MP never reads `pet` as demand. With the mocked humidity at 0.95 instead of 0.70 the same seed gives 0.874. Closure and drift pass |
 | `mass/ungauged-basin-closure` | FAIL | ET 1.148 of `pet` | The same `et_plausible`. Closure and bounds pass |
 | `mass/human-abstraction` | FAIL | 100 percent of the withdrawal | Honest. `abstr` is not read, and Noah-MP as configured has no withdrawal |
@@ -238,6 +237,7 @@ the 1 part per million above and in `hfg_bottom` under snow, which no daily prob
 | `mass/antecedent-monotonicity` | FAIL | +1.1 mm against the 1.2 mm expected | Narrow. 60 mm held flat over a day is 2.5 mm/h, which likely stays below infiltration, so the wetter soil sheds little more. Cause inferred, not tested: a resampled storm would be a different case |
 | `energy/latent-heat-et-consistency` | FAIL | `energy_closure` 8.83 percent | **Input mismatch,** [#160](https://github.com/Flood-Lab/HydroTuring/issues/160): mean prescribed `rn` 90.5 W m-2, Noah-MP's own 82.7, and the budget against its own closes to -0.03. `flux_identity` also fails: `sbl` is gross and `evspsbl` net, so `sbl` is larger on 2 rows, and a pack that melts out during a row leaves `sbl` beside an end-of-row `snw` of zero |
 | `energy/evaporative-partition` | FAIL | fluxes moved by -669 against 142 allowed | The same `rn` caveat. Not diagnosed further |
+| `mass/catchment-closure` | PASS | closure 0.0063 percent of rain | **The budget closes:** 0.13 to 0.86 mm of 7700 to 8630 mm over ten years, and upstream's own error is at most 0.002 mm per step. It failed until `et_plausible` was corrected at `dc9836c`, which read a row's minimum: ET is negative on 7 to 58 rows, at worst -0.28 mm/day, because `evspsbl` is net of dew and frost, under a mocked 70 percent humidity. Verified that it is net condensation, which the lexicon allows. The criterion now reads cumulative ET |
 | `energy/radiation-consistency` | PASS | worst step 0.01 of tolerance (-0.035 W m-2 against 2.66) | **Trivial.** `EnergyMain` computes `TemperatureRadSfc` by inverting this identity from `RadLwEmitSfc` (verified in source). Only two things are tested: that `eps` reaches `EmissivitySfc`, and the time labelling |
 | `energy/soil-heat-storage-consistency` | PASS | worst phase 0.035 W m-2 against 1 | Implicit solver's own consistency: the flux uses its conductivity and end-of-step temperatures. The capacity was set from the case. Inferred |
 | `mass/resolution-invariance` | PASS | worst `mrso_end` 1.857 percent of rain, limit 10 | Not trivial: hourly against minute, volumes move by about 1 percent of rain. Says nothing about a daily row |

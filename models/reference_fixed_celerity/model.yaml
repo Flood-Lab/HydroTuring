@@ -5,7 +5,7 @@ description: >
   It reads the supplied reach geometry and transports the prescribed discharge
   to the reach outlet at a fixed positive 1 m/s, independent of hydraulic state.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1H

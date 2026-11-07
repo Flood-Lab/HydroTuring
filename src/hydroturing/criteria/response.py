@@ -97,6 +97,10 @@ def counterfactual_response(
     control_driver = control.volume(control.forcing[driver]).sum()
     control_terms = {var: control.volume(control.table[var]).sum() for var in terms}
     control_storage = storage_change(control) if states else 0.0
+    # A declared exchange is a source, as it is in `closure`, so what it gives up when
+    # the driver changes is part of the budget. A term no model reports costs nothing.
+    sources = [v for v in params.get("sources", ["gwex"]) if v in control.table.columns]
+    control_sources = {var: control.volume(control.table[var]).sum() for var in sources}
 
     per_variant: dict[str, dict] = {}
     failures: list[str] = []
@@ -139,8 +143,18 @@ def counterfactual_response(
                 f"{prefix}{hog} absorbs {abs(hog_share):.3f} of the {word} {driver} "
                 f"(limit {max_share:g})"
             )
-        accounted = float(sum(shares.values()))
-        if abs(accounted - 1.0) > sum_tolerance:
+        source_shares = {
+            var: float(perturbed.volume(perturbed.table[var]).sum() - control_sources[var]) / added
+            for var in sources
+        }
+        accounted = float(sum(shares.values()) - sum(source_shares.values()))
+        if not np.isfinite(accounted):
+            # Infinity in both runs differences to NaN, which no comparison above catches.
+            failures.append(
+                f"{prefix}a budget term is non-finite, so the responses cannot account "
+                f"for the {word} {driver}"
+            )
+        elif abs(accounted - 1.0) > sum_tolerance:
             failures.append(
                 f"{prefix}the responses account for {accounted:.3f} of the {word} {driver}, "
                 f"not 1.000 (tolerance {sum_tolerance:g})"
@@ -148,11 +162,15 @@ def counterfactual_response(
         per_variant[name] = {
             "added_mm": added,
             "shares": shares,
+            "source_shares": source_shares,
             "largest_share": hog,
             "accounted": accounted,
         }
 
-    worst = max(per_variant.values(), key=lambda v: abs(v["accounted"] - 1.0))
+    worst = max(
+        per_variant.values(),
+        key=lambda v: abs(v["accounted"] - 1.0) if np.isfinite(v["accounted"]) else np.inf,
+    )
 
     def describe(v):
         return ", ".join(f"{k} {s:+.3f}" for k, s in v["shares"].items())
@@ -169,7 +187,7 @@ def counterfactual_response(
     return CriterionResult(
         name="counterfactual_response",
         status=FAIL if failures else PASS,
-        value=worst["accounted"],
+        value=worst["accounted"] if np.isfinite(worst["accounted"]) else None,
         threshold=1.0 + sum_tolerance,
         message=f"{headline} ({detail})" if not failures else "; ".join(failures),
         diagnostics=diagnostics,

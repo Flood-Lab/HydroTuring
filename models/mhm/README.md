@@ -161,7 +161,7 @@ delivering the forcing**. Its 2.6% measures mHM's disaggregation, not a dependen
 
 ## Evaluation
 
-Gate seeds, all 37 probes, Apptainer: **21 PASS, 1 FAIL, 15 N/A** (13 INCOMPLETE, 2 INCOMPATIBLE) at version
+Gate seeds, all 37 probes, Docker on Apple Silicon at `3e86a79`: **21 PASS, 1 FAIL, 15 N/A** (13 INCOMPLETE, 2 INCOMPATIBLE) at version
 `5.13.4-ht.1`.
 
 | Probe | Verdict | Reading | Mechanism |
@@ -187,7 +187,7 @@ Gate seeds, all 37 probes, Apptainer: **21 PASS, 1 FAIL, 15 N/A** (13 INCOMPLETE
 | `mass/time-origin-invariance` | PASS | departure 0 | **partly by configuration**: the flat tables remove the calendar mHM would otherwise read |
 | `mass/ungauged-basin-closure` | PASS | residual 0.0000%, ET 0.791 of PET | |
 | `mass/warming-response` | PASS | runoff −0.411, ET +0.407 per unit of demand | |
-| `momentum/routing-conservation` | PASS | `channel` within 0.03 of a 15-day hydrograph | |
+| `momentum/routing-conservation` | PASS | `channel` within 0.02 of a 15-day hydrograph | |
 
 N/A (INCOMPLETE, 13): `energy/evaporative-partition`, `latent-heat-et-consistency`, `radiation-consistency`,
 `snowmelt-energy-water`, `soil-heat-storage-consistency`, `surface-energy-closure`, `mass/aquifer-recharge-ordering`,

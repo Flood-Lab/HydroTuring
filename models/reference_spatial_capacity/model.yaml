@@ -4,7 +4,7 @@ description: Attribute-dependent fixed internal-capacity fault. Diagnostic fixtu
   not a scientific model.
 authors:
 - Shunan Zhou
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint:
 - python3

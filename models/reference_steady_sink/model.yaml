@@ -13,7 +13,7 @@ description: >
   smaller share of the gross, which is finite for a steady exchange where the
   variation share is not.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1D

@@ -10,7 +10,7 @@ description: >
   (gw_to_sw) without its sign, so it no longer sums to gw_sw_exchange;
   every other criterion in the probe passes.
 authors: [HydroTuring maintainers]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: [python3, ht_adapter.py]
 timestep: PT1D

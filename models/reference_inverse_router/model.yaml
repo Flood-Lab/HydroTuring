@@ -5,7 +5,7 @@ description: >
   conserves routed runoff and remains causal, but makes travel time decrease
   once along the ascending Snyder-Hack geometry ladder.
 authors: [binbinlan]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: [python3, ht_adapter.py]
 timestep: PT1D

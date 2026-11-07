@@ -377,6 +377,13 @@ cannot be put to the model, so it counts neither way. Fabricating an
 `evspsbl` column to avoid `INCOMPLETE` produces `VIOLATION` instead, which
 is worse and is also dishonest.
 
+A capacity in `static.json` bounds a store only for a model that declares it
+consumes that key. For any other model that upper bound in `state_bounds` is
+N/A, unless the store past it runs away, so a model with a learned capacity is
+not failed against a number it never read, and invented storage still is. A
+scored record under two years cannot show a store is stationary, so the bound
+stays there; such a model should ask for `window_days: full`.
+
 `needs_forcing` and `needs_static` declare inputs the adapter cannot run
 without; a missing input makes the case `N/A (INCOMPATIBLE)`.
 `uses_forcing` and `uses_static` declare optional inputs: the adapter must

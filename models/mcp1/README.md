@@ -94,7 +94,7 @@ record, -0.68/-0.72 on the default window).
 
 ## Verdict
 
-Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch27.4`: **FAIL (VIOLATION), 12 of 20 scored**, 17 N/A
+Gate seeds, Apptainer, 2026-10-31, version `5944b5f-epoch27.4`, with the probes that bound the store re-scored on Docker the same day: **FAIL (VIOLATION), 18 of 20 scored**, 17 N/A
 (16 INCOMPLETE, 1 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not
 read). The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `gwex`, `channel`, `stage` and `dis`.
 
@@ -103,50 +103,50 @@ round-off in an update that conserves mass by construction. Trivial passes for t
 no area), `phase-counterfactual` (reads no temperature) and `time-origin-invariance` (reads no calendar), as are the
 bounds on the zero `snw` and `canopy`.
 
-Six of the eight FAILs are `state_bounds` and nothing else.
+On seven probes the store passes the case's capacity. That upper bound is N/A for this model, which does not consume `soil_capacity_mm`, and no store runs away.
 
 | Probe | Result | Detail |
 | --- | --- | --- |
 | energy/pet-consistency | PASS | 0.93 of demand when wet, 0.59 when dry |
 | mass/antecedent-monotonicity | **FAIL** | +0.4 mm on a 60 mm storm; 1.2 mm expected |
 | mass/area-invariance | PASS | trivially: the model reads no area |
-| mass/catchment-closure | **FAIL** | `state_bounds`: `mrso` 337-725 mm against 320 |
+| mass/catchment-closure | PASS | `mrso` 337-725 mm, capacity bound N/A |
 | mass/causality | PASS | nothing moves before the storm |
 | mass/dry-down | PASS | nothing rises |
-| mass/extreme-event-closure | **FAIL** | `state_bounds`: `mrso` 243-850 mm against 320; event closure passes |
+| mass/extreme-event-closure | PASS | `mrso` 243-850 mm, capacity bound N/A; event closure passes |
 | mass/extreme-rain | PASS | returns 1.00 of 997 mm |
-| mass/human-abstraction | **FAIL** | 380 mm of 380 unaccounted for; `state_bounds`: `mrso` 303-722 mm against 320 |
-| mass/multi-decadal-drift | **FAIL** | `state_bounds`: `mrso` 571-624 mm against 320; no drift |
+| mass/human-abstraction | **FAIL** | 380 mm of 380 unaccounted for |
+| mass/multi-decadal-drift | PASS | `mrso` 571-624 mm, capacity bound N/A; no drift |
 | mass/phase-counterfactual | PASS | trivially: the model reads no temperature |
-| mass/precipitation-counterfactual | **FAIL** | `state_bounds`: `mrso` 329-707 mm against 320; the partition passes |
+| mass/precipitation-counterfactual | PASS | `mrso` 329-707 mm, capacity bound N/A; the partition passes |
 | mass/resolution-invariance | PASS | `mrso_end` 6.0% of rain |
 | mass/response-nonnegativity | PASS | no dip |
 | mass/runoff-bounds | PASS | runoff 0.36 of rain |
-| mass/spinup-cycle-invariance | **FAIL** | `state_bounds`: `mrso` 382-662 mm against 320; the invariance passes |
+| mass/spinup-cycle-invariance | PASS | `mrso` 382-662 mm, capacity bound N/A; the invariance passes |
 | mass/steady-state | PASS | settles at 0.887 mm/day |
 | mass/time-origin-invariance | PASS | trivially: the model reads no calendar |
-| mass/ungauged-basin-closure | **FAIL** | `state_bounds` on 10 of 12 seeds: `mrso` 438-686 mm against 124 |
+| mass/ungauged-basin-closure | PASS | `mrso` 438-686 mm, capacity bound N/A |
 | mass/warming-response | PASS | -0.35 and -0.51 per unit of demand |
 
 ## The failures
 
 All verified with targeted runs. All are the model, not the adapter.
 
-**state_bounds, on seven probes: the store has no capacity, and its gate opens far above the bound.** The probes take
+**The capacity bound, N/A on seven probes since `state_bounds` stopped applying a capacity to a model that does not consume it: the store has no capacity, and its gate opens far above the bound.** The probes take
 the bound from `soil_capacity_mm` in `static.json`: 320 mm, or a draw of 124-682 mm on `ungauged-basin-closure`. Nothing
 in the model can use it. The checkpoint's seven tensors are gate scales, biases and weights, the store has no upper
 limit, and the adapter never opens `static.json`. The store runs wherever the learned output gate lets out the runoff
 the climate requires. At 320 mm that gate releases under 0.001 mm/day, half-opens at 699 mm, and the probe's records
 need 0.56-0.81 mm/day. So on `catchment-closure` the store spans 265-725 mm across the seeds, and on the Leaf River, where
 it was trained, 239-814 mm (mean 549), above 320 mm on 98% of days. On `ungauged-basin-closure` its peak is 618-686 mm
-whatever the draw, and the two seeds that pass are the ones that drew 679 and 682 mm.
+whatever the draw, and the two seeds that stayed inside it are the ones that drew 679 and 682 mm.
 
 The adapter could not honestly do otherwise. There is no capacity to hand `soil_capacity_mm` to, and writing it into
 the normalisation or the gates would make a different model from the one trained. Subtracting a datum would not fit
 either: the store's range on `catchment-closure` is 388-437 mm wide on each seed, wider than the
 bound. Moving the water above the bound into `gw` would invent a partition the model does not have. So this is
 a finding about the model, as with `parFC` in `models/dhbv2`, except that here not even a learned capacity exists. It
-does not depend on the spin-up: the same probe fails the same way at zero, one and three repeats.
+does not depend on the spin-up: the store passes the number the same way at zero, one and three repeats.
 
 **human-abstraction: the model has no withdrawal term.** Structural, and verified from the row and the
 code: the adapter reads `pr` and `pet` and nothing else, the paired runs are identical (`evspsbl`, `mrro` and
