@@ -149,6 +149,15 @@ for exactly the abstracted volume (net of return flow).
 
 Contributed by Yuanhang Liu.
 
+### `mass/interception-response` &middot; **merged**
+The same three-year weather with canopy capacity 2 mm and 10 mm: a larger
+canopy must not raise runoff or lower evaporation, the paired budget must
+account for the difference, and the evaporation response must exist.
+*Discriminates:* models that declare `canopy_capacity_mm` and ignore it, or
+allocate the intercepted water the wrong way.
+
+Contributed by Yuanhang Liu.
+
 ### `mass/exchange-response` &middot; **merged**
 A declared head-driven exchange must respond to its external head. Once a
 model closes its budget with `gwex`, that flux is identically minus the
