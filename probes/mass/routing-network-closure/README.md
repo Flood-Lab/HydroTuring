@@ -12,19 +12,19 @@ Two prescribed headwater inflows enter reaches A and B. Their outflows meet at
 zero-storage junction J and become the inflow to reach C.
 
 ```text
-q_in,A -> reach A -> q_out,A --\
-                                  J -> q_in,C -> reach C -> q_out,C
-q_in,B -> reach B -> q_out,B --/
+reach_q_in,A -> reach A -> q_out,A --\
+                                  J -> reach_q_in,C -> reach C -> q_out,C
+reach_q_in,B -> reach B -> q_out,B --/
 ```
 
 For each reach `i` and daily interval `t`, and for the junction,
 
 ```text
-r_i,t = (q_in,i,t - q_out,i,t) * dt - (V_i,t - V_i,t-1)      [m3]
-r_J,t = (q_out,A,t + q_out,B,t - q_in,C,t) * dt              [m3]
+r_i,t = (reach_q_in,i,t - q_out,i,t) * dt - (V_i,t - V_i,t-1)      [m3]
+r_J,t = (q_out,A,t + q_out,B,t - reach_q_in,C,t) * dt              [m3]
 ```
 
-`q_in` and `q_out` are interval-mean discharge in `m3/s`; `V` is
+`reach_q_in` and `q_out` are interval-mean discharge in `m3/s`; `V` is
 interval-end river-channel storage in `m3`; and `dt = 86,400 s`. A row's
 `time` is the start of its interval. For the first scored interval,
 `V_i,t-1` is read from the final spin-up row, so no scored interval is lost.
@@ -33,7 +33,7 @@ Accept when the sum of absolute interval residuals is under **5 percent of
 incoming volume**, separately for every reach and for the junction:
 
 ```text
-sum_t(abs(r_i,t)) / sum_t(q_in,i,t * dt)                   <= 0.05
+sum_t(abs(r_i,t)) / sum_t(reach_q_in,i,t * dt)                   <= 0.05
 sum_t(abs(r_J,t)) / sum_t((q_out,A,t + q_out,B,t) * dt)    <= 0.05
 ```
 
@@ -47,10 +47,10 @@ the relevant contributing area: 60,000 `m3` at A, 90,000 `m3` at B, and
 150,000 `m3` at C and J. The floor is an eligibility test; it does not replace
 the actual denominator.
 
-### Proposed routing contract extension
+### Reach-indexed routing contract
 
-The current scalar `/io` contract has no reach dimension. This proposal adds
-two prescribed forcing columns and one long-format output while leaving
+This probe uses the merged reach-indexed routing contract with two prescribed
+forcing columns and a separate long-format routing output, while leaving
 `result.csv` unchanged:
 
 ```text
@@ -58,34 +58,34 @@ two prescribed forcing columns and one long-format output while leaving
 time,pr,tas,pet,q_in_A,q_in_B
 
 /io/output/routing.csv
-time,reach_id,q_in,q_out,channel_storage
+time,reach_id,reach_q_in,q_out,channel_storage
 ```
 
 There is exactly one routing row per forcing time and declared reach.
 `reach_id` must match `static.json.routing_network.reaches`; `(time, reach_id)`
-must be unique; and all values must be finite. `q_in` and `q_out` are in
+must be unique; and all values must be finite. `reach_q_in` and `q_out` are in
 `m3/s`; `channel_storage` is the reach's river storage alone in `m3`, excluding
 land, soil, groundwater, floodplain, and overland stores.
 
-For A and B, `q_in` is the external inflow actually accepted by the routing
+For A and B, `reach_q_in` is the external inflow actually accepted by the routing
 component and must reproduce the prescribed `q_in_A` and `q_in_B` within
 
 ```text
 abs(q_reported - q_forcing) <= 1e-9 m3/s + 1e-6 * abs(q_forcing).
 ```
 
-For C, `q_in` is the routing component's independently reported upstream
-inflow. It is not constructed by the harness or adapter as
-`q_out,A + q_out,B`: doing that would make the junction criterion true by
-construction and prevent it from distinguishing a reach-internal budget error
-from a junction-transfer error.
+For C, `reach_q_in` is the routing component's reported upstream inflow. A
+model can construct it as `q_out,A + q_out,B`, so the junction equality alone
+cannot prove independent reporting. Such construction changes the attribution
+of an omitted transfer loss: the loss appears in C's reach-closure residual
+and is caught by `routing_reach_closure`.
 
-The proposed declarations are:
+The declarations are:
 
 ```yaml
 # probe.yaml
 requires:
-  routing: [q_in, q_out, channel_storage]
+  routing: [reach_q_in, q_out, channel_storage]
   forcing: [q_in_A, q_in_B]
   static: [routing_network]
 
@@ -93,15 +93,16 @@ requires:
 emits:
   fluxes: [pr, evspsbl, mrro, dis, gwex]
   states: [mrso, snw, canopy, channel]
-  routing: [q_in, q_out, channel_storage]
+  routing: [reach_q_in, q_out, channel_storage]
 needs_forcing: [pr, tas, pet, q_in_A, q_in_B]
 needs_static: [routing_network]
 ```
 
-Both probe and model schemas, request/output validation, compatibility checks,
-and the variable table must be extended for these declarations. A model without
-the table is `N/A (INCOMPLETE)`; a model that does not declare consumption of
-both headwater series and the topology is `N/A (INCOMPATIBLE)`.
+The merged contract already provides these schema fields, request/output
+validation, compatibility checks, and variable definitions. A model that does
+not declare every requested routing output is `N/A (INCOMPLETE)`; a model that
+does not declare the required forcing series or `routing_network` is
+`N/A (INCOMPATIBLE)`.
 
 ## The case
 
@@ -109,14 +110,14 @@ both headwater series and the topology is `N/A (INCOMPATIBLE)`.
 
 - a fixed Y network with contributing areas of 60, 90, and 150 `km2`;
 - 365 spin-up days with intermittent prescribed inflows to both headwaters;
-- a 90-day scored window with one independent A event and one independent B
-  event in the first 14 days, followed by at least 70 inflow-free days;
+- a 90-day scored window with independent A and B events that begin within
+  the first 14 days and end by day 19, followed by at least 70 inflow-free days;
 - `q_in_A` and `q_in_B` in `m3/s`, converted exactly from generated depth and
   the two headwater areas;
 - standard `pr/tas/pet` columns retained for contract compatibility, with both
   precipitation and PET set to zero; and
-- no channel evaporation, lateral channel inflow, groundwater-channel
-  exchange, withdrawal, or inter-basin transfer.
+- no open-water evaporation, aquifer seepage, floodplain spill, additional
+  lateral channel inflow, withdrawal, or inter-basin transfer.
 
 Across seeds 0--299, each scored headwater event supplies 30.0--65.0 mm of
 inflow-equivalent depth and daily headwater peaks span 5.23--33.45 `m3/s`.
@@ -129,22 +130,22 @@ contract and topology already declare its applicability; seeded event timing
 and volume prevent memorisation of the numerical answer. Storage is not reset
 at the scoring boundary, and end-of-window storage remains in every budget.
 
-Both `period_days` and `min_window_days` are supported by the current schema.
-Full `ht validate` will still fail until `requires.routing`, `emits.routing`,
-the routing output path, and the `routing_*` criteria are implemented.
+`period_days`, `min_window_days`, and the reach-indexed routing contract are
+supported by the current schema. This PR adds the `routing_*` criteria and
+reference models needed to gate the probe.
 
 ## Why these criteria
 
-Closure alone is trivially satisfiable. Each additional criterion closes a
-specific escape.
+Closure alone is not sufficient. These criteria test complementary parts of
+the reported routing behaviour.
 
-| Criterion | The cheat it closes off |
+| Criterion | What it checks |
 | --- | --- |
-| `routing_input_fidelity` | rescaling or replacing the prescribed headwater inflows |
-| `routing_reach_closure` | a local sink, reach-to-reach compensation, or temporal cancellation |
-| `routing_junction_closure` | water lost or created during transfer through J |
-| `routing_recession_bound` | retaining routed water indefinitely after its hydrograph has receded |
-| `routing_state_bounds` | negative discharge/storage or storage above declared capacity |
+| `routing_input_fidelity` | reported headwater inflows match the prescribed forcing |
+| `routing_reach_closure` | local sinks, reach-to-reach compensation, and temporal cancellation |
+| `routing_junction_closure` | reported transfer through J is conserved |
+| `routing_recession_bound` | routed water is not retained indefinitely after recession |
+| `routing_state_bounds` | discharge and channel storage remain non-negative |
 
 An instantaneous zero-storage router is allowed. It may have no resolvable lag
 at PT1D, but it does not violate mass conservation. Timing and physically
@@ -154,7 +155,7 @@ The recession criterion is the per-reach analogue of the merged
 `momentum/routing-conservation` criterion. For each reach,
 
 ```text
-peak_i,t = max q_in,i over the preceding lookback_days
+peak_i,t = max reach_q_in,i over the preceding lookback_days
 
 allowed_i,t = max_lag_days * peak_i,t * 86,400
               * (1 + tolerance)
@@ -162,6 +163,9 @@ allowed_i,t = max_lag_days * peak_i,t * 86,400
 
 V_i,t <= allowed_i,t
 ```
+
+With `max_lag_days: 15` and `tolerance: 0.05`, the configured bound corresponds
+to an effective exponential e-folding limit of approximately 4.4 days.
 
 The 70-day dry tail is part of the test mechanism: after 30 days the event peak
 leaves the lookback window and the proportional allowance falls to zero. The
@@ -172,7 +176,7 @@ per-reach Wflow storage before the acceptance gate is reported.
 
 `reference_network_stuck_router` retains 10 percent of routed water, proving
 the criterion catches an obvious fault. `reference_network_leaky_router`
-retains 1 percent, constraining how far the absolute allowance may be relaxed.
+retains 0.1 percent, constraining how far the absolute allowance may be relaxed.
 Both report the retained water as storage, so reach closure still passes and
 the recession criterion must do the catching.
 
@@ -188,8 +192,9 @@ current one-cell schematisation to three river cells. Its adapter must:
    columns.
 
 The four standard lumped baselines lack reach-indexed routing output and are
-N/A; they neither pass nor fail this probe. The Wflow gate result and calibrated
-absolute allowance must be archived before merge.
+N/A; they neither pass nor fail this probe. Wflow is evaluated and archived as
+independent physical evidence, not as a must-pass gate baseline, and its native
+per-reach storage is used to calibrate the absolute allowance.
 
 | Model | Required failure |
 | --- | --- |

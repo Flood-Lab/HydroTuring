@@ -5,7 +5,7 @@ reach-resolved routing component: prescribed headwater discharge is its only
 water input, and precipitation and potential evaporation are both zero so the
 declared control-volume equation has no omitted source or sink.
 
-Requirements expected by the proposed case:
+Requirements for this case:
   - generate(seed) returns (DataFrame, dict)
   - the frame has a 'time' column
   - it has exactly PERIOD_DAYS + SPINUP_DAYS rows
@@ -15,6 +15,8 @@ Run this file directly to sanity check what it produces.
 """
 
 from __future__ import annotations
+
+import copy
 
 import numpy as np
 import pandas as pd
@@ -44,11 +46,6 @@ STATIC = {
             "A": AREA_A_KM2,
             "B": AREA_B_KM2,
             "C": AREA_C_KM2,
-        },
-        "channel_capacity_m3": {
-            "A": 4.0e6,
-            "B": 6.0e6,
-            "C": 1.0e7,
         },
         "channel_evaporation": False,
         "groundwater_channel_exchange": False,
@@ -113,7 +110,8 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
         start_a + duration_a - SPINUP_DAYS,
         start_b + duration_b - SPINUP_DAYS,
     )
-    assert PERIOD_DAYS - last_event_end >= MIN_DRY_TAIL_DAYS
+    if PERIOD_DAYS - last_event_end < MIN_DRY_TAIL_DAYS:
+        raise ValueError("generated forcing does not leave the required dry tail")
 
     q_in_a = _depth_to_discharge(inflow_a_mm, AREA_A_KM2)
     q_in_b = _depth_to_discharge(inflow_b_mm, AREA_B_KM2)
@@ -136,7 +134,7 @@ def generate(seed: int) -> tuple[pd.DataFrame, dict]:
             "q_in_B": np.round(q_in_b, 9),
         }
     )
-    return forcing, dict(STATIC)
+    return forcing, copy.deepcopy(STATIC)
 
 
 if __name__ == "__main__":

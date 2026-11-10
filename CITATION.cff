@@ -95,6 +95,10 @@ authors:
     family-names: Chen
     affiliation: Department of Computer Science and Engineering, State University of New York at Buffalo, Buffalo, NY, USA
     orcid: "https://orcid.org/0009-0001-4031-8545"
+  - given-names: Jiao
+    family-names: Wang
+    affiliation: Department of Land, Air, and Water Resources, University of California Davis. Davis, California, USA
+    orcid: "https://orcid.org/0000-0002-4029-5814School"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: MIT

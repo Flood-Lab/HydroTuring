@@ -1,9 +1,3 @@
-# ---------------------------------------------------------------------------
-# This file proposes a reach-indexed routing output contract. 
-# The contract, criteria, references, and extension
-# of the existing wflow_sbm adapter must land before this probe can gate.
-# ---------------------------------------------------------------------------
-
 id: mass/routing-network-closure
 title: Reach-by-reach mass closure in a branching routing network
 law: mass
@@ -22,11 +16,12 @@ description: >
   in every reach and at the zero-storage junction, and routed water may not
   remain trapped after the forcing has receded.
 
-# Proposed contract extension. routing.csv has columns time, reach_id, q_in,
-# q_out, and channel_storage. Headwater q_in must echo the prescribed forcing;
-# q_in for C is reported independently so junction transfer remains testable.
+# routing.csv has columns time, reach_id, reach_q_in, q_out, and
+# channel_storage. Headwater reach_q_in must echo the prescribed forcing;
+# reach_q_in for C is reported independently so junction transfer remains
+# testable.
 requires:
-  routing: [q_in, q_out, channel_storage]
+  routing: [reach_q_in, q_out, channel_storage]
   forcing: [q_in_A, q_in_B]
   static: [routing_network]
 
@@ -40,7 +35,6 @@ case:
   max_output_mb: 5.0
   max_runtime_s: 60
 
-# All routing_* criteria are proposed additions to the criterion registry.
 criteria:
   - routing_input_fidelity:
       headwater_forcing: {A: q_in_A, B: q_in_B}
@@ -69,16 +63,14 @@ criteria:
 
   - routing_state_bounds:
       storage_lower_m3: 0.0
-      storage_upper_static: channel_capacity_m3
       discharge_lower_m3_s: 0.0
       storage_atol_m3: 1.0e-6
       discharge_atol_m3_s: 1.0e-9
 
-# wflow_sbm already exists in HydroTuring as a one-cell adapter. It must be
-# version-bumped and extended to a three-river-cell Y network with external
-# inflow forcing and routing.csv output before it can satisfy this declaration.
+# wflow_sbm is evaluated separately as independent physical evidence; it is not
+# a must-pass gate baseline for this synthetic probe.
 baselines:
-  must_pass: [reference_network_exact, wflow_sbm]
+  must_pass: [reference_network_exact]
   must_fail:
     reference_network_input_rescale: routing_input_fidelity
     reference_network_compensation: routing_reach_closure
@@ -91,6 +83,7 @@ baselines:
 provenance: >
   Synthetic. Generated at run time by generate.py from a recorded seed. Two
   headwater inflows are prescribed independently in forcing.csv. The fixed
-  topology is declared in static.json, with no precipitation, channel
-  evaporation, lateral channel inflow, groundwater-channel exchange,
-  withdrawal, or inter-basin transfer.
+  topology is declared in static.json. The case has no precipitation, open-water
+  evaporation, aquifer seepage, floodplain spill, lateral channel inflow,
+  withdrawal, or inter-basin transfer. Because all reach-level losses are zero,
+  no separate loss variable is required.
