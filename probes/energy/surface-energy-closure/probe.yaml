@@ -2,7 +2,7 @@ id: energy/surface-energy-closure
 title: Hourly surface budgets cannot hide cancelling energy errors
 law: energy
 track: synthetic
-version: 1
+version: 2
 
 authors:
   - name: Han Wang
@@ -25,6 +25,7 @@ description: >
 requires:
   fluxes: [hfls, hfss, hfg]
   states: []
+  forcing: [rn]
 
 case:
   generator: generate.py
@@ -58,4 +59,7 @@ provenance: >
   attenuation, daily shortwave amplitude and longwave cooling vary by seed.
   Timestamps are local-solar interval starts. Hidden day/night annotations
   are stripped before staging model inputs. Proposal and agreed scope:
-  https://github.com/Flood-Lab/HydroTuring/issues/15.
+  https://github.com/Flood-Lab/HydroTuring/issues/15. Version 2 makes the
+  prescribed net-radiation input requirement explicit, following
+  https://github.com/Flood-Lab/HydroTuring/issues/142; the case, criterion
+  and tolerances are unchanged.

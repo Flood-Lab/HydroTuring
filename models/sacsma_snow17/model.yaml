@@ -14,7 +14,7 @@ authors:
   - "Upstream Tech (f2py packaging)"
   - "HydroTuring maintainers (port and adapter)"
 reference: "https://github.com/Upstream-Tech/SACSMA-SNOW17"
-license: "US Government work (NWS code); repository unlicensed; port PolyForm-Noncommercial-1.0.0"
+license: "US Government work (NWS code); repository unlicensed; port CC-BY-NC-4.0"
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 # Snow-17 is defined on whole hours: one day and one hour.

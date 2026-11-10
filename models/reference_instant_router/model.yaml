@@ -5,7 +5,7 @@ description: >
   converts rainfall to runoff in the same row, ignoring the finite travel time
   implied by the supplied channel geometry.
 authors: [binbinlan]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: [python3, ht_adapter.py]
 timestep: PT1D

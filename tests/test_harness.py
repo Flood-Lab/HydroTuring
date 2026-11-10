@@ -8,6 +8,9 @@ arithmetic is not off by one, and the contract is enforced.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from dataclasses import replace
 
 import pandas as pd
@@ -24,7 +27,7 @@ from hydroturing.harness import (
 )
 from hydroturing.protocol import ProtocolError, read_result, stage
 from hydroturing.scoring import ERROR, FAIL, INCOMPATIBLE, INCOMPLETE, NOT_SCORED, OK, PASS, VIOLATION
-from hydroturing.spec import SpecError
+from hydroturing.spec import REPO_ROOT, SpecError
 from hydroturing.seeds import gate_seeds
 
 
@@ -627,6 +630,166 @@ def test_container_runs_with_hardened_read_only_inputs(tmp_path):
     assert not any(str(registry.PROBES_DIR) in a for a in argv), (
         "the probes directory must never be mounted into a model container"
     )
+
+
+def test_apptainer_runs_with_the_same_isolation(tmp_path):
+    """The cluster runtime has to hide what Docker hides. Without --no-mount a
+    site's bind paths would put this repository's probes inside the container."""
+    from hydroturing.runner.apptainer_runner import ApptainerRunner
+
+    model = registry.find_model("reference_bucket")
+    argv = ApptainerRunner.command("apptainer", "img.sif", "/model", model, tmp_path)
+
+    assert argv[:2] == ["apptainer", "exec"]
+    assert "--containall" in argv and "--no-home" in argv
+    assert "bind-paths" in argv[argv.index("--no-mount") + 1]
+    assert "--net" in argv and argv[argv.index("--network") + 1] == "none"
+    assert argv[argv.index("env") + 1] == "HOME=/tmp"
+    assert argv[argv.index("--pwd") + 1] == "/model"
+    binds = [argv[i + 1] for i, a in enumerate(argv) if a == "--bind"]
+    assert len(binds) == 3
+    assert any(b.endswith(":/io/request.json:ro") for b in binds)
+    assert any(b.endswith(":/io/input:ro") for b in binds)
+    assert any(b.endswith(":/io/output:rw") for b in binds)
+    assert argv[-2:] == ["--request", "/io/request.json"]
+    assert not any(str(registry.PROBES_DIR) in a for a in argv)
+
+
+def test_every_packaged_dockerfile_translates_to_apptainer(tmp_path):
+    """Every recipe in the repository has to translate, or a model cannot be
+    evaluated on a cluster; a keyword the translator does not know raises."""
+    from hydroturing.runner.apptainer_runner import (
+        env_pairs, final_workdir, parse_dockerfile, split_copy,
+    )
+
+    dockerfiles = sorted(registry.MODELS_DIR.glob("*/Dockerfile"))
+    assert dockerfiles
+    for dockerfile in dockerfiles:
+        stages = parse_dockerfile(dockerfile.read_text())
+        assert final_workdir(stages).startswith("/")
+        for stage in stages:
+            for instruction in stage.instructions:
+                if instruction.keyword == "ENV":
+                    assert all(k.isidentifier() for k, _ in env_pairs(instruction.value))
+                if instruction.keyword == "COPY":
+                    split_copy(instruction.value)
+
+
+def test_apptainer_translation_keeps_dockerfile_meaning():
+    from hydroturing.runner.apptainer_runner import (
+        env_pairs, final_workdir, flattened, logical_lines, parse_dockerfile,
+    )
+
+    text = """
+    # a comment
+    ARG BASE=debian:13
+    FROM --platform=linux/amd64 ${BASE}@sha256:abc AS env
+    ENV PATH=/opt/conda/bin:$PATH \\
+        A="b c"
+    RUN echo one \\
+    # a comment inside the continuation
+     && echo two
+    WORKDIR /first
+    FROM env
+    USER root
+    ENTRYPOINT []
+    """
+    stages = parse_dockerfile(text)
+    assert [s.base for s in stages] == ["debian:13@sha256:abc", "env"]
+    assert stages[0].name == "env"
+    assert env_pairs(stages[0].instructions[0].value) == [
+        ("PATH", "/opt/conda/bin:$PATH"), ("A", '"b c"'),
+    ]
+    assert " ".join(stages[0].instructions[1].value.split()) == "echo one && echo two"
+    # The later stage names no directory of its own, so it starts in env's.
+    assert final_workdir(stages) == "/first"
+    # It carries on from env in one recipe rather than unpacking env's image.
+    whole = flattened(stages[1], stages)
+    assert whole.base == "debian:13@sha256:abc"
+    assert [i.keyword for i in whole.instructions] == ["ENV", "RUN", "WORKDIR"]
+    assert "ENTRYPOINT []" in logical_lines(text)
+
+
+def test_apptainer_refuses_what_it_cannot_translate():
+    from hydroturing.runner.apptainer_runner import parse_dockerfile, split_copy
+    from hydroturing.runner.base import RunnerError
+
+    with pytest.raises(RunnerError, match="HEALTHCHECK"):
+        parse_dockerfile("FROM debian:13\nHEALTHCHECK NONE\n")
+    # ADD would unpack an archive under Docker and copy it here.
+    with pytest.raises(RunnerError, match="ADD"):
+        parse_dockerfile("FROM debian:13\nADD package.tar.gz /opt/\n")
+    with pytest.raises(RunnerError, match="chmod"):
+        split_copy("--chmod=755 adapter /model/adapter")
+    assert split_copy("--from=build /a /b") == ({"from": "build"}, ["/a"], "/b")
+
+
+def _apptainer_definition(tmp_path, dockerfile):
+    from hydroturing.runner.apptainer_runner import ImageBuilder, flattened
+
+    context = tmp_path / "context"
+    context.mkdir(exist_ok=True)
+    (context / "Dockerfile").write_text(dockerfile)
+    (context / "adapter.py").write_text("")
+    model = replace(registry.find_model("reference_bucket"), path=context)
+    with open(tmp_path / "build.log", "w+") as log:
+        builder = ImageBuilder(model, "apptainer", tmp_path, log)
+        return builder, builder.definition(flattened(builder.stages[-1], builder.stages), 0)
+
+
+def test_apptainer_expands_each_instruction_with_what_precedes_it(tmp_path):
+    from hydroturing.runner.apptainer_runner import final_workdir, parse_dockerfile
+
+    text = "FROM debian:13\nENV D=/first\nWORKDIR $D\nENV D=/second\nWORKDIR sub\nCOPY adapter.py $D/\n"
+    _, definition = _apptainer_definition(tmp_path, text)
+    assert "mkdir -p /first\n" in definition
+    # A relative WORKDIR is relative to the last one, for the build and for --pwd.
+    assert "mkdir -p /first/sub\n" in definition
+    assert final_workdir(parse_dockerfile(text)) == "/first/sub"
+    assert "mkdir -p /second/ &&" in definition
+
+
+def test_apptainer_stores_the_value_an_arg_held(tmp_path):
+    _, definition = _apptainer_definition(
+        tmp_path,
+        "FROM debian:13\nARG ROOT=/opt/model\nENV MODEL_ROOT=$ROOT PATH=/x:$PATH WORDS='$ROOT'\n",
+    )
+    environment = definition.split("%environment")[1]
+    assert "export MODEL_ROOT=/opt/model" in environment
+    # The build's ARG is gone at run time; the base image's PATH is still there.
+    assert "export PATH=/x:$PATH" in environment
+    assert "export WORDS='$ROOT'" in environment
+
+
+def test_apptainer_keeps_copy_inside_the_build_context(tmp_path):
+    from hydroturing.runner.base import RunnerError
+
+    (tmp_path / "secret.py").write_text("")
+    for source in ("../secret.py", str(tmp_path / "secret.py")):
+        with pytest.raises(RunnerError, match="outside the build context"):
+            _apptainer_definition(tmp_path, f"FROM debian:13\nCOPY {source} /model/\n")
+    (tmp_path / "context").mkdir(exist_ok=True)
+    (tmp_path / "context" / "linked").symlink_to(tmp_path)
+    with pytest.raises(RunnerError, match="outside the build context"):
+        _apptainer_definition(tmp_path, "FROM debian:13\nCOPY linked /model/\n")
+
+
+def test_apptainer_build_is_stopped_at_its_limit(tmp_path):
+    from hydroturing.runner.base import RunnerError
+
+    builder, _ = _apptainer_definition(tmp_path, "FROM debian:13\n")
+    builder.deadline = 0.0
+    with open(tmp_path / "limit.log", "w+") as builder.log:
+        with pytest.raises(RunnerError, match="build limit"):
+            builder.call(["sleep", "30"], "a stuck stage")
+
+
+def test_apptainer_runner_imports_where_fcntl_does_not_exist():
+    code = (
+        "import sys; sys.modules['fcntl'] = None; "
+        "import hydroturing.runner.apptainer_runner"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True, env={**os.environ, "PYTHONPATH": str(REPO_ROOT / "src")})
 
 
 def test_cpu_request_is_capped_at_the_host(monkeypatch, tmp_path):

@@ -5,7 +5,7 @@ description: >
   and energy, but 15 percent of net radiation never appears in any flux it
   reports. It exists so that energy_closure has something to catch.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D]

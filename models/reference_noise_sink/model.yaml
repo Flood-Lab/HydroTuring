@@ -11,7 +11,7 @@ description: >
   one column over, from an invented storage to an invented flux, and it is the
   model the exchange-response probe exists to catch.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: PT1D

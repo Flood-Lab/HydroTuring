@@ -30,6 +30,12 @@
       ],
       "description": "The step(s) the model can be run at, native step first. A single-step model lists one and is INCOMPATIBLE with probes that need another."
     },
+    "substep": {
+      "type": "object",
+      "propertyNames": {"enum": ["PT1D", "PT1H", "PT15M", "PT5M", "PT1M"]},
+      "additionalProperties": {"type": "string", "enum": ["PT1D", "PT1H", "PT15M", "PT5M", "PT1M"]},
+      "description": "For a row step the model's solver cannot take, the shorter step it runs at inside that row, holding the row's values flat: {PT1D: PT1H}. Not allowed on the native step. README.md must show the model failing at one step per row. AGENTS.md has the rule."
+    },
     "emits": {
       "type": "object",
       "required": ["fluxes", "states"],

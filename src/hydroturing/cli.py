@@ -226,6 +226,8 @@ def cmd_verify_adapter(args) -> int:
     run. 2: the adapter or the harness failed.
     """
     model = registry.find_model(args.model)
+    if getattr(args, "runner", None):
+        model = replace(model, runner=args.runner)
     probes = _all_probes(args)
     if not probes:
         print("no probes available to smoke test against")
@@ -467,6 +469,8 @@ def build_parser() -> argparse.ArgumentParser:
     verify = sub.add_parser("verify-adapter", help="check a model honours the /io contract")
     verify.add_argument("--model", required=True)
     verify.add_argument("--probe")
+    verify.add_argument("--runner", choices=["docker", "apptainer"],
+                        help="override the container runtime declared in model.yaml")
     verify.add_argument("--csv", metavar="PATH",
                         help="append the contract check as a row to this CSV archive")
     verify.add_argument("--workdir", help="keep the /io directory here instead of a temp dir")
@@ -484,8 +488,9 @@ def build_parser() -> argparse.ArgumentParser:
                      help="append one row per probe to this CSV archive (e.g. models/result.csv)")
     run.add_argument("--markdown", action="store_true", help="print the PR-comment table")
     run.add_argument("--workdir", help="keep the /io directories here instead of a temp dir")
-    run.add_argument("--runner", choices=["subprocess", "docker"],
-                     help="override the runner declared in model.yaml (used by CI to exercise the container path)")
+    run.add_argument("--runner", choices=["subprocess", "docker", "apptainer"],
+                     help="override the runner declared in model.yaml (used by CI to exercise "
+                          "the container path, and on a cluster with no Docker daemon)")
     add_window(run)
     add_probe_roots(run)
     run.set_defaults(fn=cmd_run)

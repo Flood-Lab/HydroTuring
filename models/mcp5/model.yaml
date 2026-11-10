@@ -1,0 +1,36 @@
+name: mcp5
+version: "5944b5f-epoch2999.4"
+description: >
+  MCPModel5, the three-node distributed-input MCP network MN_SALO^DI(3) of Wang
+  and Gupta (2025): three stores that each take a learned share of the rain, with
+  gates that read all three stores, and a discharge that is the sum of what they
+  release, trained on the Leaf River. Packaged from
+  YuanHWang/5MCPmodelnet_HydroTuring at 5944b5f with the published checkpoint
+  best_model_epoch2999.pt. Evaporation and storage are summed like the discharge,
+  an adapter choice README.md explains. No snow or canopy store, which are
+  reported as identically zero under zero_stores, and no groundwater or routing
+  store, which are left out; README.md says what that does to its standing.
+authors:
+  - "Yuan-Heng Wang (University of Arizona)"
+  - "Hoshin V. Gupta (University of Arizona)"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1029/2025WR040178"
+license: "Apache-2.0 (code and weights)"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+
+# The three stores together at the end of the row, so that the harness can
+# difference them against the row's fluxes.
+emits:
+  fluxes: [pr, evspsbl, mrro]
+  states: [mrso, snw, canopy]
+
+needs_forcing: [pr, pet]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 2, gpu: false}
+
+# Python loops over three scalar stores: a whole record takes seconds.
+window_days: full

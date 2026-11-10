@@ -110,6 +110,26 @@ actually consumes, and document their mapping to native parameters. Layer
 metadata makes that mapping auditable; a matching declaration alone does not
 prove that the model used it. See the [soil-storage case](../probes/energy/soil-heat-storage-consistency/README.md).
 
+For a probe that lists `rn` under `requires.forcing`, including the
+[hourly surface-budget probe](../probes/energy/surface-energy-closure/README.md),
+declaring `rn` means the supplied value is the external radiative input to the
+reported surface budget. Use `needs_forcing` if the model requires it to run,
+or `uses_forcing` if it accepts that boundary when supplied and has a
+documented fallback otherwise. This declares the input condition, not
+successful energy conservation. Merely reading `rn` to construct incoming
+shortwave and longwave for a reference surface is insufficient if the model
+then computes different net radiation. Document that mapping without
+declaring prescribed-`rn` support; that probe will report `N/A (INCOMPATIBLE)`
+when the heat outputs are present. Do not alter native heat fluxes to match
+the benchmark's radiation.
+
+The two daily energy probes, `energy/latent-heat-et-consistency` and
+`energy/evaporative-partition`, drive `energy_closure`, and on the partition
+probe `partition_shift`, with `rn` but do not require it, so they still score
+an adapter that computes its own sky. Daily averaging and the 5% tolerance do
+not remove the input mismatch, so treat those results as archived scores whose
+applicability is not established; [#160](https://github.com/Flood-Lab/HydroTuring/issues/160) tracks the fix.
+
 Routing probes may supply `q_in`, a prescribed river inflow in m3/s, positive
 into the routing control volume. This is already a volumetric discharge: do
 not convert it through `area_km2` as though it were a depth rate. A model
@@ -274,4 +294,12 @@ usually a unit conversion. Forcing is mm/day.
 
 **`state_bounds` fails but `closure` passes** — the model is computing a
 storage term as the budget residual. This is the pattern the benchmark exists
-to detect, and it is worth checking whether it is deliberate.
+to detect, and it is worth checking whether it is deliberate. An upper bound
+named after a static key, such as `soil_capacity_mm`, is N/A for a model that
+does not declare it under `needs_static` or `uses_static`, unless the store past
+that bound also runs away: the means of its first and last whole years, up to a
+third of the record, differ by more than a quarter of the range it covered before
+those last years. A scored record under two years cannot show that, so
+the bound stays there; a model with a learned capacity should ask for
+`window_days: full`. Declaring the key is a claim that the model obeys it, so do
+not declare one the model only passes along.
