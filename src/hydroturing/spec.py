@@ -146,6 +146,14 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_fixed_celerity",
     "reference_wrong_roughness",
     "reference_wrong_slope",
+    "reference_network_exact",
+    "reference_network_input_rescale",
+    "reference_network_compensation",
+    "reference_network_junction_loss",
+    "reference_network_temporal_shift",
+    "reference_network_stuck_router",
+    "reference_network_leaky_router",
+    "reference_network_negative",
 }
 
 

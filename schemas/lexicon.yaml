@@ -59,6 +59,8 @@ forcing:
   gw_recharge: {units: mm day-1, meaning: "Direct recharge to the aquifer"}
   sw_stage_m: {units: m, meaning: "River stage the aquifer exchanges with"}
   q_in: {units: m3 s-1, sign: "positive into the routing control volume", meaning: "Prescribed river or upstream inflow; already a discharge, never multiplied by area or row length"}
+  q_in_A: {units: m3 s-1, sign: "positive into reach A", meaning: "Prescribed headwater inflow into reach A"}
+  q_in_B: {units: m3 s-1, sign: "positive into reach B", meaning: "Prescribed headwater inflow into reach B"}
 
 static:
   area_km2: {units: km2, meaning: "Catchment area the fluxes are converted over"}
