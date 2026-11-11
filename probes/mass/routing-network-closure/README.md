@@ -74,8 +74,9 @@ component and must reproduce the prescribed `q_in_A` and `q_in_B` within
 abs(q_reported - q_forcing) <= 1e-9 m3/s + 1e-6 * abs(q_forcing).
 ```
 
-For C, `reach_q_in` is the routing component's reported upstream inflow. A
-model can construct it as `q_out,A + q_out,B`, so the junction equality alone
+For C, `reach_q_in` is the routing component's reported total inflow.
+In this case, where additional lateral inflow is assumed to be zero, a
+model can report it as `q_out,A + q_out,B`, so the junction equality alone
 cannot prove independent reporting. Such construction changes the attribution
 of an omitted transfer loss: the loss appears in C's reach-closure residual
 and is caught by `routing_reach_closure`.
@@ -118,6 +119,12 @@ does not declare the required forcing series or `routing_network` is
   precipitation and PET set to zero; and
 - no open-water evaporation, aquifer seepage, floodplain spill, additional
   lateral channel inflow, withdrawal, or inter-basin transfer.
+
+The junction criterion assumes no additional lateral inflow to reach C.
+For this routing-network case, the Wflow adapter sets horizontal
+subsurface conductivity to zero and starts the saturated soil store dry.
+This configuration isolates river routing under the case's zero-lateral-
+inflow assumption.
 
 Across seeds 0--299, each scored headwater event supplies 30.0--65.0 mm of
 inflow-equivalent depth and daily headwater peaks span 5.23--33.45 `m3/s`.
@@ -164,15 +171,16 @@ allowed_i,t = max_lag_days * peak_i,t * 86,400
 V_i,t <= allowed_i,t
 ```
 
-With `max_lag_days: 15` and `tolerance: 0.05`, the configured bound corresponds
-to an effective exponential e-folding limit of approximately 4.4 days.
+In the reviewer's linear-store analysis over 300 seeds, the configured
+recession bound crossed its allowance at an exponential e-folding time of
+approximately 4.4 days. This illustrates that the long dry tail constrains
+retention more tightly than `max_lag_days: 15` alone might suggest.
 
 The 70-day dry tail is part of the test mechanism: after 30 days the event peak
 leaves the lookback window and the proportional allowance falls to zero. The
 remaining absolute allowance prevents harmless dead storage or numerical traces
-from being labelled a leak. `0.05 mm` is a provisional starting value borrowed
-from the merged scalar-routing probe; it must be recalibrated against native
-per-reach Wflow storage before the acceptance gate is reported.
+from being labelled a leak. The 0.05 mm allowance was checked against native
+per-reach Wflow storage and the leaky reference model on the five gate seeds.
 
 `reference_network_stuck_router` retains 10 percent of routed water, proving
 the criterion catches an obvious fault. `reference_network_leaky_router`
@@ -180,9 +188,16 @@ retains 0.1 percent, constraining how far the absolute allowance may be relaxed.
 Both report the retained water as storage, so reach closure still passes and
 the recession criterion must do the catching.
 
+For the current `reference_network_leaky_router` and the five gate seeds, the
+first seed begins to pass when `min_allowance_mm` reaches approximately
+0.303 mm; all five begin to pass by approximately 0.387 mm. At the current
+0.05 mm allowance, Wflow passes and the leaky reference fails on all five
+gate seeds. The Wflow check uses a dry initial saturated store and zero
+horizontal subsurface conductivity.
+
 The exact positive is `reference_network_exact`. The independent physical
-positive is the existing `wflow_sbm`, version-bumped and extended from its
-current one-cell schematisation to three river cells. Its adapter must:
+check uses `wflow_sbm`, extended with a three-river-cell network in addition
+to its existing model paths. Its adapter:
 
 1. map A and B to Wflow's external river-inflow forcing;
 2. build A and B draining to C in the generated static maps;
@@ -192,9 +207,9 @@ current one-cell schematisation to three river cells. Its adapter must:
    columns.
 
 The four standard lumped baselines lack reach-indexed routing output and are
-N/A; they neither pass nor fail this probe. Wflow is evaluated and archived as
-independent physical evidence, not as a must-pass gate baseline, and its native
-per-reach storage is used to calibrate the absolute allowance.
+N/A; they neither pass nor fail this probe. Wflow provides independent
+physical evidence rather than a must-pass gate baseline. Its five-gate-seed
+result is intended for the archive.
 
 | Model | Required failure |
 | --- | --- |

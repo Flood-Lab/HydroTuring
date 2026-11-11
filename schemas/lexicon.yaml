@@ -224,6 +224,9 @@ crosswalk:
     snw: "snow_storage + snow_water"
     canopy: "canopy_storage"
     channel: "overland.storage + river.storage"
+    reach_q_in: "river.qin_av + river_bc.external_inflow + river_bc.inwater"
+    q_out: "river.q_av"
+    channel_storage: "river.storage"
   hymod:
     evspsbl: "before_evap - x_loss"
     mrro: "flow"

@@ -124,6 +124,26 @@ def test_reach_closure_does_not_cancel_errors_over_time(closure_run, with_errors
     assert result.status == (FAIL if with_errors else PASS)
 
 
+@pytest.mark.parametrize(
+    ("lateral_fraction", "expected"),
+    [(0.01, PASS), (0.10, FAIL)],
+)
+def test_junction_closure_counts_lateral_inflow_as_residual(
+    closure_run, lateral_fraction, expected
+):
+    from hydroturing.criteria.routing import routing_junction_closure
+
+    run = closure_run
+    c_rows = run.routing["reach_id"] == "C"
+    run.routing.loc[c_rows, "reach_q_in"] *= 1.0 + lateral_fraction
+    run.routing.loc[c_rows, "q_out"] *= 1.0 + lateral_fraction
+
+    probe = registry.find_probe("mass/routing-network-closure")
+    result = routing_junction_closure(run, probe, {"threshold": 0.05})
+
+    assert result.status == expected
+
+
 @pytest.mark.parametrize("with_errors", [False, True])
 def test_junction_closure_does_not_cancel_errors_over_time(closure_run, with_errors):
     from hydroturing.criteria.routing import routing_junction_closure
