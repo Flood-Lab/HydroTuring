@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="470" height="274" viewBox="0 0 470 274" role="img">
+<title>Merged probes, by conservation law: Mass 25 (66%), Energy 7 (18%), Momentum 6 (16%)</title>
+<rect x="0.5" y="0.5" width="469" height="273" rx="10" fill="#FFFFFF" stroke="#D6E0E2"/>
+<text x="20" y="39" font-family='"IBM Plex Sans Condensed","IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="15" font-weight="600" fill="#0F1B21">Merged probes, by conservation law</text>
+<path d="M120 160 L120 64 A96 96 0 1 1 39.63 212.51 Z" fill="#2A78D6" stroke="#FFFFFF" stroke-width="2"/>
+<path d="M120 160 L39.63 212.51 A96 96 0 0 1 39.63 107.49 Z" fill="#EB6834" stroke="#FFFFFF" stroke-width="2"/>
+<path d="M120 160 L39.63 107.49 A96 96 0 0 1 120 64 Z" fill="#22A06B" stroke="#FFFFFF" stroke-width="2"/>
+<text x="172.35" y="193.33" text-anchor="middle" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14" font-weight="600" fill="#000000">25</text>
+<text x="60.48" y="165" text-anchor="middle" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14" font-weight="600" fill="#000000">7</text>
+<text x="91.67" y="112.65" text-anchor="middle" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14" font-weight="600" fill="#000000">6</text>
+<rect x="260" y="121.5" width="12" height="12" rx="3" fill="#2A78D6"/>
+<text x="281" y="132.5" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14.5" fill="#33474F">Mass<tspan dx="9" font-weight="600" fill="#0F1B21">25</tspan><tspan dx="9" fill="#5B6E76">66%</tspan></text>
+<rect x="260" y="154" width="12" height="12" rx="3" fill="#EB6834"/>
+<text x="281" y="165" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14.5" fill="#33474F">Energy<tspan dx="9" font-weight="600" fill="#0F1B21">7</tspan><tspan dx="9" fill="#5B6E76">18%</tspan></text>
+<rect x="260" y="186.5" width="12" height="12" rx="3" fill="#22A06B"/>
+<text x="281" y="197.5" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14.5" fill="#33474F">Momentum<tspan dx="9" font-weight="600" fill="#0F1B21">6</tspan><tspan dx="9" fill="#5B6E76">16%</tspan></text>
+</svg>

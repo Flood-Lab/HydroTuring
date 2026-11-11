@@ -49,7 +49,10 @@ reference_bucket v1.1.0  ->  ✅ PASS (OK)  [1/1 probes passed]
 ```
 
 <p align="center">
-  <img src="res/hydroturing-infra.svg" alt="Any AI hydrologic model enters through the /io contract, HydroTuring probes it against mass, energy and momentum, and a verdict with its reason comes out" width="800">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="res/hydroturing-infra-dark.svg">
+    <img src="res/hydroturing-infra.svg" alt="Any AI hydrologic model enters through the /io contract, HydroTuring probes it against mass, energy and momentum, and a verdict with its reason comes out" width="800">
+  </picture>
 </p>
 
 ## The idea
@@ -90,6 +93,13 @@ a paired reach-length counterfactual. `ht list` prints the probes;
 records their claim status.
 [New probe proposals](https://github.com/Flood-Lab/HydroTuring/issues/new?template=probe_proposal.yml)
 are welcome too.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="res/probes-by-law-dark.svg">
+    <img src="res/probes-by-law.svg" alt="Pie chart of the merged probes by the conservation law each one tests" width="470">
+  </picture>
+</p>
 
 | Probe | Law | What it asks | The broken model it catches |
 | --- | --- | --- | --- |
@@ -168,6 +178,20 @@ geomorphic travel path this probe changes. Three consume the complete geometry:
 `topmodel` and `hype` map it to their own routing and fail. `modflow6`, `rvic`
 and `mizuroute` do not report what it reads and are N/A (INCOMPLETE). N/A is neither a pass nor a failure; it means the probe cannot ask
 the declared model interface this question.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="res/models-by-law-dark.svg">
+    <img src="res/models-by-law.svg" alt="Each evaluated model's probes passed, in one panel per conservation law" width="860">
+  </picture>
+</p>
+
+One panel per conservation law, each on its own scale, the full width of a
+panel being every probe under that law. The grey bar is how many of them could
+score the model; the coloured part is how many it passed. A probe that is N/A
+for a model is left out, as in the table below, and a dash means no probe under
+that law could score it. These charts and the flowchart above are the site's,
+drawn into `res/` from `models/result.csv` by `python3 scripts/site_standings.py`.
 
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |

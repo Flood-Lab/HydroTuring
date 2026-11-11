@@ -229,6 +229,29 @@ def test_site_charts_are_drawn_from_the_archive():
         assert (passed, scored) == expected, f"{model}: chart says {passed} of {scored}, archive {expected}"
 
 
+def test_readme_charts_are_the_sites():
+    """The README shows the site's two charts and its flowchart as SVG files
+    under res/, which scripts/site_standings.py draws from the same numbers,
+    colours, labels and markup. Each has to be what the script would draw now,
+    and the README has to show each one, light and dark."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "site_standings", REPO_ROOT / "scripts" / "site_standings.py"
+    )
+    site_standings = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(site_standings)
+
+    readme = read("README.md")
+    images = site_standings.readme_images(read("site/index.html"), site_standings.standings())
+    for path, text in images.items():
+        name = path.relative_to(site_standings.ROOT).as_posix()
+        assert path.exists() and path.read_text(encoding="utf-8") == text, (
+            f"{name} is stale; run python3 scripts/site_standings.py"
+        )
+        assert f'"{name}"' in readme, f"README.md does not show {name}"
+
+
 @pytest.mark.parametrize("variable", FLUX_VARS + STATE_VARS + DIAG_VARS + ROUTING_VARS)
 def test_agents_doc_defines_every_variable(variable):
     assert f"| `{variable}` |" in read("AGENTS.md"), (
