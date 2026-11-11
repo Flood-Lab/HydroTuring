@@ -49,7 +49,10 @@ reference_bucket v1.1.0  ->  ✅ PASS (OK)  [1/1 probes passed]
 ```
 
 <p align="center">
-  <img src="res/hydroturing-infra.svg" alt="Any AI hydrologic model enters through the /io contract, HydroTuring probes it against mass, energy and momentum, and a verdict with its reason comes out" width="800">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="res/hydroturing-infra-dark.svg">
+    <img src="res/hydroturing-infra.svg" alt="Any AI hydrologic model enters through the /io contract, HydroTuring probes it against mass, energy and momentum, and a verdict with its reason comes out" width="800">
+  </picture>
 </p>
 
 ## The idea
@@ -90,6 +93,13 @@ a paired reach-length counterfactual. `ht list` prints the probes;
 records their claim status.
 [New probe proposals](https://github.com/Flood-Lab/HydroTuring/issues/new?template=probe_proposal.yml)
 are welcome too.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="res/probes-by-law-dark.svg">
+    <img src="res/probes-by-law.svg" alt="Pie chart of the merged probes by the conservation law each one tests" width="470">
+  </picture>
+</p>
 
 | Probe | Law | What it asks | The broken model it catches |
 | --- | --- | --- | --- |
@@ -168,6 +178,62 @@ geomorphic travel path this probe changes. Three consume the complete geometry:
 `topmodel` and `hype` map it to their own routing and fail. `modflow6`, `rvic`
 and `mizuroute` do not report what it reads and are N/A (INCOMPLETE). N/A is neither a pass nor a failure; it means the probe cannot ask
 the declared model interface this question.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="res/models-by-law-dark.svg">
+    <img src="res/models-by-law.svg" alt="Each evaluated model's probes passed, in one panel per conservation law" width="860">
+  </picture>
+</p>
+
+One panel per conservation law, each on its own scale, the full width of a
+panel being every probe under that law. The grey bar is how many of them could
+score the model; the coloured part is how many it passed. A probe that is N/A
+for a model is left out, as in the table below, and a dash means no probe under
+that law could score it. These charts and the flowchart above are the site's,
+drawn into `res/` from `models/result.csv` by `python3 scripts/site_standings.py`.
+
+<!-- law-numbers: written by scripts/site_standings.py from models/result.csv; do not edit by hand -->
+<details>
+<summary>Show the numbers</summary>
+
+| Model | Mass | Energy | Momentum | Total |
+| --- | ---: | ---: | ---: | ---: |
+| `google_flood_forecast` | 5 / 11 | – | – | 5 / 11 |
+| `dhbv2` | 13 / 19 | 1 / 1 | 1 / 1 | 15 / 21 |
+| `wflow_sbm` | 16 / 19 | 1 / 1 | 2 / 2 | 19 / 22 |
+| `summa` | 7 / 19 | 1 / 3 | 1 / 1 | 9 / 23 |
+| `cwatm` | 16 / 19 | 0 / 1 | 1 / 1 | 17 / 21 |
+| `lisflood` | 17 / 19 | 1 / 1 | 1 / 1 | 19 / 21 |
+| `modflow6` | 4 / 4 | – | – | 4 / 4 |
+| `hymod` | 18 / 19 | 1 / 1 | 1 / 1 | 20 / 21 |
+| `xaj` | 17 / 19 | 1 / 1 | 1 / 1 | 19 / 21 |
+| `gr4j` | 18 / 19 | 1 / 1 | 1 / 1 | 20 / 21 |
+| `topmodel` | 17 / 19 | 1 / 1 | 1 / 2 | 19 / 22 |
+| `tank` | 18 / 19 | 1 / 1 | – | 19 / 20 |
+| `topkapi` | 18 / 19 | 1 / 1 | 1 / 1 | 20 / 21 |
+| `cfe` | 1 / 1 | – | – | 1 / 1 |
+| `simhyd` | 11 / 19 | 0 / 1 | – | 11 / 20 |
+| `mcp1` | 17 / 19 | 1 / 1 | – | 18 / 20 |
+| `mcp2` | 15 / 19 | 0 / 1 | – | 15 / 20 |
+| `mcp3` | 16 / 19 | 1 / 1 | 0 / 1 | 17 / 21 |
+| `mcp4` | 13 / 19 | 1 / 1 | – | 14 / 20 |
+| `mcp5` | 14 / 19 | 0 / 1 | – | 14 / 20 |
+| `raven` | 6 / 20 | 0 / 1 | 1 / 1 | 7 / 22 |
+| `hype` | 13 / 20 | 1 / 1 | 1 / 2 | 15 / 23 |
+| `prms` | 18 / 20 | 1 / 1 | 1 / 1 | 20 / 22 |
+| `vic` | 15 / 19 | 1 / 4 | – | 16 / 23 |
+| `mhm` | 19 / 20 | 1 / 1 | 1 / 1 | 21 / 22 |
+| `shud` | 8 / 19 | 0 / 1 | 1 / 2 | 9 / 22 |
+| `noahmp` | 14 / 20 | 3 / 5 | – | 17 / 25 |
+| `rvic` | – | – | 0 / 1 | 0 / 1 |
+| `mizuroute` | – | – | 1 / 1 | 1 / 1 |
+| `flex_lumped` | 19 / 19 | 1 / 1 | 5 / 5 | 25 / 25 |
+| `flex_topo` | 19 / 19 | 1 / 1 | 4 / 4 | 24 / 24 |
+| `sacsma_snow17` | 20 / 20 | 1 / 1 | 4 / 4 | 25 / 25 |
+
+</details>
+<!-- /law-numbers -->
 
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |

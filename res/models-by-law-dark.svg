@@ -1,0 +1,332 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="860" viewBox="0 0 860 860" role="img">
+<title>Probes passed, by conservation law, for each evaluated model</title>
+<rect x="0.5" y="0.5" width="859" height="859" rx="10" fill="#111D22" stroke="#20313A"/>
+<text x="20" y="39" font-family='"IBM Plex Sans Condensed","IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="15" font-weight="600" fill="#E3ECEE">Probes passed, by conservation law</text>
+<rect x="20" y="65" width="12" height="12" rx="3" fill="#3987E5"/>
+<rect x="34" y="65" width="12" height="12" rx="3" fill="#D95926"/>
+<rect x="48" y="65" width="12" height="12" rx="3" fill="#1BAF7A"/>
+<text x="69" y="76" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="13.5" fill="#BACBD1">passed</text>
+<rect x="134.36" y="65" width="12" height="12" rx="3" fill="#26363E"/>
+<text x="155.36" y="76" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="13.5" fill="#BACBD1">not passed</text>
+<rect x="191.65" y="96.5" width="191.62" height="749" rx="8" fill="none" stroke="#2E444E"/>
+<rect x="198.15" y="106" width="12" height="12" rx="3" fill="#3987E5"/>
+<text x="216.15" y="116.5" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="13" font-weight="600" fill="#E3ECEE">Mass</text>
+<text x="198.15" y="131.5" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">25 probes</text>
+<rect x="388.26" y="96.5" width="191.62" height="749" rx="8" fill="none" stroke="#2E444E"/>
+<rect x="394.76" y="106" width="12" height="12" rx="3" fill="#D95926"/>
+<text x="412.76" y="116.5" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="13" font-weight="600" fill="#E3ECEE">Energy</text>
+<text x="394.76" y="131.5" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">7 probes</text>
+<rect x="584.88" y="96.5" width="191.62" height="749" rx="8" fill="none" stroke="#2E444E"/>
+<rect x="591.38" y="106" width="12" height="12" rx="3" fill="#1BAF7A"/>
+<text x="609.38" y="116.5" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="13" font-weight="600" fill="#E3ECEE">Momentum</text>
+<text x="591.38" y="131.5" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">6 probes</text>
+<text x="840" y="133" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">Total</text>
+<text x="20" y="157.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">google_flood_forecast</text>
+<path d="M198.15 148H254.91A3 3 0 0 1 257.91 151V155A3 3 0 0 1 254.91 158H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="148" width="27.16" height="10" fill="#3987E5"/>
+<text x="376.76" y="157" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">5/11</text>
+<text x="573.38" y="157" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="770" y="157" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="840" y="157.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">5 / 11</text>
+<text x="20" y="179.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">dhbv2</text>
+<path d="M198.15 170H298.37A3 3 0 0 1 301.37 173V177A3 3 0 0 1 298.37 180H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="170" width="70.63" height="10" fill="#3987E5"/>
+<text x="376.76" y="179" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">13/19</text>
+<path d="M394.76 170H411.17A3 3 0 0 1 414.17 173V177A3 3 0 0 1 411.17 180H394.76Z" fill="#26363E"/>
+<path d="M394.76 170H411.17A3 3 0 0 1 414.17 173V177A3 3 0 0 1 411.17 180H394.76Z" fill="#D95926"/>
+<text x="573.38" y="179" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 170H611.02A3 3 0 0 1 614.02 173V177A3 3 0 0 1 611.02 180H591.38Z" fill="#26363E"/>
+<path d="M591.38 170H611.02A3 3 0 0 1 614.02 173V177A3 3 0 0 1 611.02 180H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="179" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="179.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">15 / 21</text>
+<text x="20" y="201.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">wflow_sbm</text>
+<path d="M198.15 192H298.37A3 3 0 0 1 301.37 195V199A3 3 0 0 1 298.37 202H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="192" width="86.92" height="10" fill="#3987E5"/>
+<text x="376.76" y="201" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">16/19</text>
+<path d="M394.76 192H411.17A3 3 0 0 1 414.17 195V199A3 3 0 0 1 411.17 202H394.76Z" fill="#26363E"/>
+<path d="M394.76 192H411.17A3 3 0 0 1 414.17 195V199A3 3 0 0 1 411.17 202H394.76Z" fill="#D95926"/>
+<text x="573.38" y="201" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 192H633.65A3 3 0 0 1 636.65 195V199A3 3 0 0 1 633.65 202H591.38Z" fill="#26363E"/>
+<path d="M591.38 192H633.65A3 3 0 0 1 636.65 195V199A3 3 0 0 1 633.65 202H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="201" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">2/2</text>
+<text x="840" y="201.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">19 / 22</text>
+<text x="20" y="223.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">summa</text>
+<path d="M198.15 214H298.37A3 3 0 0 1 301.37 217V221A3 3 0 0 1 298.37 224H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="214" width="38.03" height="10" fill="#3987E5"/>
+<text x="376.76" y="223" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">7/19</text>
+<path d="M394.76 214H449.97A3 3 0 0 1 452.97 217V221A3 3 0 0 1 449.97 224H394.76Z" fill="#26363E"/>
+<rect x="394.76" y="214" width="19.4" height="10" fill="#D95926"/>
+<text x="573.38" y="223" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/3</text>
+<path d="M591.38 214H611.02A3 3 0 0 1 614.02 217V221A3 3 0 0 1 611.02 224H591.38Z" fill="#26363E"/>
+<path d="M591.38 214H611.02A3 3 0 0 1 614.02 217V221A3 3 0 0 1 611.02 224H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="223" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="223.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">9 / 23</text>
+<text x="20" y="245.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">cwatm</text>
+<path d="M198.15 236H298.37A3 3 0 0 1 301.37 239V243A3 3 0 0 1 298.37 246H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="236" width="86.92" height="10" fill="#3987E5"/>
+<text x="376.76" y="245" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">16/19</text>
+<path d="M394.76 236H411.17A3 3 0 0 1 414.17 239V243A3 3 0 0 1 411.17 246H394.76Z" fill="#26363E"/>
+<text x="573.38" y="245" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">0/1</text>
+<path d="M591.38 236H611.02A3 3 0 0 1 614.02 239V243A3 3 0 0 1 611.02 246H591.38Z" fill="#26363E"/>
+<path d="M591.38 236H611.02A3 3 0 0 1 614.02 239V243A3 3 0 0 1 611.02 246H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="245" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="245.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">17 / 21</text>
+<text x="20" y="267.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">lisflood</text>
+<path d="M198.15 258H298.37A3 3 0 0 1 301.37 261V265A3 3 0 0 1 298.37 268H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="258" width="92.36" height="10" fill="#3987E5"/>
+<text x="376.76" y="267" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">17/19</text>
+<path d="M394.76 258H411.17A3 3 0 0 1 414.17 261V265A3 3 0 0 1 411.17 268H394.76Z" fill="#26363E"/>
+<path d="M394.76 258H411.17A3 3 0 0 1 414.17 261V265A3 3 0 0 1 411.17 268H394.76Z" fill="#D95926"/>
+<text x="573.38" y="267" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 258H611.02A3 3 0 0 1 614.02 261V265A3 3 0 0 1 611.02 268H591.38Z" fill="#26363E"/>
+<path d="M591.38 258H611.02A3 3 0 0 1 614.02 261V265A3 3 0 0 1 611.02 268H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="267" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="267.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">19 / 21</text>
+<text x="20" y="289.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">modflow6</text>
+<path d="M198.15 280H216.88A3 3 0 0 1 219.88 283V287A3 3 0 0 1 216.88 290H198.15Z" fill="#26363E"/>
+<path d="M198.15 280H216.88A3 3 0 0 1 219.88 283V287A3 3 0 0 1 216.88 290H198.15Z" fill="#3987E5"/>
+<text x="376.76" y="289" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">4/4</text>
+<text x="573.38" y="289" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="770" y="289" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="840" y="289.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">4 / 4</text>
+<text x="20" y="311.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">hymod</text>
+<path d="M198.15 302H298.37A3 3 0 0 1 301.37 305V309A3 3 0 0 1 298.37 312H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="302" width="97.79" height="10" fill="#3987E5"/>
+<text x="376.76" y="311" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">18/19</text>
+<path d="M394.76 302H411.17A3 3 0 0 1 414.17 305V309A3 3 0 0 1 411.17 312H394.76Z" fill="#26363E"/>
+<path d="M394.76 302H411.17A3 3 0 0 1 414.17 305V309A3 3 0 0 1 411.17 312H394.76Z" fill="#D95926"/>
+<text x="573.38" y="311" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 302H611.02A3 3 0 0 1 614.02 305V309A3 3 0 0 1 611.02 312H591.38Z" fill="#26363E"/>
+<path d="M591.38 302H611.02A3 3 0 0 1 614.02 305V309A3 3 0 0 1 611.02 312H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="311" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="311.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">20 / 21</text>
+<text x="20" y="333.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">xaj</text>
+<path d="M198.15 324H298.37A3 3 0 0 1 301.37 327V331A3 3 0 0 1 298.37 334H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="324" width="92.36" height="10" fill="#3987E5"/>
+<text x="376.76" y="333" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">17/19</text>
+<path d="M394.76 324H411.17A3 3 0 0 1 414.17 327V331A3 3 0 0 1 411.17 334H394.76Z" fill="#26363E"/>
+<path d="M394.76 324H411.17A3 3 0 0 1 414.17 327V331A3 3 0 0 1 411.17 334H394.76Z" fill="#D95926"/>
+<text x="573.38" y="333" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 324H611.02A3 3 0 0 1 614.02 327V331A3 3 0 0 1 611.02 334H591.38Z" fill="#26363E"/>
+<path d="M591.38 324H611.02A3 3 0 0 1 614.02 327V331A3 3 0 0 1 611.02 334H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="333" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="333.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">19 / 21</text>
+<text x="20" y="355.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">gr4j</text>
+<path d="M198.15 346H298.37A3 3 0 0 1 301.37 349V353A3 3 0 0 1 298.37 356H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="346" width="97.79" height="10" fill="#3987E5"/>
+<text x="376.76" y="355" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">18/19</text>
+<path d="M394.76 346H411.17A3 3 0 0 1 414.17 349V353A3 3 0 0 1 411.17 356H394.76Z" fill="#26363E"/>
+<path d="M394.76 346H411.17A3 3 0 0 1 414.17 349V353A3 3 0 0 1 411.17 356H394.76Z" fill="#D95926"/>
+<text x="573.38" y="355" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 346H611.02A3 3 0 0 1 614.02 349V353A3 3 0 0 1 611.02 356H591.38Z" fill="#26363E"/>
+<path d="M591.38 346H611.02A3 3 0 0 1 614.02 349V353A3 3 0 0 1 611.02 356H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="355" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="355.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">20 / 21</text>
+<text x="20" y="377.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">topmodel</text>
+<path d="M198.15 368H298.37A3 3 0 0 1 301.37 371V375A3 3 0 0 1 298.37 378H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="368" width="92.36" height="10" fill="#3987E5"/>
+<text x="376.76" y="377" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">17/19</text>
+<path d="M394.76 368H411.17A3 3 0 0 1 414.17 371V375A3 3 0 0 1 411.17 378H394.76Z" fill="#26363E"/>
+<path d="M394.76 368H411.17A3 3 0 0 1 414.17 371V375A3 3 0 0 1 411.17 378H394.76Z" fill="#D95926"/>
+<text x="573.38" y="377" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 368H633.65A3 3 0 0 1 636.65 371V375A3 3 0 0 1 633.65 378H591.38Z" fill="#26363E"/>
+<rect x="591.38" y="368" width="22.64" height="10" fill="#1BAF7A"/>
+<text x="770" y="377" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/2</text>
+<text x="840" y="377.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">19 / 22</text>
+<text x="20" y="399.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">tank</text>
+<path d="M198.15 390H298.37A3 3 0 0 1 301.37 393V397A3 3 0 0 1 298.37 400H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="390" width="97.79" height="10" fill="#3987E5"/>
+<text x="376.76" y="399" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">18/19</text>
+<path d="M394.76 390H411.17A3 3 0 0 1 414.17 393V397A3 3 0 0 1 411.17 400H394.76Z" fill="#26363E"/>
+<path d="M394.76 390H411.17A3 3 0 0 1 414.17 393V397A3 3 0 0 1 411.17 400H394.76Z" fill="#D95926"/>
+<text x="573.38" y="399" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="770" y="399" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="840" y="399.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">19 / 20</text>
+<text x="20" y="421.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">topkapi</text>
+<path d="M198.15 412H298.37A3 3 0 0 1 301.37 415V419A3 3 0 0 1 298.37 422H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="412" width="97.79" height="10" fill="#3987E5"/>
+<text x="376.76" y="421" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">18/19</text>
+<path d="M394.76 412H411.17A3 3 0 0 1 414.17 415V419A3 3 0 0 1 411.17 422H394.76Z" fill="#26363E"/>
+<path d="M394.76 412H411.17A3 3 0 0 1 414.17 415V419A3 3 0 0 1 411.17 422H394.76Z" fill="#D95926"/>
+<text x="573.38" y="421" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 412H611.02A3 3 0 0 1 614.02 415V419A3 3 0 0 1 611.02 422H591.38Z" fill="#26363E"/>
+<path d="M591.38 412H611.02A3 3 0 0 1 614.02 415V419A3 3 0 0 1 611.02 422H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="421" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="421.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">20 / 21</text>
+<text x="20" y="443.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">cfe</text>
+<path d="M198.15 434H200.86A2.72 2.72 0 0 1 203.58 436.72V441.28A2.72 2.72 0 0 1 200.86 444H198.15Z" fill="#26363E"/>
+<path d="M198.15 434H200.86A2.72 2.72 0 0 1 203.58 436.72V441.28A2.72 2.72 0 0 1 200.86 444H198.15Z" fill="#3987E5"/>
+<text x="376.76" y="443" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="573.38" y="443" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="770" y="443" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="840" y="443.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">1 / 1</text>
+<text x="20" y="465.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">simhyd</text>
+<path d="M198.15 456H298.37A3 3 0 0 1 301.37 459V463A3 3 0 0 1 298.37 466H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="456" width="59.76" height="10" fill="#3987E5"/>
+<text x="376.76" y="465" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">11/19</text>
+<path d="M394.76 456H411.17A3 3 0 0 1 414.17 459V463A3 3 0 0 1 411.17 466H394.76Z" fill="#26363E"/>
+<text x="573.38" y="465" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">0/1</text>
+<text x="770" y="465" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="840" y="465.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">11 / 20</text>
+<text x="20" y="487.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">mcp1</text>
+<path d="M198.15 478H298.37A3 3 0 0 1 301.37 481V485A3 3 0 0 1 298.37 488H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="478" width="92.36" height="10" fill="#3987E5"/>
+<text x="376.76" y="487" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">17/19</text>
+<path d="M394.76 478H411.17A3 3 0 0 1 414.17 481V485A3 3 0 0 1 411.17 488H394.76Z" fill="#26363E"/>
+<path d="M394.76 478H411.17A3 3 0 0 1 414.17 481V485A3 3 0 0 1 411.17 488H394.76Z" fill="#D95926"/>
+<text x="573.38" y="487" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="770" y="487" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="840" y="487.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">18 / 20</text>
+<text x="20" y="509.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">mcp2</text>
+<path d="M198.15 500H298.37A3 3 0 0 1 301.37 503V507A3 3 0 0 1 298.37 510H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="500" width="81.49" height="10" fill="#3987E5"/>
+<text x="376.76" y="509" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">15/19</text>
+<path d="M394.76 500H411.17A3 3 0 0 1 414.17 503V507A3 3 0 0 1 411.17 510H394.76Z" fill="#26363E"/>
+<text x="573.38" y="509" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">0/1</text>
+<text x="770" y="509" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="840" y="509.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">15 / 20</text>
+<text x="20" y="531.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">mcp3</text>
+<path d="M198.15 522H298.37A3 3 0 0 1 301.37 525V529A3 3 0 0 1 298.37 532H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="522" width="86.92" height="10" fill="#3987E5"/>
+<text x="376.76" y="531" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">16/19</text>
+<path d="M394.76 522H411.17A3 3 0 0 1 414.17 525V529A3 3 0 0 1 411.17 532H394.76Z" fill="#26363E"/>
+<path d="M394.76 522H411.17A3 3 0 0 1 414.17 525V529A3 3 0 0 1 411.17 532H394.76Z" fill="#D95926"/>
+<text x="573.38" y="531" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 522H611.02A3 3 0 0 1 614.02 525V529A3 3 0 0 1 611.02 532H591.38Z" fill="#26363E"/>
+<text x="770" y="531" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">0/1</text>
+<text x="840" y="531.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">17 / 21</text>
+<text x="20" y="553.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">mcp4</text>
+<path d="M198.15 544H298.37A3 3 0 0 1 301.37 547V551A3 3 0 0 1 298.37 554H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="544" width="70.63" height="10" fill="#3987E5"/>
+<text x="376.76" y="553" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">13/19</text>
+<path d="M394.76 544H411.17A3 3 0 0 1 414.17 547V551A3 3 0 0 1 411.17 554H394.76Z" fill="#26363E"/>
+<path d="M394.76 544H411.17A3 3 0 0 1 414.17 547V551A3 3 0 0 1 411.17 554H394.76Z" fill="#D95926"/>
+<text x="573.38" y="553" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="770" y="553" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="840" y="553.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">14 / 20</text>
+<text x="20" y="575.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">mcp5</text>
+<path d="M198.15 566H298.37A3 3 0 0 1 301.37 569V573A3 3 0 0 1 298.37 576H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="566" width="76.06" height="10" fill="#3987E5"/>
+<text x="376.76" y="575" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">14/19</text>
+<path d="M394.76 566H411.17A3 3 0 0 1 414.17 569V573A3 3 0 0 1 411.17 576H394.76Z" fill="#26363E"/>
+<text x="573.38" y="575" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">0/1</text>
+<text x="770" y="575" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="840" y="575.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">14 / 20</text>
+<text x="20" y="597.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">raven</text>
+<path d="M198.15 588H303.8A3 3 0 0 1 306.8 591V595A3 3 0 0 1 303.8 598H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="588" width="32.6" height="10" fill="#3987E5"/>
+<text x="376.76" y="597" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">6/20</text>
+<path d="M394.76 588H411.17A3 3 0 0 1 414.17 591V595A3 3 0 0 1 411.17 598H394.76Z" fill="#26363E"/>
+<text x="573.38" y="597" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">0/1</text>
+<path d="M591.38 588H611.02A3 3 0 0 1 614.02 591V595A3 3 0 0 1 611.02 598H591.38Z" fill="#26363E"/>
+<path d="M591.38 588H611.02A3 3 0 0 1 614.02 591V595A3 3 0 0 1 611.02 598H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="597" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="597.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">7 / 22</text>
+<text x="20" y="619.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">hype</text>
+<path d="M198.15 610H303.8A3 3 0 0 1 306.8 613V617A3 3 0 0 1 303.8 620H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="610" width="70.63" height="10" fill="#3987E5"/>
+<text x="376.76" y="619" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">13/20</text>
+<path d="M394.76 610H411.17A3 3 0 0 1 414.17 613V617A3 3 0 0 1 411.17 620H394.76Z" fill="#26363E"/>
+<path d="M394.76 610H411.17A3 3 0 0 1 414.17 613V617A3 3 0 0 1 411.17 620H394.76Z" fill="#D95926"/>
+<text x="573.38" y="619" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 610H633.65A3 3 0 0 1 636.65 613V617A3 3 0 0 1 633.65 620H591.38Z" fill="#26363E"/>
+<rect x="591.38" y="610" width="22.64" height="10" fill="#1BAF7A"/>
+<text x="770" y="619" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/2</text>
+<text x="840" y="619.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">15 / 23</text>
+<text x="20" y="641.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">prms</text>
+<path d="M198.15 632H303.8A3 3 0 0 1 306.8 635V639A3 3 0 0 1 303.8 642H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="632" width="97.79" height="10" fill="#3987E5"/>
+<text x="376.76" y="641" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">18/20</text>
+<path d="M394.76 632H411.17A3 3 0 0 1 414.17 635V639A3 3 0 0 1 411.17 642H394.76Z" fill="#26363E"/>
+<path d="M394.76 632H411.17A3 3 0 0 1 414.17 635V639A3 3 0 0 1 411.17 642H394.76Z" fill="#D95926"/>
+<text x="573.38" y="641" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 632H611.02A3 3 0 0 1 614.02 635V639A3 3 0 0 1 611.02 642H591.38Z" fill="#26363E"/>
+<path d="M591.38 632H611.02A3 3 0 0 1 614.02 635V639A3 3 0 0 1 611.02 642H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="641" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="641.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">20 / 22</text>
+<text x="20" y="663.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">vic</text>
+<path d="M198.15 654H298.37A3 3 0 0 1 301.37 657V661A3 3 0 0 1 298.37 664H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="654" width="81.49" height="10" fill="#3987E5"/>
+<text x="376.76" y="663" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">15/19</text>
+<path d="M394.76 654H469.37A3 3 0 0 1 472.37 657V661A3 3 0 0 1 469.37 664H394.76Z" fill="#26363E"/>
+<rect x="394.76" y="654" width="19.4" height="10" fill="#D95926"/>
+<text x="573.38" y="663" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/4</text>
+<text x="770" y="663" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="840" y="663.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">16 / 23</text>
+<text x="20" y="685.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">mhm</text>
+<path d="M198.15 676H303.8A3 3 0 0 1 306.8 679V683A3 3 0 0 1 303.8 686H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="676" width="103.22" height="10" fill="#3987E5"/>
+<text x="376.76" y="685" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">19/20</text>
+<path d="M394.76 676H411.17A3 3 0 0 1 414.17 679V683A3 3 0 0 1 411.17 686H394.76Z" fill="#26363E"/>
+<path d="M394.76 676H411.17A3 3 0 0 1 414.17 679V683A3 3 0 0 1 411.17 686H394.76Z" fill="#D95926"/>
+<text x="573.38" y="685" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 676H611.02A3 3 0 0 1 614.02 679V683A3 3 0 0 1 611.02 686H591.38Z" fill="#26363E"/>
+<path d="M591.38 676H611.02A3 3 0 0 1 614.02 679V683A3 3 0 0 1 611.02 686H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="685" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="685.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">21 / 22</text>
+<text x="20" y="707.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">shud</text>
+<path d="M198.15 698H298.37A3 3 0 0 1 301.37 701V705A3 3 0 0 1 298.37 708H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="698" width="43.46" height="10" fill="#3987E5"/>
+<text x="376.76" y="707" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">8/19</text>
+<path d="M394.76 698H411.17A3 3 0 0 1 414.17 701V705A3 3 0 0 1 411.17 708H394.76Z" fill="#26363E"/>
+<text x="573.38" y="707" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">0/1</text>
+<path d="M591.38 698H633.65A3 3 0 0 1 636.65 701V705A3 3 0 0 1 633.65 708H591.38Z" fill="#26363E"/>
+<rect x="591.38" y="698" width="22.64" height="10" fill="#1BAF7A"/>
+<text x="770" y="707" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/2</text>
+<text x="840" y="707.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">9 / 22</text>
+<text x="20" y="729.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">noahmp</text>
+<path d="M198.15 720H303.8A3 3 0 0 1 306.8 723V727A3 3 0 0 1 303.8 730H198.15Z" fill="#26363E"/>
+<rect x="198.15" y="720" width="76.06" height="10" fill="#3987E5"/>
+<text x="376.76" y="729" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">14/20</text>
+<path d="M394.76 720H488.78A3 3 0 0 1 491.78 723V727A3 3 0 0 1 488.78 730H394.76Z" fill="#26363E"/>
+<rect x="394.76" y="720" width="58.21" height="10" fill="#D95926"/>
+<text x="573.38" y="729" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">3/5</text>
+<text x="770" y="729" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="840" y="729.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">17 / 25</text>
+<text x="20" y="751.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">rvic</text>
+<text x="376.76" y="751" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="573.38" y="751" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<path d="M591.38 742H611.02A3 3 0 0 1 614.02 745V749A3 3 0 0 1 611.02 752H591.38Z" fill="#26363E"/>
+<text x="770" y="751" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">0/1</text>
+<text x="840" y="751.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">0 / 1</text>
+<text x="20" y="773.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">mizuroute</text>
+<text x="376.76" y="773" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<text x="573.38" y="773" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
+<path d="M591.38 764H611.02A3 3 0 0 1 614.02 767V771A3 3 0 0 1 611.02 774H591.38Z" fill="#26363E"/>
+<path d="M591.38 764H611.02A3 3 0 0 1 614.02 767V771A3 3 0 0 1 611.02 774H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="773" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<text x="840" y="773.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">1 / 1</text>
+<text x="20" y="795.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">flex_lumped</text>
+<path d="M198.15 786H298.37A3 3 0 0 1 301.37 789V793A3 3 0 0 1 298.37 796H198.15Z" fill="#26363E"/>
+<path d="M198.15 786H298.37A3 3 0 0 1 301.37 789V793A3 3 0 0 1 298.37 796H198.15Z" fill="#3987E5"/>
+<text x="376.76" y="795" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">19/19</text>
+<path d="M394.76 786H411.17A3 3 0 0 1 414.17 789V793A3 3 0 0 1 411.17 796H394.76Z" fill="#26363E"/>
+<path d="M394.76 786H411.17A3 3 0 0 1 414.17 789V793A3 3 0 0 1 411.17 796H394.76Z" fill="#D95926"/>
+<text x="573.38" y="795" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 786H701.56A3 3 0 0 1 704.56 789V793A3 3 0 0 1 701.56 796H591.38Z" fill="#26363E"/>
+<path d="M591.38 786H701.56A3 3 0 0 1 704.56 789V793A3 3 0 0 1 701.56 796H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="795" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">5/5</text>
+<text x="840" y="795.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">25 / 25</text>
+<text x="20" y="817.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">flex_topo</text>
+<path d="M198.15 808H298.37A3 3 0 0 1 301.37 811V815A3 3 0 0 1 298.37 818H198.15Z" fill="#26363E"/>
+<path d="M198.15 808H298.37A3 3 0 0 1 301.37 811V815A3 3 0 0 1 298.37 818H198.15Z" fill="#3987E5"/>
+<text x="376.76" y="817" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">19/19</text>
+<path d="M394.76 808H411.17A3 3 0 0 1 414.17 811V815A3 3 0 0 1 411.17 818H394.76Z" fill="#26363E"/>
+<path d="M394.76 808H411.17A3 3 0 0 1 414.17 811V815A3 3 0 0 1 411.17 818H394.76Z" fill="#D95926"/>
+<text x="573.38" y="817" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 808H678.93A3 3 0 0 1 681.93 811V815A3 3 0 0 1 678.93 818H591.38Z" fill="#26363E"/>
+<path d="M591.38 808H678.93A3 3 0 0 1 681.93 811V815A3 3 0 0 1 678.93 818H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="817" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">4/4</text>
+<text x="840" y="817.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">24 / 24</text>
+<text x="20" y="839.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">sacsma_snow17</text>
+<path d="M198.15 830H303.8A3 3 0 0 1 306.8 833V837A3 3 0 0 1 303.8 840H198.15Z" fill="#26363E"/>
+<path d="M198.15 830H303.8A3 3 0 0 1 306.8 833V837A3 3 0 0 1 303.8 840H198.15Z" fill="#3987E5"/>
+<text x="376.76" y="839" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">20/20</text>
+<path d="M394.76 830H411.17A3 3 0 0 1 414.17 833V837A3 3 0 0 1 411.17 840H394.76Z" fill="#26363E"/>
+<path d="M394.76 830H411.17A3 3 0 0 1 414.17 833V837A3 3 0 0 1 411.17 840H394.76Z" fill="#D95926"/>
+<text x="573.38" y="839" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
+<path d="M591.38 830H678.93A3 3 0 0 1 681.93 833V837A3 3 0 0 1 678.93 840H591.38Z" fill="#26363E"/>
+<path d="M591.38 830H678.93A3 3 0 0 1 681.93 833V837A3 3 0 0 1 678.93 840H591.38Z" fill="#1BAF7A"/>
+<text x="770" y="839" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">4/4</text>
+<text x="840" y="839.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">25 / 25</text>
+</svg>
