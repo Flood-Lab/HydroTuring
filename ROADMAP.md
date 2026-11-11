@@ -102,6 +102,13 @@ Direct aquifer recharge must preserve groundwater storage and incremental exchan
 
 Contributed by Zhenjiang Wu (Xi'an Jiaotong University).
 
+### `mass/aquifer-equilibrium-bounds` &middot; **merged**
+
+A source-free confined aquifer must stay inside the storage envelope implied
+by its prescribed river head and storativity. Conservative references with
+an amplified boundary head or inflated storativity distinguish this absolute
+bound from recharge ordering. Contributed by Tommaso Cerruti (ETH Zurich).
+
 ### `mass/groundwater-datum-invariance` &middot; **merged**
 
 A common translation of all absolute groundwater heads and river elevations must leave the exchange trajectory unchanged.

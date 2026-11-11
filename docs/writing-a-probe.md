@@ -128,6 +128,7 @@ Every one is binary.
 | `invariance` | a transform the physics ignores changes nothing | paired runs |
 | `datum_flux_invariance` | a common vertical datum shift leaves groundwater exchange unchanged, with a nonzero activity guard | paired runs |
 | `aquifer_recharge_ordering` | added direct aquifer recharge cannot lower storage or reverse incremental exchange, and is conserved cumulatively | paired runs |
+| `aquifer_equilibrium_bounds` | source-free confined storage stays between the neutral control and the excursion prescribed by river head and storativity; checks both head directions and every interval | paired runs |
 | `resolution_invariance` | integrated volumes agree between the same weather at two steps | paired runs at different steps |
 | `response_sign` | perturb one driver both ways, hold the rest: each response must point the way physics says, by a real share of the change in demand | paired runs |
 | `causality` | nothing may change before an added storm, and runoff must answer it after | paired runs |
@@ -407,6 +408,10 @@ The reference models available today:
 | `reference_evolving_exchange` | the same boundary against a catchment head that moves, five-day time constant; must pass | nothing, it must pass |
 | `reference_recharge_exchange` | the evolving boundary on a losing catchment that drains half its runoff through it, storativity 1 mm/m; must pass | nothing, it must pass |
 | `reference_recharge_order_exact` | the exact daily solution of one aquifer cell draining to a river; must pass `mass/aquifer-recharge-ordering` | nothing, it must pass |
+| `reference_confined_aquifer` | exact interval solution of a source-free confined aquifer connected to a prescribed-stage river | nothing, it must pass |
+| `reference_confined_aquifer_implicit` | backward-Euler solution with an independently computed interval river flux | nothing, it must pass |
+| `reference_amplified_river_head` | multiplies the prescribed river-head change by 1.4; its own water budget still closes | `aquifer_equilibrium_bounds` only on its probe |
+| `reference_inflated_aquifer_storage` | multiplies confined storativity by 1.4; its own water budget still closes | `aquifer_equilibrium_bounds` only on its probe |
 | `reference_recharge_blind` | ignores `gw_recharge`, so its own budget no longer closes | `aquifer_recharge_ordering` |
 | `reference_recharge_overshoot` | sends 120% of a recharge day to the river, so its storage falls below the control's | `aquifer_recharge_ordering` |
 | `reference_noise_sink` | declares the prescribed head and never reads it; its exchange is the day's accounting error | `exchange_response` |
