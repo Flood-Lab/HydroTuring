@@ -26,6 +26,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     froude,
     groundwater,
     human,
+    interception,
     limits,
     radiation,
     recharge_ordering,

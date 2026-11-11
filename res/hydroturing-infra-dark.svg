@@ -40,11 +40,11 @@
 <text x="211" y="254" class="mono-small" text-anchor="middle">static.json</text>
 <text x="211" y="284" class="note" text-anchor="middle">no network</text>
 <text x="211" y="297" class="note" text-anchor="middle">read-only inputs</text>
-<rect x="262" y="40" width="310" height="452.5" rx="10" fill="#111D22" stroke="#54C6D1" stroke-width="1.5"/>
+<rect x="262" y="40" width="310" height="456.5" rx="10" fill="#111D22" stroke="#54C6D1" stroke-width="1.5"/>
 <path d="M281 56 l6 -8 l6 8 a6 6 0 1 1 -12 0 z" fill="#54C6D1"/>
 <text x="296" y="67" class="brand">HydroTuring</text>
 <text x="417" y="86" class="note" text-anchor="middle">does it conserve what physics says it must?</text>
-<rect x="272" y="100" width="92" height="280.5" rx="6" fill="#16242A"/>
+<rect x="272" y="100" width="92" height="284.5" rx="6" fill="#16242A"/>
 <text x="318" y="121" class="pillar" text-anchor="middle">MASS</text>
 <text x="318" y="138" class="note" text-anchor="middle">water budget</text>
 <text x="318" y="151" class="note" text-anchor="middle">closes</text>
@@ -97,9 +97,11 @@
 <text x="296" y="353.97" class="probe">datum shift</text>
 <circle cx="288" cy="358.70" r="2.4" fill="#63C193"/>
 <text x="296" y="362.20" class="probe">recharge</text>
-<circle cx="288" cy="371.20" r="2.4" fill="#63C193"/>
-<text x="296" y="374.70" class="probe">head bounds</text>
-<rect x="372" y="100" width="92" height="280.5" rx="6" fill="#16242A"/>
+<circle cx="288" cy="366.93" r="2.4" fill="#63C193"/>
+<text x="296" y="370.43" class="probe">head bounds</text>
+<circle cx="288" cy="375.16" r="2.4" fill="#63C193"/>
+<text x="296" y="378.66" class="probe">interception</text>
+<rect x="372" y="100" width="92" height="284.5" rx="6" fill="#16242A"/>
 <text x="418" y="121" class="pillar" text-anchor="middle">ENERGY</text>
 <text x="418" y="138" class="note" text-anchor="middle">energy budget</text>
 <text x="418" y="151" class="note" text-anchor="middle">closes</text>
@@ -120,7 +122,7 @@
 <text x="396" y="257" class="probe">snowmelt</text>
 <rect x="384" y="272" width="68" height="40" rx="5" fill="none" stroke="#2E444E" stroke-dasharray="3 3"/>
 <text x="418" y="296" class="note" text-anchor="middle">probes wanted</text>
-<rect x="472" y="100" width="92" height="280.5" rx="6" fill="#16242A"/>
+<rect x="472" y="100" width="92" height="284.5" rx="6" fill="#16242A"/>
 <text x="518" y="121" class="pillar" text-anchor="middle">MOMENTUM</text>
 <text x="518" y="138" class="note" text-anchor="middle">routing conserves</text>
 <text x="518" y="151" class="note" text-anchor="middle">momentum</text>
@@ -138,7 +140,7 @@
 <text x="496" y="243" class="probe">wave speed</text>
 <rect x="484" y="258" width="68" height="40" rx="5" fill="none" stroke="#2E444E" stroke-dasharray="3 3"/>
 <text x="518" y="282" class="note" text-anchor="middle">probes wanted</text>
-<g transform="translate(0 12.5)">
+<g transform="translate(0 16.5)">
 <text x="417" y="378" class="mono-small" text-anchor="middle">seed → case → run → one bit</text>
 <rect x="272" y="384" width="68" height="72" rx="6" fill="#111D22" stroke="#20313A"/>
 <text x="306" y="407" class="step" text-anchor="middle">seeded</text>

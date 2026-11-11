@@ -51,6 +51,7 @@ HEADLINES = {
     "mass/aquifer-recharge-ordering": ("aquifer_recharge_ordering",),
     "mass/aquifer-equilibrium-bounds": ("aquifer_equilibrium_bounds",),
     "mass/human-abstraction": ("human_abstraction",),
+    "mass/interception-response": ("interception_response",),
     "mass/multi-decadal-drift": ("state_bounds", "total_storage_drift"),
     "mass/phase-counterfactual": ("phase_invariance",),
     "mass/precipitation-counterfactual": ("counterfactual_response", "monotone_response"),
