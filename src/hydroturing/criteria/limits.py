@@ -191,8 +191,9 @@ def routing_conservation(run: RunResult, probe: ProbeSpec, params: dict) -> Crit
     `channel` is what a model has generated as runoff and not yet released.
     It can never be negative, and it can never hold more than the flow that
     feeds it could have put there over the length of the hydrograph: at any
-    step, channel <= max_lag_days times the largest runoff rate seen over
-    the preceding window. A kernel that does not sum to one, or a store that
+    step, channel <= max_lag_days times the largest runoff rate from the
+    preceding window through the lag ahead, since water held now is released
+    within the lag. A kernel that does not sum to one, or a store that
     leaks or accumulates, breaks one of the two.
     """
     # A misspelled name would otherwise be dropped in silence: an author who
@@ -239,9 +240,17 @@ def routing_conservation(run: RunResult, probe: ProbeSpec, params: dict) -> Crit
     channel = w.table["channel"].to_numpy(dtype=float)
     runoff = w.table["mrro"].to_numpy(dtype=float)
     n_back = max(1, int(round(lookback / w.dt_days)))
-    peak = np.array([runoff[max(0, i - n_back): i + 1].max() for i in range(len(runoff))])
+    # Water in the channel leaves within the lag, so the runoff that explains it may
+    # not be out yet: a lagged router holds a storm's water before it releases it.
+    # The look ahead is what keeps such a router from failing on the first storm after
+    # a dry spell. The last rows have no lag left to look through, so they are not read.
+    n_ahead = max(1, int(round(max_lag / w.dt_days)))
+    peak = np.array([
+        runoff[max(0, i - n_back): i + n_ahead + 1].max() for i in range(len(runoff))
+    ])
     allowed = max_lag * peak * (1.0 + slack) + min_allowance
-    excess = channel - allowed
+    judged = max(1, len(runoff) - n_ahead)
+    excess = channel[:judged] - allowed[:judged]
 
     failures = []
     if channel.min() < -1e-6:
@@ -250,11 +259,12 @@ def routing_conservation(run: RunResult, probe: ProbeSpec, params: dict) -> Crit
         i = int(excess.argmax())
         failures.append(
             f"the channel holds {channel[i]:.1f} mm on {w.forcing['time'].iloc[i]} while the "
-            f"largest runoff of the preceding {lookback:g} days is {peak[i]:.2f} mm/day; a "
+            f"largest runoff from {lookback:g} days before to {max_lag:g} days after is "
+            f"{peak[i]:.2f} mm/day; a "
             f"{max_lag:g}-day hydrograph cannot hold more than {allowed[i]:.1f} mm of that"
         )
     ok = not failures
-    ratio = float((channel / np.maximum(allowed, 1e-9)).max())
+    ratio = float((channel[:judged] / np.maximum(allowed[:judged], 1e-9)).max())
     return CriterionResult(
         name="routing_conservation",
         status=PASS if ok else FAIL,

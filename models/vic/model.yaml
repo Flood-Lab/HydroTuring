@@ -1,0 +1,40 @@
+name: vic
+version: "5.1.0-14a371a.4"
+description: >
+  VIC, the Variable Infiltration Capacity macroscale hydrologic model (Liang et al.
+  1994), classic driver, release 5.1.0, compiled from the tag and run on one grid cell
+  with its energy balance on (FULL_ENERGY = TRUE), upstream's Stehekin sample soil and
+  vegetation, and capacities from the case. It reports evaporation, runoff, soil water,
+  snow, canopy water and its surface heat fluxes; VIC has no groundwater store and the
+  classic driver has no routing. VIC 5.1.0 has no daily forcing and its classic driver
+  stops on a daily model step, so a daily row is held flat over 24 hourly records, the
+  sample's step. README.md has the errors. Radiation, humidity, pressure and wind are
+  mocked from each row alone, and README.md says what that moves.
+authors:
+  - "Xu Liang, Dennis P. Lettenmaier, Eric F. Wood, Stephen J. Burges (VIC); Bart Nijssen, Joseph Hamman and the VIC developers"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.1029/94JD00483"
+license: "MIT (VIC); sample parameters GPL-2.0 (VIC_sample_data); adapter under this repository's licence"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# The forcing step must equal the snow step, at least 4 a day (get_global_param.c:738, :979),
+# and a sub-daily forcing step must equal the model step (read_atmos_data.c:60), so a daily
+# row is out of reach without splitting it. The hour is upstream's sample step, and a
+# daily row runs on it.
+timestep: [PT1H, PT15M, PT5M, PT1M, PT1D]
+substep: {PT1D: PT1H}
+
+emits:
+  fluxes: [pr, evspsbl, mrro, hfls, hfss, hfg, rlus]
+  states: [mrso, snw, canopy]
+  diagnostics: [ts]
+
+needs_forcing: [pr, tas, pet]
+uses_forcing: [rlds]
+uses_static: [soil_capacity_mm, canopy_capacity_mm, latitude_deg, snow_threshold_degC, elevation_m, eps]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
+
+window_days: full

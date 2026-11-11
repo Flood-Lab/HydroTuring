@@ -1,0 +1,38 @@
+name: cfe
+version: "f9182df-ht.2"
+description: >
+  CFE, the Conceptual Functional Equivalent of the National Water Model: a
+  Schaake partition of rain, a nonlinear soil reservoir with percolation and
+  lateral outlets, an exponential groundwater reservoir, and Nash cascades for
+  surface and lateral runoff. Upstream's BMI library from NOAA-OWP/cfe at
+  f9182df, unmodified, in the configuration it ships as
+  configs/cfe_config_cat_87_pass.txt with the soil capacity taken from the case.
+  README.md lists every value. CFE has no snow and no interception store, and
+  those are reported as identically zero under `zero_stores`. The model is hourly, so a daily probe is
+  N/A (INCOMPATIBLE).
+authors:
+  - "Fred L. Ogden (formulation, NOAA-OWP); Jonathan Frame, Jessica Garrett (BMI); Ahmad Jan Khattak (Nash surface); NOAA-OWP contributors"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://github.com/NOAA-OWP/cfe/tree/f9182dfb3d81c407c66c5b782114173893c30cf2"
+license: "Apache-2.0 (upstream); adapter under this repository's licence"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# The one step upstream runs at: new_bmi_cfe hard-codes 3600 s, there is no config
+# key for another, and the surface cascade hard-codes dt_h = 1. The adapter can
+# rescale for other steps, and has to for the resolution probe, but that is the
+# adapter's extension and is not declared. README.md has the scores it would give.
+timestep: PT1H
+
+emits:
+  fluxes: [pr, evspsbl, mrro, dis]
+  # mrso: soil reservoir. gw: groundwater reservoir. channel: the water in both
+  # Nash cascades, which BMI does not export and the driver reads from the struct.
+  states: [mrso, snw, canopy, gw, channel]
+
+needs_forcing: [pr, pet]
+needs_static: [area_km2]
+uses_static: [soil_capacity_mm]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

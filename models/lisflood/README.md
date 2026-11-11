@@ -11,7 +11,8 @@ by Yuanhang Liu ([@kawh1111](https://github.com/kawh1111)).
 The adapter steps LISFLOOD's own Python framework and reads the stores and
 fluxes its water balance module sums, so what HydroTuring scores is
 LISFLOOD's own ledger. When a probe prescribes a withdrawal, LISFLOOD's own
-water-use module makes it.
+water-use module handles it, and on this one-cell domain it delivers only part of it;
+see the result below.
 
 ## Licence
 
@@ -394,85 +395,78 @@ of their own.
 
 ## Result
 
-**FAIL (ERROR), 18 of 21 probes passed, 5 N/A (INCOMPLETE).** These are the
-rows of the full gate-seed run of `5.0.0-onecell.5`, made on the emulated host
-described under "Native re-run". The verdict is ERROR because two probes ran
-out of time on that host. Any ERROR among the scored probes makes the verdict
-FAIL (ERROR), whatever the other probes score.
+**FAIL (VIOLATION): 19 PASS, 2 FAIL, 16 N/A** (13 INCOMPLETE, 3 INCOMPATIBLE), on the gate seeds of
+`5.0.0-onecell.5`. Thirty-five rows are the emulated Docker host's, whose verdicts Apptainer on a native
+x86-64 host reproduced. The other two are from that native run, and supersede the two that ran out of time: `mass/precipitation-counterfactual` and
+`mass/human-abstraction`, now finish inside their budget and have real verdicts: the first passes
+and the second fails, as the runs outside the limit had predicted. "Native re-run" below, and the
+timing notes that mention ERROR rows, describe those older rows.
 
-The `mass/extreme-event-closure` row was added when that probe merged, from
-`5.0.0-onecell.5` on the same host. Its five twenty-year cases (7,665 rows
-each) finished in 134 s together, case generation included, against a 300 s
-budget for each case, and every wet event closes to 1e-13 mm.
+**FAIL, 2:**
 
-**The two ERROR rows are provisional.** They come from the emulated host and
-are to be replaced by a native x86-64 evaluation; "Native re-run" gives the
-commands and the row replacement.
+- **`mass/human-abstraction`: the withdrawal is declared exactly and mostly not made.** Of the 380 mm
+  scored, 315.2 mm is unaccounted for (82.9%, limit 5%), and the three seeds agree. Verified on the
+  probe's own cases on this host:
 
-- **N/A (INCOMPLETE), 5, not scored:** `energy/evaporative-partition`,
-  `energy/latent-heat-et-consistency`, `energy/surface-energy-closure` and
-  `energy/radiation-consistency`, plus `energy/soil-heat-storage-consistency`. LISFLOOD reports no heat fluxes and no
-  surface temperature, so these probes cannot ask it anything.
-  They are neither a pass nor a fail, and do not decide the verdict.
-- **ERROR, 2:** `mass/precipitation-counterfactual` and
-  `mass/human-abstraction`. The container exceeded the 60 s budget, because a
-  ten-year record takes about 90 s under emulation (87 and 92 s when left to
-  finish).
-  These rows come from the emulated host.
-  - Run outside the limit on all three gate seeds,
-    `mass/precipitation-counterfactual` passes every criterion.
-  - `mass/human-abstraction` fails `human_abstraction` there. LISFLOOD
-    withdraws 17.0 to 33.1% of the prescription, from the sourced reserve to
-    none. That leaves a residual of 82.9 to 66.7% against a 5% limit;
-    `closure` and `state_bounds` pass.
-  - On a host fast enough for the budget, the first should PASS and the second
-    be VIOLATION. The model's verdict would then be FAIL (VIOLATION), with 17
-    of 19 probes passed and 5 N/A.
-- **VIOLATION, 1:** `mass/resolution-invariance`. Rain that falls within an
-  hour runs off, so `mrro` differs by 13.0% of `pr` between PT1H and PT1D,
-  against a 10% limit.
-- **PASS, 16:**
-  - `energy/pet-consistency`;
-  - `mass/antecedent-monotonicity`, `mass/area-invariance`,
-    `mass/catchment-closure`, `mass/causality`, `mass/dry-down`,
-    `mass/extreme-event-closure` and `mass/extreme-rain`;
-  - `mass/phase-counterfactual`, `mass/response-nonnegativity`,
-    `mass/runoff-bounds`, `mass/steady-state`, `mass/time-origin-invariance`
-    and `mass/warming-response`;
-  - `momentum/routing-conservation` and `mass/ungauged-basin-closure`.
+  | Gate seed | Prescribed, whole record | From groundwater | From channel | Channel shortage | `gwex`, whole record | `gwex`, scored | `mrro` difference, scored | Storage difference | Residual of 380 mm |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | 1129545695 | 418 mm | 70.2 mm | 1.0 mm | 346.8 mm | -71.2 mm | -64.83 mm | -64.80 mm | -0.03 mm | 315.2 mm |
+  | 1636497809 | 418 mm | 70.2 mm | 1.8 mm | 346.0 mm | -72.0 mm | -65.60 mm | -65.57 mm | -0.03 mm | 314.4 mm |
+  | 2143449923 | 418 mm | 70.2 mm | 2.3 mm | 345.5 mm | -72.5 mm | -65.90 mm | -65.87 mm | -0.03 mm | 314.1 mm |
 
-  The budget closes to 1e-13 mm per step. The harness flags `suspicious_exact`
-  on `mass/catchment-closure` and `mass/time-origin-invariance`; "What the
-  adapter reports" says why the closure is exact.
+  - **What is declared is right.** `gwex` equals the water-use module's own withdrawals, and over the
+    scored window the differences in `evspsbl` (0), `mrro` and storage sum to `gwex` to 3e-13 mm. The
+    irrigated run's budget closes with `gwex` as a source to 4e-13 mm per row. This is no leak and no
+    bookkeeping error, and the column is read: `gwex` is exactly 0 on rows with no prescription.
+  - **Most of the water never leaves.** LISFLOOD takes the 16.8% groundwater share in full and records
+    what the channel cannot supply as a shortage, which it takes from nowhere. The 315 mm is that
+    shortage. It was never in any flux or store difference, and `human_abstraction` sums evaporation,
+    runoff and storage, so it cannot appear there. So "the module takes the withdrawal", wherever this
+    package says so, is true of 17% of the prescription.
+  - **Why the channel gives so little.** Its limit is the water it holds at the start of the step above
+    the reserve, 0.0700 m3/s for a day, which is 0.24 mm over the cell. Channel and overland water
+    together average 0.22 mm on withdrawal days. Meanwhile 931 to 957 mm runs through the cell on
+    those days, against 380 mm demanded, and the module does not see it. This is LISFLOOD's rule on a
+    water region of one headwater cell. The domain is the package's choice, so the verdict is about
+    the rule on this domain, not about the module on a real region, whose median here is 121 cells.
+  - **Not tuned.** "A prescribed withdrawal" above measured the alternatives. No reserve still fails at
+    66.7 to 68.4%; `FractionGroundwaterUsed = 1` passes, with the lower zone going to -9.2 mm, and
+    would make the verdict a statement about that number. The package keeps the sourced values.
+- **`mass/resolution-invariance`:** rain that falls within an hour runs off, so `mrro` differs by
+  13.0% of `pr` between PT1H and PT1D, against a 10% limit. Verified: see "Mechanisms checked with
+  targeted runs". It is the same in every adapter since `.2`.
 
-Against the `.2` rows:
-- `mass/area-invariance` moved from VIOLATION to PASS with the representative
-  cell.
-- `mass/resolution-invariance` is VIOLATION in both (13.1% then, 13.0% now).
-- `mass/precipitation-counterfactual` is ERROR on this host in both.
-- `mass/human-abstraction` is new since `.2`.
-- The three energy-flux probes were FAIL (INCOMPLETE) under the earlier
-  roll-up and are N/A (INCOMPLETE) under main's; `energy/radiation-consistency`,
-  new since `.2`, is N/A too.
-- No other probe's verdict moved.
+**PASS, 19:**
 
-The standing counts passes out of the 19 probes that could score LISFLOOD; the
-five N/A energy probes are in neither number.
+- `energy/pet-consistency`;
+- `mass/antecedent-monotonicity`, `mass/area-invariance`, `mass/catchment-closure`, `mass/causality`,
+  `mass/dry-down`, `mass/extreme-event-closure`, `mass/extreme-rain` and `mass/multi-decadal-drift`;
+- `mass/phase-counterfactual`, `mass/precipitation-counterfactual`, `mass/response-nonnegativity`,
+  `mass/runoff-bounds`, `mass/spinup-cycle-invariance`, `mass/steady-state`,
+  `mass/time-origin-invariance`, `mass/ungauged-basin-closure` and `mass/warming-response`;
+- `momentum/routing-conservation`.
 
-Against the `.3` rows, `.4` changes the environmental-flow reserve and the
-channel's bottom width, bankfull depth and gradient to the headwater values.
-No probe's verdict or reason moved:
-- the routing-sensitive probes still pass, and `mass/area-invariance` still
-  departs by exactly 0;
-- `mass/resolution-invariance` is 13.0% in both;
-- the two ten-year probes are ERROR on this host in both.
+The budget closes to about 3e-13 mm per row, and the harness flags `suspicious_exact` on the closure
+family; "What the adapter reports" says why the closure is exact. Two passes say little:
+`mass/area-invariance` is identical by construction, because the stated area enters only `dis`, and
+`mass/time-origin-invariance`'s 28-year shift keeps the day of year, which is all of the calendar
+LISFLOOD reads.
 
-`.5` requires `latitude_deg`, `area_km2` and `canopy_capacity_mm` and records
-the latitude it used in `run.json`. Every probe supplies them, and re-run on
-all 20 probes with the same harness, no row moved against `.4` except its
-version and the contract row's timing. Re-run again with main's harness from
-`89f2f14`, which kills a timed-out container and counts passes out of the
-scored probes, no row moved either; these are the archived rows.
+**N/A, 16, not scored:**
+
+- INCOMPLETE, 13: the outputs it lacks. Six energy probes need heat or radiative outputs;
+  `mass/snowpack-mass-closure` needs `snm`; `mass/aquifer-recharge-ordering`,
+  `mass/groundwater-datum-invariance` and `mass/gw-sw-exchange-consistency` need `gw_sw_exchange`;
+  `momentum/froude-regime`, `momentum/stage-discharge-monotonic` and
+  `momentum/uniform-flow-friction-consistency` need `stage`.
+- INCOMPATIBLE, 3: `mass/exchange-response`, because `gwex` here is a withdrawal and does not respond
+  to a head, so `gwh` is not declared; `momentum/routing-lag-consistency` and
+  `momentum/wave-celerity-bounds`, whose geometry and `q_in` the representative cell does not take.
+
+The standing counts passes out of the 21 probes that could score LISFLOOD.
+
+Against earlier adapters, on the probes they ran: `mass/area-invariance` moved from VIOLATION to PASS
+between `.2` and `.3` with the representative cell, and `.4` and `.5` moved no verdict.
 
 ## Mechanisms checked with targeted runs
 

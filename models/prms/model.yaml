@@ -1,0 +1,36 @@
+name: prms
+version: "6.0.0-ht.4"
+description: >
+  PRMS, the USGS Precipitation-Runoff Modeling System (Markstrom et al. 2015): a
+  modular HRU model with interception, an energy-balance snowpack, contributing-area
+  surface runoff, a capillary and gravity soil zone, a linear groundwater reservoir and
+  Muskingum stream routing. The official Linux executable of PRMS 6.0.0, unmodified,
+  run as one HRU on one stream segment with PRMS's own declared parameter defaults and
+  capacities taken from the case. Precipitation and PET go in directly through the
+  climate_hru module; the rest it needs from the sky is mocked from each row, and
+  README.md says how and what that moves. Water only, so the heat-flux probes are N/A.
+  PRMS is daily and has no other step.
+authors:
+  - "S. L. Markstrom, R. S. Regan, L. E. Hay, R. J. Viger, R. M. T. Webb, R. A. Payn, J. H. LaFontaine (PRMS-IV); George Leavesley and USGS PRMS developers"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.3133/tm6B7"
+license: "CC0-1.0 (USGS release README); adapter under this repository's licence"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# PRMS stops on a data step other than 24 h. README.md has what the adapter does when
+# the resolution probe runs it at PT1H anyway.
+timestep: PT1D
+
+emits:
+  fluxes: [pr, evspsbl, mrro, dis, gwex, snm, sbl]
+  states: [mrso, snw, canopy, gw, channel]
+
+needs_forcing: [pr, tas, pet]
+uses_forcing: [abstr]
+uses_static: [area_km2, soil_capacity_mm, canopy_capacity_mm, latitude_deg, snow_threshold_degC, elevation_m]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}
+
+window_days: full

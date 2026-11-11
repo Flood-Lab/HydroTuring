@@ -23,6 +23,22 @@
 - The scratch venv's tests: `PYTHONPATH=src <venv>/bin/python -m pytest -q
   -p no:cacheprovider tests/` (~20 s, 101 tests as of 2026-09-05).
 
+## CU Boulder Alpine (HPC)
+
+No Docker, and no `gh`. Apptainer exists on compute nodes only, so nothing container
+related runs on the login node, and neither does any model. `--runner apptainer`
+translates the model's Dockerfile; see `docs/running-on-a-cluster.md` and
+`scripts/hpc/`. Harness venv, images and caches live under
+`/scratch/alpine/$USER/hydroturing/` (`$HOME` is 2 GB). The login node's `python3` is
+3.6, too old for the harness. Builds and evaluations both go to `acpu`
+(`--qos=cpu-normal`), whose nodes reach the network; `acompile` caps a user at 8 CPUs
+and 4 jobs, which is only useful for a quick `srun`. `srun` here needs `/bin/bash`
+spelled out; a bare `bash` fails with "No such file or directory". Give a job
+`--nodes=1`: `--ntasks` alone can spread it across nodes, and a batch script then gets
+only the first node's share, which reads as model timeouts and out-of-memory kills.
+`find_model` loads every manifest, so one half-written `model.yaml` breaks `ht` for
+anyone sharing the tree: concurrent packaging needs a worktree each.
+
 ## Git flow the maintainer approved
 
 Work on `model/<name>`; `git checkout main && git merge --ff-only model/<name>

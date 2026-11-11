@@ -5,7 +5,7 @@ description: >
   precipitation immediately to the ground. Its snowpack budget closes
   algebraically, but it never develops a snowpack.
 authors: ["Jinlong Hu"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H, PT15M, PT5M, PT1M]

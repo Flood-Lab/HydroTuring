@@ -1,0 +1,36 @@
+name: mizuroute
+version: "3.1.1-ht.2"
+description: >
+  mizuRoute v3.1.1, the river network routing tool of CTSM and CESM: a vector
+  network of reaches and five interchangeable routing schemes. This is upstream's
+  stand-alone executable at the tag commit, unmodified, run with its diffusive
+  wave scheme (route_opt 5, the value in upstream's route/settings/SAMPLE.control)
+  on a two-reach network: a headwater that passes the prescribed inflow straight
+  to the top of the declared reach. It has no land phase, so it takes q_in and not
+  weather, reports discharge and the water in the reach, and every probe that
+  needs precipitation, evaporation or runoff from it is N/A. README.md lists every
+  value.
+authors:
+  - "Naoki Mizukami, Martyn P. Clark, Kevin Sampson, Bart Nijssen, Yixin Mao, Hilary McMillan, Roland J. Viger, Steve L. Markstrom, Lauren E. Hay, Ross Woods, Jeffrey R. Arnold, Levi D. Brekke; ESCOMP contributors"
+  - "HydroTuring maintainers (adapter)"
+reference: "https://doi.org/10.5194/gmd-9-2223-2016"
+license: "Apache-2.0 (upstream); adapter under this repository's licence"
+
+runner: docker
+entrypoint: ["python3", "ht_adapter.py"]
+# dt_qsim is a configuration key, and both of these were run. PT5M and PT1M stop in
+# upstream's basinUH with the shipped hillslope parameters. README.md has the numbers.
+timestep: [PT1H, PT15M]
+
+emits:
+  fluxes: [dis]
+  # channel: the water in the reaches, from upstream's own volume output. It is the
+  # only store in the router's control volume, which starts at its inflow: anything
+  # upstream of that, snow included, is unknown to it, not zero.
+  states: [channel]
+
+needs_forcing: [q_in]
+needs_static: [area_km2, width_m, cross_section_shape, slope, manning_n, reach_length_m]
+supports:
+  perturbation: true
+resources: {cpu: 1, memory_gb: 1, gpu: false}

@@ -174,6 +174,88 @@ from the kept per-setting runs, where the old criterion reproduces every
 entry; with roots through 99% of the column the second seed now clears the
 bound by a hair (0.020).
 
+## v0.1 sweep (2026-10-31)
+
+Twenty-five models packaged and archived under Apptainer on Alpine; each README holds
+its own mechanisms. What a next evaluation should know:
+
+- Apptainer reproduced every archived verdict on the ten models that had one, seven archived
+  under Docker and three (`flex_lumped`, `flex_topo`, `sacsma_snow17`) under the subprocess
+  runner, which never had an image to compare. The only two differences were LISFLOOD's rows
+  that had been ERROR from emulation. None of the 25 new Dockerfiles has been built by Docker.
+- Keep a job on one node. `--ntasks` alone spread it across three, the batch script got
+  three CPUs, and the resulting time-budget ERRORs read like verdicts on the models.
+- `human-abstraction` fails every model it can score that has no withdrawal term, as AGENTS.md
+  intends (`ealstm` and `mtslstm` lack the budget outputs and are N/A),
+  and is the only failure on `hymod`, `tank` and `mhm`.
+- Not edited at the time, and worth a maintainer's look. Marked where since corrected on
+  `release/v0.1` (criteria at `dc9836c`, adapters at `f374514`, archived at `3e86a79`):
+  - **Corrected, with one model still failing.** `routing_conservation` bounded `channel` by
+    released `mrro`, so a lagged router failed on the first storm after a dry spell (`xaj`,
+    `gr4j`, `topkapi`, `mcp3`). It now also reads runoff through the lag ahead and does not judge
+    the last `max_lag` rows. The first three pass. Open: `mcp3`'s surface node still fails it,
+    as model behaviour (62.4 mm against 1.9).
+  - **Corrected.** `counterfactual_response` ignored a declared `gwex`; `mcp2` sums to 1.000 with
+    it, and passes now that it counts as a source.
+  - **Corrected.** `et_plausible` failed a row of net condensation and held a 1e-9 ceiling tighter
+    than float32. It now reads cumulative ET, to 1e-6. `vic` and `noahmp` pass closure, and `mcp4`
+    passes `multi-decadal-drift`. `summa` still fails closure.
+  - Open. `state_bounds`' 1e-6 tolerance (`prms`). An earlier note here called `prms`'s -0.000508 mm
+    a print quantum. It is not: it is 20 quanta, and comes from float32 Muskingum coefficients that
+    sum to 1 + 5.96e-8.
+  - Open. `resolution_invariance`'s `mrso_end` carries the stores' starting state on a 10-day
+    spin-up (`mcp2`), not only the step.
+  - Open. `area-invariance` passes trivially when area enters only `dis`: 22 of 24 passes cannot
+    fail, as counted before SHUD moved. SHUD now also passes, by construction, so 23 of 25.
+  - Open. The `non_degenerate` runoff-ratio floor alone decides several of `raven`'s failures.
+  - Open. `warming-response`: a windowed model's spinup rows sit inside the warmed years, so
+    variants do not enter the window from the same state, which decides `mtslstm`.
+  - Open, moves no verdict. `monotone_response` (`stress.py:433`) bounds runoff by the rain plus
+    capacity and ignores a declared `gwex`. Left unfixed.
+  - **Corrected.** `google_flood_forecast`'s adapter computed day-based indices per row, the fault
+    fixed in `ealstm` and `mtslstm`, and `dhbv2` did the same for its snowfall fraction. An earlier
+    note here said the archived 65.9% may be inflated. It was understated: 73.8% once grouped into
+    days. `dhbv2` moves from `mrso_end` 41.9% to `mrro` 12.1%. Both still fail.
+- `et_plausible` decides `noahmp` and `vic` on two probes each, `multi-decadal-drift` and
+  `ungauged-basin-closure`, while their budgets close, because neither reads `pet` as demand. On
+  `noahmp` the same seed moves from 1.477 to 0.874 of `pet` with the mocked humidity alone.
+- A record shorter than a year may be all scored rows. Replaying it for spin-up, or deriving
+  attributes from it, is look-ahead: it decided `mcp2`, `mcp4` and `mcp5` on
+  `resolution-invariance` and moved `ealstm` by 50 points of rain. `noahmp` and `vic` still take
+  an initial temperature from it, which AGENTS.md's "first year" allows, and a probe that
+  cares would need that rule tightened.
+- `substep` is new and two models use it. `cfe`'s daily diagnostic (11 PASS, 2 FAIL) would
+  need the same evidence before it could.
+- 2026-11-01: `shud` moved to upstream's master, `851fb8c`, at the maintainer's decision, because no
+  tag carries the canopy fix `0958682c78da`. It passes 9 of 22, where the tag passed 3. The README's
+  earlier 8 of 22 at that commit was adapter `.2`: row-mean `stage` since `.3` moves
+  `stage-discharge-monotonic` to PASS, end-of-row `stage` fails two gate seeds of three, and seed 606
+  fails even as archived. Every model was re-archived under Docker on Apple Silicon at `3e86a79`; then, after guards against NaN in `counterfactual_response` and two adapters, the two adapters on every probe and every model on `mass/precipitation-counterfactual` at `66118d8`, with no verdict changed.
+
+### Where a model's reported variable departs from the lexicon
+
+An audit of every packaged adapter against `schemas/lexicon.yaml`. Declared names, and the units
+`AGENTS.md` states, agree everywhere, and `tests/test_lexicon.py` keeps them agreeing. It does not
+check an adapter's unit conversions or the meaning of what it reports, so these are read from the
+code. None was changed: each would move archived scores, or is the proposal's own choice.
+
+- Not at the surface or not what the name says: `summa`'s and `noahmp`'s `hfg` is the top of the
+  snow-soil column under snow (`summa/ht_adapter.py:564`); `cwatm`'s `sbl` is `snowEvap`, with no phase test (:760).
+- `channel` holding water that is not yet runoff: `raven` (ponded water), `shud` (`eleysurf`),
+  `cfe` (up to 1 mm of retention). `mhm`'s is a running balance, so a routing leak cannot show
+  in closure, though `routing_conservation` and `total_storage_drift` still see it grow.
+- `gw` or `mrso` as a modelling choice: `gr4j`'s `gw` is the routing store; `topmodel`'s `gw` is an
+  offset on a deficit; `tank`'s `mrso` is its top two tanks; `mhm`'s `mrso` includes the sealed store.
+- A value the adapter builds: `modflow6`'s `gw` baseline; `dhbv2`'s `gwex` (:243-277); `lisflood`'s and
+  `wflow_sbm`'s `dis` rescaled by area; `summa`'s `mrso` adds an accumulated flux (:567).
+- `wflow_sbm` on the `q_in` path fills `evspsbl`, `gwex`, `mrso`, `snw` and `canopy` with 0.0
+  (`WflowSbmAdapter.jl:861-867`), against "a flux the model does not compute is never filled in".
+- Predating the rule: `dhbv2`, `flex_lumped`, `flex_topo`, `sacsma_snow17` and `wflow_sbm` report a zero
+  store without naming it under `zero_stores`, and nine of those ten older adapters write no
+  `not_reported`. `wflow_sbm` nests its under `notes`, which the Python-only test cannot see.
+- `flex_lumped` and `sacsma_snow17` report `dis` 0 with no `area_km2`, though they list it as optional;
+  `flex_topo` lists it as optional and raises without it.
+
 ## Known open items
 
 - The `probe` workflow's `container` job has failed on every recorded run

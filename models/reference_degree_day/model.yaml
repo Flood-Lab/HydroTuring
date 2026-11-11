@@ -8,7 +8,7 @@ description: >
   the construction energy/snowmelt-energy-water exists to catch, and it fails
   that probe while passing every water probe that can ask it anything.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D, PT1H]

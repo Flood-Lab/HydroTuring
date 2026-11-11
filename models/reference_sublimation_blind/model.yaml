@@ -6,7 +6,7 @@ description: >
   It is short by 13.3 percent on exactly the steps where a snowpack is
   losing mass to the atmosphere, and correct everywhere else.
 authors: ["HydroTuring maintainers"]
-license: PolyForm-Noncommercial-1.0.0
+license: CC-BY-NC-4.0
 runner: subprocess
 entrypoint: ["python3", "ht_adapter.py"]
 timestep: [PT1D]
