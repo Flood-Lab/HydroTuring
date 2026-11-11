@@ -133,13 +133,11 @@ block total-storage drift exposes it. Checks all reported stores without
 inventing a finite groundwater capacity.
 Contributed by Bing Li (@hiter-joe).
 
-### `mass/routing-network-closure` &middot; standard &middot; **in progress**
-Claimed by Jiao Wang in [#108](https://github.com/Flood-Lab/HydroTuring/issues/108),
-with a draft implementation in [#118](https://github.com/Flood-Lab/HydroTuring/pull/118).
-
+### `mass/routing-network-closure` &middot; **merged**
 A branching network. Mass must close reach by reach, not only basin-wide.
 *Discriminates:* models that conserve globally while moving water between
 reaches non-physically.
+Contributed by Jiao Wang (UC Davis).
 
 ### `mass/human-abstraction` &middot; **merged**
 A prescribed net irrigation withdrawal must leave the budget: the same weather
