@@ -51,9 +51,9 @@ criteria:
       aggregate: sum_absolute_interval_residual
       minimum_throughflow_volume_mm: 1.0
 
-  # Per-reach analogue of the merged routing_conservation criterion. The
-  # absolute allowance is provisional until calibrated against the extended
-  # wflow_sbm adapter on all gate seeds.
+  # Wflow passes at 0.05 mm on the five gate seeds. The 0.1% leaky
+  # reference first escapes at approximately 0.303 mm; all five seeds
+  # escape by approximately 0.387 mm.
   - routing_recession_bound:
       apply_to: each_reach
       max_lag_days: 15

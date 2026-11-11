@@ -31,8 +31,6 @@ AREA_B_KM2 = 90.0
 AREA_C_KM2 = AREA_A_KM2 + AREA_B_KM2
 MIN_DRY_TAIL_DAYS = 70
 
-# The capacity bounds are deliberately loose relative to generated event
-# volumes. They catch invented stores without prescribing a routing equation.
 STATIC = {
     "area_km2": AREA_C_KM2,
     "routing_network": {
