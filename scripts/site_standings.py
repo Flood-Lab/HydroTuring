@@ -452,8 +452,49 @@ def readme_images(html: str, data: dict) -> dict[Path, str]:
     return images
 
 
+README = ROOT / "README.md"
+NUMBERS = re.compile(r"(<!-- law-numbers:[^\n]*-->\n)(.*?)(<!-- /law-numbers -->)", re.DOTALL)
+
+
+def numbers_block(html: str, data: dict) -> str:
+    """The site's "Show the numbers" table under the bars, as Markdown, so the
+    per-law results are text a screen reader can reach and not only an image."""
+
+    def cell(passed: int, scored: int) -> str:
+        return f"{passed} / {scored}" if scored else "–"
+
+    header = (
+        [english(html, "models.th1")]
+        + [english(html, f"law.{law}") for law in LAWS]
+        + [english(html, "chart.total")]
+    )
+    lines = [
+        "<details>",
+        f"<summary>{esc(english(html, 'chart.table'))}</summary>",
+        "",
+        "| " + " | ".join(header) + " |",
+        "| --- |" + " ---: |" * (len(LAWS) + 1),
+    ]
+    for model in chart_order(html, data):
+        counts = data["models"][model]
+        passed = sum(counts[law][0] for law in LAWS)
+        scored = sum(counts[law][1] for law in LAWS)
+        cells = " | ".join(cell(*counts[law]) for law in LAWS)
+        lines.append(f"| `{model}` | {cells} | {cell(passed, scored)} |")
+    lines += ["", "</details>"]
+    return "\n".join(lines) + "\n"
+
+
+def readme_numbers(readme: str) -> str:
+    match = NUMBERS.search(readme)
+    if not match:
+        raise SystemExit(f"{README} has no <!-- law-numbers: --> ... <!-- /law-numbers --> block")
+    return match.group(2)
+
+
 def main(argv: list[str]) -> int:
     html = SITE.read_text(encoding="utf-8")
+    readme = README.read_text(encoding="utf-8")
     data = standings()
     if "--check" in argv:
         status = 0
@@ -467,13 +508,15 @@ def main(argv: list[str]) -> int:
             for path, text in readme_images(html, data).items()
             if not path.exists() or path.read_text(encoding="utf-8") != text
         ]
+        if readme_numbers(readme) != numbers_block(html, data):
+            stale.append("README.md numbers table")
         if stale:
             print(
-                f"README images are stale ({', '.join(stale)}); run python3 scripts/site_standings.py"
+                f"README charts are stale ({', '.join(stale)}); run python3 scripts/site_standings.py"
             )
             status = 1
         else:
-            print("README images match the site")
+            print("README images and numbers table match the site")
         return status
     embedded(html)  # fail loudly if the block is missing
     updated = BLOCK.sub(lambda m: m.group(1) + render(data) + m.group(3), html, count=1)
@@ -481,6 +524,11 @@ def main(argv: list[str]) -> int:
     images = readme_images(updated, data)
     for path, text in images.items():
         path.write_text(text, encoding="utf-8")
+    readme_numbers(readme)  # fail loudly if the block is missing
+    table = numbers_block(updated, data)
+    README.write_text(
+        NUMBERS.sub(lambda m: m.group(1) + table + m.group(3), readme, count=1), encoding="utf-8"
+    )
     print(
         f"wrote standings for {len(data['models'])} models and {sum(data['probes'].values())} probes, "
         f"and {len(images)} README images"

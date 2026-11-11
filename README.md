@@ -193,6 +193,48 @@ for a model is left out, as in the table below, and a dash means no probe under
 that law could score it. These charts and the flowchart above are the site's,
 drawn into `res/` from `models/result.csv` by `python3 scripts/site_standings.py`.
 
+<!-- law-numbers: written by scripts/site_standings.py from models/result.csv; do not edit by hand -->
+<details>
+<summary>Show the numbers</summary>
+
+| Model | Mass | Energy | Momentum | Total |
+| --- | ---: | ---: | ---: | ---: |
+| `google_flood_forecast` | 5 / 11 | – | – | 5 / 11 |
+| `dhbv2` | 13 / 19 | 1 / 1 | 1 / 1 | 15 / 21 |
+| `wflow_sbm` | 16 / 19 | 1 / 1 | 2 / 2 | 19 / 22 |
+| `summa` | 7 / 19 | 1 / 3 | 1 / 1 | 9 / 23 |
+| `cwatm` | 16 / 19 | 0 / 1 | 1 / 1 | 17 / 21 |
+| `lisflood` | 17 / 19 | 1 / 1 | 1 / 1 | 19 / 21 |
+| `modflow6` | 4 / 4 | – | – | 4 / 4 |
+| `hymod` | 18 / 19 | 1 / 1 | 1 / 1 | 20 / 21 |
+| `xaj` | 17 / 19 | 1 / 1 | 1 / 1 | 19 / 21 |
+| `gr4j` | 18 / 19 | 1 / 1 | 1 / 1 | 20 / 21 |
+| `topmodel` | 17 / 19 | 1 / 1 | 1 / 2 | 19 / 22 |
+| `tank` | 18 / 19 | 1 / 1 | – | 19 / 20 |
+| `topkapi` | 18 / 19 | 1 / 1 | 1 / 1 | 20 / 21 |
+| `cfe` | 1 / 1 | – | – | 1 / 1 |
+| `simhyd` | 11 / 19 | 0 / 1 | – | 11 / 20 |
+| `mcp1` | 17 / 19 | 1 / 1 | – | 18 / 20 |
+| `mcp2` | 15 / 19 | 0 / 1 | – | 15 / 20 |
+| `mcp3` | 16 / 19 | 1 / 1 | 0 / 1 | 17 / 21 |
+| `mcp4` | 13 / 19 | 1 / 1 | – | 14 / 20 |
+| `mcp5` | 14 / 19 | 0 / 1 | – | 14 / 20 |
+| `raven` | 6 / 20 | 0 / 1 | 1 / 1 | 7 / 22 |
+| `hype` | 13 / 20 | 1 / 1 | 1 / 2 | 15 / 23 |
+| `prms` | 18 / 20 | 1 / 1 | 1 / 1 | 20 / 22 |
+| `vic` | 15 / 19 | 1 / 4 | – | 16 / 23 |
+| `mhm` | 19 / 20 | 1 / 1 | 1 / 1 | 21 / 22 |
+| `shud` | 8 / 19 | 0 / 1 | 1 / 2 | 9 / 22 |
+| `noahmp` | 14 / 20 | 3 / 5 | – | 17 / 25 |
+| `rvic` | – | – | 0 / 1 | 0 / 1 |
+| `mizuroute` | – | – | 1 / 1 | 1 / 1 |
+| `flex_lumped` | 19 / 19 | 1 / 1 | 5 / 5 | 25 / 25 |
+| `flex_topo` | 19 / 19 | 1 / 1 | 4 / 4 | 24 / 24 |
+| `sacsma_snow17` | 20 / 20 | 1 / 1 | 4 / 4 | 25 / 25 |
+
+</details>
+<!-- /law-numbers -->
+
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |
 | [`google_flood_forecast`](models/google_flood_forecast) | submitted | The mean-embedding forecast LSTM behind Google Flood Hub, at the published weights. Predicts discharge and nothing else. | **FAIL (VIOLATION)**, 5 of 11 probes passed. It passes the runoff bounds, memory, area, causality and steady state, and fails step, extreme rain, phase, warming, dry-down, and a 0.18 mm/day dip after an added storm |

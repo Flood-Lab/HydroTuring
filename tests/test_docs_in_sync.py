@@ -232,8 +232,9 @@ def test_site_charts_are_drawn_from_the_archive():
 def test_readme_charts_are_the_sites():
     """The README shows the site's two charts and its flowchart as SVG files
     under res/, which scripts/site_standings.py draws from the same numbers,
-    colours, labels and markup. Each has to be what the script would draw now,
-    and the README has to show each one, light and dark."""
+    colours, labels and markup, and the site's per-law numbers as a table. Each
+    has to be what the script would write now, and the README has to show each
+    image, light and dark."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
@@ -250,6 +251,10 @@ def test_readme_charts_are_the_sites():
             f"{name} is stale; run python3 scripts/site_standings.py"
         )
         assert f'"{name}"' in readme, f"README.md does not show {name}"
+    html = read("site/index.html")
+    assert site_standings.readme_numbers(readme) == site_standings.numbers_block(
+        html, site_standings.standings()
+    ), "the README's per-law numbers table is stale; run python3 scripts/site_standings.py"
 
 
 @pytest.mark.parametrize("variable", FLUX_VARS + STATE_VARS + DIAG_VARS + ROUTING_VARS)
