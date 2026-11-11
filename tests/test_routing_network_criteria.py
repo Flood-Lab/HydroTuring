@@ -221,3 +221,157 @@ def test_zero_reported_flow_does_not_pass(closure_run, criterion_name):
 
     assert result.status == FAIL
     assert "degenerate" in result.message
+
+
+@pytest.mark.parametrize("extra_flow", [0.0, 0.001])
+def test_recession_bound_cannot_be_evaded_by_extra_tail_flow(extra_flow):
+    from hydroturing.criteria import get
+
+    times = pd.date_range("2000-01-01", periods=62, freq="D")
+    forcing = pd.DataFrame({
+        "time": times,
+        "q_in_A": [1.0 if i == 1 else 0.0 for i in range(len(times))],
+        "q_in_B": [1.0 if i == 1 else 0.0 for i in range(len(times))],
+    })
+
+    case = Case(
+        probe_id="mass/routing-network-closure",
+        seed=1,
+        forcing=forcing,
+        static={
+            "routing_network": {
+                "reaches": ["A", "B", "C"],
+                "contributing_area_km2": {
+                    "A": 1.0,
+                    "B": 1.0,
+                    "C": 2.0,
+                },
+                "junctions": [
+                    {"id": "J", "upstream": ["A", "B"], "downstream": "C"}
+                ],
+            }
+        },
+        spinup_steps=1,
+    )
+
+    rows = []
+    for i, time in enumerate(times):
+        for reach in ("A", "B", "C"):
+            flow = (2.0 if reach == "C" else 1.0) if i == 1 else 0.0
+            storage = 0.0
+            if i == len(times) - 1 and reach == "C":
+                flow += extra_flow
+                storage = 200.0
+
+            rows.append({
+                "time": time,
+                "reach_id": reach,
+                "reach_q_in": flow,
+                "q_out": flow,
+                "channel_storage": storage,
+            })
+
+    run = RunResult(
+        case=case,
+        table=pd.DataFrame({"time": times}),
+        meta={},
+        wall_seconds=0.0,
+        routing=pd.DataFrame(rows),
+    )
+
+    probe = registry.find_probe("mass/routing-network-closure")
+    results = {
+        criterion.name: get(criterion.name)(run, probe, criterion.params)
+        for criterion in probe.criteria
+    }
+
+    assert results["routing_input_fidelity"].status == PASS
+    assert results["routing_reach_closure"].status == PASS
+    assert results["routing_junction_closure"].status == PASS
+    assert results["routing_state_bounds"].status == PASS
+    assert results["routing_recession_bound"].status == FAIL
+
+
+def test_recession_bound_allows_conserved_delayed_junction_inflow():
+    from hydroturing.criteria import get
+
+    times = pd.date_range("2000-01-01", periods=62, freq="D")
+    forcing = pd.DataFrame({
+        "time": times,
+        "q_in_A": [1.0 if i == 1 else 0.0 for i in range(len(times))],
+        "q_in_B": [1.0 if i == 1 else 0.0 for i in range(len(times))],
+    })
+
+    case = Case(
+        probe_id="mass/routing-network-closure",
+        seed=1,
+        forcing=forcing,
+        static={
+            "routing_network": {
+                "reaches": ["A", "B", "C"],
+                "contributing_area_km2": {
+                    "A": 1.0,
+                    "B": 1.0,
+                    "C": 2.0,
+                },
+                "junctions": [
+                    {"id": "J", "upstream": ["A", "B"], "downstream": "C"}
+                ],
+            }
+        },
+        spinup_steps=1,
+    )
+
+    seconds_per_day = 86400.0
+    release = 50.0 / seconds_per_day
+    rows = []
+
+    for i, time in enumerate(times):
+        if i == 0:
+            values = {
+                "A": (0.0, 0.0, 0.0),
+                "B": (0.0, 0.0, 0.0),
+                "C": (0.0, 0.0, 0.0),
+            }
+        elif i == 1:
+            values = {
+                "A": (1.0, 1.0 - release, 50.0),
+                "B": (1.0, 1.0 - release, 50.0),
+                "C": (2.0 - 2 * release, 2.0 - 4 * release, 100.0),
+            }
+        elif i == len(times) - 1:
+            values = {
+                "A": (0.0, release, 0.0),
+                "B": (0.0, release, 0.0),
+                "C": (2 * release, 0.0, 200.0),
+            }
+        else:
+            values = {
+                "A": (0.0, 0.0, 50.0),
+                "B": (0.0, 0.0, 50.0),
+                "C": (0.0, 0.0, 100.0),
+            }
+
+        for reach, (inflow, outflow, storage) in values.items():
+            rows.append({
+                "time": time,
+                "reach_id": reach,
+                "reach_q_in": inflow,
+                "q_out": outflow,
+                "channel_storage": storage,
+            })
+
+    run = RunResult(
+        case=case,
+        table=pd.DataFrame({"time": times}),
+        meta={},
+        wall_seconds=0.0,
+        routing=pd.DataFrame(rows),
+    )
+
+    probe = registry.find_probe("mass/routing-network-closure")
+    for criterion in probe.criteria:
+        result = get(criterion.name)(run, probe, criterion.params)
+        assert result.status == PASS, (
+            f"{criterion.name}: {result.status} — {result.message}"
+        )

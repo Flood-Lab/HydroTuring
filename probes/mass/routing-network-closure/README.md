@@ -162,7 +162,11 @@ The recession criterion is the per-reach analogue of the merged
 `momentum/routing-conservation` criterion. For each reach,
 
 ```text
-peak_i,t = max reach_q_in,i over the preceding lookback_days
+effective_inflow_A,t = reach_q_in,A,t
+effective_inflow_B,t = reach_q_in,B,t
+effective_inflow_C,t = min(reach_q_in,C,t, max(0, q_out,A,t + q_out,B,t))
+
+peak_i,t = max effective_inflow_i over the preceding lookback_days
 
 allowed_i,t = max_lag_days * peak_i,t * 86,400
               * (1 + tolerance)
@@ -171,10 +175,21 @@ allowed_i,t = max_lag_days * peak_i,t * 86,400
 V_i,t <= allowed_i,t
 ```
 
-In the reviewer's linear-store analysis over 300 seeds, the configured
-recession bound crossed its allowance at an exponential e-folding time of
-approximately 4.4 days. This illustrates that the long dry tail constrains
-retention more tightly than `max_lag_days: 15` alone might suggest.
+For C, the inflow used to calculate the recession allowance is capped by the
+reported upstream outflows at the same time. This prevents an unmatched
+downstream inflow from increasing the allowance, while allowing delayed
+inflow that is supported by upstream outflow. The closure and junction
+criteria still evaluate the reported flows with their stated tolerances.
+
+The upstream outflows are also model-reported. Because reach and junction
+closure use a 5% cumulative tolerance, coordinated flow errors within that
+tolerance may still increase the recession allowance. This cap therefore
+does not prevent every possible manipulation of the reported flows.
+
+For reach A, a linear-store analysis over 300 seeds found that the recession
+bound crossed its allowance at an exponential e-folding time of approximately
+4.4 days. This illustrates that the long dry tail constrains retention more
+tightly than `max_lag_days: 15` alone might suggest.
 
 The 70-day dry tail is part of the test mechanism: after 30 days the event peak
 leaves the lookback window and the proportional allowance falls to zero. The

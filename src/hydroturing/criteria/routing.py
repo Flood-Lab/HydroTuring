@@ -583,9 +583,30 @@ def routing_recession_bound(
         inflow = reach_table[INFLOW_COL].to_numpy(dtype=float)
         storage = reach_table[STORAGE_COL].to_numpy(dtype=float)
 
+        peak_inflow = inflow.copy()
+
+        for junction in routing.network.get("junctions", []):
+            if junction.get("downstream") != reach:
+                continue
+
+            upstream_outflow = np.sum(
+                [
+                    routing.table.loc[
+                        routing.table[REACH_COL] == upstream,
+                        OUTFLOW_COL,
+                    ].to_numpy(dtype=float)
+                    for upstream in junction["upstream"]
+                ],
+                axis=0,
+            )
+            peak_inflow = np.minimum(
+                peak_inflow,
+                np.maximum(upstream_outflow, 0.0),
+            )
+
         peak = np.array(
             [
-                inflow[max(0, index - n_back) : index + 1].max()
+                peak_inflow[max(0, index - n_back) : index + 1].max()
                 for index in range(len(inflow))
             ],
             dtype=float,
