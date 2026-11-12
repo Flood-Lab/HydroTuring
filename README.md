@@ -236,7 +236,7 @@ drawn into `res/` from `models/result.csv` by `python3 scripts/site_standings.py
 | `mizuroute` | – | – | 1 / 1 | 1 / 1 |
 | `flex_lumped` | 20 / 20 | 1 / 1 | 5 / 5 | 26 / 26 |
 | `flex_topo` | 20 / 20 | 1 / 1 | 4 / 4 | 25 / 25 |
-| `sacsma_snow17` | 20 / 20 | 1 / 1 | 4 / 4 | 25 / 25 |
+| `sacsma_snow17` | 20 / 20 | 2 / 2 | 4 / 4 | 26 / 26 |
 
 </details>
 <!-- /law-numbers -->
