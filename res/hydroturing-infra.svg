@@ -1,4 +1,4 @@
-<svg class="infra" width="800" height="510" viewBox="0 0 800 510" role="img" aria-labelledby="infratitle" xmlns="http://www.w3.org/2000/svg">
+<svg class="infra" width="800" height="634" viewBox="0 0 800 634" role="img" aria-labelledby="infratitle" xmlns="http://www.w3.org/2000/svg">
 <title id="infratitle">Flowchart: any AI hydrologic model enters through the /io contract, HydroTuring probes it against mass, energy and momentum, and a verdict with its reason comes out</title>
 <style>
 .infra text{font-family:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif; fill:#33474F}
@@ -19,7 +19,7 @@
 .infra .tag-na{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:11px; font-weight:600; fill:#5B6E76}
 </style>
 <defs><marker id="infra-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0E6C78"/></marker></defs>
-<rect x="0.5" y="0.5" width="799" height="509" rx="10" fill="#FFFFFF" stroke="#D6E0E2"/>
+<rect x="0.5" y="0.5" width="799" height="633" rx="10" fill="#FFFFFF" stroke="#D6E0E2"/>
 <rect x="16" y="160" width="144" height="212" rx="8" fill="#FFFFFF" stroke="#B6C6C9"/>
 <text x="88" y="184" class="eyebrow" text-anchor="middle">ANY MODEL</text>
 <text x="88" y="208" class="title" text-anchor="middle">AI, hybrid or</text>
@@ -40,68 +40,70 @@
 <text x="211" y="254" class="mono-small" text-anchor="middle">static.json</text>
 <text x="211" y="284" class="note" text-anchor="middle">no network</text>
 <text x="211" y="297" class="note" text-anchor="middle">read-only inputs</text>
-<rect x="262" y="40" width="310" height="456.5" rx="10" fill="#FFFFFF" stroke="#0E6C78" stroke-width="1.5"/>
+<rect x="262" y="40" width="310" height="564" rx="10" fill="#FFFFFF" stroke="#0E6C78" stroke-width="1.5"/>
 <path d="M281 56 l6 -8 l6 8 a6 6 0 1 1 -12 0 z" fill="#0E6C78"/>
 <text x="296" y="67" class="brand">HydroTuring</text>
 <text x="417" y="86" class="note" text-anchor="middle">does it conserve what physics says it must?</text>
-<rect x="272" y="100" width="92" height="284.5" rx="6" fill="#EDF2F2"/>
+<rect x="272" y="100" width="92" height="392" rx="6" fill="#EDF2F2"/>
 <text x="318" y="121" class="pillar" text-anchor="middle">MASS</text>
 <text x="318" y="138" class="note" text-anchor="middle">water budget</text>
 <text x="318" y="151" class="note" text-anchor="middle">closes</text>
 <line x1="284" y1="160" x2="352" y2="160" stroke="#D6E0E2"/>
 <circle cx="288" cy="169.50" r="2.4" fill="#2C7A57"/>
 <text x="296" y="173.00" class="probe">closure</text>
-<circle cx="288" cy="177.73" r="2.4" fill="#2C7A57"/>
-<text x="296" y="181.23" class="probe">ungauged</text>
-<circle cx="288" cy="185.95" r="2.4" fill="#2C7A57"/>
-<text x="296" y="189.45" class="probe">event budget</text>
-<circle cx="288" cy="194.18" r="2.4" fill="#2C7A57"/>
-<text x="296" y="197.68" class="probe">resolution</text>
-<circle cx="288" cy="202.40" r="2.4" fill="#2C7A57"/>
-<text x="296" y="205.90" class="probe">warming</text>
-<circle cx="288" cy="210.63" r="2.4" fill="#2C7A57"/>
-<text x="296" y="214.13" class="probe">causality</text>
-<circle cx="288" cy="218.86" r="2.4" fill="#2C7A57"/>
-<text x="296" y="222.36" class="probe">dry-down</text>
-<circle cx="288" cy="227.08" r="2.4" fill="#2C7A57"/>
-<text x="296" y="230.58" class="probe">steady state</text>
-<circle cx="288" cy="235.31" r="2.4" fill="#2C7A57"/>
-<text x="296" y="238.81" class="probe">spin-up cycle</text>
-<circle cx="288" cy="243.53" r="2.4" fill="#2C7A57"/>
-<text x="296" y="247.03" class="probe">drift</text>
-<circle cx="288" cy="251.76" r="2.4" fill="#2C7A57"/>
-<text x="296" y="255.26" class="probe">extreme rain</text>
-<circle cx="288" cy="259.99" r="2.4" fill="#2C7A57"/>
-<text x="296" y="263.49" class="probe">bounds</text>
-<circle cx="288" cy="268.21" r="2.4" fill="#2C7A57"/>
-<text x="296" y="271.71" class="probe">area</text>
-<circle cx="288" cy="276.44" r="2.4" fill="#2C7A57"/>
-<text x="296" y="279.94" class="probe">nonnegative</text>
-<circle cx="288" cy="284.67" r="2.4" fill="#2C7A57"/>
-<text x="296" y="288.17" class="probe">antecedent</text>
-<circle cx="288" cy="292.89" r="2.4" fill="#2C7A57"/>
-<text x="296" y="296.39" class="probe">phase</text>
-<circle cx="288" cy="301.12" r="2.4" fill="#2C7A57"/>
-<text x="296" y="304.62" class="probe">time origin</text>
-<circle cx="288" cy="309.34" r="2.4" fill="#2C7A57"/>
-<text x="296" y="312.84" class="probe">rain ±20%</text>
-<circle cx="288" cy="317.57" r="2.4" fill="#2C7A57"/>
-<text x="296" y="321.07" class="probe">withdrawal</text>
-<circle cx="288" cy="325.80" r="2.4" fill="#2C7A57"/>
-<text x="296" y="329.30" class="probe">snowpack</text>
-<circle cx="288" cy="334.02" r="2.4" fill="#2C7A57"/>
-<text x="296" y="337.52" class="probe">gw exchange</text>
-<circle cx="288" cy="342.25" r="2.4" fill="#2C7A57"/>
-<text x="296" y="345.75" class="probe">exchange</text>
-<circle cx="288" cy="350.47" r="2.4" fill="#2C7A57"/>
-<text x="296" y="353.97" class="probe">datum shift</text>
-<circle cx="288" cy="358.70" r="2.4" fill="#2C7A57"/>
-<text x="296" y="362.20" class="probe">recharge</text>
-<circle cx="288" cy="366.93" r="2.4" fill="#2C7A57"/>
-<text x="296" y="370.43" class="probe">head bounds</text>
-<circle cx="288" cy="375.16" r="2.4" fill="#2C7A57"/>
-<text x="296" y="378.66" class="probe">interception</text>
-<rect x="372" y="100" width="92" height="284.5" rx="6" fill="#EDF2F2"/>
+<circle cx="288" cy="181.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="185.00" class="probe">ungauged</text>
+<circle cx="288" cy="193.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="197.00" class="probe">event budget</text>
+<circle cx="288" cy="205.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="209.00" class="probe">resolution</text>
+<circle cx="288" cy="217.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="221.00" class="probe">warming</text>
+<circle cx="288" cy="229.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="233.00" class="probe">causality</text>
+<circle cx="288" cy="241.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="245.00" class="probe">dry-down</text>
+<circle cx="288" cy="253.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="257.00" class="probe">steady state</text>
+<circle cx="288" cy="265.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="269.00" class="probe">spin-up cycle</text>
+<circle cx="288" cy="277.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="281.00" class="probe">drift</text>
+<circle cx="288" cy="289.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="293.00" class="probe">extreme rain</text>
+<circle cx="288" cy="301.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="305.00" class="probe">bounds</text>
+<circle cx="288" cy="313.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="317.00" class="probe">area</text>
+<circle cx="288" cy="325.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="329.00" class="probe">nonnegative</text>
+<circle cx="288" cy="337.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="341.00" class="probe">antecedent</text>
+<circle cx="288" cy="349.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="353.00" class="probe">phase</text>
+<circle cx="288" cy="361.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="365.00" class="probe">time origin</text>
+<circle cx="288" cy="373.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="377.00" class="probe">rain ±20%</text>
+<circle cx="288" cy="385.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="389.00" class="probe">withdrawal</text>
+<circle cx="288" cy="397.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="401.00" class="probe">snowpack</text>
+<circle cx="288" cy="409.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="413.00" class="probe">gw exchange</text>
+<circle cx="288" cy="421.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="425.00" class="probe">exchange</text>
+<circle cx="288" cy="433.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="437.00" class="probe">datum shift</text>
+<circle cx="288" cy="445.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="449.00" class="probe">recharge</text>
+<circle cx="288" cy="457.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="461.00" class="probe">network</text>
+<circle cx="288" cy="469.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="473.00" class="probe">head bounds</text>
+<circle cx="288" cy="481.50" r="2.4" fill="#2C7A57"/>
+<text x="296" y="485.00" class="probe">interception</text>
+<rect x="372" y="100" width="92" height="392" rx="6" fill="#EDF2F2"/>
 <text x="418" y="121" class="pillar" text-anchor="middle">ENERGY</text>
 <text x="418" y="138" class="note" text-anchor="middle">energy budget</text>
 <text x="418" y="151" class="note" text-anchor="middle">closes</text>
@@ -122,7 +124,7 @@
 <text x="396" y="257" class="probe">snowmelt</text>
 <rect x="384" y="272" width="68" height="40" rx="5" fill="none" stroke="#B6C6C9" stroke-dasharray="3 3"/>
 <text x="418" y="296" class="note" text-anchor="middle">probes wanted</text>
-<rect x="472" y="100" width="92" height="284.5" rx="6" fill="#EDF2F2"/>
+<rect x="472" y="100" width="92" height="392" rx="6" fill="#EDF2F2"/>
 <text x="518" y="121" class="pillar" text-anchor="middle">MOMENTUM</text>
 <text x="518" y="138" class="note" text-anchor="middle">routing conserves</text>
 <text x="518" y="151" class="note" text-anchor="middle">momentum</text>
@@ -140,7 +142,7 @@
 <text x="496" y="243" class="probe">wave speed</text>
 <rect x="484" y="258" width="68" height="40" rx="5" fill="none" stroke="#B6C6C9" stroke-dasharray="3 3"/>
 <text x="518" y="282" class="note" text-anchor="middle">probes wanted</text>
-<g transform="translate(0 16.5)">
+<g transform="translate(0 124)">
 <text x="417" y="378" class="mono-small" text-anchor="middle">seed → case → run → one bit</text>
 <rect x="272" y="384" width="68" height="72" rx="6" fill="#FFFFFF" stroke="#D6E0E2"/>
 <text x="306" y="407" class="step" text-anchor="middle">seeded</text>

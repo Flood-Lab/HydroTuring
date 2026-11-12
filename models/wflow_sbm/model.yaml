@@ -1,5 +1,5 @@
 name: wflow_sbm
-version: "1.0.4-ht.5"
+version: "1.0.4-ht.6"
 description: >
   wflow_sbm, the distributed hydrological model of Deltares' Wflow.jl at v1.0.4
   (van Verseveld et al. 2024, GMD, which evaluates v0.7.3): the SBM soil column
@@ -31,10 +31,11 @@ timestep: [PT1D, PT1H]
 emits:
   fluxes: [pr, evspsbl, mrro, dis, gwex]
   states: [mrso, snw, canopy, channel]
+  routing: [reach_q_in, q_out, channel_storage]
 
 needs_forcing: [pr, tas, pet]
-uses_forcing: [q_in]
-uses_static: [soil_capacity_mm, canopy_capacity_mm, width_m, cross_section_shape, slope, manning_n, reach_length_m]
+uses_forcing: [q_in, q_in_A, q_in_B]
+uses_static: [soil_capacity_mm, canopy_capacity_mm, width_m, cross_section_shape, slope, manning_n, reach_length_m, routing_network]
 supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 2, gpu: false}

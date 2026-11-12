@@ -33,6 +33,7 @@ from hydroturing.criteria import (  # noqa: F401,E402
     rating,
     regime,
     response,
+    routing,
     routing_lag,
     spinup,
     storage,

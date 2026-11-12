@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="470" height="274" viewBox="0 0 470 274" role="img">
-<title>Merged probes, by conservation law: Mass 26 (67%), Energy 7 (18%), Momentum 6 (15%)</title>
+<title>Merged probes, by conservation law: Mass 27 (68%), Energy 7 (17%), Momentum 6 (15%)</title>
 <rect x="0.5" y="0.5" width="469" height="273" rx="10" fill="#111D22" stroke="#20313A"/>
 <text x="20" y="39" font-family='"IBM Plex Sans Condensed","IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="15" font-weight="600" fill="#E3ECEE">Merged probes, by conservation law</text>
-<path d="M120 160 L120 64 A96 96 0 1 1 36.86 208 Z" fill="#3987E5" stroke="#111D22" stroke-width="2"/>
-<path d="M120 160 L36.86 208 A96 96 0 0 1 40.99 105.47 Z" fill="#D95926" stroke="#111D22" stroke-width="2"/>
-<path d="M120 160 L40.99 105.47 A96 96 0 0 1 120 64 Z" fill="#1BAF7A" stroke="#111D22" stroke-width="2"/>
-<text x="171.55" y="194.76" text-anchor="middle" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14" font-weight="600" fill="#000000">26</text>
-<text x="60.53" y="162.6" text-anchor="middle" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14" font-weight="600" fill="#000000">7</text>
-<text x="92.34" y="112.3" text-anchor="middle" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14" font-weight="600" fill="#000000">6</text>
+<path d="M120 160 L120 64 A96 96 0 1 1 34.46 203.58 Z" fill="#3987E5" stroke="#111D22" stroke-width="2"/>
+<path d="M120 160 L34.46 203.58 A96 96 0 0 1 42.33 103.57 Z" fill="#D95926" stroke="#111D22" stroke-width="2"/>
+<path d="M120 160 L42.33 103.57 A96 96 0 0 1 120 64 Z" fill="#1BAF7A" stroke="#111D22" stroke-width="2"/>
+<text x="170.75" y="196.1" text-anchor="middle" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14" font-weight="600" fill="#000000">27</text>
+<text x="60.66" y="160.33" text-anchor="middle" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14" font-weight="600" fill="#000000">7</text>
+<text x="92.98" y="111.97" text-anchor="middle" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14" font-weight="600" fill="#000000">6</text>
 <rect x="260" y="121.5" width="12" height="12" rx="3" fill="#3987E5"/>
-<text x="281" y="132.5" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14.5" fill="#BACBD1">Mass<tspan dx="9" font-weight="600" fill="#E3ECEE">26</tspan><tspan dx="9" fill="#8CA2AA">67%</tspan></text>
+<text x="281" y="132.5" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14.5" fill="#BACBD1">Mass<tspan dx="9" font-weight="600" fill="#E3ECEE">27</tspan><tspan dx="9" fill="#8CA2AA">68%</tspan></text>
 <rect x="260" y="154" width="12" height="12" rx="3" fill="#D95926"/>
-<text x="281" y="165" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14.5" fill="#BACBD1">Energy<tspan dx="9" font-weight="600" fill="#E3ECEE">7</tspan><tspan dx="9" fill="#8CA2AA">18%</tspan></text>
+<text x="281" y="165" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14.5" fill="#BACBD1">Energy<tspan dx="9" font-weight="600" fill="#E3ECEE">7</tspan><tspan dx="9" fill="#8CA2AA">17%</tspan></text>
 <rect x="260" y="186.5" width="12" height="12" rx="3" fill="#1BAF7A"/>
 <text x="281" y="197.5" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="14.5" fill="#BACBD1">Momentum<tspan dx="9" font-weight="600" fill="#E3ECEE">6</tspan><tspan dx="9" fill="#8CA2AA">15%</tspan></text>
 </svg>
