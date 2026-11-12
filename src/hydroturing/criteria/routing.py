@@ -294,7 +294,7 @@ def routing_reach_closure(
             return CriterionResult(
                 name="routing_reach_closure",
                 status=FAIL,
-                value=0.0,
+                value=threshold + 1.0,
                 threshold=threshold,
                 message=(
                     f"reach {reach!r} is degenerate: incoming volume "
@@ -515,6 +515,57 @@ def routing_junction_closure(
     )
 
 
+def _prescribed_drive(
+    run: RunResult,
+    window: RoutingWindow,
+    headwater_forcing: dict,
+) -> dict[str, tuple[np.ndarray, int]]:
+    """Build prescribed upstream inflow and path depth from the case."""
+    forcing = run.case.forcing
+    upstream: dict[str, list[str]] = {reach: [] for reach in window.reaches}
+
+    for junction in window.network.get("junctions", []):
+        if not isinstance(junction, dict):
+            raise ValueError("every routing_network.junctions entry must be an object")
+        upstream[str(junction["downstream"])].extend(
+            str(reach) for reach in junction["upstream"]
+        )
+
+    def resolve(reach: str, seen: frozenset) -> tuple[set[str], int]:
+        if reach in seen:
+            raise ValueError(f"routing network has a cycle through {reach!r}")
+        if reach in headwater_forcing:
+            return {reach}, 0
+
+        sources: set[str] = set()
+        depth = -1
+        for parent in upstream[reach]:
+            found, parent_depth = resolve(parent, seen | {reach})
+            sources |= found
+            depth = max(depth, parent_depth)
+
+        if not sources:
+            raise ValueError(
+                f"reach {reach!r} has no prescribed headwater inflow upstream"
+            )
+        return sources, depth + 1
+
+    drive: dict[str, tuple[np.ndarray, int]] = {}
+    for reach in window.reaches:
+        sources, depth = resolve(reach, frozenset())
+        series = np.zeros(len(forcing), dtype=float)
+        for source in sorted(sources):
+            column = str(headwater_forcing[source])
+            if column not in forcing.columns:
+                raise ValueError(
+                    f"routing_recession_bound: forcing column {column!r} is missing"
+                )
+            series += np.maximum(forcing[column].to_numpy(dtype=float), 0.0)
+        drive[reach] = (series, depth)
+
+    return drive
+
+
 @criterion("routing_recession_bound")
 def routing_recession_bound(
     run: RunResult,
@@ -528,6 +579,7 @@ def routing_recession_bound(
         params,
         {
             "apply_to",
+            "headwater_forcing",
             "max_lag_days",
             "lookback_days",
             "tolerance",
@@ -539,6 +591,12 @@ def routing_recession_bound(
     if apply_to != "each_reach":
         raise ValueError(
             "routing_recession_bound apply_to must be 'each_reach'"
+        )
+
+    headwater_forcing = params.get("headwater_forcing")
+    if not isinstance(headwater_forcing, dict) or not headwater_forcing:
+        raise ValueError(
+            "routing_recession_bound needs a non-empty headwater_forcing map"
         )
 
     max_lag_days = _finite_float(
@@ -564,10 +622,12 @@ def routing_recession_bound(
 
     routing = _routing_window(run)
     areas = _contributing_areas(routing)
+    drive = _prescribed_drive(run, routing, headwater_forcing)
     n_back = max(
         1,
         int(round(lookback_days / run.case.dt_days)),
     )
+    start = run.case.spinup_steps
 
     worst_ratio = 0.0
     worst_reach: str | None = None
@@ -580,34 +640,14 @@ def routing_recession_bound(
             routing.table.loc[routing.table[REACH_COL] == reach]
             .reset_index(drop=True)
         )
-        inflow = reach_table[INFLOW_COL].to_numpy(dtype=float)
         storage = reach_table[STORAGE_COL].to_numpy(dtype=float)
-
-        peak_inflow = inflow.copy()
-
-        for junction in routing.network.get("junctions", []):
-            if junction.get("downstream") != reach:
-                continue
-
-            upstream_outflow = np.sum(
-                [
-                    routing.table.loc[
-                        routing.table[REACH_COL] == upstream,
-                        OUTFLOW_COL,
-                    ].to_numpy(dtype=float)
-                    for upstream in junction["upstream"]
-                ],
-                axis=0,
-            )
-            peak_inflow = np.minimum(
-                peak_inflow,
-                np.maximum(upstream_outflow, 0.0),
-            )
+        series, depth = drive[reach]
+        reach_back = n_back * (depth + 1)
 
         peak = np.array(
             [
-                peak_inflow[max(0, index - n_back) : index + 1].max()
-                for index in range(len(inflow))
+                series[max(0, start + index - reach_back) : start + index + 1].max()
+                for index in range(len(storage))
             ],
             dtype=float,
         )
@@ -626,6 +666,7 @@ def routing_recession_bound(
         maximum_excess = float(excess[index])
 
         diagnostics[reach] = {
+            "lookback_steps": reach_back,
             "max_storage_to_allowance_ratio": ratio,
             "max_excess_m3": maximum_excess,
             "time_of_max_excess": str(reach_table.loc[index, TIME_COL]),

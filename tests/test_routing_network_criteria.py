@@ -168,6 +168,8 @@ def test_recession_bound_checks_absolute_allowance(closure_run, storage_m3, expe
     from hydroturing.criteria.routing import routing_recession_bound
 
     run = closure_run
+    run.case.forcing["q_in_A"] = 0.0
+    run.case.forcing["q_in_B"] = 0.0
     run.routing["reach_q_in"] = 0.0
     a_rows = run.routing.index[run.routing["reach_id"] == "A"]
     run.routing.loc[a_rows[2], "channel_storage"] = storage_m3
@@ -176,7 +178,8 @@ def test_recession_bound_checks_absolute_allowance(closure_run, storage_m3, expe
     result = routing_recession_bound(
         run,
         probe,
-        {"min_allowance_mm": 0.05},
+        {"min_allowance_mm": 0.05,
+         "headwater_forcing": {"A": "q_in_A", "B": "q_in_B"}},
     )
 
     assert result.status == expected
@@ -227,7 +230,7 @@ def test_zero_reported_flow_does_not_pass(closure_run, criterion_name):
 def test_recession_bound_cannot_be_evaded_by_extra_tail_flow(extra_flow):
     from hydroturing.criteria import get
 
-    times = pd.date_range("2000-01-01", periods=62, freq="D")
+    times = pd.date_range("2000-01-01", periods=93, freq="D")
     forcing = pd.DataFrame({
         "time": times,
         "q_in_A": [1.0 if i == 1 else 0.0 for i in range(len(times))],
@@ -351,6 +354,138 @@ def test_recession_bound_allows_conserved_delayed_junction_inflow():
                 "B": (0.0, 0.0, 50.0),
                 "C": (0.0, 0.0, 100.0),
             }
+
+        for reach, (inflow, outflow, storage) in values.items():
+            rows.append({
+                "time": time,
+                "reach_id": reach,
+                "reach_q_in": inflow,
+                "q_out": outflow,
+                "channel_storage": storage,
+            })
+
+    run = RunResult(
+        case=case,
+        table=pd.DataFrame({"time": times}),
+        meta={},
+        wall_seconds=0.0,
+        routing=pd.DataFrame(rows),
+    )
+
+    probe = registry.find_probe("mass/routing-network-closure")
+    for criterion in probe.criteria:
+        result = get(criterion.name)(run, probe, criterion.params)
+        assert result.status == PASS, (
+            f"{criterion.name}: {result.status} — {result.message}"
+        )
+
+
+def _network_case(n_days):
+    times = pd.date_range("2000-01-01", periods=n_days, freq="D")
+    forcing = pd.DataFrame({
+        "time": times,
+        "q_in_A": [1.0 if i == 1 else 0.0 for i in range(n_days)],
+        "q_in_B": [1.0 if i == 1 else 0.0 for i in range(n_days)],
+    })
+    return times, Case(
+        probe_id="mass/routing-network-closure",
+        seed=1,
+        forcing=forcing,
+        static={
+            "routing_network": {
+                "reaches": ["A", "B", "C"],
+                "contributing_area_km2": {"A": 1.0, "B": 1.0, "C": 2.0},
+                "junctions": [
+                    {"id": "J", "upstream": ["A", "B"], "downstream": "C"}
+                ],
+            }
+        },
+        spinup_steps=1,
+    )
+
+
+def test_recession_bound_ignores_reported_upstream_pulses():
+    """Reported upstream pulses must not extend C's recession allowance."""
+    from hydroturing.criteria import get
+
+    times, case = _network_case(93)
+    day = 86400.0
+    hold, dead = 49.0, 600.0
+    pulses = (32, 63)
+    rows = []
+    store = {"A": 0.0, "B": 0.0, "C": 0.0}
+
+    for i, time in enumerate(times):
+        flows = {}
+        for reach in ("A", "B"):
+            inflow = 1.0 if i == 1 else 0.0
+            outflow = inflow
+            if i == 1:
+                outflow -= hold / day
+            if i in pulses:
+                outflow += hold / len(pulses) / day
+            store[reach] += (inflow - outflow) * day
+            flows[reach] = (inflow, outflow, store[reach])
+
+        c_in = flows["A"][1] + flows["B"][1]
+        c_out = c_in - (dead / day if i == 1 else 0.0)
+        store["C"] += (c_in - c_out) * day
+        flows["C"] = (c_in, c_out, store["C"])
+
+        for reach, (inflow, outflow, storage) in flows.items():
+            rows.append({
+                "time": time,
+                "reach_id": reach,
+                "reach_q_in": inflow,
+                "q_out": outflow,
+                "channel_storage": storage,
+            })
+
+    run = RunResult(
+        case=case,
+        table=pd.DataFrame({"time": times}),
+        meta={},
+        wall_seconds=0.0,
+        routing=pd.DataFrame(rows),
+    )
+    probe = registry.find_probe("mass/routing-network-closure")
+    results = {
+        criterion.name: get(criterion.name)(run, probe, criterion.params)
+        for criterion in probe.criteria
+    }
+
+    for name in (
+        "routing_input_fidelity",
+        "routing_reach_closure",
+        "routing_junction_closure",
+        "routing_state_bounds",
+    ):
+        assert results[name].status == PASS, results[name].message
+
+    assert results["routing_recession_bound"].status == FAIL
+
+
+def test_recession_bound_allows_sixty_day_conserving_relay():
+    from hydroturing.criteria import get
+
+    times, case = _network_case(63)
+    day = 86400.0
+    rows = []
+
+    for i, time in enumerate(times):
+        headwater_in = 1.0 if i == 1 else 0.0
+        headwater_out = 1.0 if i == 31 else 0.0
+        headwater_storage = day if 1 <= i < 31 else 0.0
+
+        downstream_in = 2.0 if i == 31 else 0.0
+        downstream_out = 2.0 if i == 61 else 0.0
+        downstream_storage = 2 * day if 31 <= i < 61 else 0.0
+
+        values = {
+            "A": (headwater_in, headwater_out, headwater_storage),
+            "B": (headwater_in, headwater_out, headwater_storage),
+            "C": (downstream_in, downstream_out, downstream_storage),
+        }
 
         for reach, (inflow, outflow, storage) in values.items():
             rows.append({

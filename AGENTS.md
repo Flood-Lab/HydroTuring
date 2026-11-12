@@ -37,6 +37,8 @@ Paths inside `request.json` are relative to the request file's directory.
 /io/input/forcing.csv     read-only: columns time, pr, tas, pet (mm/day, degC, mm/day),
                           plus any probe-declared forcing. Routing probes may prescribe
                           q_in (m3/s, positive into the routing control volume);
+                          a branching-network probe may prescribe q_in_A and
+                          q_in_B (m3/s into headwater reaches A and B);
                           a human-withdrawal probe may add abstr (mm/day, net);
                           a head-driven exchange probe may add gwh (m);
                           a groundwater-exchange probe supplies gw_recharge (mm/day)
@@ -248,6 +250,8 @@ model also adds its native names to the file's `crosswalk`.
 | --- | --- | --- |
 | `pr` | precipitation, echoed back from the forcing | mm/day |
 | `q_in` | prescribed river/upstream inflow supplied to a routing control volume; positive into the reach. It is an input forcing, not an output flux, and a model opts in through `needs_forcing` or `uses_forcing` | m3/s |
+| `q_in_A` | prescribed headwater inflow into reach A; an input forcing | m3/s |
+| `q_in_B` | prescribed headwater inflow into reach B; an input forcing | m3/s |
 | `evspsbl` | evapotranspiration | mm/day |
 | `mrro` | total runoff | mm/day |
 | `dis` | river discharge | m3/s |

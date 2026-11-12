@@ -68,7 +68,7 @@ not.
 
 ## The probes
 
-Thirty-seven: twenty-four under mass, seven under energy and six under momentum.
+Thirty-eight: twenty-five under mass, seven under energy and six under momentum.
 Each was merged only after the acceptance gate saw it pass its declared
 exact reference and fail a purpose-built broken one on the named criterion.
 Four physical models, a bucket that conserves water exactly, two
@@ -78,7 +78,7 @@ the three groundwater-exchange probes need outputs they do not report and are no
 scored for them; `mass/snowpack-mass-closure` scores only `sacsma_snow17`,
 the one physical model that reports `snm`. A probe that fails a
 physical model is examined before the model is; that is the first thing done
-with any probe pull request. Thirteen of the thirty-seven require no model output
+with any probe pull request. Thirteen of the thirty-eight require no model output
 beyond runoff. That output-only count includes `momentum/routing-lag-consistency`,
 which is eligible only when the model also declares that it consumes `pr` and
 the three geometry inputs `area_km2`, `main_channel_length_km` and
@@ -116,7 +116,7 @@ are welcome too.
 | [`mass/aquifer-recharge-ordering`](probes/mass/aquifer-recharge-ordering) | mass | A direct recharge pulse into a passive aquifer can never lower its storage or turn its exchange away from the river; the paired budget arm largely restates `groundwater_balance`, so the independent content is the ordering. | `reference_recharge_blind`, `reference_recharge_overshoot` |
 | [`mass/groundwater-datum-invariance`](probes/mass/groundwater-datum-invariance) | mass | A common vertical datum shift leaves the groundwater exchange trajectory unchanged. | `reference_datum_dependent`, `reference_zero_exchange` |
 | [`mass/gw-sw-exchange-consistency`](probes/mass/gw-sw-exchange-consistency) | mass | A model reporting groundwater-river exchange: do recharge, the net exchange (`gw_sw_exchange`, distinct from `gwex`) and the two signed directional components, and aquifer storage all agree? | `reference_exchange_sign_error` |
-| [`mass/routing-network-closure`](probes/mass/routing-network-closure) | mass | Does water close reach by reach through a branching routing network? | `reference_network_input_rescale`, `reference_network_compensation`, `reference_network_junction_loss`, `reference_network_temporal_shift`, `reference_network_stuck_router`, `reference_network_leaky_router`, `reference_network_negative` |
+| [`mass/routing-network-closure`](probes/mass/routing-network-closure) | mass | Does water close reach by reach through a branching routing network? | `reference_network_input_rescale`, `reference_network_compensation`, `reference_network_junction_loss`, `reference_network_temporal_shift`, `reference_network_stuck_router`, `reference_network_leaky_router`, `reference_network_negative`, `reference_network_pulsed_pool` |
 | [`energy/pet-consistency`](probes/energy/pet-consistency) | energy | Evaporation reaches demand when the model's own soil is wettest, stays below it, and falls when the soil is driest. | `reference_thirsty` |
 | [`energy/latent-heat-et-consistency`](probes/energy/latent-heat-et-consistency) | energy | The evaporation a model reports as water and the evaporation implied by the latent heat it reports: are they the same evaporation? | `reference_two_head`, `reference_constant_lambda`, `reference_sublimation_blind`, `reference_energy_leak` |
 | [`energy/evaporative-partition`](probes/energy/evaporative-partition) | energy | One summer without rain under net radiation that did not change: the latent heat a drying surface gives up has to warm the air. | `reference_two_head`, `reference_ground_dodge` |
@@ -201,6 +201,15 @@ the declared model interface this question.
 | [`rvic`](models/rvic) | submitted | RVIC 1.1.1, the Lohmann routing model: a linearised Saint-Venant impulse response, built once and convolved with the inflow. | **FAIL (VIOLATION)**, 0 of 1 probes passed. One probe can score a router with its outputs. The impulse response has one velocity for the whole record, so the wave travels at about the same speed at every state, which is what `momentum/wave-celerity-bounds` exists to catch and is the model's design. |
 | [`mizuroute`](models/mizuroute) | submitted | mizuRoute v3.1.1, ESCOMP's stand-alone river routing model, built with its own Makefile, unmodified, on its diffusive-wave scheme. | **PASS**, 1 of 1 probes scored. One probe can score a router with its outputs. The scheme decides the verdict: the diffusive wave passes; the default impulse-response scheme shows no delay at all in these cases. |
 | `reference_bucket` | exact | conserves water exactly by construction | must pass every probe that can ask it anything; N/A on the six energy probes and the three groundwater-exchange probes that need outputs it does not report |
+| `reference_network_exact` | exact | routes the Y network without storage and conserves mass exactly | must pass `mass/routing-network-closure` |
+| `reference_network_input_rescale` | broken | rescales a prescribed headwater inflow | caught by `routing_input_fidelity` |
+| `reference_network_compensation` | broken | shifts water between the two headwater reaches | caught by `routing_reach_closure` |
+| `reference_network_junction_loss` | broken | loses water at the junction | caught by `routing_junction_closure` |
+| `reference_network_temporal_shift` | broken | shifts reported outflow in time without the corresponding storage change | caught by `routing_reach_closure` |
+| `reference_network_stuck_router` | broken | retains 10% of inflow in channel storage | caught by `routing_recession_bound` |
+| `reference_network_leaky_router` | broken | retains 0.1% of inflow in channel storage | caught by `routing_recession_bound` |
+| `reference_network_negative` | broken | reports a negative routing discharge | caught by `routing_state_bounds` |
+| `reference_network_pulsed_pool` | broken | conserves mass while upstream pulses help conceal a persistent downstream pool | caught by `routing_recession_bound` |
 | `reference_exchange_exact` | exact | a lagged-head bookkeeping reference that closes its own groundwater balance exactly and reports genuinely bidirectional exchange | must pass `mass/gw-sw-exchange-consistency`, the only probe that can ask it anything |
 | `reference_recharge_order_exact` | exact | the exact daily solution of one aquifer cell draining to a river, so added recharge is stored, then released | must pass `mass/aquifer-recharge-ordering` |
 | `reference_recharge_blind` | broken | ignores `gw_recharge`, so its own budget no longer closes | caught by `aquifer_recharge_ordering` |
@@ -447,7 +456,7 @@ where that conversation happens, before and alongside the issues.
 
 ## Status
 
-Suite `0.1.0`. Thirty-seven probes, twenty-four mass, seven energy, six momentum, synthetic track only. More
+Suite `0.1.0`. Thirty-eight probes, twenty-five mass, seven energy, six momentum, synthetic track only. More
 energy and momentum probes, and the real-data track, are next. The harness runs paired cases and
 scores labelled regimes; spatial and temporal closure, counterfactual response
 and invariance are represented in the suite. The roadmap lists the remaining

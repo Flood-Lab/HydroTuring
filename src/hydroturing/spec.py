@@ -154,6 +154,7 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_network_stuck_router",
     "reference_network_leaky_router",
     "reference_network_negative",
+    "reference_network_pulsed_pool",
 }
 
 

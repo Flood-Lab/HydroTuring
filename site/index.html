@@ -305,7 +305,7 @@ figure svg.pie{width:200px; height:200px; flex:none; overflow:visible}
     <div data-i18n-html="how.intro"></div>
 
     <figure class="infra-figure">
-      <svg class="infra" viewBox="0 0 800 510" role="img" aria-labelledby="infratitle" xmlns="http://www.w3.org/2000/svg">
+      <svg class="infra" viewBox="0 0 800 610" role="img" aria-labelledby="infratitle" xmlns="http://www.w3.org/2000/svg">
       <title id="infratitle" data-i18n="infra.alt">Flowchart: any AI hydrologic model enters through the /io contract, HydroTuring probes it against mass, energy and momentum, and a verdict with its reason comes out</title>
       <style>
         .infra text{font-family:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif; fill:var(--ink-2)}
@@ -314,7 +314,7 @@ figure svg.pie{width:200px; height:200px; flex:none; overflow:visible}
         .infra .brand{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",Arial,sans-serif; font-size:17px; font-weight:700; letter-spacing:-.01em; fill:var(--ink)}
         .infra .pillar{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",Arial,sans-serif; font-size:11.5px; font-weight:700; letter-spacing:.13em; fill:var(--accent)}
         .infra .step{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",Arial,sans-serif; font-size:11px; font-weight:600; fill:var(--ink)}
-        .infra text.probe[x="296"]{font-size:7px}
+        .infra .probe{font-size:10.5px; fill:var(--ink-2)}
         .infra .note{font-size:10.5px; fill:var(--muted)}
         .infra .note-small{font-size:9.5px; fill:var(--muted)}
         .infra .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-size:10px; fill:var(--ink)}
@@ -346,66 +346,66 @@ figure svg.pie{width:200px; height:200px; flex:none; overflow:visible}
       <text x="211" y="254" class="mono-small" text-anchor="middle">static.json</text>
       <text x="211" y="284" class="note" data-i18n="infra.io.note1" text-anchor="middle">no network</text>
       <text x="211" y="297" class="note" data-i18n="infra.io.note2" text-anchor="middle">read-only inputs</text>
-      <rect x="262" y="40" width="310" height="440" rx="10" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+      <rect x="262" y="40" width="310" height="540" rx="10" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
       <path d="M281 56 l6 -8 l6 8 a6 6 0 1 1 -12 0 z" fill="var(--accent)"/>
       <text x="296" y="67" class="brand">HydroTuring</text>
       <text x="417" y="86" class="note" data-i18n="infra.ht.sub" text-anchor="middle">does it conserve what physics says it must?</text>
-      <rect x="272" y="100" width="92" height="268" rx="6" fill="var(--surface-2)"/>
+      <rect x="272" y="100" width="92" height="368" rx="6" fill="var(--surface-2)"/>
       <text x="318" y="121" class="pillar" data-i18n="infra.mass" text-anchor="middle">MASS</text>
       <text x="318" y="138" class="note" data-i18n="infra.mass.s1" text-anchor="middle">water budget</text>
       <text x="318" y="151" class="note" data-i18n="infra.mass.s2" text-anchor="middle">closes</text>
       <line x1="284" y1="160" x2="352" y2="160" stroke="var(--line)"/>
       <circle cx="288" cy="169.50" r="2.4" fill="var(--pass)"/>
       <text x="296" y="173.00" class="probe" data-i18n="infra.probe.closure">closure</text>
-      <circle cx="288" cy="177.38" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="180.88" class="probe" data-i18n="infra.probe.ungauged">ungauged</text>
-      <circle cx="288" cy="185.27" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="188.77" class="probe" data-i18n="infra.probe.eventclosure">event budget</text>
-      <circle cx="288" cy="193.15" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="196.65" class="probe" data-i18n="infra.probe.resolution">resolution</text>
-      <circle cx="288" cy="201.03" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="204.53" class="probe" data-i18n="infra.probe.warming">warming</text>
-      <circle cx="288" cy="208.92" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="212.42" class="probe" data-i18n="infra.probe.causality">causality</text>
-      <circle cx="288" cy="216.80" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="220.30" class="probe" data-i18n="infra.probe.drydown">dry-down</text>
-      <circle cx="288" cy="224.68" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="228.18" class="probe" data-i18n="infra.probe.steady">steady state</text>
-      <circle cx="288" cy="232.57" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="236.07" class="probe" data-i18n="infra.probe.spinup">spin-up cycle</text>
-      <circle cx="288" cy="240.45" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="243.95" class="probe" data-i18n="infra.probe.drift">drift</text>
-      <circle cx="288" cy="248.33" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="251.83" class="probe" data-i18n="infra.probe.extreme">extreme rain</text>
-      <circle cx="288" cy="256.22" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="259.72" class="probe" data-i18n="infra.probe.runoffbounds">bounds</text>
-      <circle cx="288" cy="264.10" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="267.60" class="probe" data-i18n="infra.probe.area">area</text>
-      <circle cx="288" cy="271.98" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="275.48" class="probe" data-i18n="infra.probe.nonneg">nonnegative</text>
-      <circle cx="288" cy="279.87" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="283.37" class="probe" data-i18n="infra.probe.antecedent">antecedent</text>
-      <circle cx="288" cy="287.75" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="291.25" class="probe" data-i18n="infra.probe.phase">phase</text>
-      <circle cx="288" cy="295.63" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="299.13" class="probe" data-i18n="infra.probe.timeorigin">time origin</text>
-      <circle cx="288" cy="303.52" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="307.02" class="probe" data-i18n="infra.probe.rainladder">rain ±20%</text>
-      <circle cx="288" cy="311.40" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="314.90" class="probe" data-i18n="infra.probe.abstraction">withdrawal</text>
-      <circle cx="288" cy="319.28" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="322.78" class="probe" data-i18n="infra.probe.snowpack">snowpack</text>
-      <circle cx="288" cy="327.17" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="330.67" class="probe" data-i18n="infra.probe.gwexchange">gw exchange</text>
-      <circle cx="288" cy="335.05" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="338.55" class="probe" data-i18n="infra.probe.exchange">exchange</text>
-      <circle cx="288" cy="342.93" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="346.43" class="probe" data-i18n="infra.probe.datum">datum</text>
-      <circle cx="288" cy="350.82" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="354.32" class="probe" data-i18n="infra.probe.recharge">recharge</text>
-      <circle cx="288" cy="358.70" r="2.4" fill="var(--pass)"/>
-      <text x="296" y="362.20" class="probe" data-i18n="infra.probe.network">network</text>
-      <rect x="372" y="100" width="92" height="268" rx="6" fill="var(--surface-2)"/>
+      <circle cx="288" cy="181.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="185.00" class="probe" data-i18n="infra.probe.ungauged">ungauged</text>
+      <circle cx="288" cy="193.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="197.00" class="probe" data-i18n="infra.probe.eventclosure">event budget</text>
+      <circle cx="288" cy="205.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="209.00" class="probe" data-i18n="infra.probe.resolution">resolution</text>
+      <circle cx="288" cy="217.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="221.00" class="probe" data-i18n="infra.probe.warming">warming</text>
+      <circle cx="288" cy="229.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="233.00" class="probe" data-i18n="infra.probe.causality">causality</text>
+      <circle cx="288" cy="241.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="245.00" class="probe" data-i18n="infra.probe.drydown">dry-down</text>
+      <circle cx="288" cy="253.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="257.00" class="probe" data-i18n="infra.probe.steady">steady state</text>
+      <circle cx="288" cy="265.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="269.00" class="probe" data-i18n="infra.probe.spinup">spin-up cycle</text>
+      <circle cx="288" cy="277.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="281.00" class="probe" data-i18n="infra.probe.drift">drift</text>
+      <circle cx="288" cy="289.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="293.00" class="probe" data-i18n="infra.probe.extreme">extreme rain</text>
+      <circle cx="288" cy="301.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="305.00" class="probe" data-i18n="infra.probe.runoffbounds">bounds</text>
+      <circle cx="288" cy="313.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="317.00" class="probe" data-i18n="infra.probe.area">area</text>
+      <circle cx="288" cy="325.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="329.00" class="probe" data-i18n="infra.probe.nonneg">nonnegative</text>
+      <circle cx="288" cy="337.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="341.00" class="probe" data-i18n="infra.probe.antecedent">antecedent</text>
+      <circle cx="288" cy="349.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="353.00" class="probe" data-i18n="infra.probe.phase">phase</text>
+      <circle cx="288" cy="361.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="365.00" class="probe" data-i18n="infra.probe.timeorigin">time origin</text>
+      <circle cx="288" cy="373.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="377.00" class="probe" data-i18n="infra.probe.rainladder">rain ±20%</text>
+      <circle cx="288" cy="385.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="389.00" class="probe" data-i18n="infra.probe.abstraction">withdrawal</text>
+      <circle cx="288" cy="397.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="401.00" class="probe" data-i18n="infra.probe.snowpack">snowpack</text>
+      <circle cx="288" cy="409.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="413.00" class="probe" data-i18n="infra.probe.gwexchange">gw exchange</text>
+      <circle cx="288" cy="421.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="425.00" class="probe" data-i18n="infra.probe.exchange">exchange</text>
+      <circle cx="288" cy="433.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="437.00" class="probe" data-i18n="infra.probe.datum">datum</text>
+      <circle cx="288" cy="445.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="449.00" class="probe" data-i18n="infra.probe.recharge">recharge</text>
+      <circle cx="288" cy="457.50" r="2.4" fill="var(--pass)"/>
+      <text x="296" y="461.00" class="probe" data-i18n="infra.probe.network">network</text>
+      <rect x="372" y="100" width="92" height="368" rx="6" fill="var(--surface-2)"/>
       <text x="418" y="121" class="pillar" data-i18n="infra.energy" text-anchor="middle">ENERGY</text>
       <text x="418" y="138" class="note" data-i18n="infra.energy.s1" text-anchor="middle">energy budget</text>
       <text x="418" y="151" class="note" data-i18n="infra.energy.s2" text-anchor="middle">closes</text>
@@ -426,7 +426,7 @@ figure svg.pie{width:200px; height:200px; flex:none; overflow:visible}
       <text x="396" y="257" class="probe" data-i18n="infra.probe.snowmelt">snowmelt</text>
       <rect x="384" y="272" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
       <text x="418" y="296" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
-      <rect x="472" y="100" width="92" height="268" rx="6" fill="var(--surface-2)"/>
+      <rect x="472" y="100" width="92" height="368" rx="6" fill="var(--surface-2)"/>
       <text x="518" y="121" class="pillar" data-i18n="infra.momentum" text-anchor="middle">MOMENTUM</text>
       <text x="518" y="138" class="note" data-i18n="infra.momentum.s1" text-anchor="middle">routing conserves</text>
       <text x="518" y="151" class="note" data-i18n="infra.momentum.s2" text-anchor="middle">momentum</text>
@@ -444,6 +444,7 @@ figure svg.pie{width:200px; height:200px; flex:none; overflow:visible}
       <text x="496" y="243" class="probe" data-i18n="infra.probe.celerity">wave speed</text>
       <rect x="484" y="258" width="68" height="40" rx="5" fill="none" stroke="var(--line-strong)" stroke-dasharray="3 3"/>
       <text x="518" y="282" class="note" data-i18n="infra.wanted" text-anchor="middle">probes wanted</text>
+      <g transform="translate(0 100)">
       <text x="417" y="378" class="mono-small" data-i18n="infra.flow" text-anchor="middle">seed → case → run → one bit</text>
       <rect x="272" y="384" width="68" height="72" rx="6" fill="var(--surface)" stroke="var(--line)"/>
       <text x="306" y="407" class="step" data-i18n="infra.s1a" text-anchor="middle">seeded</text>
@@ -465,6 +466,7 @@ figure svg.pie{width:200px; height:200px; flex:none; overflow:visible}
       <text x="534" y="421" class="step" data-i18n="infra.s4b" text-anchor="middle">gate</text>
       <text x="534" y="440" class="note-small" data-i18n="infra.s4n" text-anchor="middle">must pass</text>
       <text x="534" y="451" class="note-small" data-i18n="infra.s4n2" text-anchor="middle">must fail</text>
+      </g>
       <line x1="574" y1="266" x2="646" y2="266" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#infra-arrow)"/>
       <text x="610" y="246" class="mono-small" text-anchor="middle">result.csv</text>
       <text x="610" y="258" class="mono-small" text-anchor="middle">run.json</text>
@@ -1070,7 +1072,7 @@ es: {
   "infra.probe.causality":"causalidad",
   "infra.probe.drydown":"secado",
   "infra.probe.steady":"estacionario",
-  "infra.probe.spinup":"ciclo de spin-up",
+  "infra.probe.spinup":"ciclo spin-up",
   "infra.probe.drift":"deriva",
   "infra.probe.extreme":"lluvia extrema",
   "infra.probe.runoffbounds":"cotas",
@@ -1087,7 +1089,7 @@ es: {
   "infra.probe.recharge":"recarga",
   "infra.probe.network":"red fluvial",
   "infra.probe.datum":"datum vert.",
-  "infra.probe.gwexchange":"intercambio subt.",
+  "infra.probe.gwexchange":"interc. subt.",
   "infra.probe.pet":"demanda",
   "infra.probe.latent":"calor latente",
   "infra.probe.partition":"partición",
@@ -1880,4 +1882,4 @@ document.querySelectorAll(".langs button").forEach((button) => {
 applyLang(detectLang());
 </script>
 </body>
-</html>\n
+</html>

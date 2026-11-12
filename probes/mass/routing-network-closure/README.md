@@ -159,14 +159,18 @@ at PT1D, but it does not violate mass conservation. Timing and physically
 realistic lag belong to routing-timing probes rather than this mass probe.
 
 The recession criterion is the per-reach analogue of the merged
-`momentum/routing-conservation` criterion. For each reach,
+`momentum/routing-conservation` criterion. Its allowance is based on the
+prescribed headwater forcing and the case's network topology, not on flows
+reported by the model.
 
 ```text
-effective_inflow_A,t = reach_q_in,A,t
-effective_inflow_B,t = reach_q_in,B,t
-effective_inflow_C,t = min(reach_q_in,C,t, max(0, q_out,A,t + q_out,B,t))
+drive_A,t = q_in_A,t
+drive_B,t = q_in_B,t
+drive_C,t = q_in_A,t + q_in_B,t
 
-peak_i,t = max effective_inflow_i over the preceding lookback_days
+peak_A,t = max drive_A over the preceding 30 days and the current day
+peak_B,t = max drive_B over the preceding 30 days and the current day
+peak_C,t = max drive_C over the preceding 60 days and the current day
 
 allowed_i,t = max_lag_days * peak_i,t * 86,400
               * (1 + tolerance)
@@ -175,27 +179,20 @@ allowed_i,t = max_lag_days * peak_i,t * 86,400
 V_i,t <= allowed_i,t
 ```
 
-For C, the inflow used to calculate the recession allowance is capped by the
-reported upstream outflows at the same time. This prevents an unmatched
-downstream inflow from increasing the allowance, while allowing delayed
-inflow that is supported by upstream outflow. The closure and junction
-criteria still evaluate the reported flows with their stated tolerances.
-
-The upstream outflows are also model-reported. Because reach and junction
-closure use a 5% cumulative tolerance, coordinated flow errors within that
-tolerance may still increase the recession allowance. This cap therefore
-does not prevent every possible manipulation of the reported flows.
+The lookback includes the spin-up period when needed. C has a longer lookback
+because water can first be delayed in an upstream reach before entering C.
+Reported routing flows cannot increase the recession allowance.
 
 For reach A, a linear-store analysis over 300 seeds found that the recession
 bound crossed its allowance at an exponential e-folding time of approximately
 4.4 days. This illustrates that the long dry tail constrains retention more
 tightly than `max_lag_days: 15` alone might suggest.
 
-The 70-day dry tail is part of the test mechanism: after 30 days the event peak
-leaves the lookback window and the proportional allowance falls to zero. The
-remaining absolute allowance prevents harmless dead storage or numerical traces
-from being labelled a leak. The 0.05 mm allowance was checked against native
-per-reach Wflow storage and the leaky reference model on the five gate seeds.
+The dry tail allows the prescribed-event peak to leave each reach's lookback
+window. The remaining absolute allowance prevents harmless dead storage or
+numerical traces from being labelled a leak. The 0.05 mm allowance was checked
+against native per-reach Wflow storage and the leaky reference model on the
+five gate seeds.
 
 `reference_network_stuck_router` retains 10 percent of routed water, proving
 the criterion catches an obvious fault. `reference_network_leaky_router`
@@ -235,6 +232,7 @@ result is intended for the archive.
 | `reference_network_stuck_router` | `routing_recession_bound` |
 | `reference_network_leaky_router` | `routing_recession_bound` |
 | `reference_network_negative` | `routing_state_bounds` |
+| `reference_network_pulsed_pool` | `routing_recession_bound` |
 
 ## Reproducing a failure
 

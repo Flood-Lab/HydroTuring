@@ -56,6 +56,7 @@ criteria:
   # escape by approximately 0.387 mm.
   - routing_recession_bound:
       apply_to: each_reach
+      headwater_forcing: {A: q_in_A, B: q_in_B}
       max_lag_days: 15
       lookback_days: 30
       tolerance: 0.05
@@ -79,6 +80,7 @@ baselines:
     reference_network_stuck_router: routing_recession_bound
     reference_network_leaky_router: routing_recession_bound
     reference_network_negative: routing_state_bounds
+    reference_network_pulsed_pool: routing_recession_bound
 
 provenance: >
   Synthetic. Generated at run time by generate.py from a recorded seed. Two

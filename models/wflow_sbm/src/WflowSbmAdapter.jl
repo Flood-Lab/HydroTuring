@@ -820,6 +820,25 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         reaches = static["routing_network"]["reaches"]
         Set(reaches) == Set(["A", "B", "C"]) ||
             error("Wflow routing network requires reaches A, B, and C")
+        network = static["routing_network"]
+        junctions = get(network, "junctions", nothing)
+        if !(junctions isa AbstractVector) || length(junctions) != 1
+            error("Wflow routing network requires one junction")
+        end
+
+        junction = junctions[1]
+        if !(junction isa AbstractDict)
+            error("Wflow routing network junction must be an object")
+        end
+
+        upstream = get(junction, "upstream", nothing)
+        if !(upstream isa AbstractVector) ||
+           length(upstream) != 2 ||
+           Set(upstream) != Set(["A", "B"]) ||
+           get(junction, "downstream", nothing) != "C" ||
+           get(network, "outlet", nothing) != "C"
+            error("Wflow routing network requires A and B to drain into outlet C")
+        end
     end
 
     # These are declared as uses_static, so consume them whenever the case
