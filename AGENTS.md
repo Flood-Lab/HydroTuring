@@ -511,7 +511,10 @@ For a merged probe:
    the pillar's width. The badge count is generated and needs nothing. The
    two charts, the probes by law and each model's passes by law, read a JSON
    block that `python3 scripts/site_standings.py` rewrites from
-   `models/result.csv`; run it after archiving the rows in step 5.
+   `models/result.csv`; run it after archiving the rows in step 5. The same
+   run redraws the README's copies of both charts and of the flowchart, the
+   light and dark SVG files under `res/`, so commit those with the site;
+   `--check` fails when either is behind.
 5. `models/result.csv`: one row per evaluated model on the new probe, written
    by `ht run --model <name> --probe <id> --gate-seeds --csv models/result.csv`
    rather than by hand. A probe that cannot be put to the model is archived

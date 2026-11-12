@@ -99,6 +99,10 @@ authors:
     family-names: Wang
     affiliation: Department of Land, Air, and Water Resources, University of California Davis, Davis, California, USA
     orcid: "https://orcid.org/0000-0002-4029-5814"
+  - given-names: Tommaso
+    family-names: Cerruti
+    affiliation: Department of Computer Science, ETH Zurich, Zurich, Switzerland
+    orcid: "https://orcid.org/0009-0009-5188-7805"
 repository-code: "https://github.com/Flood-Lab/HydroTuring"
 url: "https://flood-lab.github.io/HydroTuring/"
 license: CC-BY-NC-4.0

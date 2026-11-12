@@ -64,6 +64,10 @@ FULL_WINDOW = "full"
 # These repository-owned baselines are the only code allowed to bypass the
 # container boundary. A submitted manifest cannot opt itself into host access.
 TRUSTED_SUBPROCESS_MODELS = {
+    "reference_confined_aquifer",
+    "reference_confined_aquifer_implicit",
+    "reference_amplified_river_head",
+    "reference_inflated_aquifer_storage",
     "reference_spatial_capacity",
     "reference_spatial_et",
     "reference_spatial_forcing",
@@ -155,6 +159,11 @@ TRUSTED_SUBPROCESS_MODELS = {
     "reference_network_leaky_router",
     "reference_network_negative",
     "reference_network_pulsed_pool",
+    "reference_interception_blind",
+    "reference_interception_wetter",
+    "reference_interception_drier",
+    "reference_interception_leaky",
+    "reference_interception_no_canopy",
 }
 
 
