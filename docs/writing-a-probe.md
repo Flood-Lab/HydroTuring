@@ -128,6 +128,7 @@ Every one is binary.
 | `invariance` | a transform the physics ignores changes nothing | paired runs |
 | `datum_flux_invariance` | a common vertical datum shift leaves groundwater exchange unchanged, with a nonzero activity guard | paired runs |
 | `aquifer_recharge_ordering` | added direct aquifer recharge cannot lower storage or reverse incremental exchange, and is conserved cumulatively | paired runs |
+| `aquifer_equilibrium_bounds` | source-free confined storage stays between the neutral control and the excursion prescribed by river head and storativity; checks both head directions and every interval | paired runs |
 | `resolution_invariance` | integrated volumes agree between the same weather at two steps | paired runs at different steps |
 | `response_sign` | perturb one driver both ways, hold the rest: each response must point the way physics says, by a real share of the change in demand | paired runs |
 | `causality` | nothing may change before an added storm, and runoff must answer it after | paired runs |
@@ -147,6 +148,7 @@ Every one is binary.
 | `routing_conservation` | the channel store is non-negative and never exceeds `max_lag_days` of the largest recent runoff, plus `min_allowance_mm` | one run |
 | `lag_time_bounds` | rainfall-to-runoff peak lag lies inside a broad duration-corrected Snyder envelope derived from public catchment geometry | paired runs, a geometry ladder |
 | `scaling_monotonicity` | peak lag does not materially reverse and grows by a resolvable amount across catchment scales | paired runs, a geometry ladder |
+| `interception_response` | a declared static capacity change must not raise runoff or lower evaporation, the paired budget must account for the difference, and the evaporation response must exist; the residual allowance scales with the water moved | paired runs, two capacity variants |
 | `rating_monotonic` | stage does not fall against its running maximum as the abscissa rises: equal-count bin medians are taken over the abscissa and the summed running-maximum deficit is compared with an explicit `tolerance` when one is given, and otherwise with 8% of the rating's span. The share is that large because a stage read off a store is hysteretic by construction, and its binned rating dips below its own running maximum by a visible fraction of the span for that reason alone | one run |
 | `rating_loop` | where the gauge loops against the reach's store, the loop must be small enough to be noise or run the right way: at the same storage the rising limb sits lower than the falling one. A single-valued rating, or a loop below `min_loop_m` with an inconsistent sign across bins, is read as "no loop" and passes | one run |
 | `uniform_flow_friction` | on each labelled low, medium and high steady plateau, the reported discharge and stage must make Manning friction slope agree with the declared bed slope for the explicit rectangular section; CV and first-to-last-quarter trend gates reject blocks that have not converged | one run, three labelled plateaus |
@@ -408,6 +410,10 @@ The reference models available today:
 | `reference_evolving_exchange` | the same boundary against a catchment head that moves, five-day time constant; must pass | nothing, it must pass |
 | `reference_recharge_exchange` | the evolving boundary on a losing catchment that drains half its runoff through it, storativity 1 mm/m; must pass | nothing, it must pass |
 | `reference_recharge_order_exact` | the exact daily solution of one aquifer cell draining to a river; must pass `mass/aquifer-recharge-ordering` | nothing, it must pass |
+| `reference_confined_aquifer` | exact interval solution of a source-free confined aquifer connected to a prescribed-stage river | nothing, it must pass |
+| `reference_confined_aquifer_implicit` | backward-Euler solution with an independently computed interval river flux | nothing, it must pass |
+| `reference_amplified_river_head` | multiplies the prescribed river-head change by 1.4; its own water budget still closes | `aquifer_equilibrium_bounds` only on its probe |
+| `reference_inflated_aquifer_storage` | multiplies confined storativity by 1.4; its own water budget still closes | `aquifer_equilibrium_bounds` only on its probe |
 | `reference_recharge_blind` | ignores `gw_recharge`, so its own budget no longer closes | `aquifer_recharge_ordering` |
 | `reference_recharge_overshoot` | sends 120% of a recharge day to the river, so its storage falls below the control's | `aquifer_recharge_ordering` |
 | `reference_noise_sink` | declares the prescribed head and never reads it; its exchange is the day's accounting error | `exchange_response` |

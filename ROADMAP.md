@@ -102,6 +102,13 @@ Direct aquifer recharge must preserve groundwater storage and incremental exchan
 
 Contributed by Zhenjiang Wu (Xi'an Jiaotong University).
 
+### `mass/aquifer-equilibrium-bounds` &middot; **merged**
+
+A source-free confined aquifer must stay inside the storage envelope implied
+by its prescribed river head and storativity. Conservative references with
+an amplified boundary head or inflated storativity distinguish this absolute
+bound from recharge ordering. Contributed by Tommaso Cerruti (ETH Zurich).
+
 ### `mass/groundwater-datum-invariance` &middot; **merged**
 
 A common translation of all absolute groundwater heads and river elevations must leave the exchange trajectory unchanged.
@@ -146,6 +153,15 @@ A prescribed net irrigation withdrawal must leave the budget: the same weather
 run with and without it, and the difference between the two runs must account
 for exactly the abstracted volume (net of return flow).
 *Discriminates:* models that treat abstraction as an unaccounted sink.
+
+Contributed by Yuanhang Liu.
+
+### `mass/interception-response` &middot; **merged**
+The same three-year weather with canopy capacity 2 mm and 10 mm: a larger
+canopy must not raise runoff or lower evaporation, the paired budget must
+account for the difference, and the evaporation response must exist.
+*Discriminates:* models that declare `canopy_capacity_mm` and ignore it, or
+allocate the intercepted water the wrong way.
 
 Contributed by Yuanhang Liu.
 
