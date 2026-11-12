@@ -205,3 +205,4 @@ def test_a_residual_over_five_percent_of_the_water_moved_fails():
     result = _score(_run(2.0), _run(10.0, et=100.0, mrro=-106.0))
     assert not result.passed
     assert result.diagnostics["failing_check"] == "residual"
+

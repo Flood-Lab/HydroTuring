@@ -29,6 +29,7 @@ SECONDS_PER_DAY = 86_400.0
 AREA_A_KM2 = 60.0
 AREA_B_KM2 = 90.0
 AREA_C_KM2 = AREA_A_KM2 + AREA_B_KM2
+# The dry tail must exceed C's lookback (2 * lookback_days in probe.yaml).
 MIN_DRY_TAIL_DAYS = 70
 
 STATIC = {
