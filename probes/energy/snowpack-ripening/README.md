@@ -117,6 +117,14 @@ snowpacks in general.
   Declaring the pack liquid, or dipping `snw`, on that one row would otherwise
   let a token cold content over a token ice read as a cold pack, or at zero
   ice skip the next check outright.
+- **The pack is built from what falls on it.** Up to the block's end, no step
+  may add more to `snw` than that step's `pr` (within `pack_gain_tolerance_mm`,
+  10^-6 mm). The peak pack is the share's denominator, so without this `snw`
+  multiplied by 20 on the opening row, with `csnow` scaled to keep its
+  temperature, divided the degree-day pack's 27 to 78 % down to 1.4 to 3.9 %
+  and passed on every seed. That is the mirror image of the dip the check
+  above closes. The honest packs never gain more than the step's `pr`: the
+  energy-balance pack's worst excess is 6×10^-14 mm and Snow-17's is below zero.
 - **The pack must open cold.** Its mean temperature on the row before the block,
   `-csnow / (c_ice * ice)` with `ice = snw - lwsnl`, must be at least 2 K below
   freezing. The air never rises above −12 °C before the block, and the honest packs
@@ -189,9 +197,11 @@ What this probe does **not** test:
    supply bound does not change this. It stops a cold content dropped in one
    step, not one written down gradually: `reference_degree_day`'s cold content,
    written down at 99 % of the bound's own rate from the opening row, reaches
-   zero on block day 12 to 24, and the pack first drains on day 38 to 44 (seeds 0–199). So
-   in this case two to four weeks of write-down fit inside the bound, and
-   that construction passes. `test_a_cold_content_written_down_inside_the_energy_supply_still_passes`
+   zero on block day 12 to 24, and the pack first drains on day 38 to 44 (seeds 0–199).
+   A pack also reported almost all liquid inside the block (10^-3 mm of ice)
+   reads at the temperature floor and gets there on block day 3 to 8. So in
+   this case under a week to four weeks of write-down fit inside the bound,
+   and those constructions pass. `test_a_cold_content_written_down_inside_the_energy_supply_still_passes`
    keeps it as a reproducible example, so the limit cannot drift into a claim.
 2. **Preferential flow.** Real packs can release water through flow fingers
    before the bulk has ripened (Wever et al., 2016). A model that represents

@@ -37,6 +37,7 @@ def _params(**overrides):
         "pack_temperature_margin_k": 2.0,
         "max_ground_melt_mm_per_day": 0.3,
         "liquid_tolerance_mm": 1.0e-6,
+        "pack_gain_tolerance_mm": 1.0e-6,
     }
     params.update(overrides)
     return params
@@ -169,6 +170,34 @@ def test_a_token_pack_on_the_opening_row_cannot_carry_a_token_cold_content():
     series["snw"][ACCUMULATION - 1] = 1.0
     series["csnow"][ACCUMULATION - 1] = C_ICE * 1.0 * 20.0
     assert _score(series).diagnostics["outcome"] == "opens_without_ice"
+
+
+@pytest.mark.parametrize("factor", [2.0, 3.0])
+def test_a_pack_spiked_on_the_opening_row_cannot_shrink_the_share(factor):
+    # The mirror image of the dip above: snw multiplied on the opening row, with
+    # csnow scaled to keep the pack's temperature, makes that row the peak and
+    # divides the leak by a pack that never fell. No step may add more to snw
+    # than the step's precipitation.
+    series = _pack(leak=3.0)
+    assert _score(series).status == FAIL
+    row = ACCUMULATION - 1
+    series["snw"][row] *= factor
+    series["csnow"][row:] *= factor
+    result = _score(series)
+    assert result.status == FAIL
+    assert result.diagnostics["outcome"] == "pack_exceeds_precipitation"
+
+
+def test_a_pack_built_from_its_own_snowfall_is_not_refused_for_growing():
+    # Snow falling during the accumulation raises snw by exactly the step's pr;
+    # that is how every pack is built and must stay inside the bound.
+    series = _pack()
+    n_acc = ACCUMULATION
+    series["pr"][:n_acc] = 50.0
+    series["snw"][:n_acc] = 50.0 * np.arange(1, n_acc + 1)
+    series["csnow"][:] *= series["snw"][n_acc - 1] / PACK
+    series["snw"][n_acc:] += series["snw"][n_acc - 1] - PACK
+    assert _score(series).status == PASS
 
 
 def test_cold_content_cannot_fall_faster_than_energy_arrives():

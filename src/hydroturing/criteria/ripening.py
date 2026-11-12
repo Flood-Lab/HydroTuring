@@ -26,7 +26,7 @@ absorb several times more radiant energy than snowfall brings in cold, so the
 forcing admits almost any cold content. Only a surface energy balance pins it,
 which `melt_energy` carries for the models that report one.
 
-Four checks bound the report, each set by this case rather than by snowpacks in
+Five checks bound the report, each set by this case rather than by snowpacks in
 general:
 
 - cold content and outflow cannot be negative, either of which would take a
@@ -43,6 +43,10 @@ general:
   single step's fall, not a steady one: a cold content written down at the
   bound's own rate from the opening row reaches zero weeks before an honest
   pack ripens (see the probe README);
+- the pack can only be built from what falls on it: no step up to the
+  block's end may add more to `snw` than that step's precipitation, because
+  the peak pack is the share's denominator and a spiked or scaled pack would
+  shrink it;
 - a pack under `min_peak_pack_mm` is refused, because melt at the snow-ground
   interface drains however cold the pack is and is fixed per day rather than
   proportional to the pack, so on a thin pack it would read as a violation --
@@ -78,6 +82,7 @@ _KNOWN = {
     "min_peak_pack_mm", "cold_content_tolerance_j", "min_opening_depression_k",
     "sensible_heat_coefficient", "dry_tolerance_mm", "min_opening_ice_share",
     "pack_temperature_margin_k", "max_ground_melt_mm_per_day", "liquid_tolerance_mm",
+    "pack_gain_tolerance_mm",
 }
 
 
@@ -109,18 +114,19 @@ def snowpack_ripening(run: RunResult, probe: ProbeSpec, params: dict) -> Criteri
     t_margin = float(params.get("pack_temperature_margin_k", 2.0))
     ground_melt = float(params.get("max_ground_melt_mm_per_day", 0.3))
     liquid_tol = float(params.get("liquid_tolerance_mm", 1e-6))
+    gain_tol = float(params.get("pack_gain_tolerance_mm", 1e-6))
 
     # A non-finite or negative bound would disable a check rather than tighten
     # it: `.nan` compares false against everything, so it would read as passed.
     bounds = (threshold, min_peak, c_eps, min_depression, k_sensible, dry_tolerance_mm,
-              min_ice_share, t_margin, ground_melt, liquid_tol)
+              min_ice_share, t_margin, ground_melt, liquid_tol, gain_tol)
     if not all(np.isfinite(b) and b >= 0.0 for b in bounds):
         raise ValueError(
             "snowpack_ripening needs finite, non-negative threshold, "
             "min_peak_pack_mm, cold_content_tolerance_j, min_opening_depression_k, "
             "sensible_heat_coefficient, dry_tolerance_mm, min_opening_ice_share, "
-            "pack_temperature_margin_k, max_ground_melt_mm_per_day and "
-            "liquid_tolerance_mm; "
+            "pack_temperature_margin_k, max_ground_melt_mm_per_day, "
+            "liquid_tolerance_mm and pack_gain_tolerance_mm; "
             f"got {bounds}"
         )
 
@@ -320,6 +326,25 @@ def snowpack_ripening(run: RunResult, probe: ProbeSpec, params: dict) -> Criteri
             ),
             "ground_melt_allowance_mm": ground_melt_mm,
         })
+
+    # The pack is built from what falls on it, and its peak is the denominator
+    # of the share. A row reporting more pack than the case's precipitation
+    # could have built -- `snw` spiked on the opening row, or scaled throughout
+    # -- would shrink every share it is divided into: the mirror image of the
+    # opening-row dip `min_opening_ice_share` closes. Up to the block's end, no
+    # step may add more to `snw` than that step's `pr`. Checked after the block
+    # loop so the constructions above keep their own outcomes.
+    pack_prev = np.concatenate([[float(w.state0[pack])], snw[:-1]])
+    gain = (snw - pack_prev - w.volume(rain))[:last]
+    if not (gain <= gain_tol).all():   # NaN fails too
+        worst_gain = int(np.argmax(np.where(np.isfinite(gain), gain, np.inf)))
+        return _fail(
+            f"'{pack}' rises by {gain[worst_gain]:.3f} mm more than the precipitation "
+            f"on scored step {worst_gain}; the pack can only be built from what falls "
+            "on it, and its peak is what the share is taken of",
+            outcome="pack_exceeds_precipitation", step=worst_gain,
+            excess_mm=float(gain[worst_gain]),
+        )
 
     worst = max(blocks, key=lambda b: b["share_of_peak_pack"])
     ok = worst["share_of_peak_pack"] <= threshold

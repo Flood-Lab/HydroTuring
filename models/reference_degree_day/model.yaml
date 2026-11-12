@@ -1,5 +1,5 @@
 name: reference_degree_day
-version: "1.0.0"
+version: "1.1.0"
 description: >
   The same snowpack, melted on air temperature through a degree-day factor and
   with a surface energy budget that closes around its evaporation alone. Every

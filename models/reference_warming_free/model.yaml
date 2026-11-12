@@ -1,5 +1,5 @@
 name: reference_warming_free
-version: "1.0.0"
+version: "1.1.0"
 description: >
   The same snowpack, melting on the energy actually available and reporting its
   cold content honestly, but charging its surface budget for the fusion alone.

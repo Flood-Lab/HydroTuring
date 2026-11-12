@@ -1,5 +1,5 @@
 name: reference_snow_energy
-version: "1.0.0"
+version: "1.1.0"
 description: >
   An energy-balance snowpack that reports what it is made of. Melt is bought
   with the energy its own surface budget makes available rather than read off
