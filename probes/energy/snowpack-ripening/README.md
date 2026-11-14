@@ -117,14 +117,21 @@ snowpacks in general.
   Declaring the pack liquid, or dipping `snw`, on that one row would otherwise
   let a token cold content over a token ice read as a cold pack, or at zero
   ice skip the next check outright.
-- **The pack is built from what falls on it.** Up to the block's end, no step
-  may add more to `snw` than that step's `pr` (within `pack_gain_tolerance_mm`,
-  10^-6 mm). The peak pack is the share's denominator, so without this `snw`
-  multiplied by 20 on the opening row, with `csnow` scaled to keep its
-  temperature, divided the degree-day pack's 27 to 78 % down to 1.4 to 3.9 %
-  and passed on every seed. That is the mirror image of the dip the check
-  above closes. The honest packs never gain more than the step's `pr`: the
-  energy-balance pack's worst excess is 6×10^-14 mm and Snow-17's is below zero.
+- **The pack is built from what falls on it.** The case opens snow-free after
+  a cold, dry spin-up, so up to the block's end `snw` may never hold more than
+  the `pr` fallen since the record began (within `pack_excess_tolerance_mm`,
+  10^-3 mm, which is output rounding: PRMS prints inches to six decimals and
+  sits 2.3×10^-5 mm over). The peak pack is the share's denominator. Without
+  this, `snw` multiplied by 20 on the opening row, with `csnow` scaled to keep
+  its temperature, divided the degree-day pack's 27 to 78 % down to 1.4 to
+  3.9 % and passed on every seed. So did a constant added to `snw` on every
+  row, spin-up included, with a constant added to `csnow`: no step gains more
+  than its `pr`, so a bound on each step's gain cannot see it. The honest
+  packs never hold more than what fell, to 2×10^-13 mm over seeds 0–199. Snow
+  brought down from a canopy is snow that fell, so it cannot trip the check.
+  What it leaves open is the pack's own losses before the block: a spike can
+  hide inside what sublimated or drained before the block opened, which is
+  ground melt alone for Snow-17 and nothing for the references.
 - **The pack must open cold.** Its mean temperature on the row before the block,
   `-csnow / (c_ice * ice)` with `ice = snw - lwsnl`, must be at least 2 K below
   freezing. The air never rises above −12 °C before the block, and the honest packs

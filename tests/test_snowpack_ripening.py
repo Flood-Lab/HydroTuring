@@ -37,7 +37,7 @@ def _params(**overrides):
         "pack_temperature_margin_k": 2.0,
         "max_ground_melt_mm_per_day": 0.3,
         "liquid_tolerance_mm": 1.0e-6,
-        "pack_gain_tolerance_mm": 1.0e-6,
+        "pack_excess_tolerance_mm": 1.0e-3,
     }
     params.update(overrides)
     return params
@@ -67,11 +67,13 @@ def _pack(ripe_on=12, drain=15.0, leak=0.0, leak_days=None, opening_k=OPENING_K,
             snm[t] = drain
         snw[t] = snw[t - 1] - snm[t] / k
     tas = np.concatenate([np.full(n_acc, -15.0), np.linspace(-15.0, 6.0, n_melt)])
+    pr = np.zeros(n_acc + n_melt)
+    pr[0] = PACK * k        # the pack falls on the first step, as a rate in mm/day
     return {
         "snm": snm, "snw": snw, "csnow": csnow, "tas": tas,
         "rn": np.full(n_acc + n_melt, 60.0),
         "regime": np.array(["accumulation"] * n_acc + ["melt"] * n_melt),
-        "pr": np.zeros(n_acc + n_melt),
+        "pr": pr,
     }
 
 
@@ -183,6 +185,19 @@ def test_a_pack_spiked_on_the_opening_row_cannot_shrink_the_share(factor):
     row = ACCUMULATION - 1
     series["snw"][row] *= factor
     series["csnow"][row:] *= factor
+    result = _score(series)
+    assert result.status == FAIL
+    assert result.diagnostics["outcome"] == "pack_exceeds_precipitation"
+
+
+def test_a_constant_added_to_the_pack_cannot_shrink_the_share():
+    # The offset no single step betrays: 20 times the pack added to snw on every
+    # row, and a constant added to csnow, so no step gains more than its
+    # precipitation and every fall in cold content is unchanged. Only the pack
+    # against all the precipitation fallen since the record began can see it.
+    series = _pack(leak=3.0)
+    series["snw"] += 20 * PACK
+    series["csnow"] += C_ICE * 20 * PACK * OPENING_K
     result = _score(series)
     assert result.status == FAIL
     assert result.diagnostics["outcome"] == "pack_exceeds_precipitation"

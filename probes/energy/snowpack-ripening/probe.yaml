@@ -141,15 +141,17 @@ criteria:
       # one blank cell used to make the supply bound select a NaN and skip itself.
       # Honest values sit inside [0, snw] to rounding.
       liquid_tolerance_mm: 1.0e-6
-      # The pack is built from what falls on it: up to the block's end no step
-      # may add more to snw than that step's pr, within this many mm. The peak
-      # pack is the share's denominator, so snw spiked x20 on the opening row
-      # (csnow scaled to keep its temperature) would otherwise take the
-      # degree-day pack's 27-78% down to 1.4-3.9% and pass. Over seeds 0-199 the
-      # energy-balance pack's worst excess is 6e-14 mm and Snow-17's is below
-      # zero. A model that deposits frost would need its reported deposition
-      # added; none of the snow models here do in this case.
-      pack_gain_tolerance_mm: 1.0e-6
+      # The pack is built from what falls on it. The case opens snow-free after
+      # a cold, dry spin-up, so up to the block's end snw may never hold more
+      # than the pr fallen since the record began, within this many mm. The
+      # peak pack is the share's denominator: snw x20 on the opening row
+      # (csnow scaled to keep its temperature) took the degree-day pack's
+      # 27-78% to 1.4-3.9%, and a constant added to snw on every row, which no
+      # single step's gain betrays, did the same. The tolerance is output
+      # rounding: PRMS prints inches to six decimals and sits 2.3e-5 mm over
+      # on the gate seeds. Snow carried down from the canopy, or redistributed
+      # inside the pack, is still snow that fell, so neither can trip it.
+      pack_excess_tolerance_mm: 1.0e-3
 
 baselines:
   # The energy-balance pack pays its cold content before it melts, and drains
