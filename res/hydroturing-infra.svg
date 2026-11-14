@@ -120,8 +120,10 @@
 <text x="396" y="243" class="probe">soil heat</text>
 <circle cx="388" cy="253.5" r="2.4" fill="#2C7A57"/>
 <text x="396" y="257" class="probe">snowmelt</text>
-<rect x="384" y="272" width="68" height="40" rx="5" fill="none" stroke="#B6C6C9" stroke-dasharray="3 3"/>
-<text x="418" y="296" class="note" text-anchor="middle">probes wanted</text>
+<circle cx="388" cy="267.5" r="2.4" fill="#2C7A57"/>
+<text x="396" y="271" class="probe">ripening</text>
+<rect x="384" y="286" width="68" height="40" rx="5" fill="none" stroke="#B6C6C9" stroke-dasharray="3 3"/>
+<text x="418" y="310" class="note" text-anchor="middle">probes wanted</text>
 <rect x="472" y="100" width="92" height="284.5" rx="6" fill="#EDF2F2"/>
 <text x="518" y="121" class="pillar" text-anchor="middle">MOMENTUM</text>
 <text x="518" y="138" class="note" text-anchor="middle">routing conserves</text>

@@ -202,6 +202,7 @@ crosswalk:
     gw: "parea * (lzfsc + lzfpc)"
     channel: "cum_in - cum_out"
     stage: "bed_elevation_m + (q_m3s * manning_n / (width_m * slope ** 0.5)) ** 0.6"
+    csnow: "neghs * LAMBDA_F"
   summa:
     evspsbl: "-(scalarTotalET + scalarSnowSublimation + scalarCanopySublimation)"
     mrro: "averageRoutedRunoff"

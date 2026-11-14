@@ -29,6 +29,11 @@ PAREA and the ADIMP store by ADIMP, as the runoff components are):
 storage), `channel` = channel inflow generated but not yet released by
 the unit hydrograph.
 
+Diagnostic reported: `csnow` = Snow-17's heat deficit NEGHS, the energy its ice
+still needs to reach 0 C. Snow-17 carries it in millimetres of water whose
+freezing would pay it off, so it is multiplied by the latent heat of fusion to
+give J m-2; nothing is inferred from a temperature.
+
 Steps: SAC-SMA takes the step in days and Snow-17 in whole hours, as the
 Fortran does; PT1D and PT1H are the steps the model is defined at.
 """
@@ -44,8 +49,9 @@ from pathlib import Path
 
 from sacsma_snow17 import SacState, SnowState, gamma_uh, sac1, sac_storage, snow17
 
-COLUMNS = ["time", "pr", "snm", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel", "stage"]
-MODEL = {"name": "sacsma_snow17", "version": "1.1.0"}
+COLUMNS = ["time", "pr", "snm", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel", "stage", "csnow"]
+MODEL = {"name": "sacsma_snow17", "version": "1.2.0"}
+LAMBDA_F = 3.337e5  # latent heat of fusion, J kg-1: 1 mm of NEGHS is this many J m-2
 STEP_HOURS = {"PT1D": 24, "PT1H": 1}
 
 # Default reach geometry, used when the catchment does not hand one over.
@@ -204,6 +210,7 @@ def simulate(forcing: list[dict], static: dict, timestep: str) -> tuple[list[dic
             "gwex": -(fluxes["bfncc"] + removed) / dt_days,  # deep baseflow plus the prescribed withdrawal leaves the catchment
             "mrso": soil,
             "snw": snow_state.total(),
+            "csnow": snow_state.neghs * LAMBDA_F,
             "canopy": 0.0,
             "gw": lower,
             "channel": 0.0,  # filled below from the hydrograph's contents
