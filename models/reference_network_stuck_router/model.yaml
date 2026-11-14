@@ -1,0 +1,16 @@
+name: reference_network_stuck_router
+version: "1.0.0"
+description: >
+  Deliberately retains part of the inflow in channel storage.
+authors: ["HydroTuring maintainers"]
+license: CC-BY-NC-4.0
+runner: subprocess
+entrypoint: ["python3", "ht_adapter.py"]
+timestep: PT1D
+emits:
+  fluxes: []
+  states: []
+  routing: [reach_q_in, q_out, channel_storage]
+needs_forcing: [q_in_A, q_in_B]
+needs_static: [routing_network]
+resources: {cpu: 1, memory_gb: 1, gpu: false}

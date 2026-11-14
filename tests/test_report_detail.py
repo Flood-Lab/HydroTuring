@@ -57,6 +57,8 @@ HEADLINES = {
     "mass/precipitation-counterfactual": ("counterfactual_response", "monotone_response"),
     "mass/resolution-invariance": ("resolution_invariance",),
     "mass/response-nonnegativity": ("response_nonnegativity",),
+    "mass/routing-network-closure": ("routing_input_fidelity", "routing_reach_closure",
+        "routing_junction_closure",  "routing_recession_bound","routing_state_bounds",),
     "mass/runoff-bounds": ("runoff_bounds",),
     "mass/steady-state": ("steady_state",),
     "mass/spinup-cycle-invariance": ("spinup_cycle_invariance",),
