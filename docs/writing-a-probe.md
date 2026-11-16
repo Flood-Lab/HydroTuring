@@ -229,6 +229,13 @@ Archiving either as a violation would put a fault in the record that was never
 measured, and the reason travels with it — the harness keeps the message, so the
 archive says which precondition was missed rather than only that something was.
 
+A paired criterion that has passed its physical checks but could not exercise
+the experiment may attach that `CriterionResult` as `passing_result` when
+raising `CriterionIncompatibleError`. The harness then finishes independent
+checks on the same seed: any measured failure stands, and the seed becomes
+N/A only if every check otherwise passes. An ordinary incompatibility without
+that result still stops evaluation immediately.
+
 The floor guards a **pass**, not a verdict. A criterion decides a seed is
 unscoreable by reading the model's own output, so the model chooses which
 seeds leave the sample, and the rule has to be asymmetric or the same move

@@ -3,7 +3,8 @@
 Positive transmissivity and a connected river boundary keep head between its
 uniform initial value and the prescribed river head. Uniform storativity
 converts that maximum principle into a bound on aggregate storage change.
-Neither a particular recession shape nor a finite response time is imposed.
+Neither a particular recession shape nor finite-time equilibrium is imposed.
+A minimum observable response determines whether the case can earn a pass.
 """
 
 from __future__ import annotations
@@ -216,6 +217,17 @@ def aquifer_equilibrium_bounds(
         "confined storage stays inside both prescribed head envelopes"
         if passed else f"equilibrium bounds fail {worst}: residual / allowance = {value:.6g}"
     )
+    result = CriterionResult(NAME, PASS if passed else FAIL, message, value, 1.0, diagnostics)
     if passed and unexercised_variants:
-        message += "; little or no hydraulic response exercised: " + ", ".join(unexercised_variants)
-    return CriterionResult(NAME, PASS if passed else FAIL, message, value, 1.0, diagnostics)
+        details = ", ".join(
+            f"{v} (peak {diagnostics['variants'][v]['max_abs_delta_storage_mm']:.6g} mm, "
+            f"{diagnostics['variants'][v]['response_fraction']:.6g} of |B|)"
+            for v in unexercised_variants
+        )
+        raise CriterionIncompatibleError(
+            "hydraulic response precondition not reached in " + details
+            + f"; both arms must exceed max({tolerances['abs_tol_mm']:g} mm, "
+            + f"{response_threshold:g} |B|)",
+            passing_result=result,
+        )
+    return result

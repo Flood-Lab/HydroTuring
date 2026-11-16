@@ -25,14 +25,19 @@ satisfy min(0, B) <= X <= max(0, B), where B = 1000 sigma (H - h0).
 The maximum positive distance outside either bound is scored; a later recovery
 cannot cancel an earlier excursion.
 
-This necessary bound does not prescribe a recession shape, a response time,
-or an exact spatial head field. A frozen or nearly frozen aquifer can satisfy
-it. Each arm reports its peak absolute paired storage response divided by
-its own |B|. If either response is no larger than max(1e-4 mm, 0.01 |B|),
-the result names that arm as having little or no hydraulic response exercised.
-The diagnostic flag no_hydraulic_response_exercised means below this reporting
-threshold, not exactly zero. The 1% threshold is provisional and descriptive;
-it does not impose a minimum response or change PASS/FAIL.
+This necessary bound does not prescribe a recession shape or an exact spatial
+head field. A frozen or nearly frozen aquifer can satisfy it without exercising
+the experiment. In version 2, both arms must have a peak absolute paired
+storage response greater than max(1e-4 mm, 0.01 |B|) for the case to earn PASS.
+An otherwise passing case with either arm below or equal to that cutoff is
+N/A (INCOMPATIBLE), with the affected arms and their response fractions in
+the reason. The flag no_hydraulic_response_exercised means insufficient
+response for this record, not exactly zero or a violation of aquifer physics.
+
+All physical checks still run. A measured envelope, paired-ledger, neutral,
+initial-state, component or budget failure remains FAIL even when another arm
+is unexercised; only a result that would otherwise pass is refused. This is
+the same rule used for skipped plateaus in uniform_flow_friction (#144).
 
 ## Case and control volume
 
@@ -130,6 +135,33 @@ writer precision and independently checked native limits. It is not a general
 solver-error theorem. The empirical native checks and the controlled fault-size
 study below provide separate tests of the chosen margin.
 
+## Response coverage and slow aquifers
+
+The 1% cutoff decides whether this 90-day experiment exercised both directions;
+it is a coverage policy, not a minimum physically acceptable response speed.
+For a lumped aquifer with time scale tau = A sigma / C, the exact response
+fraction at day 90 is 1 - exp(-90 / tau), so 1% corresponds to tau about
+8955 days. A slower, physically valid aquifer can therefore be N/A here and
+needs a longer experiment to be exercised. It is never failed merely for
+being slow, and no tested response rate is claimed to cover all aquifers.
+
+The reproducible threshold study uses exact and backward-Euler solutions at
+sigma = 0.0002, 0.002 and 0.01, including a coefficient ten times below the
+generator's minimum, while adjusting conductance to prescribe each time scale.
+All 30 cases pass the physical and accounting checks:
+
+| Time scale, days | Exact response after 90 days | Version-2 outcome, both solvers |
+| --- | --- | --- |
+| 30 | 95.02% | PASS |
+| 300 | 25.92% | PASS |
+| 3000 | 2.955% | PASS |
+| 9000 | 0.9950% | N/A (INCOMPATIBLE) |
+| 30000 | 0.2996% | N/A (INCOMPATIBLE) |
+
+These controls check the cutoff's consequence rather than selecting it to
+guarantee a pass. The separate native audit below checks the distributed
+MODFLOW response; the generator and adapter are unchanged.
+
 ## References and discrimination
 
 The exact confined reservoir and its backward-Euler counterpart supply
@@ -148,7 +180,8 @@ archived evidence from the unchanged MODFLOW 6.7.0 adapter.
 
 [The machine-readable audit](../../../docs/aquifer-equilibrium-bounds-validation.json)
 records the exact criterion parameters, precision budget, fault-size study,
-all seeds, normalized criterion results, response fractions and scalar native
+all seeds, normalized criterion results, response fractions, the slow-aquifer
+coverage study and scalar native
 margins. Per-step storage changes and full criterion diagnostics can be
 recomputed from locally captured result tables and native files rather than
 stored in the committed summary.
@@ -233,8 +266,9 @@ the compact report is committed under docs/ separately from the generated forcin
 The grid sensitivity confirms the bound and applicability assumptions, not
 grid convergence or identical transient hydrographs. Only ten seeds were
 audited with the distributed solver. This is an aggregate necessary bound:
-local head errors can cancel in aggregate storage, and frozen responses can
-pass. No minimum response or finite-time equilibrium claim is made.
+local head errors can cancel in aggregate storage, and an unexercised response
+is N/A rather than evidence of correct physics. No finite-time equilibrium
+claim is made.
 
 ## Relation to other probes
 
