@@ -25,7 +25,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from hydroturing import registry
-from hydroturing.criteria import CRITERIA
+from hydroturing.criteria import CRITERIA, CriterionIncompatibleError
 from hydroturing.harness import build_case
 from hydroturing.protocol import RunResult, read_result
 from hydroturing.runner.docker_runner import DockerRunner, image_tag
@@ -432,6 +432,65 @@ def fault_magnitude_study(seeds, gains=(1.0, 1.00005, 1.0005, 1.001, 1.01, 1.4))
     return {"seeds": list(seeds), "policies": policies, "controls": controls}
 
 
+def response_threshold_study():
+    """Measure coverage on physically valid aquifers with long time scales.
+
+    Conductance sets tau=A*sigma/C; changing tau does not corrupt either the
+    storage law or the river flux. A slow response can be incompatible with
+    this finite experiment without violating the hydraulic envelope.
+    """
+    probe = registry.find_probe(PROBE_ID)
+    item = next(c for c in probe.criteria if c.name == "aquifer_equilibrium_bounds")
+    threshold = float(item.params["response_fraction_threshold"])
+    path = ROOT / "models/reference_confined_aquifer/ht_adapter.py"
+    spec = importlib.util.spec_from_file_location("slow_aquifer_reference", path)
+    reference = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(reference)
+    records = []
+    for method in ("exact", "backward_euler"):
+        for sigma in (0.0002, 0.002, 0.01):
+            for tau in (30, 300, 3000, 9000, 30000):
+                runs = {}
+                for variant in probe.variants:
+                    case = build_case(probe, 7, variant)
+                    case.static = dict(case.static, aquifer_storage_coefficient=sigma,
+                                       river_conductance_m2_per_day=case.static["area_km2"] * 1e6 * sigma / tau)
+                    rows = reference.simulate(case.forcing.to_dict("records"), case.static, method=method)
+                    runs[variant] = RunResult(case, pd.DataFrame(rows), {}, 0.0)
+                ordinary_passed = all(
+                    CRITERIA[c.name](run, probe, c.params).passed
+                    for c in probe.criteria if c.name != item.name
+                    for run in runs.values()
+                )
+                try:
+                    result = CRITERIA[item.name](runs, probe, item.params)
+                    verdict = "PASS" if result.passed else "FAIL"
+                except CriterionIncompatibleError as exc:
+                    result = exc.passing_result
+                    if result is None:
+                        raise
+                    verdict = "N/A"
+                if not ordinary_passed or not result.passed:
+                    raise ValueError(f"slow aquifer {method}/{sigma}/{tau}: physical checks failed")
+                records.append({
+                    "method": method, "storativity": sigma, "timescale_days": tau,
+                    "analytic_response_fraction": float(-np.expm1(-probe.period_days / tau)),
+                    "response_fractions": {
+                        v: d["response_fraction"] for v, d in result.diagnostics["variants"].items()
+                    },
+                    "ordinary_criteria_passed": ordinary_passed,
+                    "physical_checks_passed": result.passed, "verdict": verdict,
+                })
+    return {
+        "period_days": probe.period_days, "response_fraction_threshold": threshold,
+        "absolute_response_floor_mm": float(item.params["abs_tol_mm"]),
+        "analytic_threshold_timescale_days": (
+            float(-probe.period_days / np.log1p(-threshold)) if 0 < threshold < 1 else None
+        ),
+        "records": records,
+    }
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workdir", type=Path, required=True)
@@ -463,22 +522,24 @@ def main(argv=None):
     study = fault_magnitude_study(reference_seeds)
     image = json.loads(subprocess.check_output(["docker", "image", "inspect", image_tag(model)], text=True))[0]
     report = {
-        "probe": PROBE_ID, "model": model.name, "model_version": model.version,
+        "probe": PROBE_ID, "probe_version": probe.version,
+        "model": model.name, "model_version": model.version,
         "modflow_version": "6.7.0", "flopy_version": "3.11.0",
         "docker_image_id": image["Id"], "docker_architecture": image["Architecture"],
         "criterion_params": criterion_params,
         "precision_budget": precision_budget(criterion_params),
         "native_records": records, "native_probe_results": native_results,
         "reference_sweep": refs, "fault_magnitude_study": study,
+        "response_threshold_study": response_threshold_study(),
         "audit_notes": [
             "Native heads and STO-SY independently check confinement, river connection and the storage law.",
             "The standard diagnostic observer must preserve result.csv bytes.",
             "Serialized IC/RIV inputs are checked against the pinned writer's rounding; both native and requested head-envelope errors are retained.",
             "Sensitivity changes only IMS head tolerance or the spatial grid; daily reporting is preserved.",
             "A grid-sensitivity pass is a bounds check, not a claim of identical transient hydrographs or grid convergence.",
-            "Frozen output can pass this necessary storage bound and is explicitly reported as unexercised.",
+            "An otherwise passing case with either arm unexercised is N/A; measured physical failures retain priority.",
             "Full time series remain in local captured outputs; the committed report retains scalar summaries.",
-            "Neutral exchange uses a per-interval precision floor; full-record neutral storage and initial-state guards remain unchanged. Either arm below the declared response fraction is labelled descriptively, without changing its envelope verdict.",
+            "Neutral exchange uses a per-interval precision floor; full-record neutral storage and initial-state guards remain unchanged. The response floor controls scoreability, not whether slow physics violates the bound.",
         ],
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)

@@ -22,7 +22,16 @@ FAIL = "fail"
 
 
 class CriterionIncompatibleError(ValueError):
-    """A result reveals a contract convention mismatch, so the probe is N/A."""
+    """A run-time precondition prevents this case from earning a pass.
+
+    A paired criterion may supply its passing physical result so the harness
+    can finish independent checks before refusing a weakly exercised case.
+    Ordinary contract incompatibilities remain immediate.
+    """
+
+    def __init__(self, message: str = "", *, passing_result: CriterionResult | None = None):
+        super().__init__(message)
+        self.passing_result = passing_result
 
 
 @dataclass
