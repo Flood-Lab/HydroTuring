@@ -169,7 +169,9 @@ def dry_down(run: RunResult, probe: ProbeSpec, params: dict) -> CriterionResult:
     # having it, and one that does not report it is held to the capacities.
     bound = _capacity(run, keys)
     for var in ("snw", "gw", "channel"):
-        if var in w.state0.index:
+        # The window's columns, not state0: a model with none of these stores
+        # needs no prior state, so a zero-spinup case is still bounded.
+        if var in w.table.columns:
             bound += max(0.0, float(w.state0[var]))
     days = len(runoff) * w.dt_days
 
@@ -432,7 +434,7 @@ def monotone_response(runs: dict[str, RunResult], probe: ProbeSpec, params: dict
     for name, p_total, q_total, run in ladder:
         bound = p_total + _capacity(run, keys)
         w0 = make_window(run, probe)
-        if "snw" in w0.state0.index:
+        if "snw" in w0.table.columns:
             bound += max(0.0, float(w0.state0["snw"]))
         if q_total > bound * (1.0 + slack):
             failures.append(
