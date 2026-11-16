@@ -101,6 +101,9 @@ are welcome too.
   </picture>
 </p>
 
+<details>
+<summary>Every probe: what it asks, and the broken model it catches</summary>
+
 | Probe | Law | What it asks | The broken model it catches |
 | --- | --- | --- | --- |
 | [`mass/ungauged-basin-closure`](probes/mass/ungauged-basin-closure) | mass | Does the full budget close for independently sampled soil/canopy capacities? | `reference_spatial_loss`, `reference_spatial_gain`, `reference_spatial_capacity`, four further attribute-dependent fixtures, `reference_cheater` and `reference_degenerate` |
@@ -143,6 +146,8 @@ are welcome too.
 | [`momentum/uniform-flow-friction-consistency`](probes/momentum/uniform-flow-friction-consistency) | momentum | At steady uniform flow, do reported discharge and stage satisfy one Manning balance with the declared reach geometry and roughness? | `reference_wrong_roughness`, `reference_wrong_slope` |
 | [`momentum/froude-regime`](probes/momentum/froude-regime) | momentum | A stage and a discharge are two readings of one cross-section: does the pair a model reports stay subcritical, or does it imply a velocity the reach could not deliver? | `reference_shallow_rating` |
 | [`momentum/wave-celerity-bounds`](probes/momentum/wave-celerity-bounds) | momentum | Across low, medium and high hydraulic states, does a short/long reach pair imply positive flood-wave celerity near the declared Manning dQ/dA expectation, with speed increasing as flow rises? | `reference_fixed_celerity` |
+
+</details>
 
 ## Models
 
@@ -236,6 +241,9 @@ drawn into `res/` from `models/result.csv` by `python3 scripts/site_standings.py
 
 </details>
 <!-- /law-numbers -->
+
+<details>
+<summary>Every model: what it does and its standing, then the exact and broken reference models</summary>
 
 | Model | Kind | What it does | Standing |
 | --- | --- | --- | --- |
@@ -360,6 +368,8 @@ drawn into `res/` from `models/result.csv` by `python3 scripts/site_standings.py
 | `reference_in_sample` | broken | removes surface runoff above a fixed 55 mm daily precipitation cutoff | caught by `event_water_closure` |
 | `reference_calendar` | broken | a recession that drifts with the calendar year | caught by `invariance` (time origin) |
 | `reference_exchange_sign_error` | broken | a genuinely bidirectional aquifer-river exchange that closes its own groundwater balance exactly, but reports the aquifer-to-river component's sign flipped on every other step | caught by `exchange_components` |
+
+</details>
 
 ## How a case is generated
 
@@ -546,4 +556,21 @@ src/hydroturing/   harness: protocol, runners, criteria, scoring
 probes/<law>/<id>/ probe.yaml, generate.py
 models/<name>/     model.yaml, Dockerfile, adapter
 schemas/           JSON schemas for both spec files, and lexicon.yaml, the variables
+```
+
+## Citation
+
+If you use HydroTuring, please cite the paper,
+[arXiv:2611.11563](https://arxiv.org/abs/2611.11563):
+
+```bibtex
+@misc{li2026hydroturingphysicsprobebenchmark,
+      title={HydroTuring: A physics probe benchmark testing mass, energy, and momentum conservation in hydrologic models},
+      author={Zhi Li and Changming Li and Siavash Shams and Han Wang and Qingyi Yang and Yuanhang Liu and Taiqi Lian and Xin Lan and Shunan Zhou and Binlan Zhang and Siddik Barbhuiya and Songkun Yan and Bing Li and Jinlong Hu and Yaji Wang and Zhenjiang Wu and Mofan Zhang and Kaihao Long and Jingzhi Chen and Yuan-Heng Wang},
+      year={2026},
+      eprint={2611.11563},
+      archivePrefix={arXiv},
+      primaryClass={physics.geo-ph},
+      url={https://arxiv.org/abs/2611.11563},
+}
 ```
