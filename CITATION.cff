@@ -122,3 +122,58 @@ keywords:
   - conservation laws
   - water balance
   - physics-informed
+# The paper, arXiv:2611.11563. GitHub's "Cite this repository" offers this
+# entry; the authors above remain the software's author list.
+preferred-citation:
+  type: article
+  title: "HydroTuring: A physics probe benchmark testing mass, energy, and momentum conservation in hydrologic models"
+  authors:
+    - given-names: Zhi
+      family-names: Li
+    - given-names: Changming
+      family-names: Li
+    - given-names: Siavash
+      family-names: Shams
+    - given-names: Han
+      family-names: Wang
+    - given-names: Qingyi
+      family-names: Yang
+    - given-names: Yuanhang
+      family-names: Liu
+    - given-names: Taiqi
+      family-names: Lian
+    - given-names: Xin
+      family-names: Lan
+    - given-names: Shunan
+      family-names: Zhou
+    - given-names: Binlan
+      family-names: Zhang
+    - given-names: Siddik
+      family-names: Barbhuiya
+    - given-names: Songkun
+      family-names: Yan
+    - given-names: Bing
+      family-names: Li
+    - given-names: Jinlong
+      family-names: Hu
+    - given-names: Yaji
+      family-names: Wang
+    - given-names: Zhenjiang
+      family-names: Wu
+    - given-names: Mofan
+      family-names: Zhang
+    - given-names: Kaihao
+      family-names: Long
+    - given-names: Jingzhi
+      family-names: Chen
+    - given-names: Yuan-Heng
+      family-names: Wang
+  journal: "arXiv preprint arXiv:2611.11563"
+  year: 2026
+  month: 11
+  doi: 10.48550/arXiv.2611.11563
+  url: "https://arxiv.org/abs/2611.11563"
+  identifiers:
+    - type: other
+      value: "arXiv:2611.11563"
+      description: The arXiv identifier
