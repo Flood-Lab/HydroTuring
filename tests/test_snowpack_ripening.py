@@ -38,6 +38,7 @@ def _params(**overrides):
         "max_ground_melt_mm_per_day": 0.3,
         "liquid_tolerance_mm": 1.0e-6,
         "pack_excess_tolerance_mm": 1.0e-3,
+        "pack_loss_tolerance_mm": 1.0e-3,
     }
     params.update(overrides)
     return params
@@ -90,8 +91,9 @@ def _run(series, timestep="PT1D"):
     table = pd.DataFrame({
         "time": time, "snm": series["snm"], "snw": series["snw"], "csnow": series["csnow"],
     })
-    if "lwsnl" in series:
-        table["lwsnl"] = series["lwsnl"]
+    for column in ("lwsnl", "sbl", "evspsbl"):
+        if column in series:
+            table[column] = series[column]
     return RunResult(case, table, {}, 0.0)
 
 
@@ -213,6 +215,33 @@ def test_a_pack_built_from_its_own_snowfall_is_not_refused_for_growing():
     series["csnow"][:] *= series["snw"][n_acc - 1] / PACK
     series["snw"][n_acc:] += series["snw"][n_acc - 1] - PACK
     assert _score(series).status == PASS
+
+
+@pytest.mark.parametrize("while_cold_only", [True, False])
+def test_meltwater_that_leaves_unreported_cannot_empty_the_sum(while_cold_only):
+    # The pack still melts down, but `snm` reads zero, so nothing is counted.
+    series = _pack(leak=3.0)
+    assert _score(series).status == FAIL
+    zeroed = series["csnow"] > 1.0 if while_cold_only else np.ones(len(series["snm"]), bool)
+    zeroed[:ACCUMULATION] = False
+    series["snm"][zeroed] = 0.0
+    result = _score(series)
+    assert result.status == FAIL
+    assert result.diagnostics["outcome"] == "unreported_outflow"
+
+
+@pytest.mark.parametrize("reported", ["sbl", "evspsbl", None])
+def test_a_sublimating_pack_must_report_what_left_as_vapour(reported):
+    # 0.5 mm/day sublimates through the block on top of the outflow.
+    series = _pack()
+    series["snw"][ACCUMULATION:] -= 0.5 * np.arange(1, MELT + 1)
+    if reported:
+        series[reported] = np.where(np.arange(len(series["snm"])) >= ACCUMULATION, 0.5, 0.0)
+    result = _score(series)
+    if reported:
+        assert result.status == PASS
+    else:
+        assert result.diagnostics["outcome"] == "unreported_outflow"
 
 
 def test_cold_content_cannot_fall_faster_than_energy_arrives():

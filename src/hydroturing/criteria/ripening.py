@@ -26,7 +26,7 @@ absorb several times more radiant energy than snowfall brings in cold, so the
 forcing admits almost any cold content. Only a surface energy balance pins it,
 which `melt_energy` carries for the models that report one.
 
-Five checks bound the report, each set by this case rather than by snowpacks in
+Six checks bound the report, each set by this case rather than by snowpacks in
 general:
 
 - cold content and outflow cannot be negative, either of which would take a
@@ -47,6 +47,10 @@ general:
   it may never hold more than the precipitation fallen since the record
   began, because the peak pack is the share's denominator and a spiked,
   scaled or offset pack would shrink it;
+- the pack cannot lose water it does not report: in the dry block a pack
+  loses only outflow and sublimation, so no step may lose more than its
+  `snm` and `sbl` (or `evspsbl` where `sbl` is absent), or meltwater could
+  leave the snow module uncounted and empty the sum;
 - a pack under `min_peak_pack_mm` is refused, because melt at the snow-ground
   interface drains however cold the pack is and is fixed per day rather than
   proportional to the pack, so on a thin pack it would read as a violation --
@@ -82,7 +86,7 @@ _KNOWN = {
     "min_peak_pack_mm", "cold_content_tolerance_j", "min_opening_depression_k",
     "sensible_heat_coefficient", "dry_tolerance_mm", "min_opening_ice_share",
     "pack_temperature_margin_k", "max_ground_melt_mm_per_day", "liquid_tolerance_mm",
-    "pack_excess_tolerance_mm",
+    "pack_excess_tolerance_mm", "pack_loss_tolerance_mm",
 }
 
 
@@ -115,18 +119,19 @@ def snowpack_ripening(run: RunResult, probe: ProbeSpec, params: dict) -> Criteri
     ground_melt = float(params.get("max_ground_melt_mm_per_day", 0.3))
     liquid_tol = float(params.get("liquid_tolerance_mm", 1e-6))
     pack_tol = float(params.get("pack_excess_tolerance_mm", 1e-3))
+    loss_tol = float(params.get("pack_loss_tolerance_mm", 1e-3))
 
     # A non-finite or negative bound would disable a check rather than tighten
     # it: `.nan` compares false against everything, so it would read as passed.
     bounds = (threshold, min_peak, c_eps, min_depression, k_sensible, dry_tolerance_mm,
-              min_ice_share, t_margin, ground_melt, liquid_tol, pack_tol)
+              min_ice_share, t_margin, ground_melt, liquid_tol, pack_tol, loss_tol)
     if not all(np.isfinite(b) and b >= 0.0 for b in bounds):
         raise ValueError(
             "snowpack_ripening needs finite, non-negative threshold, "
             "min_peak_pack_mm, cold_content_tolerance_j, min_opening_depression_k, "
             "sensible_heat_coefficient, dry_tolerance_mm, min_opening_ice_share, "
             "pack_temperature_margin_k, max_ground_melt_mm_per_day, "
-            "liquid_tolerance_mm and pack_excess_tolerance_mm; "
+            "liquid_tolerance_mm, pack_excess_tolerance_mm and pack_loss_tolerance_mm; "
             f"got {bounds}"
         )
 
@@ -348,6 +353,30 @@ def snowpack_ripening(run: RunResult, probe: ProbeSpec, params: dict) -> Criteri
             outcome="pack_exceeds_precipitation", row=worst_row,
             excess_mm=float(over[worst_row]),
         )
+
+    # The sum counts only what the model reports as `snm`, so the pack has to
+    # account for what it loses. In the dry block it can lose water only as
+    # outflow or sublimation; canopy unloading adds to it, so the check is
+    # one-sided. Without `sbl`, total evaporation bounds what sublimated, and
+    # that is all the room a model gets: a pack melting down while `snm` reads
+    # zero would otherwise empty the sum, as a zero `csnow` would.
+    lost_as_vapour = "sbl" if "sbl" in w.table.columns else "evspsbl"
+    vapour = (w.volume(np.maximum(w.table[lost_as_vapour].to_numpy(dtype=float), 0.0))
+              if lost_as_vapour in w.table.columns else np.zeros(len(w.table)))
+    for label, start, stop in scored:
+        before = np.concatenate([[snw[start - 1] if start > 0 else float(w.state0[pack])],
+                                 snw[start:stop - 1]])
+        unreported = (before - snw[start:stop]) - (q[start:stop] + vapour[start:stop])
+        if not (unreported <= loss_tol).all():   # NaN fails too
+            worst_step = int(np.argmax(np.where(np.isfinite(unreported), unreported, np.inf)))
+            return _fail(
+                f"the pack loses {unreported[worst_step]:.3f} mm more than its reported "
+                f"'{outflow}' and '{lost_as_vapour}' in one step of the '{label}' block: "
+                "water that leaves the snow module unreported is never counted, so the "
+                "sum would be emptied rather than passed",
+                outcome="unreported_outflow", block=label, step=start + worst_step,
+                unreported_mm=float(unreported[worst_step]),
+            )
 
     worst = max(blocks, key=lambda b: b["share_of_peak_pack"])
     ok = worst["share_of_peak_pack"] <= threshold

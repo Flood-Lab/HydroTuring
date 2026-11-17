@@ -131,7 +131,20 @@ snowpacks in general.
   brought down from a canopy is snow that fell, so it cannot trip the check.
   What it leaves open is the pack's own losses before the block: a spike can
   hide inside what sublimated or drained before the block opened, which is
-  ground melt alone for Snow-17 and nothing for the references.
+  ground melt alone for Snow-17 and nothing for the references. A model that
+  starts with a pack of its own, rather than from what this case's snowfall
+  builds, fails here as `pack_exceeds_precipitation`: from its outputs it
+  cannot be told apart from the offset, and the FAIL is not a leak.
+- **The pack loses only what it reports.** In the dry block a pack can lose
+  water only as outflow or sublimation, so no step may lose more than its
+  `snm` plus `sbl` (within `pack_loss_tolerance_mm`, 10^-3 mm). Without `sbl`,
+  `evspsbl` bounds what sublimated. Without this, `snm` set to zero while the
+  degree-day pack is cold, with `snw` left to melt down, passed on every seed,
+  and so did `snm` zeroed across the block. The honest packs lose exactly their
+  `snm` and `sbl`, to 3×10^-13 mm a step. Canopy unloading adds to the pack, so
+  it cannot trip the check. `sbl` is taken as reported, like `csnow`: a model
+  that reports its melt as sublimation is a misreport only an energy balance
+  could catch.
 - **The pack must open cold.** Its mean temperature on the row before the block,
   `-csnow / (c_ice * ice)` with `ice = snw - lwsnl`, must be at least 2 K below
   freezing. The air never rises above −12 °C before the block, and the honest packs

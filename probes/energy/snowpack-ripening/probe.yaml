@@ -152,6 +152,12 @@ criteria:
       # on the gate seeds. Snow carried down from the canopy, or redistributed
       # inside the pack, is still snow that fell, so neither can trip it.
       pack_excess_tolerance_mm: 1.0e-3
+      # The pack loses only what it reports. In the dry block a pack loses water
+      # as outflow or sublimation, so no step may lose more than its snm plus
+      # sbl (evspsbl where sbl is absent), within this many mm. snm zeroed while
+      # the degree-day pack is cold, with snw left alone, passed on every seed
+      # without it. The honest packs lose exactly snm + sbl, to 3e-13 mm a step.
+      pack_loss_tolerance_mm: 1.0e-3
 
 baselines:
   # The energy-balance pack pays its cold content before it melts, and drains
