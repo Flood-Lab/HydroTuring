@@ -100,7 +100,7 @@ declares PT1D only, the step in the proposal.
 
 Gate seeds, Docker on Apple Silicon at `3e86a79`, 2026-11-01, version `5944b5f-epoch3.4`: **FAIL (VIOLATION), 15 of 20 scored**, 17 N/A
 (15 INCOMPLETE; 2 INCOMPATIBLE: `routing-lag-consistency` needs catchment attributes the model does not read, and
-`exchange-response` needs `gwh`, not declared because the relaxation reads the store rather than a head).
+`exchange-response` needs `gwh`, not declared because the relaxation reads the store rather than a head). On 2026-11-17 version 3 of `mass/resolution-invariance`, with the weather held flat within the day, passed, making it 16 of 20.
 The INCOMPLETE rows ask for output this model does not have: heat fluxes and radiation (six energy probes), river-aquifer exchange, `snm`, `channel`, `stage` and `dis`.
 
 `closure` passes on all eight probes that score it, `gwex` counted as a source, worst residual 8.7e-7 of the rain,
@@ -124,7 +124,7 @@ On seven probes the store passes the case's capacity. That upper bound is N/A fo
 | mass/multi-decadal-drift | PASS | `mrso` 585-627 mm, capacity bound N/A; no drift |
 | mass/phase-counterfactual | PASS | trivially: the model reads no temperature |
 | mass/precipitation-counterfactual | PASS | partitioned once `gwex` counts as a source; returns 0.77 of the 3268 mm added at the top |
-| mass/resolution-invariance | **FAIL** | `mrso_end` 15.4% of rain: the stores end the month apart, from the 10-day spin-up alone |
+| mass/resolution-invariance | PASS | probe version 3: worst `mrso_end` 0.7% of rain. Version 2, storms in bursts: `mrso_end` 15.4%, the stores ending the month apart from the 10-day spin-up alone |
 | mass/response-nonnegativity | PASS | no dip |
 | mass/runoff-bounds | PASS | runoff 0.37 of rain, declared exchange +0.06 of rain |
 | mass/spinup-cycle-invariance | PASS | `mrso` 322-665 mm, capacity bound N/A; the invariance passes |
