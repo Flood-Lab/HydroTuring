@@ -3,9 +3,10 @@
 A resolution transform is the same weather at two or more steps. These
 check that a probe can declare a step per variant, that each model is run
 at its own step and the next finer one whatever its manifest claims, that
-record length and window are counted in time rather than rows, and that the
+record length and window are counted in time rather than rows, that the
 reference bucket is the same model at every step while the fixed-step one
-is not, by a measured amount.
+is not, by a measured amount, and that a model whose runoff depends on rain
+intensity is not failed for that physics.
 """
 
 from __future__ import annotations
@@ -13,17 +14,21 @@ from __future__ import annotations
 from dataclasses import replace
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from hydroturing import registry
+from hydroturing.criteria import get
 from hydroturing.harness import (
     build_case,
     compatibility_issues,
+    load_generator,
     run_probe,
     select_variants,
     select_window,
     window_case,
 )
+from hydroturing.protocol import Case, RunResult
 from hydroturing.scoring import FAIL, INCOMPATIBLE, PASS
 from hydroturing.seeds import gate_seeds
 from hydroturing.spec import TIMESTEP_DAYS, SpecError, load_model
@@ -48,25 +53,81 @@ def test_probe_declares_a_step_per_variant(probe):
     assert probe.spinup_steps_for("hourly") == 10 * 24
 
 
-def test_variants_carry_the_same_water(probe):
-    """Draw once, then aggregate: every hour holds exactly its sixty minutes
-    and every day its twenty-four hours."""
+def test_variants_carry_the_same_water_at_the_same_intensity(probe):
+    """One daily record held flat: every hour and every minute of a day
+    carries the day's rates, so the steps differ in the length of the row
+    and in nothing else."""
     fine = build_case(probe, 7, "minute")
     hourly = build_case(probe, 7, "hourly")
     daily = build_case(probe, 7, "daily")
     assert (fine.timestep, hourly.timestep, daily.timestep) == ("PT1M", "PT1H", "PT1D")
     assert fine.n_steps == 60 * hourly.n_steps == 1440 * daily.n_steps
 
-    np.testing.assert_allclose(
-        fine.forcing["pr"].to_numpy().reshape(-1, 60).mean(axis=1),
-        hourly.forcing["pr"].to_numpy(), atol=2e-6,
-    )
-    np.testing.assert_allclose(
-        hourly.forcing["pr"].to_numpy().reshape(-1, 24).mean(axis=1),
-        daily.forcing["pr"].to_numpy(), atol=2e-6,
-    )
-    # And the storms have structure inside the hour, or there is nothing to test.
-    assert fine.forcing["pr"].max() > 2 * hourly.forcing["pr"].max()
+    for name in ("pr", "tas", "pet"):
+        day = daily.forcing[name].to_numpy()
+        np.testing.assert_array_equal(hourly.forcing[name].to_numpy(), np.repeat(day, 24))
+        np.testing.assert_array_equal(fine.forcing[name].to_numpy(), np.repeat(day, 1440))
+    # Rain falls on some days and not on others, or there is nothing to test.
+    assert (daily.forcing["pr"] > 0).sum() >= 5 and (daily.forcing["pr"] == 0).sum() >= 5
+
+
+def _horton(case: Case, capacity_mm_per_hour: float = 2.0) -> RunResult:
+    """A step-aware bucket whose surface runoff is infiltration excess: rain
+    arriving faster than the soil takes it runs off at once, and the rest
+    fills a 120 mm store that spills when full and drains slowly."""
+    dt = case.dt_days
+    pr = case.forcing["pr"].to_numpy(dtype=float)
+    pet = case.forcing["pet"].to_numpy(dtype=float)
+    capacity = capacity_mm_per_hour * 24.0
+    store, store_max, recession = 60.0, 120.0, 0.006
+    runoff = np.empty(len(pr))
+    for i, (rain, demand) in enumerate(zip(pr, pet)):
+        infiltration = min(rain, capacity) * dt
+        surface = rain * dt - infiltration
+        store += infiltration
+        spill = max(0.0, store - store_max)
+        store -= spill
+        store -= min(store, demand * dt * store / store_max)
+        drain = (1.0 - (1.0 - recession) ** dt) * store
+        store -= drain
+        runoff[i] = (surface + spill + drain) / dt
+    table = pd.DataFrame({"time": case.forcing["time"], "pr": pr, "mrro": runoff})
+    return RunResult(case=case, table=table, meta={}, wall_seconds=0.0)
+
+
+def _as_drawn(probe, case: Case) -> Case:
+    """The case with version 2's weather: the minutes as drawn, storms in
+    five-minute bursts, averaged over the case's rows."""
+    pr, tas, pet = load_generator(probe)._draw_minutes(np.random.default_rng(case.seed))
+    per_row = round(case.dt_days * 1440)
+    forcing = case.forcing.copy()
+    for name, values in (("pr", pr), ("tas", tas), ("pet", pet)):
+        forcing[name] = values.reshape(-1, per_row).mean(axis=1)
+    return replace(case, forcing=forcing)
+
+
+@pytest.mark.parametrize("seed", [1, 3, 11])
+def test_infiltration_excess_is_not_failed_for_its_physics(probe, seed):
+    """Averaging rain lowers its intensity, and infiltration excess depends
+    on intensity, so a correct Horton model partitions the same water
+    differently at each step when the storms keep their structure. Version
+    2 served them that way and failed such a model for its physics: on
+    these seeds a daily Horton bucket with a 2 mm/h capacity moves 21 to 35
+    percent of the rain between hours and days. Held flat, the intensity is
+    the same at every step and the model agrees with itself to about a
+    percent, the discretisation of its own daily step. Over 200 seeds the
+    version 2 weather failed it on 87 and this version on none."""
+    criterion = get("resolution_invariance")
+    params = dict(next(c.params for c in probe.criteria if c.name == "resolution_invariance"))
+    cases = {v: build_case(probe, seed, v) for v in ("daily", "hourly")}
+
+    held = criterion({v: _horton(c) for v, c in cases.items()}, probe, params)
+    assert held.passed, held.message
+    assert held.value < 0.02
+
+    drawn = criterion({v: _horton(_as_drawn(probe, c)) for v, c in cases.items()}, probe, params)
+    assert not drawn.passed
+    assert drawn.value > 0.2
 
 
 def test_each_model_is_run_at_its_own_step_and_the_next_finer(probe):
@@ -120,8 +181,8 @@ def test_reference_bucket_is_the_same_model_at_every_step(probe):
     assert outcome.verdict == PASS, outcome.failing
     invariance = next(c for c in outcome.criteria if c.name == "resolution_invariance")
     # A lumped model integrated at a daily step differs from itself at an
-    # hourly step by the discretisation of its own equations, about two
-    # percent of the rain here. That is the floor the 5 percent rule sits on.
+    # hourly step by the discretisation of its own equations, about one
+    # percent of the rain here. That is the floor the 10 percent limit sits on.
     assert invariance.value < 0.03
     # The bucket lives at a daily step, so it is compared daily against hourly.
     assert invariance.diagnostics["steps"] == ["PT1H", "PT1D"]

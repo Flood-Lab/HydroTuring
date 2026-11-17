@@ -143,14 +143,21 @@ def resolution_invariance(
 ) -> CriterionResult:
     """Integrated volumes must not depend on the step the weather was given at.
 
-    The same weather at two or more steps, the coarser ones aggregated from
-    the finest so that every hour or day carries exactly the water of its
-    minutes. Water is conserved under that aggregation, so over the same
-    stretch of time the runoff volume, the evapotranspiration volume where
-    the model reports it, and the storage it ends with must agree between
-    the runs, to within a share of the precipitation that fell. The number
-    reported is that share: how much the model's answer moved because the
-    step moved, in percent of the rain.
+    The same weather at two or more steps, carrying the same water: every
+    coarse row holds exactly the water of the fine rows it spans. Over the
+    same stretch of time the runoff volume, the evapotranspiration volume
+    where the model reports it, and the storage it ends with must then
+    agree between the runs, to within a share of the precipitation that
+    fell. The number reported is that share: how much the model's answer
+    moved because the step moved, in percent of the rain.
+
+    Conservation alone does not make the volumes agree. It fixes the total
+    at every step, not how a model splits it between runoff, evaporation
+    and storage, and a split that depends on rain intensity, infiltration
+    excess above all, legitimately changes when averaging lowers the
+    intensity. A probe using this criterion should therefore serve the same
+    intensity at every step, holding the coarse rows flat over the fine
+    ones, so that what moves the volumes is the step and not the physics.
 
     What is not asserted matters as much. Peaks, stages, velocity heads and
     momentum fluxes are nonlinear in the flow and legitimately change with

@@ -300,8 +300,13 @@ coarser one) and at the next finer variant; the finest pairs with the next
 coarser. The variant at the model's step is the control for single-run
 criteria. Without it, every variant runs, control first.
 
-Aggregate, do not redraw: a coarse variant must carry exactly the water of
-the fine one, and `resolution_invariance` refuses a pair that does not. The
+Hold flat, do not redraw: a coarse variant must carry exactly the water of
+the fine one, and `resolution_invariance` refuses a pair that does not. Serve
+the fine variants as the coarse rows held flat rather than the coarse ones
+as the fine rows averaged. Averaging lowers the intensity, and a model whose
+runoff depends on intensity, infiltration excess above all, then legitimately
+partitions the same water differently at each step; holding the rows flat
+keeps the intensity, so only the step can move the volumes. The
 manifest's list of steps is not a gate on such a probe. How the model copes
 with the other step is what the probe measures, and it reports the answer
 as a share of the precipitation. See `probes/mass/resolution-invariance`.
