@@ -223,3 +223,10 @@ dictionary it saw in `.6`. Run from the `.6` image with only the new
 byte-identical output.
 
 `0.5.4-hbv2ep100.7` pins the new `config.yaml` and keeps the other two pins.
+The rebuilt image also picked up newer releases of a few dependencies outside the
+model stack; torch, numpy, pandas, dmg and hydrodl2 are the versions `.6` ran.
+Every verdict and every detail line matches `.6`, and the eleven cases above
+give byte-identical output from the `.7` image as well.
+
+Archived on the gate seeds under Docker on Apple Silicon at `6119244`: **FAIL
+(VIOLATION), 15 PASS, 6 FAIL, 19 N/A**.
