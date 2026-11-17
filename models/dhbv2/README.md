@@ -193,6 +193,9 @@ days and was computed per row, so an hourly and a daily run of the same weather
 handed the parameter network different attributes. Daily rows are unchanged. On
 `mass/resolution-invariance` the worst reading moved from `mrso_end` at 41.9 % of
 the rain to `mrro` at 12.1 %, still over the 10 % limit, so the verdict stands.
+Version 3 of the probe holds each day's weather flat over the hours, and `.6`
+passes it at 8.1 % of the rain, from the existing image: the weights URL now
+serves a `config.yaml` whose hash no longer matches the pin.
 
 ## Version `.6`
 

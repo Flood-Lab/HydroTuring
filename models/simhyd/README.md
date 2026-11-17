@@ -100,7 +100,7 @@ whole record.
 | `mass/human-abstraction` | **FAIL** | `human_abstraction`: all 380 mm unaccounted for. `state_bounds`: canopy 2.15 over 2 mm on 47 steps |
 | `mass/multi-decadal-drift` | **FAIL** | `et_plausible`: 1.63 of potential |
 | `mass/precipitation-counterfactual` | **FAIL** | `state_bounds`: canopy 2.11 over 2 mm on 52 steps |
-| `mass/resolution-invariance` | **FAIL** | 20.3% of rain between PT1H and PT1D, limit 10% |
+| `mass/resolution-invariance` | PASS | probe version 3: worst `evspsbl` 3.0% of rain. Version 2, storms in bursts: 20.3%, limit 10% |
 | `mass/response-nonnegativity` | **FAIL** | 0.134 mm/day below the control |
 | `mass/ungauged-basin-closure` | **FAIL** | `state_bounds`: canopy 0.704 over 0.651 mm on 2 steps. `et_plausible`: 1.45 of potential |
 
@@ -180,6 +180,8 @@ three seeds, and the whole 380 mm is the residual. AGENTS.md says a model that n
 fails this way, and it does.
 
 ### `mass/resolution-invariance`: runoff depends on the step
+
+Version 3 of the probe (2026-11-17) holds each day's weather flat over the finer rows, so the intensity is the same at every step, and SIMHYD passes it at 3.0% of the rain. This section is about version 2, whose storms came in bursts at the hour.
 
 `mrro` moves by 20.3, 16.8 and 11.2% of the rain between PT1H and PT1D, against a limit of 10%.
 Rain delivered in a shorter step arrives at a higher rate, and infiltration is capped by a rate:

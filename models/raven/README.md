@@ -238,7 +238,7 @@ Gate-seed worst values. Verified means a targeted run or the source; inferred is
 | `mass/extreme-rain` | FAIL | ratio 0.0103; the monotone response holds, 1.00 of 997 mm returned | gate, the two sinks. Verified |
 | `mass/human-abstraction` | FAIL | all 380 mm missed | the column is not read; no withdrawal process. Verified |
 | `mass/multi-decadal-drift` | FAIL | ET 1.584 of PET; closure, drift and bounds hold | lake evaporation at 56% of PET on seed 1349990263. Verified: 1.003 without it, the excess being canopy evaporation |
-| `mass/resolution-invariance` | FAIL | `evspsbl` moves 10.3% of the rain, PT1H against PT1D; limit 10% | below. Verified |
+| `mass/resolution-invariance` | PASS | probe version 3: worst `mrro` 7.5% of the rain, PT1H against PT1D. Version 2, storms in bursts: `evspsbl` 10.3%, limit 10% | below, for version 2. Verified |
 | `mass/response-nonnegativity` | FAIL | ratio 0.0044; the assertion holds | gate, the two sinks. Verified |
 | `mass/runoff-bounds` | FAIL | r 0.039 between runoff and 7-day rain; bounds hold | runoff is rare and leaves through a slow reservoir at 0.063/d. Inferred: r stays low without the lake (0.032) and rises at 203 mm (0.124) |
 | `mass/spinup-cycle-invariance` | FAIL | ratio 0.0077 against 0.01; the invariance holds | gate, the two sinks. Verified |
@@ -258,6 +258,8 @@ the groundwater-exchange probes, `mass/exchange-response` and the stage-based mo
 because the variables are not computed.
 
 ### Resolution
+
+Version 3 of the probe (2026-11-17) holds each day's weather flat over the finer rows, so the intensity is the same at every step; Raven passes it at 7.5% of the rain. What follows is version 2, whose storms came in bursts at the hour.
 
 On seed 1760592044, whole case, in mm of the 368 mm of rain:
 
