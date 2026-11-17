@@ -123,7 +123,7 @@ using PrecompileTools: @compile_workload, @setup_workload
 using TOML: TOML
 using Wflow: Wflow
 
-const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.5")
+const MODEL = Dict{String, Any}("name" => "wflow_sbm", "version" => "1.0.4-ht.6")
 const WFLOW = Dict{String, Any}(
     "package" => "Wflow.jl", "version" => "1.0.4",
     "commit" => "82df72031511339d50fd9142fa159d0ec13e73c5", "model_type" => "sbm",
@@ -232,6 +232,8 @@ struct Forcing
     tas::Vector{Float64}
     pet::Vector{Float64}
     q_in::Union{Nothing, Vector{Float64}}   # optional prescribed river inflow, m3/s
+    q_in_A::Union{Nothing, Vector{Float64}}
+    q_in_B::Union{Nothing, Vector{Float64}}
     abstr::Union{Nothing, Vector{Float64}}  # prescribed net withdrawal, mm/day, when the case gives one
 end
 
@@ -239,6 +241,9 @@ function read_forcing(path::AbstractString)
     lines = filter(line -> !isempty(strip(line)), readlines(path))
     header = [strip(h) for h in split(lines[1], ',')]
     col = Dict(h => i for (i, h) in enumerate(header))
+    if haskey(col, "q_in_A") != haskey(col, "q_in_B")
+        error("routing network requires both q_in_A and q_in_B")
+    end
     for name in ("time", "pr", "tas", "pet")
         haskey(col, name) || error("forcing.csv has no '$name' column")
     end
@@ -249,6 +254,8 @@ function read_forcing(path::AbstractString)
         [String(strip(r[col["pr"]])) for r in rows],
         number("pr"), number("tas"), number("pet"),
         haskey(col, "q_in") ? number("q_in") : nothing,
+        haskey(col, "q_in_A") ? number("q_in_A") : nothing,
+        haskey(col, "q_in_B") ? number("q_in_B") : nothing,
         haskey(col, "abstr") ? number("abstr") : nothing,
     )
 end
@@ -411,6 +418,14 @@ function two_route_cells(upstream::Real, downstream::Real = upstream)
     return grid
 end
 
+function three_route_cells(a::Real, b::Real, c::Real)
+    grid = Array{Union{Missing, Float64}}(missing, 2, 2)
+    grid[1, 1] = Float64(a)  # reach A
+    grid[2, 2] = Float64(b)  # reach B
+    grid[2, 1] = Float64(c)  # reach C
+    return grid
+end
+
 """
 Write a minimal two-cell river chain for a routing-only q_in experiment.
 
@@ -451,6 +466,36 @@ function write_routing_static_maps(path::AbstractString, cell::Float64, maps::Ab
     return path
 end
 
+function write_network_static_maps(path::AbstractString, cell::Float64, maps::AbstractDict)
+    x, y = coordinates(cell)
+    NCDataset(path, "c") do ds
+        defDim(ds, "x", 2)
+        defDim(ds, "y", 2)
+        defDim(ds, "layer", 4)
+        defVar(ds, "x", x, ("x",))
+        defVar(ds, "y", y, ("y",))
+        defVar(ds, "layer", [1.0, 2.0, 3.0, 4.0], ("layer",))
+        defVar(ds, "wflow_river", three_route_cells(1.0, 1.0, 1.0), ("x", "y"))
+
+        for (name, value) in maps
+            name == "c" && continue
+            grid = if name == "wflow_ldd"
+                three_route_cells(6.0, 8.0, 5.0)
+            else
+                three_route_cells(value, value, value)
+            end
+            defVar(ds, name, grid, ("x", "y"); fillvalue = FILL)
+        end
+
+        cc = Array{Union{Missing, Float64}}(missing, 2, 2, 4)
+        cc[1, 1, :] = maps["c"]
+        cc[2, 2, :] = maps["c"]
+        cc[2, 1, :] = maps["c"]
+        defVar(ds, "c", cc, ("x", "y", "layer"); fillvalue = FILL)
+    end
+    return path
+end
+
 function write_routing_forcing(path::AbstractString, cell::Float64,
                                stamps::Vector{DateTime},
                                series::Vector{Pair{String, Vector{Float64}}},
@@ -473,6 +518,38 @@ function write_routing_forcing(path::AbstractString, cell::Float64,
         end
         inflow = zeros(2, 2, n)
         inflow[1, 1, :] = q_in
+        defVar(ds, "river_inflow", inflow, ("x", "y", "time"); fillvalue = FILL)
+    end
+    return path
+end
+
+function write_network_forcing(path::AbstractString, cell::Float64,
+                               stamps::Vector{DateTime},
+                               series::Vector{Pair{String, Vector{Float64}}},
+                               q_in_A::Vector{Float64},
+                               q_in_B::Vector{Float64})
+    x, y = coordinates(cell)
+    n = length(stamps)
+    NCDataset(path, "c") do ds
+        defDim(ds, "x", 2)
+        defDim(ds, "y", 2)
+        defDim(ds, "time", n)
+        defVar(ds, "x", x, ("x",))
+        defVar(ds, "y", y, ("y",))
+        defVar(ds, "time", stamps, ("time",);
+            attrib = ["units" => TIME_UNITS, "calendar" => "standard"])
+
+        for (name, values) in series
+            grid = Array{Union{Missing, Float64}}(missing, 2, 2, n)
+            grid[1, 1, :] = values
+            grid[2, 2, :] = values
+            grid[2, 1, :] = values
+            defVar(ds, name, grid, ("x", "y", "time"); fillvalue = FILL)
+        end
+
+        inflow = zeros(2, 2, n)
+        inflow[1, 1, :] = q_in_A
+        inflow[2, 2, :] = q_in_B
         defVar(ds, "river_inflow", inflow, ("x", "y", "time"); fillvalue = FILL)
     end
     return path
@@ -724,7 +801,8 @@ Run one case. `overrides` exists for the sensitivity tables in README.md and is 
 the contract path (see `apply_overrides!`).
 """
 function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractString,
-                  workdir::AbstractString; overrides::AbstractDict = Dict{String, Any}())
+                  workdir::AbstractString; overrides::AbstractDict = Dict{String, Any}(),
+                  routing_capture::Union{Nothing, AbstractDict} = nothing)
     dt = STEP_SECONDS[timestep]
     dt_days = dt / 86400
     n = length(forcing.time)
@@ -732,6 +810,36 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
     cell, capacity, maps = catchment(static)
     cell = apply_overrides!(maps, cell, static, capacity, overrides)
     routing_only = forcing.q_in !== nothing
+    network_routing = forcing.q_in_A !== nothing && forcing.q_in_B !== nothing
+    if routing_only && network_routing
+        error("provide either q_in or both q_in_A and q_in_B, not both")
+    end
+
+    if network_routing
+        haskey(static, "routing_network") || error("routing network is missing from static.json")
+        reaches = static["routing_network"]["reaches"]
+        Set(reaches) == Set(["A", "B", "C"]) ||
+            error("Wflow routing network requires reaches A, B, and C")
+        network = static["routing_network"]
+        junctions = get(network, "junctions", nothing)
+        if !(junctions isa AbstractVector) || length(junctions) != 1
+            error("Wflow routing network requires one junction")
+        end
+
+        junction = junctions[1]
+        if !(junction isa AbstractDict)
+            error("Wflow routing network junction must be an object")
+        end
+
+        upstream = get(junction, "upstream", nothing)
+        if !(upstream isa AbstractVector) ||
+           length(upstream) != 2 ||
+           Set(upstream) != Set(["A", "B"]) ||
+           get(junction, "downstream", nothing) != "C" ||
+           get(network, "outlet", nothing) != "C"
+            error("Wflow routing network requires A and B to drain into outlet C")
+        end
+    end
 
     # These are declared as uses_static, so consume them whenever the case
     # supplies them, not only on the q_in path.  This keeps the manifest an
@@ -779,7 +887,25 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
     # a supply, not a withdrawal, and is not passed on (run.json counts such steps).
     prescribed_mm = withdrawal ? max.(forcing.abstr, 0.0) .* dt_days : zeros(n)
     withdrawal && push!(series, "abstr" => prescribed_mm)
-    if routing_only
+    if network_routing
+        if any(x -> x != 0.0, forcing.pr) || any(x -> x != 0.0, forcing.pet)
+            error("routing network path requires pr == 0 and pet == 0")
+        end
+        maps["KsatHorFrac"] = 0.0
+        write_network_static_maps(
+            joinpath(workdir, "staticmaps.nc"),
+            cell,
+            maps,
+        )
+        write_network_forcing(
+            joinpath(workdir, "forcing.nc"),
+            cell,
+            stamps,
+            series,
+            forcing.q_in_A,
+            forcing.q_in_B,
+        )
+    elseif routing_only
         write_routing_static_maps(
             joinpath(workdir, "staticmaps.nc"),
             cell,
@@ -803,12 +929,28 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         stamps[end],
         dt;
         withdrawal,
-        external_river_inflow = routing_only,
+        external_river_inflow = routing_only || network_routing,
     )
 
     config = Wflow.Config(toml)
     model = Wflow.Model(config)
     Wflow.load_fixed_forcing!(model)
+
+    # The routing-network case has no lateral subsurface flow.
+    # Start its saturated store dry and synchronize Wflow's related states.
+    if network_routing
+        soil_model = model.land.soil
+        soil_model.variables.satwaterdepth .= 0.0
+        Wflow.update_diagnostic_vars!(soil_model)
+
+        subsurface = model.routing.subsurface_flow
+        subsurface.variables.zi .= 0.001 .* soil_model.variables.zi
+        @. subsurface.variables.storage =
+            (subsurface.parameters.theta_s - subsurface.parameters.theta_r) *
+            (subsurface.parameters.soilthickness - subsurface.variables.zi) *
+            model.domain.land.parameters.area
+    end
+
     options = jsonable(Wflow.to_dict(config.model))
 
     soil = model.land.soil.variables
@@ -817,12 +959,28 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
     overland = model.routing.overland_flow.variables
     river = model.routing.river_flow.variables
     river_bc = model.routing.river_flow.boundary_conditions
+    network_indices = Dict{String, Int}()
+    if network_routing
+        river_indices = model.domain.river.network.indices
+        for (reach, position) in (
+            ("A", CartesianIndex(1, 2)),
+            ("B", CartesianIndex(2, 1)),
+            ("C", CartesianIndex(2, 2)),
+        )
+            index = findfirst(==(position), river_indices)
+            isnothing(index) && error("Wflow river grid is missing reach $reach; expected $position, got $(repr(river_indices))")
+            network_indices[reach] = index
+        end
+    end
     lateral = model.routing.subsurface_flow.variables
     balance = model.mass_balance
     land = model.domain.land.parameters
     area = land.area[1]
     mm(volume_m3) = volume_m3 / area * 1000.0
-    sink = routing_only ? model.domain.river.network.order[end] : 1
+    sink = (routing_only || network_routing) ? model.domain.river.network.order[end] : 1
+    if network_routing && sink != network_indices["C"]
+        error("Wflow routing network outlet is not reach C")
+    end
     catchment_mm(volume_m3) = volume_m3 / (area_km2 * 1.0e6) * 1000.0
 
     allocation = withdrawal ? model.land.allocation.variables : nothing
@@ -832,7 +990,7 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
 
     columns = zeros(n, 8)  # evspsbl mrro dis gwex mrso snw canopy channel
     stored(i) = columns[i, 5] + columns[i, 6] + columns[i, 7] + columns[i, 8]
-    initial = if routing_only
+    initial = if routing_only || network_routing
         catchment_mm(sum(overland.storage) + sum(river.storage))
     else
         soil.ustoredepth[1] + soil.satwaterdepth[1] + snow.snow_storage[1] + snow.snow_water[1] +
@@ -842,13 +1000,44 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
     wflow_errors = zeros(4)
     river_error_mm = 0.0  # signed: Wflow's river balance error summed over the record, as a depth
     min_river_inflow = Inf
+    max_network_lateral_inflow = 0.0
+    network_qin_upstream = zeros(n, 3)
+    network_external_inflow = zeros(n, 3)
+    network_lateral_inflow = zeros(n, 3)
+    network_q_out = zeros(n, 3)
+    network_storage = zeros(n, 3)
+    network_subsurface_inflow = zeros(n, 3)
+    network_overland_inflow = zeros(n, 3)
 
     for i in 1:n
         Wflow.run_timestep!(model; write_model_output = false)
-        outflow = routing_only ?
+        if network_routing
+            subsurface_to_river = Wflow.get_flux_to_river(
+                model.routing.subsurface_flow,
+                model.domain.river.network.land_indices,
+            )
+            for (j, reach) in enumerate(("A", "B", "C"))
+                index = network_indices[reach]
+                land_index = model.domain.river.network.land_indices[index]
+                network_subsurface_inflow[i, j] = subsurface_to_river[index]
+                network_overland_inflow[i, j] = overland.to_river[land_index]
+                network_qin_upstream[i, j] = river.qin_av[index]
+                network_external_inflow[i, j] = river_bc.external_inflow[index]
+                network_lateral_inflow[i, j] = river_bc.inwater[index]
+                network_q_out[i, j] = river.q_av[index]
+                network_storage[i, j] = river.storage[index]
+            end
+        end
+        if network_routing
+            max_network_lateral_inflow = max(
+                max_network_lateral_inflow,
+                maximum(abs, river_bc.inwater),
+            )
+        end
+        outflow = (routing_only || network_routing) ?
             river.q_av[sink] :
             river.q_av[1] + overland.q_av[1] + lateral.ssf[1] / 86400.0
-        leakage = routing_only ? 0.0 : soil.actleakage[1]
+        leakage = (routing_only || network_routing) ? 0.0 : soil.actleakage[1]
         if withdrawal
             # What Wflow's allocation took this step, from the river and then the saturated store.
             removed_sw[i] = mm(river_allocation.act_surfacewater_abst_vol[1])
@@ -857,7 +1046,7 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
             returned[i] = domestic.returnflow[1]
         end
         removed = removed_sw[i] + removed_gw[i]
-        if routing_only
+        if routing_only || network_routing
             columns[i, 1] = 0.0
             columns[i, 2] = outflow * 86.4 / area_km2
             columns[i, 3] = outflow
@@ -878,9 +1067,13 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         end
 
         before = i == 1 ? initial : stored(i - 1)
-        drive_mm = routing_only ?
-            forcing.q_in[i] * dt * 1000.0 / (area_km2 * 1.0e6) :
+        drive_mm = if network_routing
+            (forcing.q_in_A[i] + forcing.q_in_B[i]) * dt * 1000.0 / (area_km2 * 1.0e6)
+        elseif routing_only
+            forcing.q_in[i] * dt * 1000.0 / (area_km2 * 1.0e6)
+        else
             forcing.pr[i] * dt_days
+        end
         residual = drive_mm - leakage - removed - columns[i, 1] * dt_days -
             columns[i, 2] * dt_days - (stored(i) - before)
         worst_residual = max(worst_residual, abs(residual))
@@ -991,6 +1184,27 @@ function simulate(forcing::Forcing, static::AbstractDict, timestep::AbstractStri
         ),
     )
     isempty(overrides) || (notes["overrides"] = Dict{String, Any}(String(k) => v for (k, v) in overrides))
+    if network_routing
+        notes["max_network_lateral_inflow_m3_s"] = max_network_lateral_inflow
+        notes["diagnostic_subsurface_inflow_m3_s"] = [
+            collect(network_subsurface_inflow[i, :]) for i in 1:n
+        ]
+        notes["diagnostic_overland_inflow_m3_s"] = [
+            collect(network_overland_inflow[i, :]) for i in 1:n
+        ]
+    end
+    if network_routing && get(ENV, "WFLOW_ROUTING_DIAGNOSTICS", "") == "1"
+        notes["diagnostic_lateral_inflow_m3_s"] = [
+            collect(network_lateral_inflow[i, :]) for i in 1:n
+        ]
+    end
+    if network_routing && routing_capture !== nothing
+        routing_capture["qin_upstream"] = network_qin_upstream
+        routing_capture["external_inflow"] = network_external_inflow
+        routing_capture["lateral_inflow"] = network_lateral_inflow
+        routing_capture["q_out"] = network_q_out
+        routing_capture["storage"] = network_storage
+    end
     return columns, notes
 end
 
@@ -1015,9 +1229,10 @@ function main(args::Vector{String})
     # The schematisation Wflow reads (static maps, forcing, TOML) goes to a scratch directory
     # on /tmp and is removed afterwards.
     workdir = mktempdir()
+    routing_capture = Dict{String, Any}()
     columns, notes = try
         with_logger(ConsoleLogger(stderr, Logging.Warn)) do
-            simulate(forcing, static, timestep, workdir)
+            simulate(forcing, static, timestep, workdir; routing_capture = routing_capture)
         end
     finally
         rm(workdir; recursive = true, force = true)
@@ -1033,6 +1248,37 @@ function main(args::Vector{String})
                 print(io, ",", columns[i, j])
             end
             println(io)
+        end
+    end
+
+    requested_routing = get(get(request, "request", Dict{String, Any}()), "routing", [])
+    if !isempty(requested_routing)
+        isempty(routing_capture) && error("routing output requested without a routing network")
+
+        qin_upstream = routing_capture["qin_upstream"]
+        external_inflow = routing_capture["external_inflow"]
+        lateral_inflow = routing_capture["lateral_inflow"]
+        q_out = routing_capture["q_out"]
+        storage = routing_capture["storage"]
+
+        routing_path = joinpath(io_dir, request["output"]["routing"])
+        mkpath(dirname(routing_path))
+        open(routing_path, "w") do io
+            println(io, "time,reach_id,reach_q_in,q_out,channel_storage")
+            for i in eachindex(forcing.time)
+                for (j, reach) in enumerate(("A", "B", "C"))
+                    total_inflow = qin_upstream[i, j] +
+                        external_inflow[i, j] +
+                        lateral_inflow[i, j]
+                    println(io, join((
+                        forcing.time[i],
+                        reach,
+                        total_inflow,
+                        q_out[i, j],
+                        storage[i, j],
+                    ), ","))
+                end
+            end
         end
     end
 
