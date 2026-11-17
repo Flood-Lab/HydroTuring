@@ -105,7 +105,7 @@ import numpy as np
 import torch
 import yaml
 
-MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100.6"}
+MODEL = {"name": "dhbv2", "version": "0.5.4-hbv2ep100.7"}
 COLUMNS = ["time", "pr", "evspsbl", "mrro", "dis", "gwex", "mrso", "snw", "canopy", "gw", "channel"]
 
 MODEL_DIR = Path(os.environ.get("DHBV_MODEL_DIR", "/model/dhbv_2"))
@@ -213,9 +213,13 @@ def load_model() -> tuple[dict, torch.nn.Module, dict, dict]:
     from dmg.core import Dates
 
     config = yaml.safe_load((MODEL_DIR / "config.yaml").read_text())
-    # The config.yaml republished on 2026-10-31 no longer sets this key, which
-    # dmg 1.4.3 reads unconditionally. One model has nothing to combine.
-    config.setdefault("multimodel_type", None)
+    # dmg 1.4.3 reads this key unconditionally. The config.yaml of 2026-10-31
+    # omits it and the one of 2026-11-09 sets it to `none`, which YAML reads
+    # as the string "none". dmg's own config validator maps both to None; the
+    # adapter builds the dictionary itself, so it does the same. One model has
+    # nothing to combine.
+    if str(config.get("multimodel_type") or "none").lower() == "none":
+        config["multimodel_type"] = None
     config["device"] = "cpu"
     config["model_dir"] = str(MODEL_DIR)
     sim = Dates(config["sim"], config["model"]["rho"])
