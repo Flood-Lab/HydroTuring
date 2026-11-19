@@ -141,10 +141,10 @@ hourly probe checks it.
 
 ## Evaluation
 
-Gate seeds, all 40 probes, under Docker on Apple Silicon at `95f99b4`, version `4.12-81011f0-alouette2.1`:
+Gate seeds, all 40 probes, under Docker on Apple Silicon at `8d27274`, version `4.12-81011f0-alouette2.1`:
 **18 PASS, 5 FAIL, 17 N/A** (INCOMPLETE or INCOMPATIBLE). There are no ERROR rows. The whole suite takes about
 five minutes. Closure holds everywhere it is measured, with a residual of 0.0000% of the rain. On every case, hourly ones
-included, the adapter's own budget closes to under 1e-7 mm and Raven's mass-balance error is under 1e-9 mm.
+included, the adapter's own budget closes to under 1e-9 mm, and so does Raven's own mass balance.
 
 ### Verdicts
 
@@ -158,12 +158,12 @@ Gate-seed worst values.
 | `mass/multi-decadal-drift` | FAIL | ET 1.593 of PET; closure, drift and bounds hold | lake evaporation, on a humid case with PET about 0.56 of the rain |
 | `mass/ungauged-basin-closure` | FAIL | ET 1.516 of PET on the worst seed | lake evaporation, on the seed whose PET is half the rain |
 | `mass/antecedent-monotonicity` | PASS | the wetter catchment runs off 6.8 mm more from the 60 mm storm | |
-| `mass/area-invariance` | PASS | worst departure 9.6e-14 | |
+| `mass/area-invariance` | PASS | worst departure 7.6e-13 | |
 | `mass/catchment-closure` | PASS | ET 0.888 of PET on the worst seed; runoff 0.21 to 0.26 of the rain | |
 | `mass/causality` | PASS | nothing moves before the storm, and +0.48 of the added rain after it | |
-| `mass/extreme-event-closure` | PASS | worst event residual 6.0e-11 mm | |
+| `mass/extreme-event-closure` | PASS | worst event residual 1.5e-12 mm | |
 | `mass/extreme-rain` | PASS | 0.95 of the 997 mm added at the top is returned | |
-| `mass/interception-response` | PASS | capacity 2 to 10 mm: evaporation +15.4 mm, runoff -17.3 mm | |
+| `mass/interception-response` | PASS | capacity 2 to 10 mm: evaporation +8.9 mm, runoff -9.1 mm on the reported seed | |
 | `mass/phase-counterfactual` | PASS | turning snow into rain moves the volumes by at most 0.6% of the rain | |
 | `mass/precipitation-counterfactual` | PASS | partitioned; 0.57 of the top rung returned | |
 | `mass/resolution-invariance` | PASS | `evspsbl` moves 3.66% of the rain, PT1H against PT1D | |
