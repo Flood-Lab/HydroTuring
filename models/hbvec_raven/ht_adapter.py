@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""HydroTuring adapter for Raven's HBV-EC emulation, standard library only.
+"""HydroTuring adapter for HBV-EC as emulated by Raven, standard library only.
 
 The physics is upstream's Raven executable at the pinned commit. The configuration
-is upstream's own: the five benchmarking/_InputFiles/Salmon_HBV/raven-hbv-salmon.rv*
-files are baked into the image unchanged, and every difference from them for a case
-is one entry in the edit lists below, each asserted to match exactly once.
+is Raven's own HBV-EC tutorial model, Alouette2 from RavenTutorialFiles.zip: its
+Alouette2.rvi, .rvp, .rvh and .rvc are baked into the image unchanged, and every
+difference from them for a case is one entry in the edit lists below, each asserted
+to match exactly once. The gauge file is written here, from the case's forcing.
 
 What Raven writes, not what this file derives, is what gets reported:
 
@@ -17,6 +18,14 @@ Raven's CSV outputs print six significant figures, so a 300 mm store is known to
 area to flip a last digit in a probe that asks for one part in a million. Its NetCDF
 outputs are doubles, and :WriteNetCDFFormat is the only output option changed for that.
 ncdump, which comes with the library, reads them back.
+
+Elevation: the tutorial's 21 non-glacier HRUs span seven elevation bands, 161 m to
+1500 m, and OROCORR_HBV corrects each HRU's temperature, precipitation and PET by its
+height above the gauge. All three corrections are linear in that height, so with the
+gauge at the HRUs' area-weighted mean elevation the catchment receives exactly the
+case's precipitation and PET, spread over the bands as the tutorial spreads them. The
+precipitation correction steepens above HBVEC_LAPSE_ELEV, which the tutorial leaves at
+Raven's 5000 m default; rvh_hrus asserts both that and that every HRU is below it.
 
 Step: Raven's rates are all in mm/d and its solver takes :TimeStep directly, so no
 parameter is rescaled here. Forcing is written at the case's own step, as rates.
@@ -35,20 +44,26 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-MODEL = {"name": "raven", "version": "4.12-81011f0.2"}
+MODEL = {"name": "hbvec_raven", "version": "4.12-81011f0-alouette2.1"}
 RAVEN = os.environ.get("RAVEN_EXE", "/model/Raven")
 TEMPLATE = Path(os.environ.get("RAVEN_TEMPLATE", "/model/template"))
-RUN = "raven-hbv-salmon"
+RUN = "Alouette2"
 NCDUMP = os.environ.get("NCDUMP", "ncdump")
 
 COLUMNS = ["time", "pr", "snm", "evspsbl", "mrro", "dis", "mrso", "snw", "canopy", "gw", "channel"]
 SECONDS_PER_DAY = 86400.0
 STEP_SECONDS = {"PT1D": 86400, "PT1H": 3600, "PT15M": 900, "PT5M": 300, "PT1M": 60}
 
-# Salmon River values the template carries and a case replaces only if it says so.
-TEMPLATE_THICKNESS_M = 2.036937
-TEMPLATE_POROSITY = 0.09985144
-TEMPLATE_LATITUDE = 54.4848
+# Alouette values the template carries and a case replaces only if it says so.
+TEMPLATE_THICKNESS_M = 1.0
+TEMPLATE_POROSITY = 0.2
+TEMPLATE_LATITUDE = 49.3
+# The tutorial's HRUs, and the two of them that are glacier.
+TEMPLATE_HRUS = 23
+GLACIER_HRUS = {"34", "35"}
+# Raven's default HBVEC_LAPSE_ELEV (GlobalParams.cpp:324), above which OROCORR_HBV's
+# precipitation correction is no longer linear in height.
+HBVEC_LAPSE_ELEV_M = 5000.0
 
 # WatershedStorage.nc variable -> reported store. Anything else it holds with water in
 # it stops the run, so a store can never be dropped silently.
@@ -66,8 +81,8 @@ STORES = {
     "Surface Water": "channel",
     "Ponded Water": "channel",
 }
-# Compartments the template declares that a standard HRU never fills. Checked to stay
-# zero rather than assumed to.
+# Compartments the template declares that no remaining HRU fills once the glacier
+# HRUs are gone. Checked to stay zero rather than assumed to.
 EMPTY = {"Glacier Liquid Storage", "Glacier Ice"}
 # Not stores: cumulative counters and bookkeeping.
 BOOKKEEPING = {"time", "rainfall", "snowfall", "total", "cum_input", "cum_outflow", "MB_error", "Cum. Losses to Atmosphere"}
@@ -79,63 +94,109 @@ def replace_once(text: str, old: str, new: str) -> str:
     return text.replace(old, new)
 
 
+def read_template(ext: str) -> str:
+    # The tutorial files have Windows line endings; the edits are written without them.
+    return (TEMPLATE / f"{RUN}.{ext}").read_text().replace("\r\n", "\n")
+
+
 def rvi_edits(start: str, n_steps: int, step_days: float) -> list[tuple[str, str, str]]:
     return [
-        (":StartDate             1954-01-01 00:00:00", f":StartDate             {start}", "the case's first row"),
-        (":Duration              20819", f":Duration              {n_steps * step_days:.10f}", "the case's length"),
-        (":TimeStep              1.0", f":TimeStep              {step_days:.12f}", "the case's step"),
-        (":Evaporation         	    PET_FROMMONTHLY", ":Evaporation         	    PET_DATA",
-         "the case prescribes PET; the template derives it from Salmon River monthly normals"),
-        (":OW_Evaporation      	    PET_FROMMONTHLY", ":OW_Evaporation      	    PET_DATA",
+        (":StartDate          1991-10-01 00:00:00", f":StartDate          {start}", "the case's first row"),
+        (":Duration           1096 00:00:00", f":Duration           {n_steps * step_days:.10f}", "the case's length"),
+        (":TimeStep           24:00:00", f":TimeStep           {step_days:.12f}", "the case's step"),
+        (":Evaporation         PET_FROMMONTHLY", ":Evaporation         PET_DATA",
+         "the case prescribes PET; the template derives it from Alouette monthly normals"),
+        (":OW_Evaporation      PET_FROMMONTHLY", ":OW_Evaporation      PET_DATA",
          "the same series; :LakeEvaporation on SLOW_RESERVOIR draws on it (README.md)"),
-        (":WriteForcingFunctions\n", ":WriteNetCDFFormat\n:CustomOutput CONTINUOUS AVERAGE AET ENTIRE_WATERSHED\n"
+        (":DefineHRUGroups Open_N, Open_S, Forest, Glacier", ":DefineHRUGroups Open_N, Open_S, Forest",
+         "the Glacier reporting group loses its HRUs with the glacier (rvh)"),
+        (":EvaluationMetrics NASH_SUTCLIFFE", ":WriteNetCDFFormat\n:CustomOutput CONTINUOUS AVERAGE AET ENTIRE_WATERSHED\n"
          ":CustomOutput CONTINUOUS AVERAGE Between:ATMOS_PRECIP.And.PONDED_WATER ENTIRE_WATERSHED\n"
-         ":CustomOutput CONTINUOUS AVERAGE Between:SNOW_LIQ.And.PONDED_WATER ENTIRE_WATERSHED\n",
-         "output only: doubles rather than six figures, and the per-step fluxes this adapter reports"),
-        (":EvaluationMetrics NASH_SUTCLIFFE RMSE", "", "output only: there is no observed flow to score"),
+         ":CustomOutput CONTINUOUS AVERAGE Between:SNOW_LIQ.And.PONDED_WATER ENTIRE_WATERSHED",
+         "output only: no observed flow to score; doubles rather than six figures, and the per-step "
+         "fluxes this adapter reports"),
     ]
 
 
 def rvp_edits(thickness_m: float, canopy_mm: float | None) -> list[tuple[str, str, str]]:
     edits = [(
-        "DEFAULT_P, 3, TOPSOIL,   2.036937,", f"DEFAULT_P, 3, TOPSOIL,   {thickness_m:.10f},",
+        "DEFAULT_P, 3, TOPSOIL, 1.0, FAST_RES,", f"DEFAULT_P, 3, TOPSOIL, {thickness_m:.10f}, FAST_RES,",
         "soil_capacity_mm from the case, as thickness x 1000 x POROSITY",
     )]
     if canopy_mm is not None:
         edits.append((
-            "VEG_ALL,             10000,             10000,", f"VEG_ALL,             {canopy_mm:.6f},             {canopy_mm:.6f},",
+            "FOREST,          0.0,        10000,            10000,", f"FOREST,          0.0,        {canopy_mm:.6f},            {canopy_mm:.6f},",
             "canopy_capacity_mm from the case; the template's 10000 mm means no limit",
         ))
     return edits
 
 
-def rvh_edits(area_km2: float, latitude: float) -> list[tuple[str, str, str]]:
-    return [(
-        "1,       4250.6,       843.0,  54.4848,", f"1,       {area_km2:.6f},       843.0,  {latitude:.6f},",
-        "area and latitude from the case; elevation stays the template's, equal to the gauge's",
-    )]
+RVH_EDITS = [
+    ("  31, 32, 33, 34, 35\n", "  31, 32, 33\n", "Band7 loses the glacier HRUs"),
+    (":HRUGroup Glacier\n  34, 35\n:EndHRUGroup\n", "", "the Glacier reporting group, now empty"),
+]
+
+RVC_EDITS = [
+    ("   1, 1\n", "   1, 0\n",
+     "the template's 1 m3/s is Alouette's; Raven would release it in the first step without "
+     "taking it from any store"),
+    (", 6.50657, 0,0\n", ", 6.50657\n", "the two glacier HRUs' entries, gone with them"),
+]
 
 
-RVC_EDITS = [(
-    "              1,             1.0\n", "              1,             0.0\n",
-    "the template's 1 m3/s is Salmon River's; Raven would release it in the first step without "
-    "taking it from any store",
-)]
+def rvh_hrus(text: str, area_km2: float, latitude: float) -> tuple[str, float, dict]:
+    """The HRU table with the glacier HRUs removed and the rest scaled to the case's area.
+
+    Every HRU keeps its elevation, land use, aspect and share of the area. Returns the
+    edited text and the remaining HRUs' area-weighted mean elevation.
+    """
+    head, sep, rest = text.partition(":HRUs\n")
+    body, end, tail = rest.partition(":EndHRUs")
+    if not sep or not end:
+        raise SystemExit("template rvh has no :HRUs table")
+    lines = body.split("\n")
+    rows = [(i, [f.strip() for f in line.split(",")]) for i, line in enumerate(lines)
+            if line.split(",")[0].strip().isdigit()]
+    if len(rows) != TEMPLATE_HRUS:
+        raise SystemExit(f"template rvh has {len(rows)} HRUs, expected {TEMPLATE_HRUS}")
+    glacier = [f[0] for _, f in rows if f[6] == "GLACIER"]
+    if set(glacier) != GLACIER_HRUS:
+        raise SystemExit(f"template rvh glacier HRUs are {glacier}, expected {sorted(GLACIER_HRUS)}")
+    kept = [(i, f) for i, f in rows if f[0] not in GLACIER_HRUS]
+    if max(float(f[2]) for _, f in kept) >= HBVEC_LAPSE_ELEV_M:
+        raise SystemExit("an HRU reaches HBVEC_LAPSE_ELEV; the gauge elevation would not keep the precipitation total")
+    template_area = sum(float(f[1]) for _, f in kept)
+    scale = area_km2 / template_area
+    elevation = sum(float(f[1]) * float(f[2]) for _, f in kept) / template_area
+    drop = {i for i, f in rows if f[0] in GLACIER_HRUS}
+    for i, f in kept:
+        f = list(f)
+        f[1] = repr(float(f[1]) * scale)
+        f[3] = f"{latitude:.6f}"
+        lines[i] = "   \t " + ",\t ".join(f)
+    lines = [line for i, line in enumerate(lines) if i not in drop]
+    record = {
+        "template": f"{TEMPLATE_HRUS} HRUs, {template_area:.4f} km2 without the glacier, latitude {TEMPLATE_LATITUDE}",
+        "used": f"{len(kept)} HRUs, each area x {scale:.10g}, latitude {latitude:.6f}",
+        "why": "area and latitude from the case; the glacier HRUs 34 and 35 are removed because the "
+               "case has no glacier. Elevations, land use, aspects and area shares are the template's",
+    }
+    return head + sep + "\n".join(lines) + end + tail, elevation, record
 
 
-def write_rvt(path: Path, forcing: list[dict], start: str, step_days: float, latitude: float) -> None:
-    """The template's gauge, with the case's series in place of Salmon River's.
+def write_rvt(path: Path, forcing: list[dict], start: str, step_days: float, latitude: float, elevation: float) -> None:
+    """The template's gauge, with the case's series in place of Alouette's.
 
     The template's monthly normals fed PET_FROMMONTHLY and are dropped with it. Its
-    :RainCorrection 1.141608 and :SnowCorrection 1.024278 are gauge-undercatch factors
-    calibrated at Salmon River. The case's rain is exact, so both are left at Raven's
-    default of 1: at the template's values Raven takes in 14% more rain than it is given.
+    :RainCorrection 1.25885 and :SnowCorrection 1.04283 are gauge-undercatch factors
+    for the Alouette gauge. The case's rain is exact, so both are left at Raven's
+    default of 1. The gauge stands at the HRUs' mean elevation (module docstring).
     """
     lines = [
-        ":Gauge",
+        ":Gauge ALUcomp",
         f"  :Latitude               {latitude:.6f}",
-        "  :Longitude             -123.3659",
-        "  :Elevation              843.0",
+        "  :Longitude             -100",
+        f"  :Elevation              {elevation:.10f}",
         "  :RainCorrection         1.0",
         "  :SnowCorrection         1.0",
         ":MultiData",
@@ -149,6 +210,8 @@ def write_rvt(path: Path, forcing: list[dict], start: str, step_days: float, lat
 
 
 def configure(tmp: Path, forcing: list[dict], static: dict, step_days: float) -> dict:
+    if "HBVEC_LAPSE" in read_template("rvp"):
+        raise SystemExit("the template sets an HBVEC_LAPSE parameter; the gauge elevation assumes Raven's defaults")
     start = datetime.fromisoformat(forcing[0]["time"]).strftime("%Y-%m-%d %H:%M:%S")
     capacity = static.get("soil_capacity_mm")
     thickness = TEMPLATE_THICKNESS_M if capacity is None else float(capacity) / (1000.0 * TEMPLATE_POROSITY)
@@ -157,20 +220,27 @@ def configure(tmp: Path, forcing: list[dict], static: dict, step_days: float) ->
     plan = {
         "rvi": rvi_edits(start, len(forcing), step_days),
         "rvp": rvp_edits(thickness, None if canopy is None else float(canopy)),
-        "rvh": rvh_edits(float(static["area_km2"]), latitude),
+        "rvh": RVH_EDITS,
         "rvc": RVC_EDITS,
     }
     record = {}
+    texts = {}
     for ext, edits in plan.items():
-        text = (TEMPLATE / f"{RUN}.{ext}").read_text()
+        text = read_template(ext)
         for old, new, _ in edits:
             text = replace_once(text, old, new)
-        (tmp / f"{RUN}.{ext}").write_text(text)
+        texts[ext] = text
         record[ext] = [{"template": o.strip(), "used": n.strip(), "why": w} for o, n, w in edits]
-    write_rvt(tmp / f"{RUN}.rvt", forcing, start, step_days, latitude)
+    texts["rvh"], elevation, hrus = rvh_hrus(texts["rvh"], float(static["area_km2"]), latitude)
+    record["rvh"].insert(0, hrus)
+    for ext, text in texts.items():
+        (tmp / f"{RUN}.{ext}").write_text(text)
+    write_rvt(tmp / f"{RUN}.rvt", forcing, start, step_days, latitude, elevation)
     record["rvt"] = [
-        {"template": "RainCorrection 1.141608, SnowCorrection 1.024278, monthly normals, Salmon River series",
-         "used": "RainCorrection 1, SnowCorrection 1, no normals, the case's TEMP_AVE PRECIP PET",
+        {"template": "gauge ALUcomp at 582.358 m, RainCorrection 1.25885, SnowCorrection 1.04283, "
+                     "monthly normals, Alouette series in ALUGauge.rvt",
+         "used": f"gauge ALUcomp at {elevation:.4f} m, RainCorrection 1, SnowCorrection 1, no normals, "
+                 "the case's TEMP_AVE PRECIP PET",
          "why": "see write_rvt"},
     ]
     return record
@@ -334,7 +404,7 @@ def main() -> int:
         "model": MODEL,
         "n_steps": n,
         "step_seconds": step_seconds,
-        "template": "benchmarking/_InputFiles/Salmon_HBV/raven-hbv-salmon.rv* at the pinned commit",
+        "template": "RavenTutorialFiles.zip Alouette2/Alouette2.rv{i,p,h,c}, the HBV-EC tutorial model",
         "edits_from_template": edits,
         "zero_stores": {},
         "not_reported": {},

@@ -329,7 +329,7 @@ crosswalk:
     mrso: "sum(c_n[t+1])"
     snw: "0"
     canopy: "0"
-  raven:
+  hbvec_raven:
     snm: "BETWEEN_ATMOS_PRECIP_AND_PONDED + BETWEEN_SNOW_LIQ_AND_PONDED"
     evspsbl: "AET"
     mrro: "q_sim / area_km2"
