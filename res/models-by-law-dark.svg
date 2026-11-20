@@ -212,16 +212,16 @@
 <text x="573.38" y="575" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">0/1</text>
 <text x="770" y="575" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#8CA2AA">–</text>
 <text x="840" y="575.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">14 / 20</text>
-<text x="20" y="597.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">raven</text>
+<text x="20" y="597.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">hbvec_raven</text>
 <path d="M198.15 588H300.78A3 3 0 0 1 303.78 591V595A3 3 0 0 1 300.78 598H198.15Z" fill="#26363E"/>
-<rect x="198.15" y="588" width="35.21" height="10" fill="#3987E5"/>
-<text x="376.76" y="597" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">7/21</text>
+<rect x="198.15" y="588" width="85.52" height="10" fill="#3987E5"/>
+<text x="376.76" y="597" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">17/21</text>
 <path d="M394.76 588H411.17A3 3 0 0 1 414.17 591V595A3 3 0 0 1 411.17 598H394.76Z" fill="#26363E"/>
 <text x="573.38" y="597" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">0/1</text>
 <path d="M591.38 588H611.02A3 3 0 0 1 614.02 591V595A3 3 0 0 1 611.02 598H591.38Z" fill="#26363E"/>
 <path d="M591.38 588H611.02A3 3 0 0 1 614.02 591V595A3 3 0 0 1 611.02 598H591.38Z" fill="#1BAF7A"/>
 <text x="770" y="597" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="11.5" fill="#BACBD1">1/1</text>
-<text x="840" y="597.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">8 / 23</text>
+<text x="840" y="597.3" text-anchor="end" font-family='"IBM Plex Sans","Helvetica Neue",Arial,sans-serif' font-size="12.5" fill="#BACBD1">18 / 23</text>
 <text x="20" y="619.3" font-family='"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace' font-size="12.3" fill="#E3ECEE">hype</text>
 <path d="M198.15 610H295.75A3 3 0 0 1 298.75 613V617A3 3 0 0 1 295.75 620H198.15Z" fill="#26363E"/>
 <rect x="198.15" y="610" width="65.39" height="10" fill="#3987E5"/>

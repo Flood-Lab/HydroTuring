@@ -1,13 +1,15 @@
-name: raven
-version: "4.12-81011f0.2"
+name: hbvec_raven
+version: "4.12-81011f0-alouette2.1"
 description: >
-  Raven 4.12 in its HBV-EC emulation: upstream's own benchmark configuration
-  (benchmarking/_InputFiles/Salmon_HBV), run by upstream's executable, unmodified, at
-  commit 81011f0. Snow, liquid snow, canopy and canopy snow compartments, a three-layer
-  HBV soil with fast and slow reservoirs, a triangular unit hydrograph. Calibrated for
-  Salmon River near Prince George, and no calibration exists for the synthetic
-  catchment, so results describe that one documented parameter set with capacities from
-  the case. Every edit to the template is listed in README.md and in run.json.
+  HBV-EC as emulated by Raven 4.12: upstream's executable, unmodified at commit 81011f0,
+  running Raven's own HBV-EC tutorial model, Alouette2 from RavenTutorialFiles.zip
+  (issue #207). Twenty-one HRUs in seven elevation bands with open and forest land
+  uses, snow, liquid snow, canopy and canopy snow, a three-layer HBV soil with fast and
+  slow reservoirs, and a triangular unit hydrograph. The tutorial's parameters are for
+  the Alouette River, and none exist for the synthetic catchment, so results describe
+  that one parameter set with area and capacities from the case. Raven is a framework;
+  this is one configuration of it. Every edit to the tutorial files is listed in
+  README.md and in run.json.
 authors:
   - "James R. Craig, Genevieve Brown, Robert Chlumsky, R. Wayne Jenkinson, Georg Jost, Konhee Lee, Juliane Mai, Martin Serrer, Nicholas Sgro, Mahyar Shafii, Andrew P. Snowdon, Bryan A. Tolson (Raven)"
   - "HydroTuring maintainers (adapter)"
@@ -33,5 +35,5 @@ supports:
   perturbation: true
 resources: {cpu: 1, memory_gb: 1, gpu: false}
 
-# A ten-year record runs in under a second, so nothing is gained by cutting it.
+# A ten-year record runs in seconds, so nothing is gained by cutting it.
 window_days: full
