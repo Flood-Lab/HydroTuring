@@ -60,9 +60,16 @@ def test_a_bad_exercised_arm_still_fails_when_the_other_arm_is_frozen(monkeypatc
 
 
 def test_unexercised_response_does_not_hide_an_exchange_component_failure(monkeypatch, tmp_path):
-    result = _evaluate(monkeypatch, tmp_path, {7: {"raised": 0.0, "lowered": 0.0}}, bad_components=True)
+    result = _evaluate(monkeypatch, tmp_path, {
+        7: {"raised": 0.0, "lowered": 0.0},
+        42: {"raised": 0.0, "lowered": 0.0},
+    }, bad_components=True)
     assert result.verdict == FAIL
     assert "exchange_components" in result.failing
+    aquifer = next(c for c in result.criteria if c.name == "aquifer_equilibrium_bounds")
+    assert "precondition" in aquifer.message
+    assert "raised" in aquifer.message and "lowered" in aquifer.message
+    assert len(aquifer.per_seed) == 2
 
 
 def test_a_good_seed_cannot_buy_a_pass_when_another_seed_is_unexercised(monkeypatch, tmp_path):
@@ -70,6 +77,19 @@ def test_a_good_seed_cannot_buy_a_pass_when_another_seed_is_unexercised(monkeypa
     assert result.verdict == NOT_SCORED
     assert result.reason == INCOMPATIBLE
     assert "only 1 of 2 seeds" in result.incompatible[0]
+
+
+def test_unexercised_seed_keeps_its_reason_when_an_exercised_seed_sets_the_summary(monkeypatch, tmp_path):
+    result = _evaluate(monkeypatch, tmp_path, {
+        7: {}, 42: {"raised": 0.0, "lowered": 0.0},
+    }, bad_components=True)
+    assert result.verdict == FAIL
+    assert "exchange_components" in result.failing
+    aquifer = next(c for c in result.criteria if c.name == "aquifer_equilibrium_bounds")
+    assert aquifer.worst_seed == 7
+    frozen = next(seed for seed in aquifer.per_seed if seed["seed"] == 42)
+    assert "precondition" in frozen["message"]
+    assert "raised" in frozen["message"] and "lowered" in frozen["message"]
 
 
 def test_a_failing_seed_cannot_be_erased_by_an_unexercised_seed(monkeypatch, tmp_path):

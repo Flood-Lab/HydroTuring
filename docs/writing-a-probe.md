@@ -235,6 +235,10 @@ raising `CriterionIncompatibleError`. The harness then finishes independent
 checks on the same seed: any measured failure stands, and the seed becomes
 N/A only if every check otherwise passes. An ordinary incompatibility without
 that result still stops evaluation immediately.
+Include the missed precondition in the attached result's message so it remains
+visible when an independent failure keeps the seed in the scored record.
+The harness preserves that message on the affected seed even when another seed
+supplies the aggregate result.
 
 The floor guards a **pass**, not a verdict. A criterion decides a seed is
 unscoreable by reading the model's own output, so the model chooses which

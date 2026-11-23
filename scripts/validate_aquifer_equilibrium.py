@@ -383,6 +383,10 @@ def score_native_groups(records, workdir):
             "response_fractions": {
                 v: d["response_fraction"] for v, d in result.diagnostics["variants"].items()
             },
+            "final_response_fractions": {
+                v: d["final_response_fraction"] for v, d in result.diagnostics["variants"].items()
+            },
+            "upper_envelope_gain_limit": result.diagnostics["upper_envelope_gain_limit"],
             "no_hydraulic_response_exercised": result.diagnostics["no_hydraulic_response_exercised"],
         })
     return results
@@ -478,6 +482,10 @@ def response_threshold_study():
                     "response_fractions": {
                         v: d["response_fraction"] for v, d in result.diagnostics["variants"].items()
                     },
+                    "final_response_fractions": {
+                        v: d["final_response_fraction"] for v, d in result.diagnostics["variants"].items()
+                    },
+                    "upper_envelope_gain_limit": result.diagnostics["upper_envelope_gain_limit"],
                     "ordinary_criteria_passed": ordinary_passed,
                     "physical_checks_passed": result.passed, "verdict": verdict,
                 })
@@ -538,6 +546,7 @@ def main(argv=None):
             "Sensitivity changes only IMS head tolerance or the spatial grid; daily reporting is preserved.",
             "A grid-sensitivity pass is a bounds check, not a claim of identical transient hydrographs or grid convergence.",
             "An otherwise passing case with either arm unexercised is N/A; measured physical failures retain priority.",
+            "Eligibility uses the final paired storage response; peak response fractions give a nominal upper-envelope gain limit, before numerical allowance.",
             "Full time series remain in local captured outputs; the committed report retains scalar summaries.",
             "Neutral exchange uses a per-interval precision floor; full-record neutral storage and initial-state guards remain unchanged. The response floor controls scoreability, not whether slow physics violates the bound.",
         ],

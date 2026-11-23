@@ -174,10 +174,12 @@ def aquifer_equilibrium_bounds(
             ratio = error / allowed
             response = float(np.max(np.abs(delta)))
             response_fraction = float(np.float64(response) / abs(bounds[variant]))
+            final_response = float(abs(delta[-1]))
+            final_response_fraction = float(np.float64(final_response) / abs(bounds[variant]))
         if not (np.isfinite(delta).all() and np.isfinite(excess).all()
                 and np.isfinite((allowed, ratio, response_fraction)).all()):
             return invalid(f"{variant}: non-finite storage envelope arithmetic (overflow)")
-        unexercised = response <= max(tolerances["abs_tol_mm"], response_threshold * abs(bounds[variant]))
+        unexercised = final_response <= max(tolerances["abs_tol_mm"], response_threshold * abs(bounds[variant]))
         diagnostics["variants"][variant] = {
             "lower_bound_mm": lower, "upper_bound_mm": upper,
             "allowed_mm": allowed, "max_excess_mm": error,
@@ -185,6 +187,8 @@ def aquifer_equilibrium_bounds(
             "max_delta_storage_mm": float(np.max(delta)),
             "max_abs_delta_storage_mm": response,
             "response_fraction": response_fraction,
+            "final_abs_delta_storage_mm": final_response,
+            "final_response_fraction": final_response_fraction,
             "no_hydraulic_response_exercised": unexercised,
             "worst_step": int(np.argmax(excess)),
         }
@@ -211,6 +215,16 @@ def aquifer_equilibrium_bounds(
     worst = max(ratios, key=ratios.get)
     value = ratios[worst]
     diagnostics["no_hydraulic_response_exercised"] = bool(unexercised_variants)
+    # Nominal gain needed to reach the envelope on the least responsive arm.
+    # Every interval is checked, so sensitivity uses peaks even though the
+    # eligibility precondition uses the final response. The allowance is extra.
+    minimum_peak_fraction = min(d["response_fraction"] for d in diagnostics["variants"].values())
+    gain_limit = (
+        1.0 / minimum_peak_fraction if minimum_peak_fraction > 0.0 else None
+    )
+    diagnostics["upper_envelope_gain_limit"] = (
+        gain_limit if gain_limit is not None and np.isfinite(gain_limit) else None
+    )
     diagnostics["ratios"] = ratios
     passed = value <= 1.0
     message = (
@@ -220,14 +234,18 @@ def aquifer_equilibrium_bounds(
     result = CriterionResult(NAME, PASS if passed else FAIL, message, value, 1.0, diagnostics)
     if passed and unexercised_variants:
         details = ", ".join(
-            f"{v} (peak {diagnostics['variants'][v]['max_abs_delta_storage_mm']:.6g} mm, "
-            f"{diagnostics['variants'][v]['response_fraction']:.6g} of |B|)"
+            f"{v} (final {diagnostics['variants'][v]['final_abs_delta_storage_mm']:.6g} mm, "
+            f"{diagnostics['variants'][v]['final_response_fraction']:.6g} of |B|)"
             for v in unexercised_variants
         )
-        raise CriterionIncompatibleError(
+        precondition = (
             "hydraulic response precondition not reached in " + details
-            + f"; both arms must exceed max({tolerances['abs_tol_mm']:g} mm, "
-            + f"{response_threshold:g} |B|)",
+            + f"; both arms must finish above max({tolerances['abs_tol_mm']:g} mm, "
+            + f"{response_threshold:g} |B|)"
+        )
+        result.message += "; " + precondition
+        raise CriterionIncompatibleError(
+            precondition,
             passing_result=result,
         )
     return result

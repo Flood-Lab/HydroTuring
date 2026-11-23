@@ -27,12 +27,15 @@ cannot cancel an earlier excursion.
 
 This necessary bound does not prescribe a recession shape or an exact spatial
 head field. A frozen or nearly frozen aquifer can satisfy it without exercising
-the experiment. In version 2, both arms must have a peak absolute paired
+the experiment. In version 2, both arms must finish with an absolute paired
 storage response greater than max(1e-4 mm, 0.01 |B|) for the case to earn PASS.
 An otherwise passing case with either arm below or equal to that cutoff is
 N/A (INCOMPATIBLE), with the affected arms and their response fractions in
 the reason. The flag no_hydraulic_response_exercised means insufficient
 response for this record, not exactly zero or a violation of aquifer physics.
+A pulse that fully reverses before the last scored interval does not exercise
+the arm, even if its peak exceeded the cutoff. Envelope and ledger checks still
+cover every interval, so a temporary violation remains a failure.
 
 All physical checks still run. A measured envelope, paired-ledger, neutral,
 initial-state, component or budget failure remains FAIL even when another arm
@@ -145,6 +148,27 @@ fraction at day 90 is 1 - exp(-90 / tau), so 1% corresponds to tau about
 needs a longer experiment to be exercised. It is never failed merely for
 being slow, and no tested response rate is claimed to cover all aquifers.
 
+Passing the 1% precondition establishes movement in both directions; it does
+not establish strong sensitivity to an amplified response. For a linear paired
+response whose peak is a fraction r of |B|, a head-departure or storage-reporting
+gain g crosses the upper magnitude bound only when g r > 1, plus the numerical
+allowance. A PASS therefore cannot exclude amplification up to roughly 1/r
+relative to that trajectory. For example, an arm reaching 28% of |B| would need
+a gain greater than about 3.6 to cross the bound. This is a limit on coverage,
+not a guarantee that the model's gain is correct.
+This relationship assumes that the gain scales the paired trajectory. Changing
+physical storativity can also change its relaxation time, so the reciprocal
+does not describe sensitivity to every possible storativity error.
+
+Diagnostics retain the peak in max_abs_delta_storage_mm and response_fraction,
+and record final_abs_delta_storage_mm and final_response_fraction separately.
+The case-level upper_envelope_gain_limit is 1 / min(peak response fractions),
+the nominal gain needed to reach the bound on the least responsive arm. It is
+null if either peak is zero or its reciprocal overflows. Exceeding this limit
+must also overcome the numerical allowance to fail; a more responsive arm may
+detect a smaller gain. The peak is used here because an earlier excursion can
+fail the envelope even when the final response is smaller.
+
 The reproducible threshold study uses exact and backward-Euler solutions at
 sigma = 0.0002, 0.002 and 0.01, including a coefficient ten times below the
 generator's minimum, while adjusting conductance to prescribe each time scale.
@@ -232,7 +256,10 @@ not a claim that either fault passes every existing probe.
 The fault-size study varies the effective head departure or storativity by a
 single multiplier, without altering the other equations. Every trajectory
 passes the ordinary groundwater balance, component and state checks. Both
-fault types give the following outcomes on all 105 reference seeds:
+fault types give the following outcomes on all 105 reference seeds, whose
+unamplified trajectories reach at least 99.98% of |B|. The small fault sizes
+caught here describe nearly equilibrated references; they do not establish
+the same sensitivity for slower submitted models:
 
 | Increase in head departure or storativity | Original 5% band | Calibrated 0.01% band |
 | --- | --- | --- |

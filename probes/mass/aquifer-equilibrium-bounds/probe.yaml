@@ -59,7 +59,7 @@ criteria:
     # groundwater_balance, whose floor scales with the absolute inventory.
     ledger_rel_tol: 0.001
     ledger_abs_tol_mm: 0.001
-    # Both arms must exceed max(abs_tol_mm, 1% of their own |B|) to earn PASS.
+    # Both arms must finish above max(abs_tol_mm, 1% of their own |B|) for PASS.
     # A measured violation still wins. Otherwise weak response makes the case
     # N/A; slow-aquifer coverage checks and limitations are in the README.
     response_fraction_threshold: 0.01
