@@ -12,7 +12,7 @@
   <a href="#models"><img alt="models evaluated" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fflood-lab.github.io%2FHydroTuring%2Fbadges%2Fmodels.json"></a>
   <a href="CONTRIBUTORS.md"><img alt="contributors" src="https://img.shields.io/github/contributors/Flood-Lab/HydroTuring?color=1f6f8b&label=contributors"></a>
   <a href="LICENSE"><img alt="licence" src="https://img.shields.io/badge/licence-CC%20BY--NC%204.0-555"></a>
-  <a href="https://discord.gg/7SQb6bUZD"><img alt="Discord" src="https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white"></a>
+  <a href="https://discord.gg/e4t8kq6dZH"><img alt="Discord" src="https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white"></a>
 </p>
 
 A benchmark that asks one question of any AI hydrologic model: **does it
