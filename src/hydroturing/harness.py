@@ -321,6 +321,7 @@ def evaluate_criteria(
         control_run = next(iter(runs.values()))
     control = control_run
     results = []
+    deferred_incompatible = []
     for criterion in probe.criteria:
         fn = criteria_mod.get(criterion.name)
         params = dict(criterion.params)
@@ -373,7 +374,18 @@ def evaluate_criteria(
             )
             continue
         subject = runs if criteria_mod.is_paired(criterion.name) else control
-        results.append(fn(subject, probe, params))
+        try:
+            results.append(fn(subject, probe, params))
+        except CriterionIncompatibleError as exc:
+            if exc.passing_result is None:
+                raise
+            # Weak excitation can cost a pass, but cannot erase a violation
+            # measured by a later independent criterion on this same seed.
+            exc.passing_result.diagnostics["unmet_precondition"] = str(exc)
+            results.append(exc.passing_result)
+            deferred_incompatible.append(exc)
+    if deferred_incompatible and all(result.passed for result in results):
+        raise deferred_incompatible[0]
     return results
 
 
@@ -684,6 +696,11 @@ def run_probe(
                             "seed": seed,
                             "status": results_by_seed[seed].status,
                             "value": results_by_seed[seed].value,
+                            **(
+                                {"message": results_by_seed[seed].message}
+                                if "unmet_precondition" in results_by_seed[seed].diagnostics
+                                else {}
+                            ),
                         }
                     )
                     for seed in seeds

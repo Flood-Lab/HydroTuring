@@ -229,3 +229,5 @@ def test_native_recheck_scores_actual_three_run_outputs_with_current_policy(tmp_
         assert len(result) == 1
         assert result[0]["passed"]
         assert result[0]["maximum_envelope_excess_mm"] < 1e-9
+        assert result[0]["upper_envelope_gain_limit"] == pytest.approx(1.0, abs=0.001)
+        assert all(0.999 < f <= 1.000001 for f in result[0]["final_response_fractions"].values())

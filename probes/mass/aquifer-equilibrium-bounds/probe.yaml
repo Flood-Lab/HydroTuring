@@ -2,7 +2,7 @@ id: mass/aquifer-equilibrium-bounds
 title: Confined aquifer storage stays inside its prescribed hydraulic envelope
 law: mass
 track: synthetic
-version: 1
+version: 2
 authors:
 - name: Tommaso Cerruti
   affiliation: Department of Computer Science, ETH Zurich, Zurich, Switzerland
@@ -59,8 +59,9 @@ criteria:
     # groundwater_balance, whose floor scales with the absolute inventory.
     ledger_rel_tol: 0.001
     ledger_abs_tol_mm: 0.001
-    # Descriptive only: flag either arm at <=1% of its own prescribed bound.
-    # This provisional reporting threshold does not change PASS/FAIL.
+    # Both arms must finish above max(abs_tol_mm, 1% of their own |B|) for PASS.
+    # A measured violation still wins. Otherwise weak response makes the case
+    # N/A; slow-aquifer coverage checks and limitations are in the README.
     response_fraction_threshold: 0.01
 - groundwater_balance:
     sources:

@@ -164,37 +164,137 @@ def test_neutral_flux_cannot_cancel_between_directions():
     assert "control" in result.message
 
 
-def test_frozen_storage_is_reported_as_unexercised_not_failed():
+def test_frozen_storage_is_incompatible_instead_of_earning_a_pass():
     runs, probe = _runs(raised=[0.0] * 6, lowered=[0.0] * 6)
-    result = _score(runs, probe)
-    assert result.passed
-    assert result.diagnostics["no_hydraulic_response_exercised"]
+    with pytest.raises(CriterionIncompatibleError, match="raised.*lowered"):
+        _score(runs, probe)
 
 
 @pytest.mark.parametrize("variant", ["raised", "lowered"])
-def test_near_frozen_arm_is_flagged_without_failing_a_necessary_bound(variant):
-    values = [0.002] * 6 if variant == "raised" else [-0.002] * 6
-    runs, probe = _runs(**{variant: values})
+@pytest.mark.parametrize("amplitude", [0.0202, 0.5, 2.0])
+def test_a_reversed_pulse_does_not_exercise_an_arm(variant, amplitude):
+    pulse = [amplitude, 0.0, 0.0, 0.0, 0.0, 0.0]
+    runs, probe = _runs(**{variant: pulse if variant == "raised" else [-x for x in pulse]})
+    with pytest.raises(CriterionIncompatibleError, match=variant):
+        _score(runs, probe)
+
+
+@pytest.mark.parametrize("variant", ["raised", "lowered"])
+def test_a_reversed_overshoot_remains_a_measured_failure(variant):
+    pulse = [2.1, 0.0, 0.0, 0.0, 0.0, 0.0]
+    runs, probe = _runs(**{variant: pulse if variant == "raised" else [-x for x in pulse]})
+    assert not _score(runs, probe).passed
+
+
+@pytest.mark.parametrize("variant", ["raised", "lowered"])
+def test_gain_coverage_uses_the_peak_while_eligibility_uses_the_final_response(variant):
+    response = [0.5, 0.4, 0.3, 0.2, 0.1, 0.1]
+    runs, probe = _runs(**{variant: response if variant == "raised" else [-x for x in response]})
     result = _score(runs, probe)
     assert result.passed
-    assert result.diagnostics["no_hydraulic_response_exercised"]
-    detail = result.diagnostics["variants"][variant]
-    assert detail["response_fraction"] == pytest.approx(0.001)
-    assert detail["no_hydraulic_response_exercised"]
-    assert variant in result.message
-    other = "lowered" if variant == "raised" else "raised"
-    assert not result.diagnostics["variants"][other]["no_hydraulic_response_exercised"]
+    diagnostics = result.diagnostics["variants"][variant]
+    assert diagnostics["max_abs_delta_storage_mm"] == pytest.approx(0.5)
+    assert diagnostics["response_fraction"] == pytest.approx(0.25)
+    assert diagnostics["final_abs_delta_storage_mm"] == pytest.approx(0.1)
+    assert diagnostics["final_response_fraction"] == pytest.approx(0.05)
+    assert result.diagnostics["upper_envelope_gain_limit"] == pytest.approx(4.0)
 
 
-def test_response_fraction_threshold_changes_only_the_descriptive_flag():
+def test_nominal_gain_limit_describes_the_weakest_arms_upper_bound_coverage():
+    runs, probe = _runs(raised=[0.5] * 6, lowered=[-1.0] * 6)
+    result = _score(runs, probe)
+    assert result.diagnostics["upper_envelope_gain_limit"] == pytest.approx(4.0)
+    # The least responsive arm reaches B only at gain 4, ignoring allowance.
+    for gain, passed in ((3.9, True), (4.1, False)):
+        scaled_runs, probe = _runs(raised=[gain * 0.5] * 6)
+        assert _score(scaled_runs, probe).passed == passed
+
+
+def test_frozen_arm_has_no_finite_gain_coverage_and_keeps_its_precondition_message():
+    import json
+
+    runs, probe = _runs(raised=[0.0] * 6)
+    with pytest.raises(CriterionIncompatibleError) as caught:
+        _score(runs, probe)
+    result = caught.value.passing_result
+    assert "precondition" in result.message and "raised" in result.message
+    assert result.diagnostics["upper_envelope_gain_limit"] is None
+    assert result.diagnostics["variants"]["raised"]["final_abs_delta_storage_mm"] == 0.0
+    json.dumps(result.diagnostics, allow_nan=False)
+
+
+def test_gain_diagnostic_remains_serializable_for_subnormal_response():
+    import json
+
+    runs, probe = _runs(raised=[1.0e-310] * 6, offset=0.0)
+    with pytest.raises(CriterionIncompatibleError) as caught:
+        _score(runs, probe)
+    diagnostics = caught.value.passing_result.diagnostics
+    assert diagnostics["upper_envelope_gain_limit"] is None
+    json.dumps(diagnostics, allow_nan=False)
+
+
+@pytest.mark.parametrize("variant", ["raised", "lowered"])
+def test_near_frozen_arm_makes_an_otherwise_passing_case_incompatible(variant):
+    values = [0.002] * 6 if variant == "raised" else [-0.002] * 6
+    runs, probe = _runs(**{variant: values})
+    with pytest.raises(CriterionIncompatibleError, match=variant):
+        _score(runs, probe)
+
+
+def test_configured_response_threshold_controls_scoreability():
     runs, probe = _runs(raised=[0.03] * 6)
     ordinary = _score(runs, probe)
-    labelled = _score(runs, probe, response_fraction_threshold=0.02)
-    assert ordinary.passed and labelled.passed
-    assert ordinary.value == labelled.value
+    assert ordinary.passed
     assert not ordinary.diagnostics["no_hydraulic_response_exercised"]
-    assert labelled.diagnostics["no_hydraulic_response_exercised"]
-    assert labelled.diagnostics["variants"]["raised"]["response_fraction"] == pytest.approx(0.015)
+    with pytest.raises(CriterionIncompatibleError, match="raised"):
+        _score(runs, probe, response_fraction_threshold=0.02)
+
+
+@pytest.mark.parametrize("variant", ["raised", "lowered"])
+def test_one_frozen_arm_cannot_earn_a_pass_from_the_other_arm(variant):
+    runs, probe = _runs(**{variant: [0.0] * 6})
+    with pytest.raises(CriterionIncompatibleError, match=variant):
+        _score(runs, probe)
+
+
+@pytest.mark.parametrize("depth,scoreable", [(0.03125, False), (0.0312652587890625, True)])
+def test_response_equal_to_configured_fraction_is_unexercised(depth, scoreable):
+    runs, probe = _runs(raised=[depth] * 6, offset=32.0)
+    # B=2 and f=1/64 give an exactly representable 1/32 mm cutoff.
+    if scoreable:
+        assert _score(runs, probe, response_fraction_threshold=1/64).passed
+    else:
+        with pytest.raises(CriterionIncompatibleError):
+            _score(runs, probe, response_fraction_threshold=1/64)
+
+
+@pytest.mark.parametrize("depth,scoreable", [(0.00009, False), (0.00011, True)])
+def test_absolute_response_floor_still_applies_when_fraction_is_zero(depth, scoreable):
+    runs, probe = _runs(raised=[depth] * 6, offset=32.0)
+    if scoreable:
+        assert _score(runs, probe, response_fraction_threshold=0.0).passed
+    else:
+        with pytest.raises(CriterionIncompatibleError):
+            _score(runs, probe, response_fraction_threshold=0.0)
+
+
+@pytest.mark.parametrize("fault", ["envelope", "ledger", "initial", "control", "nonfinite", "wrong_direction"])
+def test_unexercised_response_never_hides_a_measured_failure(fault):
+    runs, probe = _runs(raised=[0.0] * 6, lowered=[0.0] * 6)
+    if fault == "envelope":
+        runs, probe = _runs(raised=[2.1] * 6, lowered=[0.0] * 6)
+    elif fault == "ledger":
+        runs["raised"].table.loc[7, ["gw_sw_exchange", "sw_to_gw"]] += 0.02
+    elif fault == "initial":
+        runs["raised"].table.loc[0, "gw"] += 0.01
+    elif fault == "control":
+        runs["control"].table.loc[3, "gw"] += 0.01
+    elif fault == "nonfinite":
+        runs["raised"].table.loc[3, "gw"] = np.nan
+    else:
+        runs, probe = _runs(raised=[-0.002] * 6, lowered=[0.0] * 6)
+    assert not _score(runs, probe).passed
 
 
 @pytest.mark.parametrize("threshold", [-0.01, 1.01, float("nan"), float("inf")])
