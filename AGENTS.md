@@ -175,8 +175,12 @@ timestep: PT1D             # or a list: [PT1H, PT1M]
 
 A resolution probe serves the same weather at several steps and runs every
 model at its own step and at the next finer one, whatever the manifest
-lists. It then measures how far the integrated runoff moved, in percent of
-the rain. A model whose arithmetic assumes its native step moves a lot.
+lists. The weather is one daily record held flat over the finer rows, so
+every step carries the same rain at the same intensity. It then measures
+how far the integrated runoff moved, in percent of the rain. A model whose
+arithmetic assumes its native step moves a lot. One whose runoff depends on
+intensity, such as infiltration excess, does not, because the intensity
+did not change.
 
 **Put learned parameters in the units of the step.** A model whose network
 writes physical parameters (a recession coefficient per day, a percolation

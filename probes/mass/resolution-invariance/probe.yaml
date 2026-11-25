@@ -2,7 +2,7 @@ id: mass/resolution-invariance
 title: Integrated runoff must not depend on the step the weather was given at
 law: mass
 track: synthetic
-version: 2
+version: 3
 
 authors:
   - name: Zhi Li
@@ -10,16 +10,19 @@ authors:
     github: chrimerss
 
 description: >
-  One month of synthetic weather generated minute by minute, with storms
-  that have structure inside the hour, served at the minute, the hour and
-  the day so that every hour and every day carries exactly the water of its
-  minutes. Each model is run at its own step and at the next finer one, and
-  the runoff volume over the month is integrated from both. Water is
-  conserved under aggregation, so the two must agree; the number reported
-  is how far they do not, in percent of the rain that fell. A model built
-  at one step and run at another drains its stores as if each row were the
-  step it was trained on, and that number is large. Peaks legitimately
-  change with the step and are not judged here.
+  One month of synthetic daily weather served at the day, the hour and the
+  minute, each day held flat over its hours and minutes so that every step
+  carries the same water at the same intensity and only the length of the
+  row changes. Each model is run at its own step and at the next finer one,
+  and the runoff volume over the month is integrated from both. With the
+  weather identical, the two must agree up to the discretisation of the
+  model's own equations; the number reported is how far they do not, in
+  percent of the rain that fell. A model built at one step and run at
+  another drains its stores as if each row were the step it was trained on,
+  and that number is large. The intensity is held because averaging it is
+  not neutral: infiltration excess depends on it, and a correct model
+  partitions the same water differently when it is lowered. Peaks are not
+  judged here.
 
 requires:
   fluxes: [mrro]
@@ -34,9 +37,10 @@ case:
   max_output_mb: 8.0
   max_runtime_s: 300
 
-  # The same weather at three steps. A model is run at the variant matching
-  # its own step and at the next finer one; the finest pairs with the next
-  # coarser. The manifest's step is where the model lives, not a way out.
+  # The same weather at three steps: one daily record, held flat over the
+  # hours and the minutes. A model is run at the variant matching its own
+  # step and at the next finer one; the finest pairs with the next coarser.
+  # The manifest's step is where the model lives, not a way out.
   variants: [minute, hourly, daily]
   timesteps:
     hourly: PT1H
@@ -50,13 +54,20 @@ criteria:
   # to be scored.
   #
   # The share is calibrated on physical models, not on the engineering rule.
-  # A conservative bucket whose partition is nonlinear in rain intensity
-  # legitimately moves between an hourly and a daily step, because within-
-  # day intensity is real physics: the exact bucket moves by about 1 percent
-  # of the rain, flex_lumped by 2.5, flex_topo by 5.1 on one gate seed. The
-  # limit sits at twice the largest of those. The broken fixed-step model
-  # moves by 49 percent and the two neural models evaluated so far by 66 and
-  # 216 (482 with fresh seeds) before parameter scaling.
+  # With the intensity held, what is left for a conservative model is the
+  # discretisation of its own equations at the coarser step: on the gate
+  # seeds the exact bucket moves by 1.1 percent of the rain, flex_lumped by
+  # 1.7, flex_topo by 4.0 and SAC-SMA with Snow-17 by 0.7. The limit stays at
+  # 10 percent, where version 2 put it at twice flex_topo's 5.1, which came
+  # partly from intensity. The broken fixed-step model moves by 18 to 49
+  # percent.
+  #
+  # Version 2 served the minutes as drawn, with storms in five-minute
+  # bursts, and averaged them to hours and days. That failed models for
+  # physics: averaging lowers the intensity, and a correct model with
+  # infiltration excess makes less runoff from the same water at the
+  # coarser step. tests/test_resolution.py keeps a Horton bucket that
+  # passes this version and moves past the limit on version 2's weather.
   - resolution_invariance:
       volumes: [mrro, evspsbl]
       states: [mrso, snw, canopy]
@@ -80,6 +91,6 @@ baselines:
     reference_degenerate: non_degenerate
 
 provenance: >
-  Synthetic. One minute-by-minute weather sequence per seed, generated at run
-  time and aggregated to hours and days for the coarser variants. Nothing is
-  committed as data.
+  Synthetic. One month of weather per seed, drawn minute by minute at run
+  time, averaged to days, and held flat over the hours and minutes for the
+  finer variants. Nothing is committed as data.

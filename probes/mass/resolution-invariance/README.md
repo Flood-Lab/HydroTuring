@@ -4,13 +4,24 @@
 
 ## The physics
 
-Water is conserved under temporal aggregation. Take a month of weather
-recorded minute by minute and average it over each hour, or each day: every
-hour and every day carries exactly the water its minutes did. A model that
-has learned the physics returns the same volumes from any of the records,
-because the same water went in and the same catchment dealt with it. Runoff
-volume, evaporation volume and the storage left at the end of the month
-must agree.
+Hand a model the same weather at two steps, a day as one daily row or as
+twenty-four hourly rows each carrying the day's rates, and the same water at
+the same intensity goes in. A model that integrates its equations with the
+step it is given returns the same runoff volume, the same evaporation volume
+and the same storage at the end of the month, up to the discretisation of
+those equations at the coarser step.
+
+That holds only when the intensity is held. Conservation fixes the total at
+every step, not how a model splits it, and averaging rain over a longer row
+lowers its intensity. A model whose split depends on intensity then answers
+the averaged rain differently, and is right to: infiltration excess, rain
+arriving faster than the soil takes it, is the plain case. A bucket with a
+2 mm/h infiltration capacity, given storms of five-minute bursts averaged to
+hours and to days, moves its month's runoff between the hourly and the daily
+run by more than 10 percent of the rain on 87 of 200 seeds, and by up to 59
+percent, with no error anywhere in it. Version 2 of this probe served the weather that way and failed such
+models for their physics. This version holds the intensity, so what is left
+to move the volumes is the step.
 
 What is *not* invariant matters as much, and is the reason this probe sits
 under mass rather than energy or momentum. A peak discharge, a stage, a
@@ -46,16 +57,24 @@ them, or the probe cannot see the model at all.
 The deliberately broken baseline, `reference_fixed_step`, is the reference
 bucket with its step hard-wired to a day. Run on hourly rows it treats each
 hour as a day, and on the three gate seeds its runoff volume differs from
-its own daily run by 33 to 49 percent of the month's precipitation. The
+its own daily run by 18 to 49 percent of the month's precipitation. The
 reference bucket, which turns rates into depths with the step it is given,
 agrees to about 1 percent between daily and hourly, which is the
-discretisation of its own equations at a daily step and the floor the 5
-percent rule sits on, and to 0.1 percent between hourly and minute. The
-five daily-only reference models that predate this probe are measured too,
-and fail the same way, because they are the old bucket. The catchment has a
-shallow soil (120 mm) so that storms actually produce saturation-excess
-floods within the month; on the closure probe's deeper soil this weather
-never leaves baseflow.
+discretisation of its own equations at a daily step and the floor the 10
+percent limit sits on. The five daily-only reference models that predate
+this probe are measured too, and fail the same way, because they are the
+old bucket. The catchment has a shallow soil (120 mm) so that storms
+actually produce saturation-excess floods within the month; on the closure
+probe's deeper soil this weather never leaves baseflow.
+
+Holding the intensity costs some power, and over 100 seeds it can be
+counted. The fixed-step bucket moves more than 10 percent on 80 of them,
+against 96 under version 2, whose bursts it also answered wrongly; on a dry
+month a bucket that treats an hour as a day can still land close to its
+daily self. Across the three seeds a model is run on it is still caught
+with near certainty. The physical models go over the limit on 2 of the 100
+seeds, both FLEX-Topo at 10.0 and 16.3 percent, against 4 under version 2
+(FLEX-Topo and SAC-SMA twice each).
 
 Only runoff is required, so a model that reports streamflow and nothing else
 is measured here rather than stopped at INCOMPLETE. Closure is the closure
@@ -63,31 +82,49 @@ probe's business; this one asks a question every runoff model can answer.
 
 ## How the case is generated
 
-`generate.py` draws one month of minute-by-minute weather per seed, with ten
-days of spinup in front: Poisson storm arrivals, lognormal durations, gamma
-depths spread over five-minute bursts with lognormal weights so the
-intensity varies inside the hour, a diurnal temperature cycle on a wandering
-daily anomaly, and potential evaporation confined to daylight. The `hourly`
-and `daily` variants are the same draw averaged over each hour and each
-day. The weather is drawn once and then aggregated, never drawn twice: a
-second draw at a coarser step would be a different month, and the
-comparison would no longer isolate the step.
+`generate.py` draws one month of weather per seed, with ten days of spinup
+in front, minute by minute: Poisson storm arrivals, lognormal durations,
+gamma depths, a diurnal temperature cycle on a wandering daily anomaly, and
+potential evaporation confined to daylight. It averages that draw over each
+day, which is the daily record version 2 served, and holds each day flat:
+the `hourly` variant is every day repeated over its 24 hours and the
+`minute` variant over its 1440 minutes. Every step carries the same water at
+the same rates, and only the length of the row changes. The weather is drawn
+once, never redrawn per step: a second draw would be a different month, and
+the comparison would no longer isolate the step.
+
+Holding the day flat also removes the diurnal cycle from the finer steps.
+That is deliberate. A diurnal cycle is weather inside the day that a daily
+row cannot carry, and serving it at the hour alone would hand the finer run
+information the coarser one never had.
 
 Forcing stays in the contract's units at every step. Precipitation and
-potential evaporation are rates in mm per day, so a one-millimetre burst in
-one minute is a rate of 1440 mm/day, and the per-step depth is always the
-rate times the step. A model reads the step from `timestep` in the request.
+potential evaporation are rates in mm per day, and the per-step depth is
+always the rate times the step. A model reads the step from `timestep` in
+the request.
 
 ## Criteria
 
 | Criterion | What it asserts |
 | --- | --- |
-| `resolution_invariance` | runoff volume, and evaporation volume and end-of-month storage where the model reports them, agree between the model's step and the next finer one to within 10 percent of the precipitation that fell; the worst disagreement is the reported value. The limit is calibrated on physical models: an exact bucket moves 1 percent, the two FLEX models 2.5 and 5.1, because a partition that is nonlinear in intensity legitimately answers hourly and daily rain differently; a fixed-step model moves 49 |
+| `resolution_invariance` | runoff volume, and evaporation volume and end-of-month storage where the model reports them, agree between the model's step and the next finer one to within 10 percent of the precipitation that fell; the worst disagreement is the reported value. The limit is calibrated on physical models: on the gate seeds the exact bucket moves 1.1 percent, FLEX-Lumped 1.7, FLEX-Topo 4.0 and SAC-SMA with Snow-17 0.7, the discretisation of their own equations at a daily step; a fixed-step model moves 18 to 49 |
 | `non_degenerate` | runoff actually varies, so the invariance cannot be satisfied by reporting nothing twice; the runoff ratio is reported rather than judged on a month and the rainfall-response check is off |
 
 ## Baselines
 
 - `must_pass: reference_bucket`, step-aware, identical at a daily step to
-  the model every mass probe already passes.
+  the model every mass probe already passes, and the three other physical
+  models.
 - `must_fail: reference_fixed_step` on `resolution_invariance`, and
   `reference_degenerate` on `non_degenerate`.
+- `tests/test_resolution.py` adds a Horton bucket, step-aware with a 2 mm/h
+  infiltration capacity. It passes this version to about 1 percent and fails
+  version 2's weather by 21 to 35 percent on the seeds it is checked on.
+
+## Versions
+
+- **3**: one daily record held flat over the hours and the minutes, so the
+  intensity is the same at every step. Infiltration excess no longer moves
+  the volumes.
+- **2**: minute weather with storms in five-minute bursts, averaged to hours
+  and days. Failed correct infiltration-excess models for their physics.

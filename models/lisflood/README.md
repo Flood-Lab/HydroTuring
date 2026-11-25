@@ -432,7 +432,8 @@ timing notes that mention ERROR rows, describe those older rows.
   - **Not tuned.** "A prescribed withdrawal" above measured the alternatives. No reserve still fails at
     66.7 to 68.4%; `FractionGroundwaterUsed = 1` passes, with the lower zone going to -9.2 mm, and
     would make the verdict a statement about that number. The package keeps the sourced values.
-- **`mass/resolution-invariance`:** rain that falls within an hour runs off, so `mrro` differs by
+- **`mass/resolution-invariance`:** passes version 3 of the probe at 0.9% of `pr`. Under version 2,
+  whose storms came in bursts, rain that falls within an hour runs off, so `mrro` differed by
   13.0% of `pr` between PT1H and PT1D, against a 10% limit. Verified: see "Mechanisms checked with
   targeted runs". It is the same in every adapter since `.2`.
 
@@ -470,7 +471,7 @@ between `.2` and `.3` with the representative cell, and `.4` and `.5` moved no v
 
 ## Mechanisms checked with targeted runs
 
-**`mass/resolution-invariance`: rain within the hour runs off.** LISFLOOD's
+**`mass/resolution-invariance`: rain within the hour runs off.** Version 3 of the probe (2026-11-17) holds each day's weather flat over the finer rows, so the intensity is the same at every step, and LISFLOOD passes it at 0.9% of the rain. This is the mechanism behind its version 2 failure. LISFLOOD's
 potential infiltration is a pore-space storage multiplied by the step length,
 `InfiltrationPot = StoreMaxPervious * (1 - SatFraction)^PowerInfPot * DtDay`
 (`soilloop.py`). Summed over a day's 24 hourly steps that capacity is the daily

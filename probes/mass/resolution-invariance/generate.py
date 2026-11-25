@@ -1,19 +1,27 @@
-"""Seeded minute-by-minute weather for the resolution-invariance probe.
+"""Seeded daily weather for the resolution-invariance probe, served at three steps.
 
-One sequence per seed, written at three steps. The `minute` variant is the
-record as drawn. The `hourly` and `daily` variants are the same record
-averaged over each hour and each day, so that every hour and every day
-carries exactly the water its minutes did. Draw once, then aggregate: a
-second draw at a coarser step would be a different month, and the
-comparison would no longer isolate the step.
+One month per seed, written at the day, the hour and the minute. The month
+is drawn minute by minute and averaged over each day, which gives the same
+daily record version 2 of this probe served. The `hourly` and `minute`
+variants are that daily record held flat: every hour and every minute of a
+day carries the day's rates. Each step therefore delivers the same water at
+the same intensity, and only the length of the row changes.
 
-Storms have structure inside the hour on purpose. A storm that is uniform
-over its hour aggregates to itself and tests nothing; one delivered in
-five-minute bursts is what a fixed-step model gets wrong.
+That is the point of holding it flat. Version 2 served the minutes as
+drawn, with storms in five-minute bursts, and averaged them to hours and
+days. Averaging lowers the intensity a model sees, and a model whose
+runoff depends on intensity, infiltration excess above all, then partitions
+the same water differently at each step. That is physics, not an error, and
+it moved the integrated runoff of a correct Horton bucket by up to 18
+percent of the rain between minutes and hours. With the intensity held,
+the physics is the same at every step, and what is left to move the volumes
+is the step itself: the discretisation of a model's own equations, which is
+small, and arithmetic that assumes one step, which is not. A model built at
+a day and handed hours still treats each hour as a day and receives
+twenty-four times the rain.
 
 Forcing is in the contract's units at every step: precipitation and
 potential evapotranspiration are rates in mm per day, temperature in degC.
-A one-minute burst of one millimetre is therefore a rate of 1440 mm/day.
 """
 
 from __future__ import annotations
@@ -104,12 +112,14 @@ def generate(seed: int, variant: str = "minute") -> tuple[pd.DataFrame, dict]:
     rng = np.random.default_rng(seed)
     pr, tas, pet = _draw_minutes(rng)
 
-    per_row = MINUTES_PER[variant]
-    if per_row > 1:
-        pr = pr.reshape(-1, per_row).mean(axis=1)
-        tas = tas.reshape(-1, per_row).mean(axis=1)
-        pet = pet.reshape(-1, per_row).mean(axis=1)
-    time = pd.date_range(START, periods=N_MINUTES // per_row, freq=FREQ[variant])
+    # Average to days, then hold each day flat over the rows of the step
+    # served, so the intensity a model sees does not depend on the step.
+    rows_per_day = MINUTES_PER_DAY // MINUTES_PER[variant]
+    pr, tas, pet = (
+        np.repeat(x.reshape(-1, MINUTES_PER_DAY).mean(axis=1), rows_per_day)
+        for x in (pr, tas, pet)
+    )
+    time = pd.date_range(START, periods=N_DAYS * rows_per_day, freq=FREQ[variant])
 
     forcing = pd.DataFrame(
         {
@@ -129,10 +139,10 @@ if __name__ == "__main__":
     total_fine = fine["pr"].sum() / MINUTES_PER_DAY
     total_coarse = coarse["pr"].sum() / 24.0
     total_daily = daily["pr"].sum()
-    wet_minutes = int((fine["pr"] > 0).sum())
+    wet_days = int((daily["pr"] > 0).sum())
     print(f"{len(fine)} minutes, {len(coarse)} hours, {len(daily)} days")
     print(f"precipitation {total_fine:.2f} mm at the minute step, {total_coarse:.2f} mm hourly, "
           f"{total_daily:.2f} mm daily")
-    print(f"{wet_minutes} wet minutes, peak {fine['pr'].max():.0f} mm/day; "
-          f"hourly peak {coarse['pr'].max():.0f} mm/day; daily peak {daily['pr'].max():.0f} mm/day")
-    print(f"temperature {fine['tas'].mean():.1f} degC mean, {int((fine['tas'] < 0).sum())} sub-zero minutes")
+    print(f"{wet_days} wet days, peak {daily['pr'].max():.0f} mm/day at every step "
+          f"(minute {fine['pr'].max():.0f}, hourly {coarse['pr'].max():.0f})")
+    print(f"temperature {daily['tas'].mean():.1f} degC mean, {int((daily['tas'] < 0).sum())} sub-zero days")
