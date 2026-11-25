@@ -22,17 +22,20 @@ RUN git init -q /src \
  && git checkout -q FETCH_HEAD
 # The published daily weights: config.yaml, normalization_statistics.json
 # and hbv_2_ep100.pt, from the MHPI release bucket (public, unsigned).
+#
+# The URL has no version in it. On 2026-10-31 MHPI republished the archive with
+# a new config.yaml, which moved this model's results, and then took it down.
+# It came back dated 2026-11-09 with the same weights and one key added to
+# config.yaml (README.md, "The archive returned on 2026-11-09"). So what was
+# evaluated is pinned by content: if the URL serves other files, this fails
+# rather than quietly evaluating a different model. The download and the
+# check are one step, so changing a pin changes the step and refetches the
+# archive instead of checking a copy cached under an older pin.
 RUN curl -sSL -o /tmp/dhbv_2.zip "${WEIGHTS_URL}" \
  && unzip -q /tmp/dhbv_2.zip -d /weights \
  && rm /tmp/dhbv_2.zip \
- && ls /weights/dhbv_2
-# The URL has no version in it. On 2026-10-31 MHPI republished the archive with
-# a new config.yaml, which moved this model's results, and then took it down.
-# So what was evaluated is pinned by content: if the URL returns with other
-# files, this fails rather than quietly evaluating a different model, and until
-# it returns a build with no cached copy of the step above fails there.
-RUN cd /weights/dhbv_2 \
- && echo "55e32c9044d7c3646f87f2a7a27426e1ab9e43219f5a36cde70d6f7cfbeea6bb  config.yaml" | sha256sum -c - \
+ && cd /weights/dhbv_2 \
+ && echo "15d848badd33de9bf4508b21f86faf3ffd48fc44cacac95f217290ca9dfdb60b  config.yaml" | sha256sum -c - \
  && echo "3cbf779d8aae22712b80d91c1664920832fb92d35464a7a7793de9b46d8ed826  hbv_2_ep100.pt" | sha256sum -c - \
  && echo "6f9d3483bc4c70891ab621b4a13e3f398c11099c040a74f6990aeb41702233dc  normalization_statistics.json" | sha256sum -c -
 

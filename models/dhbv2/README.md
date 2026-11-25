@@ -203,3 +203,30 @@ a NaN. The guard now checks those days. No row changed.
 
 Archived on the gate seeds under Docker on Apple Silicon at `66118d8`: **FAIL
 (VIOLATION), 15 PASS, 6 FAIL, 16 N/A**.
+
+## The archive returned on 2026-11-09
+
+The URL served the archive again by 2026-11-17, dated 2026-11-09 by the bucket.
+Against the `.4` copy, `hbv_2_ep100.pt` and `normalization_statistics.json` are
+byte-identical, and `config.yaml` has one added line, `multimodel_type: none`,
+the key the 2026-10-31 config had dropped. The `.4` pin on `config.yaml` stopped
+a clean build at the hash check, as it was meant to.
+
+YAML reads `none` as the string `"none"`, not as null. dmg 1.4.3's config
+validator maps that string to `None`, but the adapter builds the configuration
+dictionary itself and hands it to `ModelHandler`, which branches only on
+`nn_parallel`, so either value runs the single model. The adapter now maps
+`"none"` to `None` the way dmg's validator does, and the model sees the
+dictionary it saw in `.6`. Run from the `.6` image with only the new
+`config.yaml` mounted over the old one, the five gate seeds of
+`mass/catchment-closure` and the six cases of `mass/resolution-invariance` gave
+byte-identical output.
+
+`0.5.4-hbv2ep100.7` pins the new `config.yaml` and keeps the other two pins.
+The rebuilt image also picked up newer releases of a few dependencies outside the
+model stack; torch, numpy, pandas, dmg and hydrodl2 are the versions `.6` ran.
+Every verdict and every detail line matches `.6`, and the eleven cases above
+give byte-identical output from the `.7` image as well.
+
+Archived on the gate seeds under Docker on Apple Silicon at `6119244`: **FAIL
+(VIOLATION), 15 PASS, 6 FAIL, 19 N/A**.
