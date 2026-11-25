@@ -538,7 +538,7 @@ settled.
 ## Community
 
 Questions, probe ideas, a model you would like evaluated, a tolerance you
-think is wrong: the [HydroTuring Discord](https://discord.gg/7SQb6bUZD) is
+think is wrong: the [HydroTuring Discord](https://discord.gg/e4t8kq6dZH) is
 where that conversation happens, before and alongside the issues.
 
 ## Status
