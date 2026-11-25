@@ -207,7 +207,9 @@ its own mechanisms. What a next evaluation should know:
     spin-up (`mcp2`), not only the step.
   - Open. `area-invariance` passes trivially when area enters only `dis`: 22 of 24 passes cannot
     fail, as counted before SHUD moved. SHUD now also passes, by construction, so 23 of 25.
-  - Open. The `non_degenerate` runoff-ratio floor alone decides several of `raven`'s failures.
+  - Closed after issue #207. The `non_degenerate` runoff-ratio floor alone decided several failures of `raven` on
+    Raven's Salmon benchmark files, whose parameters were randomly sampled for regression tests, not
+    calibrated. On the Alouette2 tutorial parameters, `hbvec_raven` clears it on every probe.
   - Open. `warming-response`: a windowed model's spinup rows sit inside the warmed years, so
     variants do not enter the window from the same state, which decides `mtslstm`.
   - Open, moves no verdict. `monotone_response` (`stress.py:433`) bounds runoff by the rain plus
@@ -241,7 +243,7 @@ code. None was changed: each would move archived scores, or is the proposal's ow
 
 - Not at the surface or not what the name says: `summa`'s and `noahmp`'s `hfg` is the top of the
   snow-soil column under snow (`summa/ht_adapter.py:564`); `cwatm`'s `sbl` is `snowEvap`, with no phase test (:760).
-- `channel` holding water that is not yet runoff: `raven` (ponded water), `shud` (`eleysurf`),
+- `channel` holding water that is not yet runoff: `hbvec_raven` (ponded water), `shud` (`eleysurf`),
   `cfe` (up to 1 mm of retention). `mhm`'s is a running balance, so a routing leak cannot show
   in closure, though `routing_conservation` and `total_storage_drift` still see it grow.
 - `gw` or `mrso` as a modelling choice: `gr4j`'s `gw` is the routing store; `topmodel`'s `gw` is an
